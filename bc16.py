@@ -82,6 +82,7 @@ class Bc8181:
         regno = lo(self.nextbyte)
         self.inc_pc(1)
         self.regs[regno].set(self.nextbyte)
+        //self.f.set_flag()
         self.inc_pc(1)
         
     def op_MOV_reg(self):
@@ -95,6 +96,7 @@ class Bc8181:
         self.instructions = {
           0x0 : self.op_NOP,
           0x1 : self.op_MOV_imm,
+          0x2 : self.op_MOV_reg,
           0xF : self.op_KIL  
         }
         

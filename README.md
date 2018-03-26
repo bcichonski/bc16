@@ -56,8 +56,8 @@ bc8181 instruction set B0H:
   0x6 - shl imm
   0x7 - shr imm
   0x8 - not A
-  0xE - not_used
-  0xF - not_used
+  0xE - inc A - only 1 byte!
+  0xF - dec A - only 1 byte!
 0x6 - JMP t,(rno1,rno2)
   0x0 - if ZERO
   0x1 - if NOT ZERO
