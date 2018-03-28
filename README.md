@@ -43,21 +43,22 @@ bc8181 instruction set B0H:
 0x3 - MOV rno1,(rno2)    ; r1 = mem(r2) , r2 can be CI or DI
 0x4 - MOV (rno1), rno2   ; mem(r1) = r2
 0x5 - CLC A
-  0x1 - add imm          ; A += imm
-  0x9 - add rno          ; A += r
-  0x2 - sub imm
-  0xA - sub rno
-  0x3 - and imm
-  0xB - and rno
-  0x4 - or imm
-  0xC - or imm
-  0x5 - xor imm
-  0xD - xor rno
-  0x6 - shl imm
-  0x7 - shr imm
-  0x8 - not A
-  0xE - inc A - only 1 byte!
-  0xF - dec A - only 1 byte!
+  0x0 - add imm          ; A += imm
+  0x8 - add rno          ; A += r
+  0x1 - sub imm
+  0x9 - sub rno
+  0x2 - and imm
+  0xA - and rno
+  0x3 - or imm
+  0xB - or rno
+  0x4 - xor imm
+  0xC - xor rno
+  0x5 - shl imm
+  0x6 - shr imm
+  0x7 - not A
+  0xD - inc A - only 1 byte!
+  0xE - dec A - only 1 byte!
+  0xF - not used for future extensions
 0x6 - JMP t,(rno1,rno2)
   0x0 - if ZERO
   0x1 - if NOT ZERO
