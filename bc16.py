@@ -70,11 +70,24 @@ class Proc_Bc8181:
     SS = 0xD
     PC = 0xF
 
+    CLC_ADD = 0x0
+    CLC_SUB = 0x1
+    CLC_AND = 0x2
+    CLC_OR  = 0x3
+    CLC_XOR = 0x4
+    CLC_SHL = 0x5
+    CLC_SHR = 0x6
+    CLC_NOT = 0x7
+    CLC_OP_RNO = 0x8
+    CLC_INC = 0xD
+    CLC_DEC = 0xE
+
     def __init__(self,membus,iobus,debug):
         self.membus = membus
         self.iobus = iobus
         self.create_registers()
         self.create_instructions()
+        self.create_arithmetic_and_logical_unit()
         self.kill = False
         self.debug = debug
 
@@ -114,7 +127,7 @@ class Proc_Bc8181:
             self.regs[regno1].set(val)
             self.set_flags(regno1)
 
-    ef op_MOV_mem_reg(self):
+    def op_MOV_mem_reg(self):
         regno1 = lo(self.nextbyte)
         self.inc_pc(1)
         regno2 = hi(self.nextbyte)
@@ -124,24 +137,45 @@ class Proc_Bc8181:
             val = self.regs[regno1].get()
             self.membus.write_byte(addr, val)
 
+    def op_CLC_a(self):
+        subcode = lo(self.nextbyte)
+        self.inc_pc(1)
+        arg2 = None
+        if  subcode == Proc_Bc8181.CLC_INC or \
+            subcode == Proc_Bc8181.CLC_DEC:
+            pass
+        elif subcode & Proc_Bc8181.CLC_OP_RNO == \
+            Proc_Bc8181.CLC_OP_RNO:
+            regno = hi(self.nextbyte)
+            subcode = subcode & (Proc_Bc8181.CLC_OP_RNO - 1)
+            arg2 = self.regs[regno].get()
+        else:
+            arg2 = self.nextbyte
+        self.inc_pc(1)
+        oper = self.alu[subcode]
+        result = oper(self.a.get(), arg2)
+        self.set_flags(Proc_Bc8181.A, result)
+
     def get_addr(self, regno):
         if(regno == Proc_Bc8181.CI):
             hi = self.cs.get()
             lo = self.ci.get()
-        else if (regno == Proc_Bc8181.DI):
+        elif (regno == Proc_Bc8181.DI):
             hi = self.ds.get()
             lo = self.di.get()
-        else if (regno == Proc_Bc8181.SI):
+        elif (regno == Proc_Bc8181.SI):
             hi = self.ss.get()
             lo = self.si.get()
         else:
             return None
         addr = (hi << 8) | lo
 
-    def set_flags(self, regno):
-        if regno == 0x1:
+    def set_flags(self, regno, val = None):
+        if regno == Proc_Bc8181.A:
             self.f.set_flag(FlagsRegister.ZERO, int(self.a.get()==0))
             self.f.set_flag(FlagsRegister.NEGATIVE, int(self.a.get() & 0x80 == 0x80))
+        if val is not None:
+            self.f.set_flag(FlagsRegister.CARRY, int(val > 0xff or val < 0))
 
     def create_instructions(self):
         self.instructions = {
@@ -173,6 +207,50 @@ class Proc_Bc8181:
             Proc_Bc8181.SI : self.si,
             Proc_Bc8181.SS : self.ss,
             Proc_Bc8181.PC : self.pc
+        }
+
+    def alu_add(self,arg1,arg2):
+        pass
+
+    def alu_sub(self,arg1,arg2):
+        pass
+
+    def alu_and(self,arg1,arg2):
+        pass
+
+    def alu_or(self,arg1,arg2):
+        pass
+
+    def alu_xor(self,arg1,arg2):
+        pass
+
+    def alu_shl(self,arg1,arg2):
+        pass
+
+    def alu_shr(self,arg1,arg2):
+        pass
+
+    def alu_not(self,arg1,arg2):
+        pass
+
+    def alu_inc(self,arg1,arg2):
+        pass
+
+    def alu_dec(self,arg1,arg2):
+        pass
+
+    def create_arithmetic_and_logical_unit(self):
+        self.alu = {
+            Proc_Bc8181.CLC_ADD : self.alu_add,
+            Proc_Bc8181.CLC_SUB : self.alu_sub,
+            Proc_Bc8181.CLC_AND : self.alu_and,
+            Proc_Bc8181.CLC_OR  : self.alu_or,
+            Proc_Bc8181.CLC_XOR : self.alu_xor,
+            Proc_Bc8181.CLC_SHL : self.alu_shl,
+            Proc_Bc8181.CLC_SHR : self.alu_shr,
+            Proc_Bc8181.CLC_NOT : self.alu_not,
+            Proc_Bc8181.CLC_INC : self.alu_inc,
+            Proc_Bc8181.CLC_DEC : self.alu_dec
         }
 
     def set_reg(self, regno, val):
