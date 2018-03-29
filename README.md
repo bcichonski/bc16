@@ -3,7 +3,7 @@ I allways wanted to build 8bit computer, as i am to lazy to work with hardware, 
 ## architecture notes
 microprocessor: bc8181
 64kb address space
-8 in and 8 out ports
+16 in and 16 out ports
 no interrupts
 
 ### memory
@@ -11,9 +11,21 @@ memory: 16kb
 4kb rom + 12kb ram with option to extend in future
 
 ### peripherals:
-- terminal keyboard uses ports 0x0 and 0x8
-- terminal printer uses ports 0x1 and 0x9
-- cassette recorder uses ports 0x2 and 0xA
+- terminal keyboard uses io ports 0x0
+- terminal printer uses io ports 0x1
+- cassette recorder uses io ports 0x2
+  ports 0x2 are used for manipulating recorder:
+    valid commands to sent via 0x2 output port:
+    0x80 - load tape - set this bit and question for the name of the tape file to read will appear; only one of 0x80/0x40 flag can be set
+    0x40 - save tape - set this bit and question for the name of the tape file to save will appear; only one of 0x80/0x40 flag can be set
+    0x20 - start/stop moving recorder engine, initiates/ends read/write seqence
+    0x01 - reserved for writing bit to the device    
+    0x10 - ready flag - if device is ready for reading next command
+    0x08 - error flag - ie when tape is full
+
+  example session for writing to the tape:
+  read 0x2 port
+
 ### the bc8181 microprocessor
 #### registers:
 ```
