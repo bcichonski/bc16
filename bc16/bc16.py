@@ -217,34 +217,56 @@ class Proc_Bc8181:
         }
 
     def alu_add(self,arg1,arg2):
-        pass
+        val = arg1 + arg2
+        self.set_flags(Proc_Bc8181.A, val)
+        self.a.set(val)
+        #self.f.set_flag(FlagsRegister.OVERFLOW, ) TODO
 
     def alu_sub(self,arg1,arg2):
-        pass
+        val = arg1 - arg2
+        self.set_flags(Proc_Bc8181.A, val)
+        self.a.set(val)
+        #self.f.set_flag(FlagsRegister.OVERFLOW, ) TODO
 
     def alu_and(self,arg1,arg2):
-        pass
+        val = arg1 & arg2
+        self.set_flags(Proc_Bc8181.A)
+        self.a.set(val)
 
     def alu_or(self,arg1,arg2):
-        pass
+        val = arg1 | arg2
+        self.set_flags(Proc_Bc8181.A)
+        self.a.set(val)
 
     def alu_xor(self,arg1,arg2):
-        pass
+        val = arg1 ^ arg2
+        self.set_flags(Proc_Bc8181.A)
+        self.a.set(val)
 
     def alu_shl(self,arg1,arg2):
-        pass
+        val = arg1 << arg2
+        self.set_flags(Proc_Bc8181.A, val & 0x100)
+        self.a.set(val)
 
     def alu_shr(self,arg1,arg2):
-        pass
+        val = arg1 >> arg2
+        self.set_flags(Proc_Bc8181.A, -(arg1 & 0x1))
+        self.a.set(val)
 
     def alu_not(self,arg1,arg2):
-        pass
+        val = ~arg1
+        self.set_flags(Proc_Bc8181.A, arg1)
+        self.a.set(val)
 
     def alu_inc(self,arg1,arg2):
-        pass
+        val = arg1 + 1
+        self.set_flags(Proc_Bc8181.A, arg)
+        self.a.set(val)
 
     def alu_dec(self,arg1,arg2):
-        pass
+        val = arg1 - 1
+        self.set_flags(Proc_Bc8181.A, arg)
+        self.a.set(val)
 
     def create_arithmetic_and_logical_unit(self):
         self.alu = {
