@@ -36,6 +36,13 @@ class FlagsRegister(Register):
         }
     def set_flag(self,flag,val):
         self.flags[flag].set(int(val))
+        val = 0
+        pos = 0
+        for flag,reg in self.flags.items():
+            val |= reg.get() << pos
+            pos += 1
+        self.set(val)
+
     def get_flag(self,flag):
         return bool(self.flags[flag].get())
 
