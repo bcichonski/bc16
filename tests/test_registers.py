@@ -17,6 +17,13 @@ class RegistersTests(unittest.TestCase):
         register.inc(0xffab)
         #then
         self.assertEqual(register.get(), 0xab)
+    def test_negative_values_should_wrap(self):
+        #given
+        register = bc16.Register(0xff)
+        #when
+        register.set(-1)
+        #then
+        self.assertEqual(register.get(), 0xff)
 
 class FlagsRegisterTests(unittest.TestCase):
     def test_set_flags(self):
