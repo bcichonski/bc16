@@ -88,7 +88,7 @@ class CasseteRecorder(IODevice):
     def __init__(self):
         self.io_port = TerminalKeyboard.DEFAULT_IO_PORT
     def read_byte(self):
-
+        pass
     def write_byte(self, byte):
         pass
 
