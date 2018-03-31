@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-from bc16_io import *
+from bc16 import bc16_io
 
 def hi(b):
     return (b >> 4) & 0xf

@@ -1,7 +1,7 @@
 import unittest
-from bc16 import bc16
+from bc16 import bc16_io
 
-class MockedIODevice(bc16.IODevice):
+class MockedIODevice(bc16_io.IODevice):
     IO_PORT = 0x1
     def __init__(self):
         self.io_port = MockedIODevice.IO_PORT
@@ -16,7 +16,7 @@ class MockedIODevice(bc16.IODevice):
 class IOBusTests(unittest.TestCase):
     def test_device_should_work(self):
         #given
-        io = bc16.IOBus()
+        io = bc16_io.IOBus()
         dev = MockedIODevice()
         io.add_device(dev)
         #when
