@@ -1,16 +1,19 @@
 import unittest
-from bc16 import bc16_cpu
 from bc16 import bc16
+from bc16 import env
+
+debug = True
 
 class CpuTests(unittest.TestCase):
     def create_cpu(self, code):
-        mem = bc16.MemBus(0x100)
+        environment = env.Environment(debug)
+        mem = bc16.MemBus(environment, 0x100)
         i = 0
         for b in code:
             mem.write_byte(i, b)
             i += 1
         mem.write_byte(0xff, 0xff) #ultimate KIL
-        return bc16_cpu.Bc8181(mem, None, True)
+        return bc16.Bc8181(mem, None, True)
     def test_MOV_opcodes_internal(self):
         #given
         cpu = self.create_cpu([
