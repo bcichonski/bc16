@@ -97,7 +97,7 @@ class Bc8181:
         regno1 = lo(self.nextbyte)
         self.inc_pc(1)
         regno2 = hi(self.nextbyte)
-        self.regs[regno1].set(self.regs[regno2.get()])
+        self.regs[regno1].set(self.regs[regno2].get())
         self.set_flags(regno1)
         self.inc_pc(1)
 
@@ -201,7 +201,7 @@ class Bc8181:
         self.di = Register(0xff)
         self.cs = Register(0xff)
         self.ci = Register(0xff)
-        self.registers = {
+        self.regs = {
             Bc8181.A  : self.a,
             Bc8181.CI : self.ci,
             Bc8181.DI : self.di,
