@@ -73,12 +73,12 @@ bc8181 instruction set B0H:
   0xF - not used for future extensions
 0x6 - JMP t,(rno1,rno2)
   0x0 - if ZERO
-  0x1 - if NOT ZERO
-  0x2 - if CARRY
-  0x3 - if NOT CARRY
-  0x4 - if NEGATIVE
-  0x5 - if NOT NEGATIVE
-  0x6 - if OVERFLOW
+  0x4 - if NOT ZERO
+  0x1 - if CARRY
+  0x5 - if NOT CARRY
+  0x2 - if NEGATIVE
+  0x6 - if NOT NEGATIVE
+  0x3 - if OVERFLOW
   0x7 - if NOT OVERFLOW
   0x8-0xF is special mode where addres is CS:imm (its kind of short absolute jump)
 0x7 - JMR t,imm7

@@ -162,6 +162,24 @@ class Bc8181:
         if val is not None:
             self.f.set_flag(FlagsRegister.CARRY, int(val > 0xff or val < 0))
 
+    def op_JMP(self):
+        opcode = lo(self.nextbyte) 
+        regno = opcode & 0x3
+        neg = opcode & 0x4 == 0x4
+        test = self.f.get_flag(regno)
+        if neg:
+            test = not test
+        shortmode = opcode & 0x8 == 0x8
+        self.inc_pc(1)
+        if shortmode:
+            addr = self.cs.get() << 8 | self.nextbyte
+        else:
+            addr = self.get_addr(hi(self.nextbyte))
+        if(test):
+            self.pc.set(addr)
+        else:
+            self.inc_pc(1)  
+
     def create_instructions(self):
         self.instructions = {
           0x0 : self.op_NOP,
@@ -169,6 +187,7 @@ class Bc8181:
           0x2 : self.op_MOV_reg,
           0x3 : self.op_MOV_reg_mem,
           0x4 : self.op_MOV_mem_reg,
+          0x5 : self.op_JMP,
           0xF : self.op_KIL
         }
 
