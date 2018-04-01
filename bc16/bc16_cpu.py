@@ -106,20 +106,20 @@ class Bc8181:
         self.inc_pc(1)
         regno2 = hi(self.nextbyte)
         self.inc_pc(1)
-        addr = self.get_addr(regno)
+        addr = self.get_addr(regno1)
         if addr is not None:
             val = self.membus.read_byte(addr)
-            self.regs[regno1].set(val)
-            self.set_flags(regno1)
+            self.regs[regno2].set(val)
+            self.set_flags(regno2)
 
     def op_MOV_mem_reg(self):
         regno1 = lo(self.nextbyte)
         self.inc_pc(1)
         regno2 = hi(self.nextbyte)
         self.inc_pc(1)
-        addr = self.get_addr(regno)
+        addr = self.get_addr(regno1)
         if addr is not None:
-            val = self.regs[regno1].get()
+            val = self.regs[regno2].get()
             self.membus.write_byte(addr, val)
 
     def op_CLC_a(self):
