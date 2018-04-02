@@ -181,8 +181,93 @@ class Bc8181:
         if(test):
             self.pc.set(addr)
         else:
-            self.inc_pc(1)  
-
+            self.inc_pc(1)
+    
+    def op_JMR(self):  
+        opcode = lo(self.nextbyte) 
+        regno = opcode & 0x3
+        neg = opcode & 0x4 == 0x4
+        test = self.f.get_flag(regno)
+        if neg:
+            test = not test
+        regmode = opcode & 0x8 == 0x8
+        self.inc_pc(1)
+        if not regmode:
+            addr = self.nextbyte
+        else:
+            jmrreg = hi(self.nextbyte)
+            addr = self.regs[jmrreg].get()
+        if addr & 0x80 == 0x80:
+                addr = - (addr & 0x7f)    
+        if(test):
+            self.pc.set(self.pc.get()+addr)
+        else:
+            self.inc_pc(1)
+            
+    def _PSH(self, val):
+        addr = self.get_addr(Bc8181.SI)
+        self.mem.write_byte(addr, val)
+        self.si.set(self.si.get()-1)
+        
+    def _POP(self):
+        self.si.set(self.si.get()+1)
+        addr = self.get_addr(Bc8181.SI)
+        return self.mem.read_byte(addr)
+    
+    def op_PSH(self):
+        regno = lo(self.nextbyte)
+        val = self.regs[regno].get()
+        self._PSH(val)
+        self.inc_pc(1)
+        
+    def op_POP(self):
+        regno = lo(self.nextbyte)
+        val = self._POP()
+        self.regs[regno].set(val)
+        self.inc_pc(1)
+        
+    def op_CAL(self):
+        regno = lo(self.nextbyte)
+        self.inc_pc(1)
+        addr = self.get_addr(regno)
+        curr = self.pc.get()
+        self._PSH(curr >> 8)
+        self._PSH(curr & 0xff)
+        self.pc.set(addr)
+        
+    def op_RET(self):
+        addr = self._POP() | (self._POP() << 8)
+        self.pc.set(addr)
+        
+    def op_IN(self):
+        opcode = lo(self.nextbyte)
+        self.inc_pc(1)
+        if opcode & 0x8 == 0x8:
+            regno1 = hi(self.nextbyte)
+            regno2 = lo(self.nextbyte)
+            port = self.regs[regno2].get()
+        else:
+            regno1 = opcode & 0x7
+            port = hi(self.nextbyte)
+        inbyte = self.iobus.read_byte(port)
+        self.regs[regno1].set(inbyte)
+        self.inc_pc(1)
+        
+    def op_OUT(self):
+        opcode = lo(self.nextbyte)
+        self.inc_pc(1)
+        if opcode & 0x8 == 0x8:
+            regno1 = hi(self.nextbyte)
+            regno2 = lo(self.nextbyte)
+            port = self.regs[regno1].get()
+            val = self.regs[regno2].get()
+        else:
+            regno1 = opcode & 0x7
+            port = self.regs[regno1].get()
+            val = self.nextbyte
+        self.iobus.write_byte(port, val)
+        self.inc_pc(1)       
+            
     def create_instructions(self):
         self.instructions = {
           0x0 : self.op_NOP,
@@ -190,8 +275,17 @@ class Bc8181:
           0x2 : self.op_MOV_reg,
           0x3 : self.op_MOV_reg_mem,
           0x4 : self.op_MOV_mem_reg,
-          0x5 : self.op_JMP,
-          0xF : self.op_KIL
+          0x5 : self.op_CAL,
+          0x6 : self.op_JMP,
+          0x7 : self.op_JMR,
+          0x8 : self.op_PSH,
+          0x9 : self.op_POP,
+          0xa : self.op_CAL,
+          0xb : self.op_RET,
+          0xc : self.op_IN,
+          0xd : self.op_OUT,
+          0xe : self.op_NOP,
+          0xf : self.op_KIL
         }
 
     def create_registers(self):
@@ -301,11 +395,11 @@ class Bc8181:
             print(mesg)
 
     def print_context(self):
-        self.print_debug("PC: {0:x} next instruction: {1:x}".format(self.pc.get(), self.nextbyte))
-        self.print_debug("SS: {0:x} SI: {1:x}".format(self.ss.get(), self.si.get()))
-        self.print_debug("A:  {0:x} F:  {1:b}".format(self.a.get(), self.f.get()))
-        self.print_debug("CS: {0:x} CI: {1:x}".format(self.cs.get(), self.ci.get()))
-        self.print_debug("DS: {0:x} DI: {1:x}".format(self.ds.get(), self.ds.get()))
+        self.print_debug("PC: 0x{0:04x} next: 0x{1:02x}".format(self.pc.get(), self.nextbyte))
+        self.print_debug("SS: 0x{0:02x} SI: 0x{1:02x}".format(self.ss.get(), self.si.get()))
+        self.print_debug("A:  0x{0:02x} F:  0x{1:02b}".format(self.a.get(), self.f.get()))
+        self.print_debug("CS: 0x{0:02x} CI: 0x{1:02x}".format(self.cs.get(), self.ci.get()))
+        self.print_debug("DS: 0x{0:02x} DI: 0x{1:02x}".format(self.ds.get(), self.ds.get()))
 
     def run(self):
         self.inc_pc(0)
