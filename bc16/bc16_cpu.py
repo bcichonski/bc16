@@ -20,17 +20,32 @@ class FlagsRegister(Register):
     CARRY = 0x1
     NEGATIVE = 0x2
     OVERFLOW = 0x3
+    B0 = 0x1
+    B1 = 0x2
+    B3 = 0x3
+    B4 = 0x4
+    B5 = 0x5
+    B6 = 0x6
+    B7 = 0x7
     def __init__(self, max_value):
         super().__init__(max_value)
         self.zero = Register(0x1)
         self.carry = Register(0x1)
         self.negative = Register(0x1)
         self.overflow = Register(0x1)
+        self.b4 = Register(0x1)
+        self.b5 = Register(0x1)
+        self.b6 = Register(0x1)
+        self.b7 = Register(0x1)
         self.flags = {
             FlagsRegister.ZERO : self.zero,
             FlagsRegister.CARRY : self.carry,
             FlagsRegister.NEGATIVE : self.negative,
-            FlagsRegister.OVERFLOW : self.overflow
+            FlagsRegister.OVERFLOW : self.overflow,
+            FlagsRegister.B4 : self.b4,
+            FlagsRegister.B5 : self.b5,
+            FlagsRegister.B6 : self.b6,
+            FlagsRegister.B7 : self.b7
         }
     def set_flag(self,flag,val):
         self.flags[flag].set(int(val))

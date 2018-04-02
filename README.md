@@ -18,8 +18,8 @@ memory: 16kb
     valid commands to sent via 0x2 output port:
     0x80 - load tape - set this bit and question for the name of the tape file to read will appear; only one of 0x80/0x40 flag can be set
     0x40 - save tape - set this bit and question for the name of the tape file to save will appear; only one of 0x80/0x40 flag can be set
-    0x20 - start/stop moving recorder engine, initiates/ends read/write seqence
-    0x01 - reserved for writing bit to the device    
+    0x20 - start/stop moving recorder engine, initiates/ends read/write sequence
+    0x01 - reserved for writing or reading bit to/from the device    
     0x10 - ready flag - if device is ready for reading next command
     0x08 - error flag - ie when tape is full
 
