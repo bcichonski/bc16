@@ -58,7 +58,7 @@ class FlagsRegister(Register):
 
     def get_flag(self,flag):
         return bool(self.flags[flag].get())
-        
+
 class Bc8181:
     A = 0x1
     CI = 0x4
@@ -139,7 +139,7 @@ class Bc8181:
             self.membus.write_byte(addr, val)
         else: self.op_KIL()
 
-    def op_CLC_a(self):
+    def op_CLC(self):
         subcode = lo(self.nextbyte)
         self.inc_pc(1)
         arg2 = None
@@ -181,7 +181,7 @@ class Bc8181:
             self.f.set_flag(FlagsRegister.CARRY, int(val > 0xff or val < 0))
 
     def op_JMP(self):
-        opcode = lo(self.nextbyte) 
+        opcode = lo(self.nextbyte)
         regno = opcode & 0x3
         neg = opcode & 0x4 == 0x4
         test = self.f.get_flag(regno)
@@ -197,9 +197,9 @@ class Bc8181:
             self.pc.set(addr)
         else:
             self.inc_pc(1)
-    
-    def op_JMR(self):  
-        opcode = lo(self.nextbyte) 
+
+    def op_JMR(self):
+        opcode = lo(self.nextbyte)
         regno = opcode & 0x3
         neg = opcode & 0x4 == 0x4
         test = self.f.get_flag(regno)
@@ -213,34 +213,34 @@ class Bc8181:
             jmrreg = hi(self.nextbyte)
             addr = self.regs[jmrreg].get()
         if addr & 0x80 == 0x80:
-                addr = - (addr & 0x7f)    
+                addr = - (addr & 0x7f)
         if(test):
             self.pc.set(self.pc.get()+addr)
         else:
             self.inc_pc(1)
-            
+
     def _PSH(self, val):
         addr = self.get_addr(Bc8181.SI)
         self.mem.write_byte(addr, val)
         self.si.set(self.si.get()-1)
-        
+
     def _POP(self):
         self.si.set(self.si.get()+1)
         addr = self.get_addr(Bc8181.SI)
         return self.mem.read_byte(addr)
-    
+
     def op_PSH(self):
         regno = lo(self.nextbyte)
         val = self.regs[regno].get()
         self._PSH(val)
         self.inc_pc(1)
-        
+
     def op_POP(self):
         regno = lo(self.nextbyte)
         val = self._POP()
         self.regs[regno].set(val)
         self.inc_pc(1)
-        
+
     def op_CAL(self):
         regno = lo(self.nextbyte)
         self.inc_pc(1)
@@ -249,11 +249,11 @@ class Bc8181:
         self._PSH(curr >> 8)
         self._PSH(curr & 0xff)
         self.pc.set(addr)
-        
+
     def op_RET(self):
         addr = self._POP() | (self._POP() << 8)
         self.pc.set(addr)
-        
+
     def op_IN(self):
         opcode = lo(self.nextbyte)
         self.inc_pc(1)
@@ -267,7 +267,7 @@ class Bc8181:
         inbyte = self.iobus.read_byte(port)
         self.regs[regno1].set(inbyte)
         self.inc_pc(1)
-        
+
     def op_OUT(self):
         opcode = lo(self.nextbyte)
         self.inc_pc(1)
@@ -281,8 +281,8 @@ class Bc8181:
             port = self.regs[regno1].get()
             val = self.nextbyte
         self.iobus.write_byte(port, val)
-        self.inc_pc(1)       
-            
+        self.inc_pc(1)
+
     def create_instructions(self):
         self.instructions = {
           0x0 : self.op_NOP,
@@ -290,7 +290,7 @@ class Bc8181:
           0x2 : self.op_MOV_reg,
           0x3 : self.op_MOV_reg_mem,
           0x4 : self.op_MOV_mem_reg,
-          0x5 : self.op_CAL,
+          0x5 : self.op_CLC,
           0x6 : self.op_JMP,
           0x7 : self.op_JMR,
           0x8 : self.op_PSH,
@@ -369,12 +369,12 @@ class Bc8181:
 
     def alu_inc(self,arg1,arg2):
         val = arg1 + 1
-        self.set_flags(Bc8181.A, arg)
+        self.set_flags(Bc8181.A, arg1)
         self.a.set(val)
 
     def alu_dec(self,arg1,arg2):
         val = arg1 - 1
-        self.set_flags(Bc8181.A, arg)
+        self.set_flags(Bc8181.A, arg1)
         self.a.set(val)
 
     def create_arithmetic_and_logical_unit(self):

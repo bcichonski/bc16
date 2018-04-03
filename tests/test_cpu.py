@@ -3,7 +3,7 @@ from bc16 import bc16_cpu
 from bc16 import bc16_mem
 from bc16 import bc16_env
 
-debug = False
+debug = True
 
 class CpuTests(unittest.TestCase):
     def create_cpu(self, code):
@@ -19,8 +19,8 @@ class CpuTests(unittest.TestCase):
     def test_MOV_opcodes_internal(self):
         #given
         cpu = self.create_cpu([
-            0x11, 0x69,  # MOV A,0x69 
-            0x24, 0x10,  # MOV CI, A  
+            0x11, 0x69,  # MOV A,0x69
+            0x24, 0x10,  # MOV CI, A
             0x25, 0x40,  # MOV DI, CI
             0x28, 0x50,  # MOV CS, DI
             0x29, 0x80,  # MOV DS, CS
@@ -37,8 +37,8 @@ class CpuTests(unittest.TestCase):
     def test_MOV_opcodes_mem(self):
         #given
         cpu = self.create_cpu([
-            0x11, 0x69,  # MOV A, 0x69 
-            0x14, 0xab,  # MOV CI, 0xab   
+            0x11, 0x69,  # MOV A, 0x69
+            0x14, 0xab,  # MOV CI, 0xab
             0x18, 0x00,  # MOV CS, 0x00
             0x44, 0x10,  # MOV (CS:CI), A
             0x11, 0x00,  # MOV A, 0x00
@@ -49,3 +49,22 @@ class CpuTests(unittest.TestCase):
         cpu.run()
         #then
         self.assertEqual(cpu.a.get(),  0x69)
+    def test_CLC_opcodes(self):
+        #given
+        cpu = self.create_cpu([
+            0x11, 0x69,  # MOV A, 0x69
+            0x5c, 0x10,  # XOR A, A
+            0x5d,        # INC A
+            0x5e,        # DEC A
+            0x57,        # NOT A
+            0x52, 0x00,  # AND A, 0x00
+            0x14, 0x69,  # MOV CI, 0x69
+            0x59, 0x40,  # SUB A, CI
+            0x58, 0x40,  # ADD A, CI
+            0x53, 0xab,  # OR A, 0xab
+            0xff         # KIL
+        ])
+        #when
+        cpu.run()
+        #then
+        self.assertEqual(cpu.a.get(),  0xab)
