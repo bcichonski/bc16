@@ -36,7 +36,7 @@ class FlagsRegisterTests(unittest.TestCase):
         #then
         for flag in flags:
             self.assertTrue(register.get_flag(flag))
-        self.assertEqual(0xf, register.get())
+        self.assertEqual(0xff, register.get())
 
 if __name__ == '__main__':
     unittest.main()
