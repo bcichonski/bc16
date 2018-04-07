@@ -91,7 +91,7 @@ class TapeRecorder(IODevice):
             self.state.set_flag(TapeRecorder.TX, False)
     def read_bit(self):
         if(self.state.get_flag(TapeRecorder.TX)==False):
-            byte = self.file_handle.read(1)
+            byte = env.read_byte(self.file_handle)
             if not byte:
                 byte = self.get_random()
             self.state.set_flag(TapeRecorder.DX,
@@ -105,11 +105,11 @@ class TapeRecorder(IODevice):
             byte = self.get_random(TapeRecorder.HALF_BYTE)
             if bool(bit):
                  byte = byte | TapeRecorder.HALF_BYTE
-            self.file_handle.write(byte)
+            env.write_byte(self.file_handle, byte)
             self.state.set_flag(TapeRecorder.DX, True)
     def set_state(self, newstate):
         if newstate == TapeRecorder.READY:
-            if newstate == TapeRecorder.MOVE:
+            if self.intstate == TapeRecorder.MOVE:
                 self.close()
             ready = True
             write = False
@@ -177,13 +177,13 @@ class TapeRecorder(IODevice):
         self.state.set_flag(TapeRecorder.ERROR, error)
 
     def openread(self, filename):
-        self.file_handle = open(filename, "rb")
+        self.file_handle = env.open_file_for_read(filename)
 
     def openwrite(self, filename):
-        self.file_handle = open(filename, "wb")
+        self.file_handle = env.open_file_for_write(filename)
 
     def close(self):
-        self.file_handle.close()
+        env.close_file(self.file_handle)
         self.file_handle = None
 
 class IOBus:

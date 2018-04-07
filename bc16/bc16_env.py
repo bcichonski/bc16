@@ -13,3 +13,7 @@ class Environment:
         return open(filename, "wb")
     def close_file(self, handle):
         handle.close()
+    def read_byte(self, handle):
+        return read(1)
+    def write_byte(self, handle, byte):
+        handle.write(byte)
