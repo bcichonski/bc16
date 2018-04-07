@@ -3,7 +3,7 @@ from bc16 import bc16_cpu
 from bc16 import bc16_mem
 from bc16 import bc16_env
 
-debug = True
+debug = False
 
 class CpuTests(unittest.TestCase):
     def create_cpu(self, code):

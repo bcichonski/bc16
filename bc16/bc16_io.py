@@ -54,11 +54,12 @@ class TapeRecorder(IODevice):
     TAPE4READ = 0x80
     MOVE = 0x20
     ERROR = 0x08
-    DX = FlagsRegister.B0
-    TX = FlagsRegister.B1
+    DX = bc16_cpu.FlagsRegister.B0
+    TX = bc16_cpu.FlagsRegister.B1
     HALF_BYTE = 0x80
     def __init__(self, env):
         self.state = bc16_cpu.FlagsRegister(0xff)
+        self.intstate = TapeRecorder.READY
         self.set_state(TapeRecorder.READY)
         self.env = env
         self.io_port = TapeRecorder.DEFAULT_IO_PORT
@@ -73,21 +74,21 @@ class TapeRecorder(IODevice):
                 self.set_state(TapeRecorder.TAPE4WRITE)
             else:
                 tape4read = bool(byte & TapeRecorder.TAPE4READ == TapeRecorder.TAPE4READ)
-                if(tape4read):
+                if tape4read:
                     self.set_state(TapeRecorder.TAPE4READ)
                 else:
                     move = bool(byte & TapeRecorder.MOVE == TapeRecorder.MOVE)
                     if(move):
                         self.set_state(TapeRecorder.MOVE)
+                    else:
+                        ready = bool(byte & TapeRecorder.READY == TapeRecorder.READY)
+                        if ready: 
+                            self.set_state(TapeRecorder.READY)
                         else:
-                            ready = bool(byte & TapeRecorder.READY == TapeRecorder.READY)
-                            if(ready)
-                                self.set_state(TapeRecorder.READY)
-                            else:
-                                if(self.state.get_flag(TapeRecorder.TAPE4WRITE)):
-                                    self.write_bit()
-                                elif self.state.get_flag(TapeRecorder.TAPE4READ)
-                                    self.read_bit()
+                            if self.state.get_flag(TapeRecorder.TAPE4WRITE):
+                                self.write_bit()
+                            elif self.state.get_flag(TapeRecorder.TAPE4READ):
+                                self.read_bit()
             self.state.set_flag(TapeRecorder.TX, False)
     def read_bit(self):
         if(self.state.get_flag(TapeRecorder.TX)==False):

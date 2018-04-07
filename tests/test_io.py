@@ -2,6 +2,8 @@ import unittest
 from bc16 import bc16_io
 from bc16 import bc16_env
 
+debug = False
+
 class MockedIODevice(bc16_io.IODevice):
     IO_PORT = 0x1
     def __init__(self):
@@ -53,7 +55,7 @@ class MockedEnvironment(bc16_env.Environment):
 
 class TapeRecorderTests(unittest.TestCase):
     def create_tape_recorder(self):
-        env = MockedEnvironment()
+        env = MockedEnvironment(debug)
         tape_recorder = bc16_io.TapeRecorder(env)
         return tape_recorder
         
