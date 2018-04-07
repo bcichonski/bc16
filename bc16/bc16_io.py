@@ -64,6 +64,32 @@ class TapeRecorder(IODevice):
         self.io_port = TapeRecorder.DEFAULT_IO_PORT
         random.seed(None)
     def read_byte(self):
+        return self.state.get()
+    def write_byte(self,byte):
+        tx = bool(byte & 0x2 == 0x2)
+        if(tx):
+            tape4write = bool(byte & TapeRecorder.TAPE4WRITE == TapeRecorder.TAPE4WRITE)
+            if(tape4write):
+                self.set_state(TapeRecorder.TAPE4WRITE)
+            else:
+                tape4read = bool(byte & TapeRecorder.TAPE4READ == TapeRecorder.TAPE4READ)
+                if(tape4read):
+                    self.set_state(TapeRecorder.TAPE4READ)
+                else:
+                    move = bool(byte & TapeRecorder.MOVE == TapeRecorder.MOVE)
+                    if(move):
+                        self.set_state(TapeRecorder.MOVE)
+                        else:
+                            ready = bool(byte & TapeRecorder.READY == TapeRecorder.READY)
+                            if(ready)
+                                self.set_state(TapeRecorder.READY)
+                            else:
+                                if(self.state.get_flag(TapeRecorder.TAPE4WRITE)):
+                                    self.write_bit()
+                                elif self.state.get_flag(TapeRecorder.TAPE4READ)
+                                    self.read_bit()
+            self.state.set_flag(TapeRecorder.TX, False)
+    def read_bit(self):
         if(self.state.get_flag(TapeRecorder.TX)==False):
             byte = self.file_handle.read(1)
             if not byte:
@@ -73,14 +99,14 @@ class TapeRecorder(IODevice):
             self.state.set_flag(TapeRecorder.DX, True)
     def get_random(self, up=0xff):
         return random.randint(0,up)
-    def write_byte(self):
-        if(self.state.get_flag(TapeRecorder.TX)==True):
+    def write_bit(self):
+        if(self.state.get_flag(TapeRecorder.TX)==False):
             bit = self.state.get_flag(TapeRecorder.DX)
             byte = self.get_random(TapeRecorder.HALF_BYTE)
             if bool(bit):
                  byte = byte | TapeRecorder.HALF_BYTE
             self.file_handle.write(byte)
-            self.state.set_flag(TapeRecorder.DX, False)
+            self.state.set_flag(TapeRecorder.DX, True)
     def set_state(self, newstate):
         if newstate == TapeRecorder.READY:
             if newstate == TapeRecorder.MOVE:
