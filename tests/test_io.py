@@ -70,12 +70,13 @@ class TapeRecorderTests(unittest.TestCase):
         self.assertEqual(tr.read_byte(),
             bc16_io.TapeRecorder.READY
             | bc16_io.TapeRecorder.TAPE4WRITE)
+        tr.write_byte(bc16_io.TapeRecorder.MOVE | bc16_io.TapeRecorder.TX)
         for bit in data:
             tr.write_byte(bit | bc16_io.TapeRecorder.TX)
             state = tr.read_byte()
             self.assertEqual(state & bc16_io.TapeRecorder.TX, bc16_io.TapeRecorder.READY)
             self.assertNotEqual(state & bc16_io.TapeRecorder.ERROR, bc16_io.TapeRecorder.ERROR)
-        
+
 
 if __name__ == '__main__':
     unittest.main()
