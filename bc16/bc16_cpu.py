@@ -147,14 +147,16 @@ class Bc8181:
         if  subcode == Bc8181.CLC_INC or \
             subcode == Bc8181.CLC_DEC:
             pass
-        elif subcode & Bc8181.CLC_OP_RNO == \
-            Bc8181.CLC_OP_RNO:
-            regno = hi(self.nextbyte)
-            subcode = subcode & (Bc8181.CLC_OP_RNO - 1)
-            arg2 = self.regs[regno].get()
         else:
-            arg2 = self.nextbyte
-        self.inc_pc(1)
+            if subcode & Bc8181.CLC_OP_RNO == \
+                Bc8181.CLC_OP_RNO:
+                regno = hi(self.nextbyte)
+                subcode = subcode & (Bc8181.CLC_OP_RNO - 1)
+                arg2 = self.regs[regno].get()
+            else:
+                arg2 = self.nextbyte
+            if subcode != Bc8181.CLC_NOT:
+                self.inc_pc(1)
         oper = self.alu[subcode]
         result = oper(self.a.get(), arg2)
         self.set_flags(Bc8181.A, result)
@@ -377,6 +379,7 @@ class Bc8181:
         val = arg1 - 1
         self.set_flags(Bc8181.A, arg1)
         self.a.set(val)
+        print("-----> arg1:{} val:{}".format(arg1, val))
 
     def create_arithmetic_and_logical_unit(self):
         self.alu = {

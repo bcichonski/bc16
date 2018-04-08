@@ -67,7 +67,7 @@ bc8181 instruction set B0H:
   0xC - xor rno
   0x5 - shl imm
   0x6 - shr imm
-  0x7 - not A
+  0x7 - not A - only 1 byte
   0xD - inc A - only 1 byte!
   0xE - dec A - only 1 byte!
   0xF - not used for future extensions
