@@ -54,8 +54,15 @@ class TapeRecorder(IODevice):
     TAPE4READ = 0x80
     MOVE = 0x20
     ERROR = 0x08
-    DX = bc16_cpu.FlagsRegister.B0
-    TX = bc16_cpu.FlagsRegister.B1
+    DX = 0x1
+    TX = 0x2
+    F_READY = bc16_cpu.FlagsRegister.B4
+    F_TAPE4WRITE = bc16_cpu.FlagsRegister.B6
+    F_TAPE4READ = bc16_cpu.FlagsRegister.B7
+    F_MOVE = bc16_cpu.FlagsRegister.B5
+    F_ERROR = bc16_cpu.FlagsRegister.B3
+    F_DX = bc16_cpu.FlagsRegister.B0
+    F_TX = bc16_cpu.FlagsRegister.B1
     HALF_BYTE = 0x80
     def __init__(self, env):
         self.state = bc16_cpu.FlagsRegister(0xff)
@@ -63,11 +70,10 @@ class TapeRecorder(IODevice):
         self.set_state(TapeRecorder.READY)
         self.env = env
         self.io_port = TapeRecorder.DEFAULT_IO_PORT
-        random.seed(None)
     def read_byte(self):
         return self.state.get()
     def write_byte(self,byte):
-        tx = bool(byte & 0x2 == 0x2)
+        tx = bool(byte & TapeRecorder.TX == TapeRecorder.TX)
         if(tx):
             tape4write = bool(byte & TapeRecorder.TAPE4WRITE == TapeRecorder.TAPE4WRITE)
             if(tape4write):
@@ -82,32 +88,32 @@ class TapeRecorder(IODevice):
                         self.set_state(TapeRecorder.MOVE)
                     else:
                         ready = bool(byte & TapeRecorder.READY == TapeRecorder.READY)
-                        if ready: 
+                        if ready:
                             self.set_state(TapeRecorder.READY)
                         else:
-                            if self.state.get_flag(TapeRecorder.TAPE4WRITE):
+                            if self.state.get_flag(TapeRecorder.F_TAPE4WRITE):
                                 self.write_bit()
-                            elif self.state.get_flag(TapeRecorder.TAPE4READ):
+                            elif self.state.get_flag(TapeRecorder.F_TAPE4READ):
                                 self.read_bit()
-            self.state.set_flag(TapeRecorder.TX, False)
+            self.state.set_flag(TapeRecorder.F_TX, False)
     def read_bit(self):
-        if(self.state.get_flag(TapeRecorder.TX)==False):
+        if(self.state.get_flag(TapeRecorder.F_TX)==False):
             byte = env.read_byte(self.file_handle)
             if not byte:
                 byte = self.get_random()
-            self.state.set_flag(TapeRecorder.DX,
+            self.state.set_flag(TapeRecorder.F_DX,
               bool((byte & TapeRecorder.HALF_BYTE) == TapeRecorder.HALF_BYTE))
-            self.state.set_flag(TapeRecorder.DX, True)
+            self.state.set_flag(TapeRecorder.F_DX, True)
     def get_random(self, up=0xff):
         return random.randint(0,up)
     def write_bit(self):
-        if(self.state.get_flag(TapeRecorder.TX)==False):
-            bit = self.state.get_flag(TapeRecorder.DX)
+        if(self.state.get_flag(TapeRecorder.F_TX)==False):
+            bit = self.state.get_flag(TapeRecorder.F_DX)
             byte = self.get_random(TapeRecorder.HALF_BYTE)
             if bool(bit):
                  byte = byte | TapeRecorder.HALF_BYTE
             env.write_byte(self.file_handle, byte)
-            self.state.set_flag(TapeRecorder.DX, True)
+            self.state.set_flag(TapeRecorder.F_DX, True)
     def set_state(self, newstate):
         if newstate == TapeRecorder.READY:
             if self.intstate == TapeRecorder.MOVE:
@@ -171,11 +177,11 @@ class TapeRecorder(IODevice):
                 error = True
 
         self.intstate = newstate
-        self.state.set_flag(TapeRecorder.READY, ready)
-        self.state.set_flag(TapeRecorder.TAPE4WRITE, write)
-        self.state.set_flag(TapeRecorder.TAPE4READ, read)
-        self.state.set_flag(TapeRecorder.MOVE, move)
-        self.state.set_flag(TapeRecorder.ERROR, error)
+        self.state.set_flag(TapeRecorder.F_READY, ready)
+        self.state.set_flag(TapeRecorder.F_TAPE4WRITE, write)
+        self.state.set_flag(TapeRecorder.F_TAPE4READ, read)
+        self.state.set_flag(TapeRecorder.F_MOVE, move)
+        self.state.set_flag(TapeRecorder.F_ERROR, error)
 
     def openread(self, filename):
         self.file_handle = env.open_file_for_read(filename)
