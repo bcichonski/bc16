@@ -62,12 +62,20 @@ class TapeRecorderTests(unittest.TestCase):
     def test_should_be_able_to_write_something(self):
         #given
         tr = self.create_tape_recorder()
+        data = [1, 0, 1, 1, 0, 0, 1, 0]
+        data_hex = 0xb2
         #when & then
         self.assertEqual(tr.read_byte(), bc16_io.TapeRecorder.READY)
         tr.write_byte(bc16_io.TapeRecorder.TAPE4WRITE | bc16_io.TapeRecorder.TX)
         self.assertEqual(tr.read_byte(),
             bc16_io.TapeRecorder.READY
             | bc16_io.TapeRecorder.TAPE4WRITE)
+        for bit in data:
+            tr.write_byte(bit | bc16_io.TapeRecorder.TX)
+            state = tr.read_byte()
+            self.assertEqual(state & bc16_io.TapeRecorder.TX, bc16_io.TapeRecorder.READY)
+            self.assertNotEqual(state & bc16_io.TapeRecorder.ERROR, bc16_io.TapeRecorder.ERROR)
+        
 
 if __name__ == '__main__':
     unittest.main()
