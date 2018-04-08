@@ -8,10 +8,10 @@ class Bc16:
     def __init__(self, env):
         self.mem = bc16_mem.MemBus(env, 0x4000)
         self.io = bc16_io.IOBus()
-        self.proc = bc16_cpu.Bc8181(self.mem,self.io,True)
+        self.cpu = bc16_cpu.Bc8181(self.mem,self.io,True)
 
     def run(self):
-        self.proc.run()
+        self.cpu.run()
 
 def main():
     env = bc16_env.Environment()

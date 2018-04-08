@@ -67,8 +67,8 @@ class TapeRecorder(IODevice):
     def __init__(self, env):
         self.state = bc16_cpu.FlagsRegister(0xff)
         self.intstate = TapeRecorder.READY
-        self.set_state(TapeRecorder.READY)
         self.env = env
+        self.set_state(TapeRecorder.READY)
         self.io_port = TapeRecorder.DEFAULT_IO_PORT
     def read_byte(self):
         return self.state.get()
@@ -115,6 +115,7 @@ class TapeRecorder(IODevice):
             env.write_byte(self.file_handle, byte)
             self.state.set_flag(TapeRecorder.F_DX, True)
     def set_state(self, newstate):
+        self.env.log("tape recorder state changed from {0:02x} to {1:02x}".format(self.intstate, newstate))
         if newstate == TapeRecorder.READY:
             if self.intstate == TapeRecorder.MOVE:
                 self.close()
@@ -130,7 +131,9 @@ class TapeRecorder(IODevice):
                 try:
                     self.openwrite(filename)
                     self.intstate = newstate
-                except:
+                    error = False
+                except Exception as e:
+                    self.env.log(str(e))
                     error = True
                     newstate = TapeRecorder.ERROR
                 ready = True
@@ -184,10 +187,10 @@ class TapeRecorder(IODevice):
         self.state.set_flag(TapeRecorder.F_ERROR, error)
 
     def openread(self, filename):
-        self.file_handle = env.open_file_for_read(filename)
+        self.file_handle = self.env.open_file_for_read(filename)
 
     def openwrite(self, filename):
-        self.file_handle = env.open_file_for_write(filename)
+        self.file_handle = self.env.open_file_for_write(filename)
 
     def close(self):
         env.close_file(self.file_handle)

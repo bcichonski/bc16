@@ -2,7 +2,7 @@ import unittest
 from bc16 import bc16_io
 from bc16 import bc16_env
 
-debug = False
+debug = True
 
 class MockedIODevice(bc16_io.IODevice):
     IO_PORT = 0x1
@@ -36,9 +36,9 @@ class MockedEnvironment(bc16_env.Environment):
     def __init__(self, debug):
         super().__init__(debug)
         self.data=[]
-    def open_file_to_read(self,filename):
+    def open_file_for_read(self,filename):
         pass
-    def open_file_to_write(self,filename):
+    def open_file_for_write(self,filename):
         self.data=[]
     def close_file(self, handle):
         pass
@@ -58,16 +58,16 @@ class TapeRecorderTests(unittest.TestCase):
         env = MockedEnvironment(debug)
         tape_recorder = bc16_io.TapeRecorder(env)
         return tape_recorder
-        
+
     def test_should_be_able_to_write_something(self):
         #given
         tr = self.create_tape_recorder()
         #when & then
         self.assertEqual(tr.read_byte(), bc16_io.TapeRecorder.READY)
-        tr.write_byte(bc16_io.TapeRecorder.TAPE4WRITE)
-        self.assertEqual(tr.read_byte(), 
-            bc16_io.TapeRecorder.READY 
+        tr.write_byte(bc16_io.TapeRecorder.TAPE4WRITE | bc16_io.TapeRecorder.TX)
+        self.assertEqual(tr.read_byte(),
+            bc16_io.TapeRecorder.READY
             | bc16_io.TapeRecorder.TAPE4WRITE)
-        
+
 if __name__ == '__main__':
     unittest.main()
