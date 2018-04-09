@@ -98,23 +98,23 @@ class TapeRecorder(IODevice):
                                 self.read_bit()
             self.state.set_flag(TapeRecorder.F_TX, False)
     def read_bit(self):
-        if(self.state.get_flag(TapeRecorder.F_TX)==False):
+        if(self.state.get_flag(TapeRecorder.F_TX)==True):
             byte = env.read_byte(self.file_handle)
             if not byte:
                 byte = self.get_random()
             self.state.set_flag(TapeRecorder.F_DX,
               bool((byte & TapeRecorder.HALF_BYTE) == TapeRecorder.HALF_BYTE))
-            self.state.set_flag(TapeRecorder.F_DX, True)
+            self.state.set_flag(TapeRecorder.F_TX, False)
     def get_random(self, up=0xff):
         return random.randint(0,up)
     def write_bit(self):
-        if(self.state.get_flag(TapeRecorder.F_TX)==False):
+        if(self.state.get_flag(TapeRecorder.F_TX)==True):
             bit = self.state.get_flag(TapeRecorder.F_DX)
             byte = self.get_random(TapeRecorder.HALF_BYTE)
             if bool(bit):
                  byte = byte | TapeRecorder.HALF_BYTE
             self.env.write_byte(self.file_handle, byte)
-            self.state.set_flag(TapeRecorder.F_DX, True)
+            self.state.set_flag(TapeRecorder.F_TX, False)
     def set_state(self, newstate):
         self.env.log("tape recorder state changed from {0:02x} to {1:02x}".format(self.intstate, newstate))
         if newstate == TapeRecorder.READY:

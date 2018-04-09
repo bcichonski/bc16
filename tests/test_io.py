@@ -49,6 +49,7 @@ class MockedEnvironment(bc16_env.Environment):
             return self.data.pop()
         return 0
     def write_byte(self, handle, byte):
+        super().log("write byte {}".format(byte))
         self.data.insert(0, byte)
     def get_data(self):
         return self.data
@@ -77,10 +78,13 @@ class TapeRecorderTests(unittest.TestCase):
         for bit in data:
             tr.write_byte(bit | bc16_io.TapeRecorder.TX)
             state = tr.read_byte()
+            self.assertEqual(state & bc16_io.TapeRecorder.TAPE4WRITE, bc16_io.TapeRecorder.TAPE4WRITE)
+            self.assertEqual(state & bc16_io.TapeRecorder.MOVE, bc16_io.TapeRecorder.MOVE)
             self.assertNotEqual(state & bc16_io.TapeRecorder.TX, bc16_io.TapeRecorder.TX)
             self.assertNotEqual(state & bc16_io.TapeRecorder.ERROR, bc16_io.TapeRecorder.ERROR)
         tr.write_byte(bc16_io.TapeRecorder.READY | bc16_io.TapeRecorder.TX)
         self.assertEqual(tr.read_byte() & bc16_io.TapeRecorder.READY, bc16_io.TapeRecorder.READY)
-
+        written_data = [int(bool(x & 0x80 == 0x80)) for x in tr.env.get_data()]
+        self.assertEqual(data, written_data)
 if __name__ == '__main__':
     unittest.main()
