@@ -44,11 +44,11 @@ class MockedEnvironment(bc16_env.Environment):
         pass
     def get_string(self, prompt):
         return "string"
-    def read_byte(self):
+    def read_byte(self, handle):
         if len(self.data)>0:
             return self.data.pop()
         return 0
-    def write_byte(self, byte):
+    def write_byte(self, handle, byte):
         self.data.insert(0, byte)
     def get_data(self):
         return self.data
@@ -71,12 +71,16 @@ class TapeRecorderTests(unittest.TestCase):
             bc16_io.TapeRecorder.READY
             | bc16_io.TapeRecorder.TAPE4WRITE)
         tr.write_byte(bc16_io.TapeRecorder.MOVE | bc16_io.TapeRecorder.TX)
+        self.assertEqual(tr.read_byte(),
+            bc16_io.TapeRecorder.TAPE4WRITE
+            | bc16_io.TapeRecorder.MOVE)
         for bit in data:
             tr.write_byte(bit | bc16_io.TapeRecorder.TX)
             state = tr.read_byte()
-            self.assertEqual(state & bc16_io.TapeRecorder.TX, bc16_io.TapeRecorder.READY)
+            self.assertNotEqual(state & bc16_io.TapeRecorder.TX, bc16_io.TapeRecorder.TX)
             self.assertNotEqual(state & bc16_io.TapeRecorder.ERROR, bc16_io.TapeRecorder.ERROR)
-
+        tr.write_byte(bc16_io.TapeRecorder.READY | bc16_io.TapeRecorder.TX)
+        self.assertEqual(tr.read_byte() & bc16_io.TapeRecorder.READY, bc16_io.TapeRecorder.READY)
 
 if __name__ == '__main__':
     unittest.main()

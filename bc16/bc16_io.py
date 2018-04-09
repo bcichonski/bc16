@@ -1,5 +1,5 @@
 from bc16 import bc16_cpu
-from random import random
+import random
 # from https://github.com/joeyespo/py-getch
 try:
     from msvcrt import getch
@@ -70,6 +70,7 @@ class TapeRecorder(IODevice):
         self.env = env
         self.set_state(TapeRecorder.READY)
         self.io_port = TapeRecorder.DEFAULT_IO_PORT
+        random.seed()
     def read_byte(self):
         return self.state.get()
     def write_byte(self,byte):
@@ -112,7 +113,7 @@ class TapeRecorder(IODevice):
             byte = self.get_random(TapeRecorder.HALF_BYTE)
             if bool(bit):
                  byte = byte | TapeRecorder.HALF_BYTE
-            env.write_byte(self.file_handle, byte)
+            self.env.write_byte(self.file_handle, byte)
             self.state.set_flag(TapeRecorder.F_DX, True)
     def set_state(self, newstate):
         self.env.log("tape recorder state changed from {0:02x} to {1:02x}".format(self.intstate, newstate))
@@ -172,6 +173,8 @@ class TapeRecorder(IODevice):
                 ready = False
                 move = True
                 error = False
+                write = self.state.get_flag(TapeRecorder.F_TAPE4WRITE)
+                read = self.state.get_flag(TapeRecorder.F_TAPE4READ)
             else:
                 ready = False
                 write = False
@@ -193,7 +196,7 @@ class TapeRecorder(IODevice):
         self.file_handle = self.env.open_file_for_write(filename)
 
     def close(self):
-        env.close_file(self.file_handle)
+        self.env.close_file(self.file_handle)
         self.file_handle = None
 
 class IOBus:
