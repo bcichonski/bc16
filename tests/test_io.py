@@ -2,7 +2,7 @@ import unittest
 from bc16 import bc16_io
 from bc16 import bc16_env
 
-debug = True
+debug = False
 
 class MockedIODevice(bc16_io.IODevice):
     IO_PORT = 0x1
@@ -50,7 +50,7 @@ class MockedEnvironment(bc16_env.Environment):
         return 0
     def write_byte(self, handle, byte):
         super().log("write byte {}".format(byte))
-        self.data.insert(0, byte)
+        self.data.append(byte)
     def get_data(self):
         return self.data
 
@@ -84,7 +84,12 @@ class TapeRecorderTests(unittest.TestCase):
             self.assertNotEqual(state & bc16_io.TapeRecorder.ERROR, bc16_io.TapeRecorder.ERROR)
         tr.write_byte(bc16_io.TapeRecorder.READY | bc16_io.TapeRecorder.TX)
         self.assertEqual(tr.read_byte() & bc16_io.TapeRecorder.READY, bc16_io.TapeRecorder.READY)
-        written_data = [int(bool(x & 0x80 == 0x80)) for x in tr.env.get_data()]
+        written_data = [int(bool(x & bc16_io.TapeRecorder.HALF_BYTE == bc16_io.TapeRecorder.HALF_BYTE))
+            for x in tr.env.get_data()]
         self.assertEqual(data, written_data)
+        out = 0
+        for bit in written_data:
+            out = (out << 1) | bit
+        self.assertEqual(data_hex, out)
 if __name__ == '__main__':
     unittest.main()

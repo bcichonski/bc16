@@ -92,14 +92,17 @@ class TapeRecorder(IODevice):
                         if ready:
                             self.set_state(TapeRecorder.READY)
                         else:
+                            self.state.set_flag(TapeRecorder.F_TX, True)
+                            self.state.set_flag(TapeRecorder.F_DX, bool(byte & TapeRecorder.DX == TapeRecorder.DX))
                             if self.state.get_flag(TapeRecorder.F_TAPE4WRITE):
                                 self.write_bit()
                             elif self.state.get_flag(TapeRecorder.F_TAPE4READ):
                                 self.read_bit()
             self.state.set_flag(TapeRecorder.F_TX, False)
+
     def read_bit(self):
         if(self.state.get_flag(TapeRecorder.F_TX)==True):
-            byte = env.read_byte(self.file_handle)
+            byte = self.env.read_byte(self.file_handle)
             if not byte:
                 byte = self.get_random()
             self.state.set_flag(TapeRecorder.F_DX,
@@ -108,15 +111,15 @@ class TapeRecorder(IODevice):
     def get_random(self, up=0xff):
         return random.randint(0,up)
     def write_bit(self):
-        if(self.state.get_flag(TapeRecorder.F_TX)==True):
+        if(self.state.get_flag(TapeRecorder.F_TX)):
             bit = self.state.get_flag(TapeRecorder.F_DX)
-            byte = self.get_random(TapeRecorder.HALF_BYTE)
-            if bool(bit):
+            byte = self.get_random(TapeRecorder.HALF_BYTE-1)
+            if bit:
                  byte = byte | TapeRecorder.HALF_BYTE
             self.env.write_byte(self.file_handle, byte)
             self.state.set_flag(TapeRecorder.F_TX, False)
     def set_state(self, newstate):
-        self.env.log("tape recorder state changed from {0:02x} to {1:02x}".format(self.intstate, newstate))
+        self.env.log("tape recorder state changed from 0x{0:02x} to 0x{1:02x}".format(self.intstate, newstate))
         if newstate == TapeRecorder.READY:
             if self.intstate == TapeRecorder.MOVE:
                 self.close()
