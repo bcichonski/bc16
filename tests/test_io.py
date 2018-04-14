@@ -53,6 +53,8 @@ class MockedEnvironment(bc16_env.Environment):
         self.data.append(byte)
     def get_data(self):
         return self.data
+    def set_data(self, data):
+        self.data = data
 
 class TapeRecorderTests(unittest.TestCase):
     def create_tape_recorder(self):
@@ -89,6 +91,37 @@ class TapeRecorderTests(unittest.TestCase):
         self.assertEqual(data, written_data)
         out = 0
         for bit in written_data:
+            out = (out << 1) | bit
+        self.assertEqual(data_hex, out)
+    def test_should_be_able_to_read_something(self):
+        #given
+        tr = self.create_tape_recorder()
+        data = [1, 0, 1, 1, 0, 0, 1, 0]
+        data_hex = 0xb2
+        tr.env.set_data(data)
+        #when & then
+        self.assertEqual(tr.read_byte(), bc16_io.TapeRecorder.READY)
+        tr.write_byte(bc16_io.TapeRecorder.TAPE4READ | bc16_io.TapeRecorder.TX)
+        self.assertEqual(tr.read_byte(),
+            bc16_io.TapeRecorder.READY
+            | bc16_io.TapeRecorder.TAPE4READ)
+        tr.write_byte(bc16_io.TapeRecorder.MOVE | bc16_io.TapeRecorder.TX)
+        read_data = []
+        for bit in data:
+            state = tr.read_byte()
+            bit = int(bool(state & bc16_io.TapeRecorder.DX==bc16_io.TapeRecorder.DX))
+            print(bit)
+            read_data.append(bit)
+            self.assertEqual(state & bc16_io.TapeRecorder.TAPE4READ, bc16_io.TapeRecorder.TAPE4READ)
+            self.assertEqual(state & bc16_io.TapeRecorder.MOVE, bc16_io.TapeRecorder.MOVE)
+            self.assertEqual(state & bc16_io.TapeRecorder.TX, bc16_io.TapeRecorder.TX)
+            self.assertNotEqual(state & bc16_io.TapeRecorder.ERROR, bc16_io.TapeRecorder.ERROR)
+
+        tr.write_byte(bc16_io.TapeRecorder.READY | bc16_io.TapeRecorder.TX)
+        self.assertEqual(tr.read_byte() & bc16_io.TapeRecorder.READY, bc16_io.TapeRecorder.READY)
+        self.assertEqual(data, read_data)
+        out = 0
+        for bit in read_data:
             out = (out << 1) | bit
         self.assertEqual(data_hex, out)
 if __name__ == '__main__':

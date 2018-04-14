@@ -72,6 +72,10 @@ class TapeRecorder(IODevice):
         self.io_port = TapeRecorder.DEFAULT_IO_PORT
         random.seed()
     def read_byte(self):
+        if self.intstate == TapeRecorder.MOVE and self.state.get_flag(TapeRecorder.F_TAPE4READ):
+           byte = self.env.read_byte(self.file_handle)
+           self.state.set_flag(TapeRecorder.F_TX, True)
+           self.state.set_flag(TapeRecorder.F_DX, bool(byte & TapeRecorder.HALF_BYTE == TapeRecorder.HALF_BYTE))
         return self.state.get()
     def write_byte(self,byte):
         tx = bool(byte & TapeRecorder.TX == TapeRecorder.TX)
@@ -103,8 +107,7 @@ class TapeRecorder(IODevice):
     def read_bit(self):
         if(self.state.get_flag(TapeRecorder.F_TX)==True):
             byte = self.env.read_byte(self.file_handle)
-            if not byte:
-                byte = self.get_random()
+            print(byte)
             self.state.set_flag(TapeRecorder.F_DX,
               bool((byte & TapeRecorder.HALF_BYTE) == TapeRecorder.HALF_BYTE))
             self.state.set_flag(TapeRecorder.F_TX, False)
@@ -157,12 +160,13 @@ class TapeRecorder(IODevice):
                 try:
                     self.openread(filename)
                     self.intstate = newstate
+                    error = False
                 except:
                     error = True
                     newstate = TapeRecorder.ERROR
                 ready = True
-                write = True
-                read  = False
+                write = False
+                read  = True
                 move  = False
             else:
                 ready = False
