@@ -68,3 +68,22 @@ class CpuTests(unittest.TestCase):
         cpu.run()
         #then
         self.assertEqual(cpu.a.get(),  0xab)
+    def test_JMP_opcodes(self):
+        #given
+        cpu = self.create_cpu([
+            0x11, 0x69,  # 0x0000: MOV A, 0x69
+            0x64, 0x10,  # 0x0002: JMP NZ, 0x005
+            0xff,        # 0x0004: KIL
+            0x5c, 0x10,  # 0x0005: XOR A,A
+            0x57,        # 0x0007: JMP Z,
+            0x52, 0x00,  # AND A, 0x00
+            0x14, 0x69,  # MOV CI, 0x69
+            0x59, 0x40,  # SUB A, CI
+            0x58, 0x40,  # ADD A, CI
+            0x53, 0xab,  # OR A, 0xab
+            0xff         # KIL
+        ])
+        #when
+        cpu.run()
+        #then
+        self.assertEqual(cpu.a.get(),  0xab)
