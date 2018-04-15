@@ -107,7 +107,6 @@ class TapeRecorder(IODevice):
     def read_bit(self):
         if(self.state.get_flag(TapeRecorder.F_TX)==True):
             byte = self.env.read_byte(self.file_handle)
-            print(byte)
             self.state.set_flag(TapeRecorder.F_DX,
               bool((byte & TapeRecorder.HALF_BYTE) == TapeRecorder.HALF_BYTE))
             self.state.set_flag(TapeRecorder.F_TX, False)
@@ -188,7 +187,6 @@ class TapeRecorder(IODevice):
                 read = False
                 move = False
                 error = True
-
         self.intstate = newstate
         self.state.set_flag(TapeRecorder.F_READY, ready)
         self.state.set_flag(TapeRecorder.F_TAPE4WRITE, write)
