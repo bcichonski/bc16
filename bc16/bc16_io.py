@@ -1,29 +1,9 @@
 from bc16 import bc16_cpu
 import random
-# from https://github.com/joeyespo/py-getch
-try:
-    from msvcrt import getch
-except ImportError:
-    def getch():
-        """
-        Gets a single character from STDIO.
-        """
-        import sys
-        import tty
-        import termios
-        fd = sys.stdin.fileno()
-        try:
-            tty.setraw(fd)
-            return sys.stdin.read(1)
-        finally:
-            old = termios.tcgetattr(fd)
-            termios.tcsetattr(fd, termios.TCSADRAIN, old)
-# end from
 
 class IODevice:
     def __init__(self):
-        self.input_port = None
-        self.output_port = None
+        self.io_port = None
     def read_byte(self):
         pass
     def write_byte(self):
@@ -31,19 +11,22 @@ class IODevice:
 
 class TerminalPrinter(IODevice):
     DEFAULT_IO_PORT = 0x1
-    def __init__(self):
+    READY = 0x40
+    def __init__(self, env):
+        self.env = env
         self.io_port = TerminalPrinter.DEFAULT_IO_PORT
     def read_byte(self):
-        return 0x50
+        return TerminalPrinter.READY
     def write_byte(self, byte):
-        print(chr(byte), end='')
+        self.env.write_char(byte)
 
 class TerminalKeyboard(IODevice):
     DEFAULT_IO_PORT = 0x0
-    def __init__(self):
+    def __init__(self, env):
+        self.env = env
         self.io_port = TerminalKeyboard.DEFAULT_IO_PORT
     def read_byte(self):
-        return ord(getch())
+        return ord(self.env.get_char())
     def write_byte(self, byte):
         pass
 
