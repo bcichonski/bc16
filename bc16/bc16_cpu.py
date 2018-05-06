@@ -195,9 +195,10 @@ class Bc8181:
         if shortmode:
             addr = self.cs.get() << 8 | self.nextbyte
         else:
-            addr = self.get_addr(hi(self.nextbyte))
+            addr = self.get_addr(lo(self.nextbyte))
         if(test):
             self.pc.set(addr)
+            self.inc_pc(0)
         else:
             self.inc_pc(1)
 
@@ -219,6 +220,7 @@ class Bc8181:
                 addr = - (addr & 0x7f)
         if(test):
             self.pc.set(self.pc.get()+addr)
+            self.inc_pc(0)
         else:
             self.inc_pc(1)
 
