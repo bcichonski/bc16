@@ -17,6 +17,7 @@ class CpuTests(unittest.TestCase):
         environment.debug = debug
         return bc16_cpu.Bc8181(mem, None, debug)
     def test_MOV_opcodes_internal(self):
+        if debug: print("test_MOV_opcodes_internal")
         #given
         cpu = self.create_cpu([
             0x11, 0x69,  # MOV A,0x69
@@ -35,6 +36,7 @@ class CpuTests(unittest.TestCase):
         self.assertEqual(cpu.cs.get(), 0x69)
         self.assertEqual(cpu.ds.get(), 0x69)
     def test_MOV_opcodes_mem(self):
+        if debug: print("test_MOV_opcodes_mem")
         #given
         cpu = self.create_cpu([
             0x11, 0x69,  # MOV A, 0x69
@@ -50,6 +52,7 @@ class CpuTests(unittest.TestCase):
         #then
         self.assertEqual(cpu.a.get(),  0x69)
     def test_CLC_opcodes(self):
+        if debug: print("test_CLC_opcodes")
         #given
         cpu = self.create_cpu([
             0x11, 0x69,  # MOV A, 0x69
@@ -69,6 +72,7 @@ class CpuTests(unittest.TestCase):
         #then
         self.assertEqual(cpu.a.get(),  0xab)
     def test_JMP_ZNZ_opcodes(self):
+        if debug: print("test_JMP_ZNZ_opcodes")
         #given
         cpu = self.create_cpu([
             0x11, 0x69,  # 0x0000: MOV A, 0x69
@@ -78,6 +82,26 @@ class CpuTests(unittest.TestCase):
             0xff,        # 0x0008: KIL
             0x5c, 0x10,  # 0x0009: XOR A,A
             0x68, 0x0e,  # 0x000B: JMP Z, 0x000E
+            0xff,        # 0x000D: KIL
+            0x5d,        # 0x000E: INC A
+            0xff         # 0x000F: KIL
+        ])
+        #when
+        cpu.run()
+        #then
+        self.assertEqual(cpu.a.get(),  0x01)
+
+    def test_JMR_ZNZ_opcodes(self):
+        if debug: print("test_JMR_ZNZ_opcodes")
+        #given
+        cpu = self.create_cpu([
+            0x11, 0x00,  # 0x0000: MOV A, 0x69
+            0x14, 0x03,  # 0x0002: MOV CI, 0x03
+            0x18, 0x00,  # 0x0004: MOV CS, 0x00
+            0x70, 0x03,  # 0x0006: JMR Z, +3
+            0xff,        # 0x0008: KIL
+            0x5c, 0x10,  # 0x0009: XOR A,A
+            0x7e, 0x40,  # 0x000B: JMR NN, (CI)
             0xff,        # 0x000D: KIL
             0x5d,        # 0x000E: INC A
             0xff         # 0x000F: KIL

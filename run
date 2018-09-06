@@ -1,2 +1,2 @@
 #!/bin/bash
-python3 ./bc16.py
+python ./bc16.py

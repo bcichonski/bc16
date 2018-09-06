@@ -219,7 +219,7 @@ class Bc8181:
         if addr & 0x80 == 0x80:
                 addr = - (addr & 0x7f)
         if(test):
-            self.pc.set(self.pc.get()+addr)
+            self.pc.set(self.pc.get()+addr-1)
             self.inc_pc(0)
         else:
             self.inc_pc(1)
