@@ -10,9 +10,8 @@ param can be:
    - as register pair
    - as label
  - string ' '
- 
-program ::= lines
-lines ::= line*
+
+program ::= line*
 line ::= (label_decl)? instruction
 label_decl ::= ident ':'
 instruction ::= mnemonic | directive
@@ -30,7 +29,7 @@ SHL ::= 'SHL' param_imm8
 SHR ::= 'SHR' param_imm8
 NOT ::= 'NOT' param_reg
 
-ORG ::= 'ORG' param_num16
+ORG ::= 'ORG' param_imm16
 DB ::= 'DB' params
 
 param_reg ::= 'PC' | 'SS' | 'SI' | 'F' | 'A' | 'CI' | 'CS' | 'DI' | 'DS'
