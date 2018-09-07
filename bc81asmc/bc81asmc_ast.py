@@ -7,7 +7,7 @@ class CodeContext:
         self.currbyte = None
         self.currhalf = 0
     def emit_4bit(self, bit4):
-        if(self.currhalf = 0):
+        if(self.currhalf == 0):
             self.currbyte = (bit4 & 0xf) << 4
             self.currhalf = 1
         else:

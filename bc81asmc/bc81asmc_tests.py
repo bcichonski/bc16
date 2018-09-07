@@ -1,7 +1,7 @@
 import unittest
 
 from parsy import *
-from bc81asmc_grammar import heximm8
+from bc81asmc_grammar import *
 
 class TestGrammar(unittest.TestCase):
     '''Test the implementation of asm parser.'''
@@ -11,11 +11,31 @@ class TestGrammar(unittest.TestCase):
             heximm8.parse('0x8b'),
             0x8b)
 
-    '''def test_param_heximm8(self):
-
+    def test_comment(self):
         self.assertEqual(
-            heximm8_sequence().parse('8b,00'),
-            0x8b)'''
+            comment.parse('; everything can have comment'),
+            '; everything can have comment')
+
+    def test_ignore_spaces(self):
+        self.assertEqual(
+            ignore.parse('   '),
+            ['   '])
+
+    def test_mnemonic_nop(self):
+        self.assertEqual(
+            mnemonic.parse('nop'),
+            'nop')
+
+    def test_directive_org(self):
+        self.assertEqual(
+            directive.parse('org 0x100'),
+            ORG(0x100))
+
+    def test_instruction_with_spaces_and_comment(self):
+        self.assertEqual(
+            instruction.parse('   nop ;comment'),
+            'nop')
+
 
 if __name__ == '__main__':
     unittest.main()
