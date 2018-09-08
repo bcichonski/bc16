@@ -138,6 +138,16 @@ class INC(Instruction):
         context.emit_4bit(ASMCODES.CLC);
         context.emit_4bit(ASMCODES.CLC_INC);
 
+@dataclass
+class DEC(Instruction):
+    _ : str
+    def __str__(self):
+        return "DEC a";
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.CLC);
+        context.emit_4bit(ASMCODES.CLC_DEC);
+
 class Directive(Token):
     def __str__(self):
         return "directive";

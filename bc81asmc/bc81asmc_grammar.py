@@ -1,5 +1,5 @@
 from parsy import regex, Parser, whitespace, string
-from bc81asmc_ast import ORG, INC
+from bc81asmc_ast import ORG, INC, DEC
 
 hexstr2int = lambda x: int(x, 16)
 comment = regex(r';.*[^\r\n]').desc('comment')
@@ -32,9 +32,10 @@ paramreg = (
 
 mNOP = lexeme(string('nop'))
 mINC = lexeme(string('inc') >> sep >> accumulator).map(INC)
+mDEC = lexeme(string('dec') >> sep >> accumulator).map(DEC)
 dORG = lexeme(string('org') >> sep >> heximm16).map(ORG)
 
-mnemonic = mNOP | mINC
+mnemonic = mNOP | mINC | mDEC
 directive = dORG
 instruction = mnemonic | directive
 line = ignore >> instruction << comment.optional()
