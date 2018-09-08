@@ -66,8 +66,10 @@ class CodeContext:
     def __init__(self):
         self.bytes = bytearray()
         self.startaddr = 0
+        self.currbyte = None
+        self.currhalf = 0
     def emit_byte(self, b):
-        self.bytes.extend(b)
+        self.bytes.extend([b])
         self.currbyte = None
         self.currhalf = 0
     def emit_4bit(self, bit4):
@@ -81,13 +83,13 @@ class CodeContext:
 class Token:
     def __str__(self):
         return "token";
-    def emit(context):
+    def emit(self, context):
         pass
 
 class ImmediateValue:
     def __str__(self):
         return "imm";
-    def emit(context):
+    def emit(self, context):
         pass
 
 @dataclass
@@ -118,7 +120,7 @@ class Value16(ImmediateValue):
 class Instruction(Token):
     def __str__(self):
         return "instruction";
-    def emit(context):
+    def emit(self, context):
         pass
 
 @dataclass
@@ -126,15 +128,14 @@ class INC(Instruction):
     _ : str
     def __str__(self):
         return "INC a";
-    def emit(context):
+    def emit(self, context):
         context.emit_4bit(ASMCODES.CLC);
         context.emit_4bit(ASMCODES.CLC_INC);
-
 
 class Directive(Token):
     def __str__(self):
         return "directive";
-    def emit(context):
+    def emit(self, context):
         pass
 
 @dataclass
@@ -142,5 +143,5 @@ class ORG(Directive):
     value : int
     def __str__(self):
         return "ORG {0x04}".format(value);
-    def emit(context):
+    def emit(self, context):
         context.startaddr = self.value

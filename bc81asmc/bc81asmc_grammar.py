@@ -2,9 +2,10 @@ from parsy import regex, Parser, whitespace, string
 from bc81asmc_ast import ORG, INC
 
 hexstr2int = lambda x: int(x, 16)
-comment = regex(r';.*[^\n]').desc('comment')
+comment = regex(r';.*[^\r\n]').desc('comment')
 ignore = Parser.many(whitespace).desc('whitespaces')
 sep = whitespace.at_least(1)
+nl = regex(r'(\r\n|\r|\n)').desc('new line')
 
 lexeme = lambda p: p << ignore
 colon = lexeme(string(':'))
@@ -36,5 +37,5 @@ dORG = lexeme(string('org') >> sep >> heximm16).map(ORG)
 mnemonic = mNOP | mINC
 directive = dORG
 instruction = mnemonic | directive
-line = (ignore >> instruction) << comment
+line = ignore >> instruction << comment.optional()
 program = Parser.many(line)
