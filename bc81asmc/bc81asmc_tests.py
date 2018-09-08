@@ -3,6 +3,8 @@ import unittest
 from parsy import *
 from bc81asmc_grammar import *
 
+debug = False
+
 class TestGrammar(unittest.TestCase):
     '''Test the implementation of ast parser.'''
 
@@ -27,8 +29,11 @@ class TestGrammar(unittest.TestCase):
             'nop')
 
     def test_directive_org(self):
+        val = directive.parse('org 0x0100')
+        if debug:
+            print(val)
         self.assertEqual(
-            directive.parse('org 0x0100'),
+            val,
             ORG(0x0100))
 
     def test_line_with_spaces_and_comment(self):

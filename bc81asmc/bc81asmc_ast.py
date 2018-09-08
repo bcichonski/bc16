@@ -68,10 +68,12 @@ class CodeContext:
         self.startaddr = 0
         self.currbyte = None
         self.currhalf = 0
+        self.curraddr = 0
     def emit_byte(self, b):
         self.bytes.extend([b])
         self.currbyte = None
         self.currhalf = 0
+        self.curraddr += 1
     def emit_4bit(self, bit4):
         if(self.currhalf == 0):
             self.currbyte = (bit4 & 0xf) << 4
@@ -79,6 +81,9 @@ class CodeContext:
         else:
             byte = self.currbyte | (bit4 & 0xf)
             self.emit_byte(byte)
+    def set_addr(self, addr):
+        self.startaddr = addr
+        self.curraddr = addr
 
 class Token:
     def __str__(self):
@@ -121,7 +126,7 @@ class Instruction(Token):
     def __str__(self):
         return "instruction";
     def emit(self, context):
-        pass
+        self.addr = context.curraddr
 
 @dataclass
 class INC(Instruction):
@@ -129,6 +134,7 @@ class INC(Instruction):
     def __str__(self):
         return "INC a";
     def emit(self, context):
+        super().emit(context)
         context.emit_4bit(ASMCODES.CLC);
         context.emit_4bit(ASMCODES.CLC_INC);
 
@@ -142,6 +148,6 @@ class Directive(Token):
 class ORG(Directive):
     value : int
     def __str__(self):
-        return "ORG {0x04}".format(value);
+        return "ORG {0:04x}".format(self.value);
     def emit(self, context):
-        context.startaddr = self.value
+        context.set_addr(self.value)
