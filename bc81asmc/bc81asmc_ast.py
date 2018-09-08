@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 class CodeContext:
     def __init__(self):
         self.bytes = bytearray()
@@ -26,23 +28,25 @@ class ImmediateValue:
     def emit(context):
         pass
 
+@dataclass
 class Value4(ImmediateValue):
-    def __init__(self, value4):
-        self.value = value4;
+    value : int
     def __str__(self):
         return "imm4({0:1x})".format(self.value)
     def emit(self, context):
         context.emit_4bit(value)
 
+@dataclass
 class Value8(ImmediateValue):
-    def __init__(self, value):
-        self.value = value;
+    value : int
     def __str__(self):
         return "imm8({0:2x})".format(self.value)
     def emit(self, context):
         context.emit_byte(value)
 
+@dataclass
 class Value16(ImmediateValue):
+    value : int
     def __str__(self):
         return "imm16({0:04x})".format(self.value)
     def emit(self, context):
@@ -61,9 +65,9 @@ class Directive(Token):
     def emit(context):
         pass
 
+@dataclass
 class ORG(Directive):
-    def __init__(self, value):
-        self.value = value
+    value : int
     def __str__(self):
         return "ORG {0x04}".format(value);
     def emit(context):

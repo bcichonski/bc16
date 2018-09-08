@@ -14,11 +14,11 @@ hexprefix = string('0x')
 heximm8 = lexeme((hexprefix >> regex(r'[0-9a-fA-F]{2}')).map(hexstr2int))
 heximm16 = lexeme((hexprefix >> regex(r'[0-9a-fA-F]{4}')).map(hexstr2int))
 
-NOP = lexeme(string('nop'))
-ORG = (lexeme(string('org')) >> sep >> heximm16).map(lambda x: ORG(x))
+mNOP = lexeme(string('nop'))
+dORG = (lexeme(string('org') >> sep >> heximm16)).map(lambda x: ORG(x))
 
-mnemonic = NOP
-directive = ORG
+mnemonic = mNOP
+directive = dORG
 instruction = mnemonic | directive
 line = (ignore >> instruction) << comment
 program = Parser.many(line)

@@ -28,12 +28,12 @@ class TestGrammar(unittest.TestCase):
 
     def test_directive_org(self):
         self.assertEqual(
-            directive.parse('org 0x100'),
-            ORG(0x100))
+            directive.parse('org 0x0100'),
+            ORG(0x0100))
 
-    def test_instruction_with_spaces_and_comment(self):
+    def test_line_with_spaces_and_comment(self):
         self.assertEqual(
-            instruction.parse('   nop ;comment'),
+            line.parse('   nop ;comment'),
             'nop')
 
 
