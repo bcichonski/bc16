@@ -72,14 +72,14 @@ bc8181 instruction set B0H:
   0xE - dec A - only 1 byte!
   0xF - not used for future extensions
 0x6 - JMP t,(rno1,rno2)
-  0x0 - if ZERO
-  0x4 - if NOT ZERO
-  0x1 - if CARRY
-  0x5 - if NOT CARRY
-  0x2 - if NEGATIVE
-  0x6 - if NOT NEGATIVE
-  0x3 - if OVERFLOW
-  0x7 - if NOT OVERFLOW
+  0x0 - if ZERO         (Z)
+  0x4 - if NOT ZERO     (NZ)
+  0x1 - if CARRY        (CY)
+  0x5 - if NOT CARRY    (NC)
+  0x2 - if NEGATIVE     (NG)
+  0x6 - if NOT NEGATIVE (NN)
+  0x3 - if OVERFLOW     (OF)
+  0x7 - if NOT OVERFLOW (NO)
   0x8-0xF is special mode where addres is CS:imm (its kind of short absolute jump)
 0x7 - JMR t,imm7
   t like JMP, imm7 is 8bit signed value

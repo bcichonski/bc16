@@ -4,7 +4,7 @@ from parsy import *
 from bc81asmc_grammar import *
 
 class TestGrammar(unittest.TestCase):
-    '''Test the implementation of asm parser.'''
+    '''Test the implementation of ast parser.'''
 
     def test_hex_imm8(self):
         self.assertEqual(
@@ -36,6 +36,10 @@ class TestGrammar(unittest.TestCase):
             line.parse('   nop ;comment'),
             'nop')
 
+    def test_inc_reg(self):
+        self.assertEqual(
+            mnemonic.parse('inc a'),
+            INC('a'))
 
 if __name__ == '__main__':
     unittest.main()
