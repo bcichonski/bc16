@@ -24,8 +24,9 @@ class Bc8181:
     CLC_INC = 0xD
     CLC_DEC = 0xE
 
-    NOP = 0x0
-    CLC = 0x5
+    NOP    = 0x0
+    MOVRI8 = 0x1
+    CLC    = 0x5
 
     def __init__(self):
         self.registers_bin = {
@@ -52,13 +53,11 @@ class Bc8181:
           Bc8181.DS : 'ds',
         }
 
-    @staticmethod
-    def REG2BIN(reg : str):
-        return registers_bin[reg.lower()]
+    def REG2BIN(self, reg : str):
+        return self.registers_bin[reg.lower()]
 
-    @staticmethod
-    def REG2BIN(reg : int):
-        return registers_str[reg]
+    def BIN2REG(self, reg : int):
+        return self.registers_str[reg]
 
 ASMCODES = Bc8181()
 
@@ -148,6 +147,18 @@ class DEC(Instruction):
         context.emit_4bit(ASMCODES.CLC);
         context.emit_4bit(ASMCODES.CLC_DEC);
 
+@dataclass
+class MOVRI8(Instruction):
+    reg : str
+    i8  : int
+    def __str__(self):
+        return "MOV {0}, {1:02x}".format(self.reg, self.i8);
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.MOVRI8);
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg));
+        context.emit_byte(self.i8)
+
 class Directive(Token):
     def __str__(self):
         return "directive";
@@ -161,3 +172,9 @@ class ORG(Directive):
         return "ORG {0:04x}".format(self.value);
     def emit(self, context):
         context.set_addr(self.value)
+
+def DEBUG(*args):
+    i = 0
+    for a in args:
+       print("arg{}={}".format(i,a))
+       i += 1

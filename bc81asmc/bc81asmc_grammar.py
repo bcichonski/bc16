@@ -1,5 +1,5 @@
-from parsy import regex, Parser, whitespace, string
-from bc81asmc_ast import ORG, INC, DEC
+from parsy import regex, Parser, whitespace, string, seq
+from bc81asmc_ast import ORG, INC, DEC, MOVRI8, DEBUG
 
 hexstr2int = lambda x: int(x, 16)
 comment = regex(r';.*[^\r\n]').desc('comment')
@@ -30,12 +30,26 @@ paramreg = (
   string('ci') | string('cs') | string('di') | string('ds')
  ).desc('register name')
 
-mNOP = lexeme(string('nop'))
-mINC = lexeme(string('inc') >> sep >> accumulator).map(INC)
-mDEC = lexeme(string('dec') >> sep >> accumulator).map(DEC)
-dORG = lexeme(string('org') >> sep >> heximm16).map(ORG)
+mNOP = lexeme(string('nop')).desc('nop instruction')
+mINC = lexeme(string('inc') >> sep >> accumulator)\
+    .map(INC)\
+    .desc('inc instruction')
+mDEC = lexeme(string('dec') >> sep >> accumulator)\
+    .map(DEC)\
+    .desc('dec instruction')
+mMOVri8 = \
+    lexeme(string('mov') >> sep >>
+        seq(
+            lexeme(paramreg << comma),
+            heximm8
+        ).combine(MOVRI8)
+    )#\
+    #.desc('mov r,i8 instruction')
+dORG = lexeme(string('org') >> sep >> heximm16)\
+    .map(ORG)\
+    .desc('org directive')
 
-mnemonic = mNOP | mINC | mDEC
+mnemonic = mNOP | mINC | mDEC | mMOVri8
 directive = dORG
 instruction = mnemonic | directive
 line = ignore >> instruction << comment.optional()

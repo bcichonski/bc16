@@ -46,5 +46,10 @@ class TestGrammar(unittest.TestCase):
             mnemonic.parse('inc a'),
             INC('a'))
 
+    def test_mov_r_i8(self):
+        self.assertEqual(
+            mMOVri8.parse('mov si, 0xff'),
+            MOVRI8('si',0xff))
+
 if __name__ == '__main__':
     unittest.main()
