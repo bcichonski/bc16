@@ -8,7 +8,7 @@ debug = False
 class CpuTests(unittest.TestCase):
     def create_cpu(self, code):
         environment = bc16_env.Environment()
-        mem = bc16_mem.MemBus(environment, 0x100)
+        mem = bc16_mem.MemBus(environment, 0x0100)
         i = 0
         for b in code:
             mem.write_byte(i, b)
@@ -95,7 +95,7 @@ class CpuTests(unittest.TestCase):
         if debug: print("test_JMR_ZNZ_opcodes")
         #given
         cpu = self.create_cpu([
-            0x11, 0x00,  # 0x0000: MOV A, 0x69
+            0x11, 0x00,  # 0x0000: MOV A, 0x00
             0x14, 0x03,  # 0x0002: MOV CI, 0x03
             0x18, 0x00,  # 0x0004: MOV CS, 0x00
             0x70, 0x03,  # 0x0006: JMR Z, +3
@@ -110,3 +110,22 @@ class CpuTests(unittest.TestCase):
         cpu.run()
         #then
         self.assertEqual(cpu.a.get(),  0x01)
+
+    def test_PUSH_POP_opcodes(self):
+        if debug: print("test_PUSH_POP_opcodes")
+        #given
+        cpu = self.create_cpu([
+            0x1C, 0xff,  # 0x0000: MOV SI, 0xff ; stack at 00ff
+            0x11, 0xf1,  # 0x0002: MOV A, 0xf1
+            0x14, 0xa2,  # 0x0004: MOV CI, 0xa2
+            0x81,        # 0x0006: PSH A
+            0x84,        # 0x0007: PSH CI
+            0x91,        # 0x0008: POP A
+            0x94,        # 0x0009: POP CI
+            0xff,        # 0x000A: KIL
+        ])
+        #when
+        cpu.run()
+        #then
+        self.assertEqual(cpu.a.get(),  0xa2)
+        self.assertEqual(cpu.ci.get(), 0xf1)

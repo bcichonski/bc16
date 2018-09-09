@@ -226,13 +226,13 @@ class Bc8181:
 
     def _PSH(self, val):
         addr = self.get_addr(Bc8181.SI)
-        self.mem.write_byte(addr, val)
+        self.membus.write_byte(addr, val)
         self.si.set(self.si.get()-1)
 
     def _POP(self):
         self.si.set(self.si.get()+1)
         addr = self.get_addr(Bc8181.SI)
-        return self.mem.read_byte(addr)
+        return self.membus.read_byte(addr)
 
     def op_PSH(self):
         regno = lo(self.nextbyte)
