@@ -115,7 +115,7 @@ class CpuTests(unittest.TestCase):
         if debug: print("test_PUSH_POP_opcodes")
         #given
         cpu = self.create_cpu([
-            0x1C, 0xff,  # 0x0000: MOV SI, 0xff ; stack at 00ff
+            0x1C, 0xfe,  # 0x0000: MOV SI, 0xfe ; stack at 00fe
             0x11, 0xf1,  # 0x0002: MOV A, 0xf1
             0x14, 0xa2,  # 0x0004: MOV CI, 0xa2
             0x81,        # 0x0006: PSH A
@@ -129,3 +129,22 @@ class CpuTests(unittest.TestCase):
         #then
         self.assertEqual(cpu.a.get(),  0xa2)
         self.assertEqual(cpu.ci.get(), 0xf1)
+
+    def test_CAL_RET_opcodes(self):
+        if debug: print("test_CAL_RET_opcodes")
+        #given
+        cpu = self.create_cpu([
+            0x1C, 0xfe,  # 0x0000: MOV SI, 0xfe ; stack at 00fe
+            0x14, 0x09,  # 0x0002: MOV CI, 0x09
+            0x11, 0x00,  # 0x0004: MOV A, 0x00
+            0xA8,        # 0x0006: CAL #CSCI
+            0x5d,        # 0x0007: INC A
+            0xff,        # 0x0008: KIL
+            0x5d,        # 0x0009: INC A
+            0xB0,        # 0x000A: RET
+            0xff,        # 0x000B: KIL
+        ])
+        #when
+        cpu.run()
+        #then
+        self.assertEqual(cpu.a.get(),  0x02)

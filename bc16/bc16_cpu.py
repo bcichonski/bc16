@@ -162,13 +162,13 @@ class Bc8181:
         self.set_flags(Bc8181.A, result)
 
     def get_addr(self, regno):
-        if(regno == Bc8181.CI):
+        if(regno == Bc8181.CI or regno == Bc8181.CS):
             hi = self.cs.get()
             lo = self.ci.get()
-        elif (regno == Bc8181.DI):
+        elif (regno == Bc8181.DI or regno == Bc8181.DS):
             hi = self.ds.get()
             lo = self.di.get()
-        elif (regno == Bc8181.SI):
+        elif (regno == Bc8181.SI or regno == Bc8181.SS):
             hi = self.ss.get()
             lo = self.si.get()
         else:
@@ -258,6 +258,7 @@ class Bc8181:
     def op_RET(self):
         addr = self._POP() | (self._POP() << 8)
         self.pc.set(addr)
+        self.inc_pc(0)
 
     def op_IN(self):
         opcode = lo(self.nextbyte)
