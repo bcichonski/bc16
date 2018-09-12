@@ -89,6 +89,8 @@ class Token:
         return "token";
     def emit(self, context):
         pass
+    def set_label(self, label):
+        self.label = label
 
 class ImmediateValue:
     def __str__(self):
@@ -172,6 +174,11 @@ class ORG(Directive):
         return "ORG {0:04x}".format(self.value);
     def emit(self, context):
         context.set_addr(self.value)
+
+def LINE(label, token):
+    if label:
+        token.set_label(label)
+    return token
 
 def DEBUG(*args):
     i = 0

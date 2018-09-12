@@ -1,5 +1,5 @@
-from parsy import regex, Parser, whitespace, string, seq
-from bc81asmc_ast import ORG, INC, DEC, MOVRI8, DEBUG
+from parsy import regex, Parser, whitespace, string, seq, letter, digit
+from bc81asmc_ast import ORG, INC, DEC, MOVRI8, DEBUG, LINE
 
 hexstr2int = lambda x: int(x, 16)
 comment = regex(r';.*[^\r\n]').desc('comment')
@@ -10,8 +10,11 @@ nl = regex(r'(\r\n|\r|\n)').desc('new line')
 lexeme = lambda p: p << ignore
 colon = lexeme(string(':'))
 comma = lexeme(string(','))
+underscore = string('_')
 hexprefix = string('0x')
 accumulator = string('a').desc('accumulator')
+
+ident = letter + (letter | digit | underscore).many().concat()
 
 heximm8 = lexeme(
   (hexprefix >> regex(r'[0-9a-fA-F]{2}'))
@@ -51,6 +54,7 @@ dORG = lexeme(string('org') >> sep >> heximm16)\
 
 mnemonic = mNOP | mINC | mDEC | mMOVri8
 directive = dORG
+label = lexeme(ident << colon)
 instruction = mnemonic | directive
-line = ignore >> instruction << comment.optional()
+line = ignore >> seq(label.optional(), instruction).combine(LINE) << comment.optional()
 program = Parser.many(line)
