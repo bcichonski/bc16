@@ -92,7 +92,7 @@ class Token:
     def set_label(self, label):
         self.label = label
 
-class ImmediateValue:
+class ImmediateValue(Token):
     def __str__(self):
         return "imm";
     def emit(self, context):
@@ -128,6 +128,15 @@ class Instruction(Token):
         return "instruction";
     def emit(self, context):
         self.addr = context.curraddr
+
+@dataclass
+class NOP(Instruction):
+    _ : str
+    def __str__(self):
+        return "NOP";
+    def emit(self, context):
+        super().emit(context)
+        context.emit_byte(ASMCODES.NOP);
 
 @dataclass
 class INC(Instruction):

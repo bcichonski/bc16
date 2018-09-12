@@ -26,7 +26,7 @@ class TestGrammar(unittest.TestCase):
     def test_mnemonic_nop(self):
         self.assertEqual(
             mnemonic.parse('nop'),
-            'nop')
+            NOP('nop'))
 
     def test_directive_org(self):
         val = directive.parse('org 0x0100')
@@ -36,10 +36,19 @@ class TestGrammar(unittest.TestCase):
             val,
             ORG(0x0100))
 
-    def test_line_with_spaces_and_comment(self):
+    def test_line_with_label_spaces_and_comment(self):
+        res = line.parse(' label:  nop ;comment')
         self.assertEqual(
-            line.parse('   nop ;comment'),
-            'nop')
+            res,
+            NOP('nop'))
+        self.assertEqual(res.label, 'label')
+
+    def test_line_with_spaces_and_comment(self):
+        res = line.parse('         nop ;comment')
+        self.assertEqual(
+            res,
+            NOP('nop'))
+        self.assertFalse(hasattr(res, 'label'))
 
     def test_inc_reg(self):
         self.assertEqual(

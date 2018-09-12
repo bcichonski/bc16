@@ -1,5 +1,5 @@
 from parsy import regex, Parser, whitespace, string, seq, letter, digit
-from bc81asmc_ast import ORG, INC, DEC, MOVRI8, DEBUG, LINE
+from bc81asmc_ast import *
 
 hexstr2int = lambda x: int(x, 16)
 comment = regex(r';.*[^\r\n]').desc('comment')
@@ -33,7 +33,7 @@ paramreg = (
   string('ci') | string('cs') | string('di') | string('ds')
  ).desc('register name')
 
-mNOP = lexeme(string('nop')).desc('nop instruction')
+mNOP = lexeme(string('nop')).map(NOP).desc('nop instruction')
 mINC = lexeme(string('inc') >> sep >> accumulator)\
     .map(INC)\
     .desc('inc instruction')
