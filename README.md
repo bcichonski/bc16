@@ -70,7 +70,7 @@ bc8181 instruction set B0H:
   0x7 - not A - only 1 byte
   0xD - inc A - only 1 byte!
   0xE - dec A - only 1 byte!
-  0xF - clr A - only 1 byte!
+  0xF - zer A - only 1 byte!
 0x6 - JMP t,(rno1,rno2)
   0x0 - if ZERO         (Z)
   0x4 - if NOT ZERO     (NZ)
