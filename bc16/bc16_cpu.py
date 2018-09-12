@@ -82,6 +82,7 @@ class Bc8181:
     CLC_OP_RNO = 0x8
     CLC_INC = 0xD
     CLC_DEC = 0xE
+    CLC_ZER = 0xF
 
     def __init__(self,membus,iobus,debug):
         self.membus = membus
@@ -145,7 +146,9 @@ class Bc8181:
         self.inc_pc(1)
         arg2 = None
         if  subcode == Bc8181.CLC_INC or \
-            subcode == Bc8181.CLC_DEC:
+            subcode == Bc8181.CLC_DEC or \
+            subcode == Bc8181.CLC_NOT or \
+            subcode == Bc8181.CLC_ZER:
             pass
         else:
             if subcode & Bc8181.CLC_OP_RNO == \
@@ -155,8 +158,7 @@ class Bc8181:
                 arg2 = self.regs[regno].get()
             else:
                 arg2 = self.nextbyte
-            if subcode != Bc8181.CLC_NOT:
-                self.inc_pc(1)
+            self.inc_pc(1)
         oper = self.alu[subcode]
         result = oper(self.a.get(), arg2)
         self.set_flags(Bc8181.A, result)
@@ -383,6 +385,10 @@ class Bc8181:
         self.set_flags(Bc8181.A, arg1)
         self.a.set(val)
 
+    def alu_zer(self,arg1,arg2):
+        self.set_flags(Bc8181.A, 0)
+        self.a.set(0)
+
     def create_arithmetic_and_logical_unit(self):
         self.alu = {
             Bc8181.CLC_ADD : self.alu_add,
@@ -394,7 +400,8 @@ class Bc8181:
             Bc8181.CLC_SHR : self.alu_shr,
             Bc8181.CLC_NOT : self.alu_not,
             Bc8181.CLC_INC : self.alu_inc,
-            Bc8181.CLC_DEC : self.alu_dec
+            Bc8181.CLC_DEC : self.alu_dec,
+            Bc8181.CLC_ZER : self.alu_zer
         }
 
     def set_reg(self, regno, val):

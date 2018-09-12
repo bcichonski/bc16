@@ -51,6 +51,18 @@ class CpuTests(unittest.TestCase):
         cpu.run()
         #then
         self.assertEqual(cpu.a.get(),  0x69)
+    def test_CLC_ZER(self):
+        if debug: print("test_CLC_ZER")
+        #given
+        cpu = self.create_cpu([
+            0x11, 0x69,  # MOV A, 0x69
+            0x5f,        # ZER A
+            0xff         # KIL
+        ])
+        #when
+        cpu.run()
+        #then
+        self.assertEqual(cpu.a.get(),  0x00)
     def test_CLC_opcodes(self):
         if debug: print("test_CLC_opcodes")
         #given
