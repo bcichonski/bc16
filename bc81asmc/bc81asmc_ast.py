@@ -26,6 +26,7 @@ class Bc8181:
 
     NOP    = 0x0
     MOVRI8 = 0x1
+    MOVRR  = 0x2
     CLC    = 0x5
 
     def __init__(self):
@@ -169,6 +170,19 @@ class MOVRI8(Instruction):
         context.emit_4bit(ASMCODES.MOVRI8);
         context.emit_4bit(ASMCODES.REG2BIN(self.reg));
         context.emit_byte(self.i8)
+
+@dataclass
+class MOVRR(Instruction):
+    reg1 : str
+    reg2 : str
+    def __str__(self):
+        return "MOV {0}, {1}".format(self.reg1, self.reg2);
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.MOVRR);
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg1));
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg2));
+        context.emit_4bit(0);
 
 class Directive(Token):
     def __str__(self):

@@ -1,4 +1,7 @@
-org 0x0100
-inc a
-dec a
-mov ss, 0xff
+      org 0x0100
+init: inc a
+      dec a
+      nop
+      nop
+do:   mov ss, 0xff
+      mov di, ss

@@ -46,13 +46,21 @@ mMOVri8 = \
             lexeme(paramreg << comma),
             heximm8
         ).combine(MOVRI8)
-    )#\
-    #.desc('mov r,i8 instruction')
+    )\
+    .desc('mov r,i8 instruction')
+mMOVrr = \
+    lexeme(string('mov') >> sep >>
+        seq(
+            lexeme(paramreg << comma),
+            paramreg
+        ).combine(MOVRR)
+    )\
+    .desc('mov r,r instruction')
 dORG = lexeme(string('org') >> sep >> heximm16)\
     .map(ORG)\
     .desc('org directive')
 
-mnemonic = mNOP | mINC | mDEC | mMOVri8
+mnemonic = mNOP | mINC | mDEC | mMOVri8 | mMOVrr
 directive = dORG
 label = lexeme(ident << colon)
 instruction = mnemonic | directive
