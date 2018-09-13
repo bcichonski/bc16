@@ -52,7 +52,7 @@ bc8181 instruction set B0H:
 0x0 - NOP               ;
 0x1 - MOV rno,imm        ; r=imm
 0x2 - MOV rno1,rno2      ; r1 = r2
-0x3 - MOV rno1,(rno2, rno3)    ; r1 = mem(r2) , r2 can be CI or DI
+0x3 - MOV rno1,#(rno2, rno3)    ; r1 = mem(r2) , r2 can be CI or DI
 0x4 - MOV (rno1,rno2), rno3   ; mem(r1) = r2
 0x5 - CLC A
   0x0 - add imm          ; A += imm

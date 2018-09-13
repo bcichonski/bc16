@@ -5,3 +5,4 @@ init: inc a
       nop
 do:   mov ss, 0xff
       mov di, ss
+      mov a, #csci

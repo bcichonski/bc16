@@ -10,6 +10,7 @@ nl = regex(r'(\r\n|\r|\n)').desc('new line')
 lexeme = lambda p: p << ignore
 colon = lexeme(string(':'))
 comma = lexeme(string(','))
+hash = string('#')
 underscore = string('_')
 hexprefix = string('0x')
 accumulator = string('a').desc('accumulator')
@@ -56,11 +57,19 @@ mMOVrr = \
         ).combine(MOVRR)
     )\
     .desc('mov r,r instruction')
+mMOVrm = \
+    lexeme(string('mov') >> sep >>
+        seq(
+            lexeme(paramreg << comma),
+            hash >> (paramreg * 2).concat()
+        ).combine(MOVRM)
+    )\
+    .desc('mov r,#r instruction')
 dORG = lexeme(string('org') >> sep >> heximm16)\
     .map(ORG)\
     .desc('org directive')
 
-mnemonic = mNOP | mINC | mDEC | mMOVri8 | mMOVrr
+mnemonic = mNOP | mINC | mDEC | mMOVri8 | mMOVrr | mMOVrm
 directive = dORG
 label = lexeme(ident << colon)
 instruction = mnemonic | directive

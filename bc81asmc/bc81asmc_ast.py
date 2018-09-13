@@ -27,6 +27,8 @@ class Bc8181:
     NOP    = 0x0
     MOVRI8 = 0x1
     MOVRR  = 0x2
+    MOVRM  = 0x3
+    MOVMR  = 0x4
     CLC    = 0x5
 
     def __init__(self):
@@ -69,6 +71,7 @@ class CodeContext:
         self.currbyte = None
         self.currhalf = 0
         self.curraddr = 0
+        self.errors = []
     def emit_byte(self, b):
         self.bytes.extend([b])
         self.currbyte = None
@@ -84,6 +87,8 @@ class CodeContext:
     def set_addr(self, addr):
         self.startaddr = addr
         self.curraddr = addr
+    def add_error(self, message):
+        self.errors.extend(message)
 
 class Token:
     def __str__(self):
@@ -182,6 +187,30 @@ class MOVRR(Instruction):
         context.emit_4bit(ASMCODES.MOVRR);
         context.emit_4bit(ASMCODES.REG2BIN(self.reg1));
         context.emit_4bit(ASMCODES.REG2BIN(self.reg2));
+        context.emit_4bit(0);
+
+@dataclass
+class MOVRM(Instruction):
+    reg1 : str
+    regs2 : str
+    def __str__(self):
+        return "MOV {0}, #{1}".format(self.reg1, self.regs2);
+    def emit(self, context):
+        super().emit(context)
+        if self.regs2 != 'csci' and self.regs2 != 'dsdi' \
+           and self.regs2 != 'sssi':
+           context.add_error("{0} unsupported, only #csci, #dsdi or #sssi is allowed")
+        if self.regs2 == 'csci':
+            val = ASMCODES.CS
+        elif self.regs2 == 'dsdi':
+            val = ASMCODES.DS
+        elif self.regs2 == 'sssi':
+            val = ASMCODES.SS
+        else:
+            raise ValueError('Value {} unsupported'.format(val))
+        context.emit_4bit(ASMCODES.MOVRR);
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg1));
+        context.emit_4bit(val);
         context.emit_4bit(0);
 
 class Directive(Token):
