@@ -56,11 +56,24 @@ class Bc8181:
           Bc8181.DS : 'ds',
         }
 
+        self.oper_opcodes = {
+          'add' : Bc8181.CLC_ADD,
+          'sub' : Bc8181.CLC_SUB,
+          'and' : Bc8181.CLC_AND,
+          'or'  : Bc8181.CLC_OR,
+          'xor' : Bc8181.CLC_XOR,
+          'shl' : Bc8181.CLC_SHL,
+          'shr' : Bc8181.CLC_SHR
+        }
+
     def REG2BIN(self, reg : str):
         return self.registers_bin[reg.lower()]
 
     def BIN2REG(self, reg : int):
         return self.registers_str[reg]
+
+    def OPER2OPCODE(self, oper):
+        return self.oper_opcodes[oper]
 
 ASMCODES = Bc8181()
 
@@ -169,7 +182,7 @@ class MOVRI8(Instruction):
     reg : str
     i8  : int
     def __str__(self):
-        return "MOV {0}, {1:02x}".format(self.reg, self.i8);
+        return "MOV {0}, 0x{1:02x}".format(self.reg, self.i8);
     def emit(self, context):
         super().emit(context)
         context.emit_4bit(ASMCODES.MOVRI8);
@@ -184,9 +197,9 @@ class MOVRR(Instruction):
         return "MOV {0}, {1}".format(self.reg1, self.reg2);
     def emit(self, context):
         super().emit(context)
-        context.emit_4bit(ASMCODES.MOVRR);
-        context.emit_4bit(ASMCODES.REG2BIN(self.reg1));
-        context.emit_4bit(ASMCODES.REG2BIN(self.reg2));
+        context.emit_4bit(ASMCODES.MOVRR)
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg1))
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg2))
         context.emit_4bit(0);
 
 def check_regs(regs, context):
@@ -212,9 +225,9 @@ class MOVRM(Instruction):
     def emit(self, context):
         super().emit(context)
         val = check_regs(self.regs2, context)
-        context.emit_4bit(ASMCODES.MOVRM);
-        context.emit_4bit(ASMCODES.REG2BIN(self.reg1));
-        context.emit_4bit(val);
+        context.emit_4bit(ASMCODES.MOVRM)
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg1))
+        context.emit_4bit(val)
         context.emit_4bit(0);
 
 @dataclass
@@ -226,10 +239,44 @@ class MOVMR(Instruction):
     def emit(self, context):
         super().emit(context)
         val = check_regs(self.regs1, context)
-        context.emit_4bit(ASMCODES.MOVMR);
-        context.emit_4bit(val);
-        context.emit_4bit(ASMCODES.REG2BIN(self.reg2));
+        context.emit_4bit(ASMCODES.MOVMR)
+        context.emit_4bit(val)
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg2))
         context.emit_4bit(0);
+
+@dataclass
+class CLC_A_IMM(Instruction):
+    oper : str
+    imm : int
+    def __str__(self):
+        return "{0: <3} 0x{1:04x}".format(self.oper.upper(), self.imm)
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.CLC)
+        context.emit_4bit(ASMCODES.OPER2OPCODE(self.oper))
+        context.emit_byte(self.imm)
+
+@dataclass
+class CLC_A_R(Instruction):
+    oper : str
+    reg : str
+    def __str__(self):
+        return "{0: <3} {1}".format(self.oper.upper(), self.reg)
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.CLC);
+        context.emit_4bit(ASMCODES.OPER2OPCODE(self.oper) | ASMCODES.CLC_OP_RNO)
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+        context.emit_4bit(0)
+
+@dataclass
+class NOT(Instruction):
+    def __str__(self):
+        return "NOT A"
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.CLC);
+        context.emit_4bit(ASMCODES.CLC_NOT)
 
 class Directive(Token):
     def __str__(self):
@@ -241,7 +288,7 @@ class Directive(Token):
 class ORG(Directive):
     value : int
     def __str__(self):
-        return "ORG {0:04x}".format(self.value);
+        return "ORG 0x{0:04x}".format(self.value);
     def emit(self, context):
         context.set_addr(self.value)
 

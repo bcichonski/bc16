@@ -41,6 +41,9 @@ mINC = lexeme(string('inc') >> sep >> accumulator)\
 mDEC = lexeme(string('dec') >> sep >> accumulator)\
     .map(DEC)\
     .desc('dec instruction')
+mNOT = lexeme(string('not') >> sep >> accumulator)\
+    .map(NOT)\
+    .desc('not instruction')
 mMOVri8 = \
     lexeme(string('mov') >> sep >>
         seq(
@@ -73,11 +76,85 @@ mMOVmr = \
         ).combine(MOVMR)
     )\
     .desc('mov #r,r instruction')
+
+mADDi8 = \
+    lexeme(string('add') >> sep >> heximm8)\
+    .map(lambda x: CLC_A_IMM('add', x))\
+    .desc('add i8 instruction')
+
+mADDr = \
+    lexeme(string('add') >> sep >> paramreg)\
+    .map(lambda x: CLC_A_R('add', x))\
+    .desc('add r instruction')
+
+mSUBi8 = \
+    lexeme(string('sub') >> sep >> heximm8)\
+    .map(lambda x: CLC_A_IMM('sub', x))\
+    .desc('sub i8 instruction')
+
+mSUBr = \
+    lexeme(string('sub') >> sep >> paramreg)\
+    .map(lambda x: CLC_A_R('sub', x))\
+    .desc('sub r instruction')
+
+mANDi8 = \
+    lexeme(string('and') >> sep >> heximm8)\
+    .map(lambda x: CLC_A_IMM('and', x))\
+    .desc('and i8 instruction')
+
+mANDr = \
+    lexeme(string('and') >> sep >> paramreg)\
+    .map(lambda x: CLC_A_R('and', x))\
+    .desc('and r instruction')
+
+mORi8 = \
+    lexeme(string('or') >> sep >> heximm8)\
+    .map(lambda x: CLC_A_IMM('or', x))\
+    .desc('or i8 instruction')
+
+mORr = \
+    lexeme(string('or') >> sep >> paramreg)\
+    .map(lambda x: CLC_A_R('or', x))\
+    .desc('or r instruction')
+
+mXORi8 = \
+    lexeme(string('xor') >> sep >> heximm8)\
+    .map(lambda x: CLC_A_IMM('xor', x))\
+    .desc('xor i8 instruction')
+
+mXORr = \
+    lexeme(string('xor') >> sep >> paramreg)\
+    .map(lambda x: CLC_A_R('xor', x))\
+    .desc('xor r instruction')
+
+mSHLi8 = \
+    lexeme(string('shl') >> sep >> heximm8)\
+    .map(lambda x: CLC_A_IMM('shl', x))\
+    .desc('shl i8 instruction')
+
+mSHLr = \
+    lexeme(string('shl') >> sep >> paramreg)\
+    .map(lambda x: CLC_A_R('shl', x))\
+    .desc('shl r instruction')
+
+mSHRi8 = \
+    lexeme(string('shr') >> sep >> heximm8)\
+    .map(lambda x: CLC_A_IMM('shr', x))\
+    .desc('shr i8 instruction')
+
+mSHRr = \
+    lexeme(string('shr') >> sep >> paramreg)\
+    .map(lambda x: CLC_A_R('shr', x))\
+    .desc('shr r instruction')
+
+mCLC = mADDi8 | mADDr | mSUBi8 | mSUBr | mANDi8 | mANDr | mORi8 | mORr | \
+       mXORi8 | mXORr | mSHLi8 | mSHLr | mSHRi8 | mSHRr
+
 dORG = lexeme(string('org') >> sep >> heximm16)\
     .map(ORG)\
     .desc('org directive')
 
-mnemonic = mNOP | mINC | mDEC | mMOVri8 | mMOVrr | mMOVrm | mMOVmr
+mnemonic = mNOP | mINC | mDEC | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | mCLC
 directive = dORG
 label = lexeme(ident << colon)
 instruction = mnemonic | directive

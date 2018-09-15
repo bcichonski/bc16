@@ -50,10 +50,20 @@ class TestGrammar(unittest.TestCase):
             NOP('nop'))
         self.assertFalse(hasattr(res, 'label'))
 
-    def test_inc_reg(self):
+    def test_inc_a(self):
         self.assertEqual(
             mnemonic.parse('inc a'),
             INC('a'))
+
+    def test_dec_a(self):
+        self.assertEqual(
+            mnemonic.parse('dec a'),
+            DEC('a'))
+
+    def test_not_a(self):
+        self.assertEqual(
+            mnemonic.parse('not a'),
+            NOT('a'))
 
     def test_mov_r_i8(self):
         self.assertEqual(
@@ -73,7 +83,77 @@ class TestGrammar(unittest.TestCase):
     def test_mov_m_r(self):
         self.assertEqual(
             mMOVmr.parse('mov #dsdi, a'),
-            MOVRM('dsdi', 'a'))
+            MOVMR('dsdi', 'a'))
+
+    def test_add_i8(self):
+        self.assertEqual(
+            mADDi8.parse('add 0xad'),
+            CLC_A_IMM('add', 0xad))
+
+    def test_add_r(self):
+        self.assertEqual(
+            mADDr.parse('add cs'),
+            CLC_A_R('add', 'cs'))
+
+    def test_sub_i8(self):
+        self.assertEqual(
+            mSUBi8.parse('sub 0xaf'),
+            CLC_A_IMM('sub', 0xaf))
+
+    def test_sub_r(self):
+        self.assertEqual(
+            mSUBr.parse('sub a'),
+            CLC_A_R('sub', 'a'))
+
+    def test_and_i8(self):
+        self.assertEqual(
+            mANDi8.parse('and 0xaa'),
+            CLC_A_IMM('and', 0xaa))
+
+    def test_and_r(self):
+        self.assertEqual(
+            mANDr.parse('and di'),
+            CLC_A_R('and', 'di'))
+
+    def test_or_i8(self):
+        self.assertEqual(
+            mORi8.parse('or 0x1d'),
+            CLC_A_IMM('or', 0x1d))
+
+    def test_or_r(self):
+        self.assertEqual(
+            mORr.parse('or ds'),
+            CLC_A_R('or', 'ds'))
+
+    def test_xor_i8(self):
+        self.assertEqual(
+            mXORi8.parse('xor 0x10'),
+            CLC_A_IMM('xor', 0x10))
+
+    def test_xor_r(self):
+        self.assertEqual(
+            mXORr.parse('xor cs'),
+            CLC_A_R('xor', 'cs'))
+
+    def test_shl_i8(self):
+        self.assertEqual(
+            mSHLi8.parse('shl 0x05'),
+            CLC_A_IMM('shl', 0x05))
+
+    def test_shl_r(self):
+        self.assertEqual(
+            mSHLr.parse('shl cs'),
+            CLC_A_R('shl', 'cs'))
+
+    def test_shr_i8(self):
+        self.assertEqual(
+            mSHRi8.parse('shr 0x04'),
+            CLC_A_IMM('shr', 0x04))
+
+    def test_shr_r(self):
+        self.assertEqual(
+            mSHRr.parse('shr ci'),
+            CLC_A_R('shr', 'ci'))
 
 if __name__ == '__main__':
     unittest.main()
