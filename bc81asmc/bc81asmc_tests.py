@@ -70,5 +70,10 @@ class TestGrammar(unittest.TestCase):
             mMOVrm.parse('mov ss, #dsdi'),
             MOVRM('ss','dsdi'))
 
+    def test_mov_m_r(self):
+        self.assertEqual(
+            mMOVmr.parse('mov #dsdi, a'),
+            MOVRM('dsdi', 'a'))
+
 if __name__ == '__main__':
     unittest.main()

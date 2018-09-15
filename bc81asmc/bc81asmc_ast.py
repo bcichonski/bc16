@@ -189,6 +189,20 @@ class MOVRR(Instruction):
         context.emit_4bit(ASMCODES.REG2BIN(self.reg2));
         context.emit_4bit(0);
 
+def check_regs(regs, context):
+    if regs != 'csci' and regs != 'dsdi' \
+       and regs != 'sssi':
+       context.add_error("{0} unsupported, only #csci, #dsdi or #sssi is allowed")
+    if regs == 'csci':
+        val = ASMCODES.CS
+    elif regs == 'dsdi':
+        val = ASMCODES.DS
+    elif regs == 'sssi':
+        val = ASMCODES.SS
+    else:
+        raise ValueError('Value {} unsupported'.format(regs))
+    return val
+
 @dataclass
 class MOVRM(Instruction):
     reg1 : str
@@ -197,20 +211,24 @@ class MOVRM(Instruction):
         return "MOV {0}, #{1}".format(self.reg1, self.regs2);
     def emit(self, context):
         super().emit(context)
-        if self.regs2 != 'csci' and self.regs2 != 'dsdi' \
-           and self.regs2 != 'sssi':
-           context.add_error("{0} unsupported, only #csci, #dsdi or #sssi is allowed")
-        if self.regs2 == 'csci':
-            val = ASMCODES.CS
-        elif self.regs2 == 'dsdi':
-            val = ASMCODES.DS
-        elif self.regs2 == 'sssi':
-            val = ASMCODES.SS
-        else:
-            raise ValueError('Value {} unsupported'.format(val))
-        context.emit_4bit(ASMCODES.MOVRR);
+        val = check_regs(self.regs2, context)
+        context.emit_4bit(ASMCODES.MOVRM);
         context.emit_4bit(ASMCODES.REG2BIN(self.reg1));
         context.emit_4bit(val);
+        context.emit_4bit(0);
+
+@dataclass
+class MOVMR(Instruction):
+    regs1 : str
+    reg2 : str
+    def __str__(self):
+        return "MOV #{0}, {1}".format(self.regs1, self.reg2);
+    def emit(self, context):
+        super().emit(context)
+        val = check_regs(self.regs1, context)
+        context.emit_4bit(ASMCODES.MOVMR);
+        context.emit_4bit(val);
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg2));
         context.emit_4bit(0);
 
 class Directive(Token):

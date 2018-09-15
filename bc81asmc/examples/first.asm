@@ -6,3 +6,4 @@ init: inc a
 do:   mov ss, 0xff
       mov di, ss
       mov a, #csci
+      mov #dsdi, ci
