@@ -24,12 +24,22 @@ class Bc8181:
     CLC_INC = 0xD
     CLC_DEC = 0xE
 
-    NOP    = 0x0
-    MOVRI8 = 0x1
-    MOVRR  = 0x2
-    MOVRM  = 0x3
-    MOVMR  = 0x4
-    CLC    = 0x5
+    NOP     = 0x0
+    MOVRI8  = 0x1
+    MOVRR   = 0x2
+    MOVRM   = 0x3
+    MOVMR   = 0x4
+    CLC     = 0x5
+    JMP     = 0x6
+
+    TEST_Z  = 0x0
+    TEST_NZ = 0x4
+    TEST_CY = 0x1
+    TEST_NC = 0x5
+    TEST_NG = 0x2
+    TEST_NN = 0x6
+    TEST_OF = 0x3
+    TEST_NO = 0x7
 
     def __init__(self):
         self.registers_bin = {
@@ -66,6 +76,17 @@ class Bc8181:
           'shr' : Bc8181.CLC_SHR
         }
 
+        self.test_opcodes = {
+          'z' : Bc8181.TEST_Z,
+          'nz': Bc8181.TEST_NZ,
+          'cy': Bc8181.TEST_CY,
+          'nc': Bc8181.TEST_NC,
+          'ng': Bc8181.TEST_NG,
+          'nn': Bc8181.TEST_NN,
+          'of': Bc8181.TEST_OF,
+          'no': Bc8181.TEST_NO
+        }
+
     def REG2BIN(self, reg : str):
         return self.registers_bin[reg.lower()]
 
@@ -74,6 +95,9 @@ class Bc8181:
 
     def OPER2OPCODE(self, oper):
         return self.oper_opcodes[oper]
+
+    def TEST2OPCODE(self, test):
+        return self.test_opcodes[test]
 
 ASMCODES = Bc8181()
 
@@ -266,6 +290,19 @@ class CLC_A_R(Instruction):
         super().emit(context)
         context.emit_4bit(ASMCODES.CLC);
         context.emit_4bit(ASMCODES.OPER2OPCODE(self.oper) | ASMCODES.CLC_OP_RNO)
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+        context.emit_4bit(0)
+
+@dataclass
+class JMP(Instruction):
+    test : str
+    label : str
+    def __str__(self):
+        return "JMP{0} {1}".format(self.test.upper(), self.label.upper())
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.JMP);
+        context.emit_4bit(ASMCODES.TEST2OPCODE(self.oper) | ASMCODES.CLC_OP_RNO)
         context.emit_4bit(ASMCODES.REG2BIN(self.reg))
         context.emit_4bit(0)
 

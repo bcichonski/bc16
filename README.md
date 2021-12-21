@@ -52,7 +52,7 @@ bc8181 instruction set B0H:
 0x0 - NOP               ;
 0x1 - MOV rno,imm        ; r=imm
 0x2 - MOV rno1,rno2      ; r1 = r2
-0x3 - MOV rno1,#(rno2, rno3)    ; r1 = mem(r2) , r2 can be CI or DI
+0x3 - MOV rno1,(rno2, rno3)    ; r1 = mem(r2) , r2 can be CI or DI
 0x4 - MOV (rno1,rno2), rno3   ; mem(r1) = r2
 0x5 - CLC A
   0x0 - add imm          ; A += imm
@@ -70,16 +70,16 @@ bc8181 instruction set B0H:
   0x7 - not A - only 1 byte
   0xD - inc A - only 1 byte!
   0xE - dec A - only 1 byte!
-  0xF - zer A - only 1 byte!
+  0xF - not used for future extensions
 0x6 - JMP t,(rno1,rno2)
-  0x0 - if ZERO         (Z)
-  0x4 - if NOT ZERO     (NZ)
-  0x1 - if CARRY        (CY)
-  0x5 - if NOT CARRY    (NC)
-  0x2 - if NEGATIVE     (NG)
-  0x6 - if NOT NEGATIVE (NN)
-  0x3 - if OVERFLOW     (OF)
-  0x7 - if NOT OVERFLOW (NO)
+  0x0 - if ZERO
+  0x4 - if NOT ZERO
+  0x1 - if CARRY
+  0x5 - if NOT CARRY
+  0x2 - if NEGATIVE
+  0x6 - if NOT NEGATIVE
+  0x3 - if OVERFLOW
+  0x7 - if NOT OVERFLOW
   0x8-0xF is special mode where addres is CS:imm (its kind of short absolute jump)
 0x7 - JMR t,imm7
   t like JMP, imm7 is 8bit signed value
@@ -95,5 +95,5 @@ bc8181 instruction set B0H:
  0x0-0x7 - #rno1, imm
  0x8-0xf - #rno1, rno2
 0xE - NOP not_used
-0xF - HLT
+0xF - KIL
 ```

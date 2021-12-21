@@ -34,7 +34,7 @@ class Environment:
     def close_file(self, handle):
         handle.close()
     def read_byte(self, handle):
-        return read(1)
+        return handle.read(1)
     def write_byte(self, handle, byte):
         handle.write(byte)
     def get_char(self):

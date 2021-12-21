@@ -423,14 +423,16 @@ class Bc8181:
             print(mesg)
 
     def print_context(self):
+        self.print_debug('')
         self.print_debug("PC: 0x{0:04x} next: 0x{1:02x}".format(self.pc.get(), self.nextbyte))
         self.print_debug("SS: 0x{0:02x} SI: 0x{1:02x}".format(self.ss.get(), self.si.get()))
-        self.print_debug("A:  0x{0:02x} F:  0x{1:08b}".format(self.a.get(), self.f.get()))
+        self.print_debug("A:  0x{0:02x} F:  0b{1:08b}".format(self.a.get(), self.f.get()))
         self.print_debug("CS: 0x{0:02x} CI: 0x{1:02x}".format(self.cs.get(), self.ci.get()))
         self.print_debug("DS: 0x{0:02x} DI: 0x{1:02x}".format(self.ds.get(), self.ds.get()))
 
     def run(self):
         self.inc_pc(0)
+        self.print_context()
         while not self.kill:
             self.run_next_opcode()
         self.print_debug("====================== KILL")

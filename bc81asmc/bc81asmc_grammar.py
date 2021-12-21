@@ -147,6 +147,15 @@ mSHRr = \
     .map(lambda x: CLC_A_R('shr', x))\
     .desc('shr r instruction')
 
+logictest = string('z') | string('nz') | string('cy') | string('nc') \
+    | string('ng') | string('ng') | string('nn') | string('of') | string('no')
+
+mJMPrr = \
+    lexeme(seq(
+        string'jmp' >> logictest << sep,
+        (paramreg * 2).concat()).combine(JMP))\
+    .desc('jmp instruction')
+
 mCLC = mADDi8 | mADDr | mSUBi8 | mSUBr | mANDi8 | mANDr | mORi8 | mORr | \
        mXORi8 | mXORr | mSHLi8 | mSHLr | mSHRi8 | mSHRr
 
