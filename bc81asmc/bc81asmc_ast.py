@@ -308,6 +308,7 @@ class JMP(Instruction):
 
 @dataclass
 class NOT(Instruction):
+    _ : str
     def __str__(self):
         return "NOT A"
     def emit(self, context):
@@ -325,9 +326,20 @@ class Directive(Token):
 class ORG(Directive):
     value : int
     def __str__(self):
-        return "ORG 0x{0:04x}".format(self.value);
+        return ".ORG 0x{0:04x}".format(self.value);
     def emit(self, context):
         context.set_addr(self.value)
+
+@dataclass
+class DB(Directive):
+    values : list
+    def __str__(self):
+        return ".DB {0}".format(", ".join(map(lambda x: str(x), self.values)));
+    def emit(self, context):
+        for val in self.values:
+            if isinstance(val, str):
+                val = ord(val)
+            context.emit_byte(val)
 
 def LINE(label, token):
     if label:

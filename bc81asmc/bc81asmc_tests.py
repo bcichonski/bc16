@@ -3,7 +3,7 @@ import unittest
 from parsy import *
 from bc81asmc_grammar import *
 
-debug = False
+debug = True
 
 class TestGrammar(unittest.TestCase):
     '''Test the implementation of ast parser.'''
@@ -28,8 +28,32 @@ class TestGrammar(unittest.TestCase):
             mnemonic.parse('nop'),
             NOP('nop'))
 
+    def test_paramdb_string(self):
+        val = paramdb.parse("'quotedstring'")
+        if debug:
+            print(val)
+        self.assertEqual(
+            val,
+            "quotedstring")
+
+    def test_paramdb_heximm8(self):
+        val = paramdb.parse("0xaf")
+        if debug:
+            print(val)
+        self.assertEqual(
+            val,
+            0xaf)
+
+    def test_directive_db(self):
+        val = dDB.parse(".db 'quoted', 0xff, 'new', 0x00")
+        if debug:
+            print(val)
+        self.assertEqual(
+            val,
+            DB(['quoted', 0xff, 'new', 0x00]))
+
     def test_directive_org(self):
-        val = directive.parse('org 0x0100')
+        val = directive.parse('.org 0x0100')
         if debug:
             print(val)
         self.assertEqual(

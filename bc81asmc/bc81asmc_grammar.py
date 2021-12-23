@@ -2,7 +2,7 @@ from parsy import regex, Parser, whitespace, string, seq, letter, digit
 from bc81asmc_ast import *
 
 hexstr2int = lambda x: int(x, 16)
-comment = regex(r';.*[^\r\n]').desc('comment')
+comment = regex(r';[^\r\n]*').desc('comment')
 ignore = Parser.many(whitespace).desc('whitespaces')
 sep = whitespace.at_least(1)
 nl = regex(r'(\r\n|\r|\n)').desc('new line')
@@ -14,8 +14,10 @@ hash = string('#')
 underscore = string('_')
 hexprefix = string('0x')
 accumulator = string('a').desc('accumulator')
+quote = string("'")
 
 ident = letter + (letter | digit | underscore).many().concat()
+quotedstr = lexeme(quote >> regex(r"[^']*") << quote).desc('quoted string')
 
 heximm8 = lexeme(
   (hexprefix >> regex(r'[0-9a-fA-F]{2}'))
@@ -33,6 +35,8 @@ paramreg = (
   string('pc') | string('ss') | string('si') | string('f') | string('a') |
   string('ci') | string('cs') | string('di') | string('ds')
  ).desc('register name')
+
+paramdb = lexeme(quotedstr | heximm8)
 
 mNOP = lexeme(string('nop')).map(NOP).desc('nop instruction')
 mINC = lexeme(string('inc') >> sep >> accumulator)\
@@ -152,20 +156,25 @@ logictest = string('z') | string('nz') | string('cy') | string('nc') \
 
 mJMPrr = \
     lexeme(seq(
-        string'jmp' >> logictest << sep,
+        string('jmp') >> logictest << sep,
         (paramreg * 2).concat()).combine(JMP))\
     .desc('jmp instruction')
 
 mCLC = mADDi8 | mADDr | mSUBi8 | mSUBr | mANDi8 | mANDr | mORi8 | mORr | \
        mXORi8 | mXORr | mSHLi8 | mSHLr | mSHRi8 | mSHRr
 
-dORG = lexeme(string('org') >> sep >> heximm16)\
+dORG = (lexeme(string('.org')) >> heximm16)\
     .map(ORG)\
-    .desc('org directive')
+    .desc('.org directive')
 
-mnemonic = mNOP | mINC | mDEC | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | mCLC
-directive = dORG
+dDB  = (lexeme(string('.db')) >> paramdb.sep_by(comma))\
+    .map(DB)\
+    .desc('.db directive')
+
+mnemonic = mNOP | mINC | mDEC | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | mCLC
+directive = dORG | dDB
 label = lexeme(ident << colon)
 instruction = mnemonic | directive
-line = ignore >> seq(label.optional(), instruction).combine(LINE) << comment.optional()
+linecomment = ignore >> comment
+line = linecomment | (ignore >> seq(label.optional(), instruction).combine(LINE) << comment.optional())
 program = Parser.many(line)
