@@ -36,7 +36,7 @@ class Environment:
     def read_byte(self, handle):
         return handle.read(1)
     def write_byte(self, handle, byte):
-        handle.write(byte)
+        handle.write(byte.to_bytes(1, 'big'))
     def get_char(self):
         return getch()
     def write_char(self,byte):

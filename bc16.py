@@ -31,6 +31,16 @@ def main(argv):
         import_rom(argv[1], env, computer.mem)
     computer.mem.write_byte(TOPMEM-1, 0xff)
     computer.run()
+    dump_mem('bc16.dmp', env, computer.mem)
+
+def dump_mem(file, env, mem):
+    fhandle = env.open_file_to_write(file)
+    i = 0
+    while i < TOPMEM:
+        byte = mem.read_byte(i)
+        env.write_byte(fhandle, byte)
+        i+=1
+    env.close_file(fhandle)
 
 def import_rom(file, env, mem):
     fhandle = env.open_file_to_read(file)

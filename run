@@ -1,2 +1,2 @@
 #!/bin/bash
-python ./bc16.py ./bc81asmc/bcOS/bcos.b81
+python ./bc16.py ./bc81asmc/bcOS/bcos.b81 $1
