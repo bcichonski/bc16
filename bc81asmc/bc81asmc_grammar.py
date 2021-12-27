@@ -4,7 +4,8 @@ from bc81asmc_ast import *
 hexstr2int = lambda x: int(x, 16)
 comment = regex(r';[^\r\n]*').desc('comment')
 whitespace = regex(r'[ \t]').desc('whitespace')
-ignore = Parser.many(whitespace).desc('whitespaces')
+whitespaces = regex(r'[ \t]*').desc('whitespaces')
+ignore = whitespaces
 sep = whitespace.at_least(1)
 nl = regex(r'(\r\n|\r|\n)').desc('new line')
 
@@ -240,6 +241,6 @@ mnemonic = mNOP | mINC | mDEC | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | mCLC
 directive = dORG | dDB | dMV
 label = lexeme(ident << colon)
 instruction = mnemonic | directive
-linecomment = (ignore >> comment).map(lambda x: LINE(None, x))
-line = (linecomment | (ignore >> seq(label.optional(), instruction).combine(LINE) << comment.optional())) << nl
+linecomment = (ignore >> comment).map(LineComment)
+line = (linecomment | (ignore >> seq(label.optional(), instruction, comment.optional()).combine(LINE))) << nl
 program = Parser.many(line)

@@ -17,27 +17,27 @@ def compile(ast, verbose):
             print('0x{0:04x} {1:16s}: {2}'.format(context.curraddr, getattr(line, 'label', ''), line))
         if(hasattr(line,'label')):
             labeladdresses[line.label] = context.curraddr
-            line.emit(context)
+        line.emit(context)
 
     if verbose:
             print('2nd pass')
 
     for labelref in context.labels:
-        (addr,label,type) = labelref
+        (addr,label,ltype) = labelref
         labeladdr = labeladdresses[label]
         if not labeladdr:
             raise Exception('Label {0} not defined'.format(label))
-        if type == 'hi':
+        if ltype == 'hi':
             hiaddr = context.hi(labeladdr)
             if verbose:
                 print('store hi({0})={1} at 0x{2:04x}'.format(label, hiaddr, addr))
             context.emit_byte_at(addr, hiaddr)
-        elif type == 'lo':
+        elif ltype == 'lo':
             loaddr = context.lo(labeladdr)
             if verbose:
                 print('store lo({0})={1} at 0x{2:04x}'.format(label, loaddr, addr))
             context.emit_byte_at(addr, loaddr)
-        elif type == 'lorel':
+        elif ltype == 'lorel':
             addrdiff = addr - labeladdr
             if(addrdiff < -0x8f or addrdiff > 0x8f):
                 raise Exception('Label {0} too far away for relative jump {1} bytes'.format(label, addrdiff))

@@ -160,12 +160,18 @@ class Token:
         pass
     def set_label(self, label):
         self.label = label
+    def set_comment(self, comment):
+        self.comment = comment
+
+@dataclass
+class LineComment(Token):
+    comment:str
+    def __str__(self):
+       return self.comment;
 
 class ImmediateValue(Token):
     def __str__(self):
         return "imm";
-    def emit(self, context):
-        pass
 
 @dataclass
 class Value4(ImmediateValue):
@@ -344,7 +350,7 @@ class JMP(Instruction):
         else:
             context.emit_4bit(ASMCODES.TEST2OPCODE(self.test))
             context.emit_4bit(0)
-            context.emit_4bit(ASMCODES.REG2BIN(self.arg))
+            context.emit_4bit(ASMCODES.REG2BIN(self.arg[0:2]))
 
 @dataclass
 class JMR(Instruction):
@@ -361,7 +367,7 @@ class JMR(Instruction):
             context.emit_rel8addr(self.arg[1:])
         else:
             context.emit_4bit(ASMCODES.TEST2OPCODE(self.test) | ASMCODES.CLC_OP_RNO)
-            context.emit_4bit(ASMCODES.REG2BIN(self.arg))
+            context.emit_4bit(ASMCODES.REG2BIN(self.arg[0:2]))
             context.emit_4bit(0)
 
 @dataclass
@@ -456,8 +462,6 @@ class OUT(Instruction):
 class Directive(Token):
     def __str__(self):
         return "directive";
-    def emit(self, context):
-        pass
 
 @dataclass
 class ORG(Directive):
@@ -484,9 +488,8 @@ class MV(Directive):
     regs : str
     lbl : str
     def __str__(self):
-        return ".MV {0}, {1}".format(self.regs.upper(), self.lbl)
+        return ".MV {0}, {1} ;{2}".format(self.regs.upper(), self.lbl, getattr(self, 'comment', ''))
     def emit(self, context):
-        print(self)
         super().emit(context)
         context.emit_4bit(ASMCODES.MOVRI8)
         context.emit_4bit(ASMCODES.REG2BIN(self.regs[0:2]))
@@ -495,9 +498,11 @@ class MV(Directive):
         context.emit_4bit(ASMCODES.REG2BIN(self.regs[2:]))
         context.emit_lo8addr(self.lbl[1:])
 
-def LINE(label, token):
+def LINE(label, token, comment):
     if label:
         token.set_label(label)
+    if comment:
+        token.set_comment(comment)
     return token
 
 def DEBUG(*args):

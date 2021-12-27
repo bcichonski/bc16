@@ -21,7 +21,7 @@ class TestGrammar(unittest.TestCase):
     def test_ignore_spaces(self):
         self.assertEqual(
             ignore.parse('   '),
-            ['   '])
+            '   ')
 
     def test_mnemonic_nop(self):
         self.assertEqual(
@@ -77,14 +77,14 @@ class TestGrammar(unittest.TestCase):
             ORG(0x0100))
 
     def test_line_with_label_spaces_and_comment(self):
-        res = line.parse(' label:  nop ;comment')
+        res = line.parse(' label:  nop ;comment\n')
         self.assertEqual(
             res,
             NOP('nop'))
         self.assertEqual(res.label, 'label')
 
     def test_line_with_spaces_and_comment(self):
-        res = line.parse('         nop ;comment')
+        res = line.parse('         nop ;comment\n')
         self.assertEqual(
             res,
             NOP('nop'))
