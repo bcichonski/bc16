@@ -9,7 +9,8 @@ start:         .mv csci, :init
 data_os:          .db 'bcOS 0.1'
 data_newline:     .db 0x0a, 0x0d, 0x00
 data_free:        .db 'free ', 0x00
-data_from:        .db 'from ', 0x0a, 0x0d, 0x00
+data_from:        .db 'from ', 0x00
+data_to:          .db ' to ', 0x00
 data_prompt:      .db '>', 0x00
 ;
 ; subroutines
@@ -44,6 +45,20 @@ printhex8:     mov ci, a
                and 0x0f
                add 0x30
                out #cs, a
+               ret
+;=============
+; PRINTHEX16(dsdi) - prints hex number 4 digits
+; IN:    dsdi - hex number 4 digits
+; OUT:   dsdi - unchanged
+;           a - lo(di)
+;          cs - 1
+;          ci - like a
+printhex16:    .mv csci, :printhex8
+               mov a, ds
+               cal csci
+               .mv csci, :printhex8
+               mov a, di
+               cal csci
                ret
 ;=============
 ; SETVARPARAM16(dsdi) - stores dsdi value under sys variable var_param16 (2 bytes)
@@ -86,10 +101,33 @@ poke16:        .mv csci, :var_param16
                mov #dsdi, a
 poke16_ok:     ret             
 poke16_fail:   kil
+;=============
+; PEEK16(#csci) - returns value under csci address (2 bytes)
+;                 because uses 8bit inc address must be in same ds segment
+;                 this code guards against it
+; IN:   csci - address to read
+; OUT:  dsdi - value from #csci
+;       dsdi - address to store + 1
+;       a    - lo(val(var_param16))
+peek16:        mov ds, #csci
+               mov a, ci
+               inc a
+               jmr c, :peek16_fail
+               mov ci, a
+               mov di, #csci
+peek16_ok:     ret             
+peek16_fail:   kil
 ;
 ; main code
 ; 1.initialize os
-init:          .mv dsdi, :user_mem
+init:          mov ds, ss
+               mov di, si
+               .mv csci, :setvarparam16
+               cal csci
+               .mv dsdi, :var_top_mem
+               .mv csci, :poke16
+               cal csci
+               .mv dsdi, :user_mem
                .mv csci, :setvarparam16
                cal csci
                .mv dsdi, :var_user_mem
@@ -98,6 +136,22 @@ init:          .mv dsdi, :user_mem
 ; 2.write greetings
 hello:         .mv dsdi, :data_os
                .mv csci, :printstr
+               cal csci
+               .mv dsdi, :data_from
+               .mv csci, :printstr
+               cal csci
+               .mv csci, :var_user_mem
+               .mv dsdi, :peek16
+               cal dsdi
+               .mv csci, :printhex16
+               cal csci
+               .mv dsdi, :data_to
+               .mv csci, :printstr
+               cal csci
+               .mv csci, :var_top_mem
+               .mv dsdi, :peek16
+               cal dsdi
+               .mv csci, :printhex16
                cal csci
 eos:           kil
 ;

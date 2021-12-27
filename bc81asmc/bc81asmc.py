@@ -47,8 +47,7 @@ def compile(ast, verbose):
                 addrdiff = (-addrdiff) | 0x80 
             context.emit_byte_at(addr, addrdiff)
 
-    if verbose:
-            print('done code length: {0} labels: {1}'.format(len(context.bytes), len(labeladdresses)))
+    print('Code length: {0} labels: {1}'.format(len(context.bytes), len(labeladdresses)))
     
     return context.bytes
 
