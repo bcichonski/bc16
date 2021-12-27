@@ -31,6 +31,13 @@ class Bc8181:
     MOVMR   = 0x4
     CLC     = 0x5
     JMP     = 0x6
+    JMR     = 0x7
+    PSH     = 0x8
+    POP     = 0x9
+    CAL     = 0xa
+    RET     = 0xb
+    IN      = 0xc
+    OUT     = 0xd
     KIL     = 0xf
 
     TEST_Z  = 0x0
@@ -138,7 +145,6 @@ class CodeContext:
         if(self.currhalf == 1):
             raise Exception('cannot calculate label address if byte was halfly emitted')
         self.labels.append(tuple((self.curraddr,label,type)))
-        self.emit_byte(0xfa)
         self.emit_byte(0xfa)
     def emit_lo8addr(self, label):
         self._emit_addr(label, 'lo')
@@ -480,6 +486,7 @@ class MV(Directive):
     def __str__(self):
         return ".MV {0}, {1}".format(self.regs.upper(), self.lbl)
     def emit(self, context):
+        print(self)
         super().emit(context)
         context.emit_4bit(ASMCODES.MOVRI8)
         context.emit_4bit(ASMCODES.REG2BIN(self.regs[0:2]))

@@ -45,7 +45,7 @@ class TestGrammar(unittest.TestCase):
             0xaf)
 
     def test_jmpregargs(self):
-        val = jmpregargs.parse("#dsdi")
+        val = jmpregargs.parse("dsdi")
         if debug:
             print(val)
         self.assertEqual(
@@ -197,7 +197,7 @@ class TestGrammar(unittest.TestCase):
 
     def test_jmp_reg(self):
         self.assertEqual(
-            mJMP.parse('jmp nz, #dsdi'),
+            mJMP.parse('jmp nz, dsdi'),
             JMP('nz', 'dsdi'))
 
     def test_jmp_lbl(self):
@@ -227,7 +227,7 @@ class TestGrammar(unittest.TestCase):
 
     def test_cal_i16(self):
         self.assertEqual(
-            mCAL.parse('cal #csci'),
+            mCAL.parse('cal csci'),
             CAL('csci'))
 
     def test_ret(self):

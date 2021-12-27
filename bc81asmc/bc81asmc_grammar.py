@@ -1,8 +1,9 @@
-from parsy import regex, Parser, whitespace, string, seq, letter, digit
+from parsy import regex, Parser, string, seq, letter, digit
 from bc81asmc_ast import *
 
 hexstr2int = lambda x: int(x, 16)
 comment = regex(r';[^\r\n]*').desc('comment')
+whitespace = regex(r'[ \t]').desc('whitespace')
 ignore = Parser.many(whitespace).desc('whitespaces')
 sep = whitespace.at_least(1)
 nl = regex(r'(\r\n|\r|\n)').desc('new line')
@@ -167,20 +168,20 @@ logictest = lexeme(string('z') | string('nz') | string('c') | string('nc') \
     | string('n') | string('nn') | string('o') | string('no'))
 
 labelarg = colon + ident
-jmpregargs = (hash >> (paramreg * 2)).concat()
+jmpregargs = ((paramreg * 2)).concat()
 
 jmpaddrarg = lexeme(jmpregargs | labelarg)
 jmraddrarg = lexeme(paramreg | labelarg)
 
 mJMP = \
     lexeme(seq(
-        string('jmp') >> sep >> logictest << comma << ignore,
+        string('jmp') >> sep >> logictest << comma,
         jmpaddrarg).combine(JMP))\
     .desc('jmp instruction') 
 
 mJMR = \
     lexeme(seq(
-        string('jmr') >> sep >> logictest << comma << ignore,
+        string('jmr') >> sep >> logictest << comma,
         jmraddrarg).combine(JMR))\
     .desc('jmr instruction')
 
@@ -240,5 +241,5 @@ directive = dORG | dDB | dMV
 label = lexeme(ident << colon)
 instruction = mnemonic | directive
 linecomment = (ignore >> comment).map(lambda x: LINE(None, x))
-line = linecomment | (ignore >> seq(label.optional(), instruction).combine(LINE) << comment.optional())
+line = (linecomment | (ignore >> seq(label.optional(), instruction).combine(LINE) << comment.optional())) << nl
 program = Parser.many(line)

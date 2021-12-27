@@ -7,7 +7,7 @@ def lo(b):
 
 
 class Register:
-    def __init__(self, max_value, curr_value):
+    def __init__(self, max_value, curr_value = 0):
         self.val = curr_value if curr_value is not None else 0
         self.max_value = max_value
 
@@ -172,6 +172,7 @@ class Bc8181:
             self.inc_pc(1)
         oper = self.alu[subcode]
         result = oper(self.a.get(), arg2)
+        self.regs[Bc8181.A].set(result)
         self.set_flags(Bc8181.A, result)
 
     def get_addr(self, regno):
@@ -296,6 +297,7 @@ class Bc8181:
             regno2 = lo(self.nextbyte)
             port = self.regs[regno1].get()
             val = self.regs[regno2].get()
+            self.set_flags(regno2, val)
         else:
             regno1 = opcode & 0x7
             port = self.regs[regno1].get()

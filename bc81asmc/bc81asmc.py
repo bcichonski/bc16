@@ -14,7 +14,7 @@ def compile(ast, verbose):
             print('1st pass')
     for line in ast:
         if verbose:
-            print('0x{0:04x} {1:10s} {2}'.format(context.curraddr, getattr(line, 'label', ''), line))
+            print('0x{0:04x} {1:16s}: {2}'.format(context.curraddr, getattr(line, 'label', ''), line))
         if(hasattr(line,'label')):
             labeladdresses[line.label] = context.curraddr
             line.emit(context)
@@ -28,16 +28,27 @@ def compile(ast, verbose):
         if not labeladdr:
             raise Exception('Label {0} not defined'.format(label))
         if type == 'hi':
-            context.emit_byte_at(addr, context.hi(labeladdr))
+            hiaddr = context.hi(labeladdr)
+            if verbose:
+                print('store hi({0})={1} at 0x{2:04x}'.format(label, hiaddr, addr))
+            context.emit_byte_at(addr, hiaddr)
         elif type == 'lo':
-            context.emit_byte_at(addr, context.lo(labeladdr))
+            loaddr = context.lo(labeladdr)
+            if verbose:
+                print('store lo({0})={1} at 0x{2:04x}'.format(label, loaddr, addr))
+            context.emit_byte_at(addr, loaddr)
         elif type == 'lorel':
             addrdiff = addr - labeladdr
             if(addrdiff < -0x8f or addrdiff > 0x8f):
                 raise Exception('Label {0} too far away for relative jump {1} bytes'.format(label, addrdiff))
             if(addrdiff < 0):
                 addrdiff = (-addrdiff) | 0xf0
+            if verbose:
+                print('store rel({0})={1} at 0x{2:04x}'.format(label, addrdiff, addr))
             context.emit_byte_at(addr, addrdiff)
+
+    if verbose:
+            print('done code length: {0} labels: {1}'.format(len(context.bytes), len(labeladdresses)))
     
     return context.bytes
 
