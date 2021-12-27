@@ -30,21 +30,36 @@ printstr_loop: mov a, #dsdi
                jmr nz, :printstr_loop
 printstr_end:  ret
 ;=============
+; PRINTHEX4(a) - prints hex number from 0 to f
+; IN:    a - number to print
+; OUT:   a - unchanged      10 -> 0 -> 41
+;       cs - set to 1
+printhex4:     mov cs, 0x01
+               psh a
+               sub 0x0a
+               jmr nc, :printhex4_af
+printhex4_09:  pop a
+               add 0x30
+               out #cs, a
+               ret
+printhex4_af:  pop a
+               add 0x37
+               out #cs, a
+               ret
+;=============
 ; PRINTHEX8(a) - prints hex number 
 ; IN:    a - number to print
 ; OUT:   a - set to lower half
 ;       cs - set to 1
 ;       ci - set to a
-printhex8:     mov ci, a
-               mov cs, 0x01
+;     dsdi - addr of printhex4
+printhex8:     .mv dsdi, :printhex4
+               mov ci, a
                shr 0x04
-               and 0x0f
-               add 0x30
-               out #cs, a
+               cal dsdi
                mov a, ci
                and 0x0f
-               add 0x30
-               out #cs, a
+               cal dsdi
                ret
 ;=============
 ; PRINTHEX16(dsdi) - prints hex number 4 digits
@@ -55,9 +70,10 @@ printhex8:     mov ci, a
 ;          ci - like a
 printhex16:    .mv csci, :printhex8
                mov a, ds
+               psh di
                cal csci
                .mv csci, :printhex8
-               mov a, di
+               pop a
                cal csci
                ret
 ;=============
@@ -154,6 +170,7 @@ hello:         .mv dsdi, :data_os
                .mv csci, :printhex16
                cal csci
 eos:           kil
+               kil
 ;
 ; os variables
 ;

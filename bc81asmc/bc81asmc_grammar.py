@@ -237,7 +237,7 @@ dMV  = lexeme(seq(lexeme(string('.mv')) >> lexeme((paramreg * 2).concat()) << co
             labelarg).combine(MV))\
         .desc('.mv directive')
 
-mnemonic = mNOP | mINC | mDEC | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | mCLC | mJMP | mJMR | mKIL | mCAL | mRET | mIN | mOUT
+mnemonic = mNOP | mINC | mDEC | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | mCLC | mJMP | mJMR | mKIL | mCAL | mRET | mIN | mOUT | mPSH | mPOP
 directive = dORG | dDB | dMV
 label = lexeme(ident << colon)
 instruction = mnemonic | directive
