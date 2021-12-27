@@ -10,7 +10,7 @@ TOPMEM = 0x4000
 
 
 class Bc16:
-    def __init__(self, env):
+    def __init__(self, env, debug):
         self.mem = bc16_mem.MemBus(env, TOPMEM)
         self.keyboard = bc16_io.TerminalKeyboard(env)
         self.printer = bc16_io.TerminalPrinter(env)
@@ -19,15 +19,15 @@ class Bc16:
         self.io.add_device(self.keyboard)
         self.io.add_device(self.printer)
         self.io.add_device(self.taperecorder)
-        self.cpu = bc16_cpu.Bc8181(self.mem, self.io, True)
+        self.cpu = bc16_cpu.Bc8181(self.mem, self.io, debug)
 
     def run(self):
         self.cpu.run()
 
 def main(argv):
     env = bc16_env.Environment()
-    computer = Bc16(env)
-    if len(argv) == 2:
+    computer = Bc16(env, len(argv) >= 3)
+    if len(argv) >= 2:
         import_rom(argv[1], env, computer.mem)
     computer.mem.write_byte(TOPMEM-1, 0xff)
     computer.run()

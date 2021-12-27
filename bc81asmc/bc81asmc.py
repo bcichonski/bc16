@@ -38,13 +38,13 @@ def compile(ast, verbose):
                 print('store lo({0})={1} at 0x{2:04x}'.format(label, loaddr, addr))
             context.emit_byte_at(addr, loaddr)
         elif ltype == 'lorel':
-            addrdiff = addr - labeladdr
-            if(addrdiff < -0x8f or addrdiff > 0x8f):
-                raise Exception('Label {0} too far away for relative jump {1} bytes'.format(label, addrdiff))
-            if(addrdiff < 0):
-                addrdiff = (-addrdiff) | 0xf0
+            addrdiff = labeladdr - addr + 1
             if verbose:
                 print('store rel({0})={1} at 0x{2:04x}'.format(label, addrdiff, addr))
+            if(addrdiff < -0x7f or addrdiff > 0x7f):
+                raise Exception('Label {0} too far away for relative jump {1} bytes'.format(label, addrdiff))
+            if(addrdiff < 0):
+                addrdiff = (-addrdiff) | 0x80 
             context.emit_byte_at(addr, addrdiff)
 
     if verbose:

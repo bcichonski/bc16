@@ -126,9 +126,9 @@ class CodeContext:
     def emit_byte_at(self, addr, b):
         self.bytes[addr] = b
     def hi(self, b):
-        return (b >> 4) & 0xf
+        return (b >> 8) & 0xff
     def lo(self, b):
-        return b & 0xf
+        return b & 0xff
     def emit_4bit(self, bit4):
         if(self.currhalf == 0):
             self.currbyte = (bit4 & 0xf) << 4
@@ -220,7 +220,8 @@ class KIL(Instruction):
         return "KIL";
     def emit(self, context):
         super().emit(context)
-        context.emit_byte(ASMCODES.KIL);
+        context.emit_4bit(ASMCODES.KIL);
+        context.emit_4bit(0);
 
 @dataclass
 class INC(Instruction):
@@ -448,7 +449,7 @@ class OUT(Instruction):
         return "OUT #{0}, {1}".format(self.reg.upper(), self.arg.upper())
     def emit(self, context):
         super().emit(context)
-        context.emit_4bit(ASMCODES.IN)
+        context.emit_4bit(ASMCODES.OUT)
 
         if(isinstance(self.arg, str)):
             context.emit_4bit(ASMCODES.CLC_OP_RNO)

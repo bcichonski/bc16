@@ -36,8 +36,7 @@ class FlagsRegister(Register):
     B7 = 0x7
 
     def __init__(self, max_value):
-        super().__init__(max_value)
-        self.zero = Register(0x1)
+        self.zero = Register(0x1, 0x1)
         self.carry = Register(0x1)
         self.negative = Register(0x1)
         self.overflow = Register(0x1)
@@ -55,14 +54,19 @@ class FlagsRegister(Register):
             FlagsRegister.B6: self.b6,
             FlagsRegister.B7: self.b7
         }
+        super().__init__(max_value, self._getflagsval())
 
-    def set_flag(self, flag, val):
-        self.flags[flag].set(int(val))
+    def _getflagsval(self):
         val = 0
         pos = 0
         for flag, reg in self.flags.items():
             val |= reg.get() << pos
             pos += 1
+        return val
+
+    def set_flag(self, flag, val):
+        self.flags[flag].set(int(val))
+        val = self._getflagsval()
         self.set(val)
 
     def get_flag(self, flag):
@@ -136,7 +140,7 @@ class Bc8181:
         if addr is not None:
             val = self.membus.read_byte(addr)
             self.regs[regno1].set(val)
-            self.set_flags(regno2)
+            self.set_flags(regno1)
         else:
             self.op_KIL()
 
@@ -171,9 +175,7 @@ class Bc8181:
                 arg2 = self.nextbyte
             self.inc_pc(1)
         oper = self.alu[subcode]
-        result = oper(self.a.get(), arg2)
-        self.regs[Bc8181.A].set(result)
-        self.set_flags(Bc8181.A, result)
+        oper(self.a.get(), arg2)
 
     def get_addr(self, regno):
         if(regno == Bc8181.CI or regno == Bc8181.CS):
@@ -266,12 +268,15 @@ class Bc8181:
         self.inc_pc(1)
         addr = self.get_addr(regno)
         curr = self.pc.get()
-        self._PSH(curr >> 8)
+        self._PSH((curr >> 8) & 0xff)
         self._PSH(curr & 0xff)
         self.pc.set(addr)
+        self.inc_pc(0)
 
     def op_RET(self):
-        addr = self._POP() | (self._POP() << 8)
+        addrlo = self._POP()
+        addrhi = self._POP()
+        addr = addrhi << 8 | addrlo
         self.pc.set(addr)
         self.inc_pc(0)
 
@@ -326,6 +331,7 @@ class Bc8181:
         }
 
     def create_registers(self, memsize):
+        memsize -= 1
         self.pc = Register(0xffff)
         self.f = FlagsRegister(0xf)
         self.a = Register(0xff)
@@ -361,17 +367,17 @@ class Bc8181:
 
     def alu_and(self, arg1, arg2):
         val = arg1 & arg2
-        self.set_flags(Bc8181.A)
+        self.set_flags(Bc8181.A, val)
         self.a.set(val)
 
     def alu_or(self, arg1, arg2):
         val = arg1 | arg2
-        self.set_flags(Bc8181.A)
+        self.set_flags(Bc8181.A, val)
         self.a.set(val)
 
     def alu_xor(self, arg1, arg2):
         val = arg1 ^ arg2
-        self.set_flags(Bc8181.A)
+        self.set_flags(Bc8181.A, val)
         self.a.set(val)
 
     def alu_shl(self, arg1, arg2):
@@ -381,22 +387,22 @@ class Bc8181:
 
     def alu_shr(self, arg1, arg2):
         val = arg1 >> arg2
-        self.set_flags(Bc8181.A, -(arg1 & 0x1))
+        self.set_flags(Bc8181.A, -(val & 0x1))
         self.a.set(val)
 
     def alu_not(self, arg1, arg2):
         val = ~arg1
-        self.set_flags(Bc8181.A, arg1)
+        self.set_flags(Bc8181.A, val)
         self.a.set(val)
 
     def alu_inc(self, arg1, arg2):
         val = arg1 + 1
-        self.set_flags(Bc8181.A, arg1)
+        self.set_flags(Bc8181.A, val)
         self.a.set(val)
 
     def alu_dec(self, arg1, arg2):
         val = arg1 - 1
-        self.set_flags(Bc8181.A, arg1)
+        self.set_flags(Bc8181.A, val)
         self.a.set(val)
 
     def alu_zer(self, arg1, arg2):
@@ -447,7 +453,7 @@ class Bc8181:
         self.print_debug("CS: 0x{0:02x} CI: 0x{1:02x}".format(
             self.cs.get(), self.ci.get()))
         self.print_debug("DS: 0x{0:02x} DI: 0x{1:02x}".format(
-            self.ds.get(), self.ds.get()))
+            self.ds.get(), self.di.get()))
 
     def run(self):
         self.inc_pc(0)
