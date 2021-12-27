@@ -7,8 +7,8 @@ def lo(b):
 
 
 class Register:
-    def __init__(self, max_value):
-        self.val = 0
+    def __init__(self, max_value, curr_value):
+        self.val = curr_value if curr_value is not None else 0
         self.max_value = max_value
 
     def set(self, val):
@@ -96,7 +96,7 @@ class Bc8181:
     def __init__(self, membus, iobus, debug):
         self.membus = membus
         self.iobus = iobus
-        self.create_registers()
+        self.create_registers(membus.size)
         self.create_instructions()
         self.create_arithmetic_and_logical_unit()
         self.kill = False
@@ -323,12 +323,12 @@ class Bc8181:
             0xf: self.op_KIL
         }
 
-    def create_registers(self):
+    def create_registers(self, memsize):
         self.pc = Register(0xffff)
         self.f = FlagsRegister(0xf)
         self.a = Register(0xff)
-        self.ss = Register(0xff)
-        self.si = Register(0xff)
+        self.ss = Register(0xff, (memsize >> 8) & 0xff)
+        self.si = Register(0xff, memsize & 0xff)
         self.ds = Register(0xff)
         self.di = Register(0xff)
         self.cs = Register(0xff)
@@ -422,7 +422,7 @@ class Bc8181:
 
     def get_reg(self, regno):
         reg = self.registers[regno]
-        return reg.get(val)
+        return reg.get()
 
     def run_next_opcode(self):
         opcode = hi(self.nextbyte)

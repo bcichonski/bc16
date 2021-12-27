@@ -215,6 +215,46 @@ class TestGrammar(unittest.TestCase):
             mJMR.parse('jmr c, :label'),
             JMR('c', ':label'))
 
+    def test_psh_r(self):
+        self.assertEqual(
+            mPSH.parse('psh ds'),
+            PSH('ds'))
+
+    def test_pop_r(self):
+        self.assertEqual(
+            mPOP.parse('pop a'),
+            POP('a'))
+
+    def test_cal_i16(self):
+        self.assertEqual(
+            mCAL.parse('cal #csci'),
+            CAL('csci'))
+
+    def test_ret(self):
+        self.assertEqual(
+            mRET.parse('ret'),
+            RET('ret'))
+
+    def test_in_reg(self):
+        self.assertEqual(
+            mIN.parse('in a, #di'),
+            IN('a', 'di'))
+
+    def test_in_i8(self):
+        self.assertEqual(
+            mIN.parse('in a, #0xd'),
+            IN('a', 0xd))
+
+    def test_out_reg(self):
+        self.assertEqual(
+            mOUT.parse('out #ds, di'),
+            OUT('ds', 'di'))
+
+    def test_out_i8(self):
+        self.assertEqual(
+            mOUT.parse('out #cs, 0xad'),
+            OUT('cs', 0xad))
+
     def test_kil(self):
         self.assertEqual(
             mKIL.parse('kil'),

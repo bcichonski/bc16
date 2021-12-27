@@ -368,6 +368,85 @@ class NOT(Instruction):
         context.emit_4bit(ASMCODES.CLC);
         context.emit_4bit(ASMCODES.CLC_NOT)
 
+@dataclass
+class PSH(Instruction):
+    reg : str
+    def __str__(self):
+        return 'PSH {0}'.format(self.reg.upper())
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.PSH)
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+
+@dataclass
+class POP(Instruction):
+    reg : str
+    def __str__(self):
+        return 'POP {0}'.format(self.reg.upper())
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.POP)
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+
+@dataclass
+class CAL(Instruction):
+    regs : str
+    def __str__(self):
+        return 'CAL {0}'.format(self.regs.upper())
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.CAL)
+        context.emit_4bit(ASMCODES.REG2BIN(self.regs[0:2]))
+        
+
+@dataclass
+class RET(Instruction):
+    _ : str
+    def __str__(self):
+        return 'RET'
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.RET)
+        context.emit_4bit(0)
+
+@dataclass
+class IN(Instruction):
+    reg : str
+    arg : str
+    def __str__(self):
+        return "IN {0}, #{1}".format(self.reg.upper(), self.arg.upper())
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.IN)
+
+        if(isinstance(self.arg, str)):
+            context.emit_4bit(ASMCODES.CLC_OP_RNO)
+            context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+            context.emit_4bit(ASMCODES.REG2BIN(self.arg))
+        else:
+            context.emit_4bit(0)
+            context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+            context.emit_4bit(self.arg)
+
+@dataclass
+class OUT(Instruction):
+    reg : str
+    arg : str
+    def __str__(self):
+        return "OUT #{0}, {1}".format(self.reg.upper(), self.arg.upper())
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.IN)
+
+        if(isinstance(self.arg, str)):
+            context.emit_4bit(ASMCODES.CLC_OP_RNO)
+            context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+            context.emit_4bit(ASMCODES.REG2BIN(self.arg))
+        else:
+            context.emit_4bit(0)
+            context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+            context.emit_4bit(self.arg)
+
 class Directive(Token):
     def __str__(self):
         return "directive";
@@ -399,7 +478,7 @@ class MV(Directive):
     regs : str
     lbl : str
     def __str__(self):
-        return ".MV {0}, {1}".format(self.regs, self.lbl)
+        return ".MV {0}, {1}".format(self.regs.upper(), self.lbl)
     def emit(self, context):
         super().emit(context)
         context.emit_4bit(ASMCODES.MOVRI8)

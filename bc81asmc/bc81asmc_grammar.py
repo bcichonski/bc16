@@ -19,6 +19,18 @@ quote = string("'")
 ident = letter + (letter | digit | underscore).many().concat()
 quotedstr = lexeme(quote >> regex(r"[^']*") << quote).desc('quoted string')
 
+heximm4 = lexeme(
+  (hexprefix >> regex(r'[0-9a-fA-F]'))
+  .map(hexstr2int)
+  .desc('hex immediate 4bit value')
+)
+
+heximm16 = lexeme(
+  (hexprefix >> regex(r'[0-9a-fA-F]{4}'))
+  .map(hexstr2int)
+  .desc('hex immediate 16bit value')
+)
+
 heximm8 = lexeme(
   (hexprefix >> regex(r'[0-9a-fA-F]{2}'))
   .map(hexstr2int)
@@ -172,6 +184,38 @@ mJMR = \
         jmraddrarg).combine(JMR))\
     .desc('jmr instruction')
 
+mPSH = lexeme(string('psh') >> sep >> paramreg)\
+    .map(PSH)\
+    .desc('psh instruction')
+
+mPOP = lexeme(string('pop') >> sep >> paramreg)\
+    .map(POP)\
+    .desc('pop instruction')
+
+mCAL = lexeme(string('cal') >> sep >> jmpregargs)\
+    .map(CAL)\
+    .desc('cal instruction')
+
+mRET = lexeme(string('ret'))\
+    .map(RET)\
+    .desc('ret instruction')
+
+inreg = lexeme(hash >> (heximm4 | paramreg))
+
+outreg = lexeme(heximm8 | paramreg)
+
+mIN = \
+    lexeme(seq(
+        string('in') >> sep >> paramreg << comma << ignore,
+        inreg).combine(IN))\
+    .desc('in instruction')
+
+mOUT = \
+    lexeme(seq(
+        string('out') >> sep >> hash >> paramreg << comma << ignore,
+        outreg).combine(OUT))\
+    .desc('out instruction')
+
 mKIL = lexeme(string('kil'))\
         .map(KIL)\
         .desc('kil instruction')
@@ -191,7 +235,7 @@ dMV  = lexeme(seq(lexeme(string('.mv')) >> lexeme((paramreg * 2).concat()) << co
             labelarg).combine(MV))\
         .desc('.mv directive')
 
-mnemonic = mNOP | mINC | mDEC | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | mCLC | mJMP | mJMR | mKIL
+mnemonic = mNOP | mINC | mDEC | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | mCLC | mJMP | mJMR | mKIL | mCAL | mRET | mIN | mOUT
 directive = dORG | dDB | dMV
 label = lexeme(ident << colon)
 instruction = mnemonic | directive
