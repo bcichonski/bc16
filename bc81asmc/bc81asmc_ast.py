@@ -79,11 +79,11 @@ class Bc8181:
         self.test_opcodes = {
           'z' : Bc8181.TEST_Z,
           'nz': Bc8181.TEST_NZ,
-          'cy': Bc8181.TEST_CY,
+          'c': Bc8181.TEST_CY,
           'nc': Bc8181.TEST_NC,
-          'ng': Bc8181.TEST_NG,
+          'n': Bc8181.TEST_NG,
           'nn': Bc8181.TEST_NN,
-          'of': Bc8181.TEST_OF,
+          'o': Bc8181.TEST_OF,
           'no': Bc8181.TEST_NO
         }
 
@@ -109,6 +109,7 @@ class CodeContext:
         self.currhalf = 0
         self.curraddr = 0
         self.errors = []
+        self.labels = []
     def emit_byte(self, b):
         self.bytes.extend([b])
         self.currbyte = None
@@ -126,6 +127,17 @@ class CodeContext:
         self.curraddr = addr
     def add_error(self, message):
         self.errors.extend(message)
+    def _emit_addr(self, label, type):
+        if(self.currhalf == 1):
+            raise Exception('cannot calculate label address if byte was halfly emitted')
+        self.labels.extend((self.curraddr,label,type))
+        self.emit_byte(0xfafa)
+    def emit_lo8addr(self, label):
+        self._emit_addr(label, 'lo')
+    def emit_addr(self, label):
+        self._emit_addr(label, 'hilo')
+    def emit_rel8addr(self, label):
+        self._emit_addr(label, 'lorel')
 
 class Token:
     def __str__(self):
@@ -296,15 +308,38 @@ class CLC_A_R(Instruction):
 @dataclass
 class JMP(Instruction):
     test : str
-    label : str
+    arg : str
     def __str__(self):
-        return "JMP{0} {1}".format(self.test.upper(), self.label.upper())
+        return "JMP {0}, {1}".format(self.test.upper(), self.arg.upper())
     def emit(self, context):
         super().emit(context)
-        context.emit_4bit(ASMCODES.JMP);
-        context.emit_4bit(ASMCODES.TEST2OPCODE(self.oper) | ASMCODES.CLC_OP_RNO)
-        context.emit_4bit(ASMCODES.REG2BIN(self.reg))
-        context.emit_4bit(0)
+        context.emit_4bit(ASMCODES.JMP)
+
+        if(self.arg.startswith(':')):
+            context.emit_4bit(ASMCODES.TEST2OPCODE(self.test) | ASMCODES.CLC_OP_RNO)
+            context.emit_lo8addr(self.arg[1:])
+        else:
+            context.emit_4bit(ASMCODES.TEST2OPCODE(self.test))
+            context.emit_4bit(0)
+            context.emit_4bit(ASMCODES.REG2BIN(self.arg))
+
+@dataclass
+class JMR(Instruction):
+    test : str
+    arg : str
+    def __str__(self):
+        return "JMR {0}, {1}".format(self.test.upper(), self.arg.upper())
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.JMR)
+
+        if(self.arg.startswith(':')):
+            context.emit_4bit(ASMCODES.TEST2OPCODE(self.test))
+            context.emit_rel8addr(self.arg[1:])
+        else:
+            context.emit_4bit(ASMCODES.TEST2OPCODE(self.test) | ASMCODES.CLC_OP_RNO)
+            context.emit_4bit(ASMCODES.REG2BIN(self.arg))
+            context.emit_4bit(0)
 
 @dataclass
 class NOT(Instruction):

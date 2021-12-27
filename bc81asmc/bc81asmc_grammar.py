@@ -151,14 +151,26 @@ mSHRr = \
     .map(lambda x: CLC_A_R('shr', x))\
     .desc('shr r instruction')
 
-logictest = string('z') | string('nz') | string('cy') | string('nc') \
-    | string('ng') | string('ng') | string('nn') | string('of') | string('no')
+logictest = lexeme(string('z') | string('nz') | string('c') | string('nc') \
+    | string('n') | string('nn') | string('o') | string('no'))
 
-mJMPrr = \
+labelarg = colon + ident
+jmpregargs = (hash >> (paramreg * 2)).concat()
+
+jmpaddrarg = lexeme(jmpregargs | labelarg)
+jmraddrarg = lexeme(paramreg | labelarg)
+
+mJMP = \
     lexeme(seq(
-        string('jmp') >> logictest << sep,
-        (paramreg * 2).concat()).combine(JMP))\
-    .desc('jmp instruction')
+        string('jmp') >> sep >> logictest << comma << ignore,
+        jmpaddrarg).combine(JMP))\
+    .desc('jmp instruction') 
+
+mJMR = \
+    lexeme(seq(
+        string('jmr') >> sep >> logictest << comma << ignore,
+        jmraddrarg).combine(JMR))\
+    .desc('jmr instruction')
 
 mCLC = mADDi8 | mADDr | mSUBi8 | mSUBr | mANDi8 | mANDr | mORi8 | mORr | \
        mXORi8 | mXORr | mSHLi8 | mSHLr | mSHRi8 | mSHRr
@@ -171,7 +183,7 @@ dDB  = (lexeme(string('.db')) >> paramdb.sep_by(comma))\
     .map(DB)\
     .desc('.db directive')
 
-mnemonic = mNOP | mINC | mDEC | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | mCLC
+mnemonic = mNOP | mINC | mDEC | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | mCLC | mJMP | mJMR
 directive = dORG | dDB
 label = lexeme(ident << colon)
 instruction = mnemonic | directive

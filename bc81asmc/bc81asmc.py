@@ -9,10 +9,14 @@ def read_input_file(fname):
 
 def compile(ast, verbose):
     context = CodeContext()
+    labeladdresses = {}
     for line in ast:
         if verbose:
-            print('{0:04x} {1}'.format(context.curraddr, line))
+            print('{0:04x} {1} {2}'.format(context.curraddr, line.label, line))
+        if(line.label):
+            labeladdresses[line.label] = context.curraddr
         line.emit(context)
+    
     return context.bytes
 
 def save_output_file(fname, code):

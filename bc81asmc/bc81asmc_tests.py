@@ -44,6 +44,14 @@ class TestGrammar(unittest.TestCase):
             val,
             0xaf)
 
+    def test_jmpregargs(self):
+        val = jmpregargs.parse("#dsdi")
+        if debug:
+            print(val)
+        self.assertEqual(
+            val,
+            "dsdi")
+
     def test_directive_db(self):
         val = dDB.parse(".db 'quoted', 0xff, 'new', 0x00")
         if debug:
@@ -178,6 +186,26 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(
             mSHRr.parse('shr ci'),
             CLC_A_R('shr', 'ci'))
+
+    def test_jmp_reg(self):
+        self.assertEqual(
+            mJMP.parse('jmp nz, #dsdi'),
+            JMP('nz', 'dsdi'))
+
+    def test_jmp_lbl(self):
+        self.assertEqual(
+            mJMP.parse('jmp c, :label'),
+            JMP('c', ':label'))
+
+    def test_jmr_reg(self):
+        self.assertEqual(
+            mJMR.parse('jmr nz, di'),
+            JMR('nz', 'di'))
+
+    def test_jmr_lbl(self):
+        self.assertEqual(
+            mJMR.parse('jmr c, :label'),
+            JMR('c', ':label'))
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,8 +1,8 @@
 ; bc16 Operation System version 0.1.20211221
 ;
             .org 0x0000
-start:      nop ;.mvl csci, :init
-            ;jmp csci
+start:      .mv csci, :init
+            jmp z, #csci
 ; data
 d_os:       .db 'bcOS 0.1', 0x00
 d_prompt:   .db '>', 0x00
