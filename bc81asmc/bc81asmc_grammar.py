@@ -172,6 +172,10 @@ mJMR = \
         jmraddrarg).combine(JMR))\
     .desc('jmr instruction')
 
+mKIL = lexeme(string('kil'))\
+        .map(KIL)\
+        .desc('kil instruction')
+
 mCLC = mADDi8 | mADDr | mSUBi8 | mSUBr | mANDi8 | mANDr | mORi8 | mORr | \
        mXORi8 | mXORr | mSHLi8 | mSHLr | mSHRi8 | mSHRr
 
@@ -183,10 +187,14 @@ dDB  = (lexeme(string('.db')) >> paramdb.sep_by(comma))\
     .map(DB)\
     .desc('.db directive')
 
-mnemonic = mNOP | mINC | mDEC | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | mCLC | mJMP | mJMR
-directive = dORG | dDB
+dMV  = lexeme(seq(lexeme(string('.mv')) >> lexeme((paramreg * 2).concat()) << comma,
+            labelarg).combine(MV))\
+        .desc('.mv directive')
+
+mnemonic = mNOP | mINC | mDEC | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | mCLC | mJMP | mJMR | mKIL
+directive = dORG | dDB | dMV
 label = lexeme(ident << colon)
 instruction = mnemonic | directive
-linecomment = ignore >> comment
+linecomment = (ignore >> comment).map(lambda x: LINE(None, x))
 line = linecomment | (ignore >> seq(label.optional(), instruction).combine(LINE) << comment.optional())
 program = Parser.many(line)

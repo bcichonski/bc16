@@ -10,12 +10,34 @@ def read_input_file(fname):
 def compile(ast, verbose):
     context = CodeContext()
     labeladdresses = {}
+    if verbose:
+            print('1st pass')
     for line in ast:
         if verbose:
-            print('{0:04x} {1} {2}'.format(context.curraddr, line.label, line))
-        if(line.label):
+            print('0x{0:04x} {1:10s} {2}'.format(context.curraddr, getattr(line, 'label', ''), line))
+        if(hasattr(line,'label')):
             labeladdresses[line.label] = context.curraddr
-        line.emit(context)
+            line.emit(context)
+
+    if verbose:
+            print('2nd pass')
+
+    for labelref in context.labels:
+        (addr,label,type) = labelref
+        labeladdr = labeladdresses[label]
+        if not labeladdr:
+            raise Exception('Label {0} not defined'.format(label))
+        if type == 'hi':
+            context.emit_byte_at(addr, context.hi(labeladdr))
+        elif type == 'lo':
+            context.emit_byte_at(addr, context.lo(labeladdr))
+        elif type == 'lorel':
+            addrdiff = addr - labeladdr
+            if(addrdiff < -0x8f or addrdiff > 0x8f):
+                raise Exception('Label {0} too far away for relative jump {1} bytes'.format(label, addrdiff))
+            if(addrdiff < 0):
+                addrdiff = (-addrdiff) | 0xf0
+            context.emit_byte_at(addr, addrdiff)
     
     return context.bytes
 

@@ -31,6 +31,7 @@ class Bc8181:
     MOVMR   = 0x4
     CLC     = 0x5
     JMP     = 0x6
+    KIL     = 0xf
 
     TEST_Z  = 0x0
     TEST_NZ = 0x4
@@ -115,6 +116,12 @@ class CodeContext:
         self.currbyte = None
         self.currhalf = 0
         self.curraddr += 1
+    def emit_byte_at(self, addr, b):
+        self.bytes[addr] = b
+    def hi(self, b):
+        return (b >> 4) & 0xf
+    def lo(self, b):
+        return b & 0xf
     def emit_4bit(self, bit4):
         if(self.currhalf == 0):
             self.currbyte = (bit4 & 0xf) << 4
@@ -130,12 +137,13 @@ class CodeContext:
     def _emit_addr(self, label, type):
         if(self.currhalf == 1):
             raise Exception('cannot calculate label address if byte was halfly emitted')
-        self.labels.extend((self.curraddr,label,type))
-        self.emit_byte(0xfafa)
+        self.labels.append(tuple((self.curraddr,label,type)))
+        self.emit_byte(0xfa)
+        self.emit_byte(0xfa)
     def emit_lo8addr(self, label):
         self._emit_addr(label, 'lo')
-    def emit_addr(self, label):
-        self._emit_addr(label, 'hilo')
+    def emit_hi8addr(self, label):
+        self._emit_addr(label, 'hi')
     def emit_rel8addr(self, label):
         self._emit_addr(label, 'lorel')
 
@@ -194,6 +202,15 @@ class NOP(Instruction):
         context.emit_byte(ASMCODES.NOP);
 
 @dataclass
+class KIL(Instruction):
+    _ : str
+    def __str__(self):
+        return "KIL";
+    def emit(self, context):
+        super().emit(context)
+        context.emit_byte(ASMCODES.KIL);
+
+@dataclass
 class INC(Instruction):
     _ : str
     def __str__(self):
@@ -221,8 +238,8 @@ class MOVRI8(Instruction):
         return "MOV {0}, 0x{1:02x}".format(self.reg, self.i8);
     def emit(self, context):
         super().emit(context)
-        context.emit_4bit(ASMCODES.MOVRI8);
-        context.emit_4bit(ASMCODES.REG2BIN(self.reg));
+        context.emit_4bit(ASMCODES.MOVRI8)
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg))
         context.emit_byte(self.i8)
 
 @dataclass
@@ -373,8 +390,24 @@ class DB(Directive):
     def emit(self, context):
         for val in self.values:
             if isinstance(val, str):
-                val = ord(val)
-            context.emit_byte(val)
+                for char in val:
+                    context.emit_byte(ord(char))
+            else: context.emit_byte(val)
+
+@dataclass
+class MV(Directive):
+    regs : str
+    lbl : str
+    def __str__(self):
+        return ".MV {0}, {1}".format(self.regs, self.lbl)
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.MOVRI8)
+        context.emit_4bit(ASMCODES.REG2BIN(self.regs[0:2]))
+        context.emit_hi8addr(self.lbl[1:])
+        context.emit_4bit(ASMCODES.MOVRI8)
+        context.emit_4bit(ASMCODES.REG2BIN(self.regs[2:]))
+        context.emit_lo8addr(self.lbl[1:])
 
 def LINE(label, token):
     if label:

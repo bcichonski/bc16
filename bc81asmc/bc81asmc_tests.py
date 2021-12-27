@@ -53,12 +53,20 @@ class TestGrammar(unittest.TestCase):
             "dsdi")
 
     def test_directive_db(self):
-        val = dDB.parse(".db 'quoted', 0xff, 'new', 0x00")
+        val = directive.parse(".db 'quoted', 0xff, 'new', 0x00")
         if debug:
             print(val)
         self.assertEqual(
             val,
             DB(['quoted', 0xff, 'new', 0x00]))
+
+    def test_directive_mv(self):
+        val = directive.parse(".mv af, :label")
+        if debug:
+            print(val)
+        self.assertEqual(
+            val,
+            MV('af', ':label'))
 
     def test_directive_org(self):
         val = directive.parse('.org 0x0100')
@@ -206,6 +214,11 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(
             mJMR.parse('jmr c, :label'),
             JMR('c', ':label'))
+
+    def test_kil(self):
+        self.assertEqual(
+            mKIL.parse('kil'),
+            KIL('kil'))
 
 if __name__ == '__main__':
     unittest.main()
