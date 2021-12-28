@@ -133,6 +133,22 @@ peek16:        mov ds, #csci
                mov di, #csci
 peek16_ok:     ret             
 peek16_fail:   kil
+;=============
+; ADD16(csci,dsdi) - returns value under csci address (2 bytes)
+;                 because uses 8bit inc address must be in same ds segment
+;                 this code guards against it
+; IN:   csci - address to read
+; OUT:  dsdi - value from #csci
+;       dsdi - address to store + 1
+;       a    - lo(val(var_param16))
+peek16:        mov ds, #csci
+               mov a, ci
+               inc a
+               jmr c, :peek16_fail
+               mov ci, a
+               mov di, #csci
+peek16_ok:     ret             
+peek16_fail:   kil
 ;
 ; main code
 ; 1.initialize os
@@ -163,7 +179,7 @@ hello:         .mv dsdi, :data_os
                cal csci
                .mv dsdi, :data_to
                .mv csci, :printstr
-               cal csci
+               cal :printstr
                .mv csci, :var_top_mem
                .mv dsdi, :peek16
                cal dsdi

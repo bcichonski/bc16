@@ -142,19 +142,38 @@ class CpuTests(unittest.TestCase):
         self.assertEqual(cpu.a.get(),  0xa2)
         self.assertEqual(cpu.ci.get(), 0xf1)
 
-    def test_CAL_RET_opcodes(self):
+    def test_CAL_reg_RET_opcodes(self):
         if debug: print("test_CAL_RET_opcodes")
         #given
         cpu = self.create_cpu([
             0x1C, 0xfe,  # 0x0000: MOV SI, 0xfe ; stack at 00fe
-            0x14, 0x09,  # 0x0002: MOV CI, 0x09
+            0x14, 0x0A,  # 0x0002: MOV CI, 0x0A
             0x11, 0x00,  # 0x0004: MOV A, 0x00
-            0xA8,        # 0x0006: CAL #CSCI
-            0x5d,        # 0x0007: INC A
-            0xff,        # 0x0008: KIL
-            0x5d,        # 0x0009: INC A
-            0xB0,        # 0x000A: RET
-            0xff,        # 0x000B: KIL
+            0xA0, 0x80,  # 0x0006: CAL #CSCI
+            0x5d,        # 0x0008: INC A
+            0xff,        # 0x0009: KIL
+            0x5d,        # 0x000A: INC A
+            0xB0,        # 0x000B: RET
+            0xff,        # 0x000C: KIL
+        ])
+        #when
+        cpu.run()
+        #then
+        self.assertEqual(cpu.a.get(),  0x02)
+
+    def test_CAL_mem_RET_opcodes(self):
+        if debug: print("test_CAL_mem_RET_opcodes")
+        #given
+        cpu = self.create_cpu([
+            0x1C, 0xfe,         # 0x0000: MOV SI, 0xfe ; stack at 00fe
+            0x14, 0x0A,         # 0x0002: MOV CI, 0x0A
+            0x11, 0x00,         # 0x0004: MOV A, 0x00
+            0xA8, 0x00, 0x0B,   # 0x0006: CAL #000B
+            0x5d,               # 0x0009: INC A
+            0xff,               # 0x000A: KIL
+            0x5d,               # 0x000B: INC A
+            0xB0,               # 0x000C: RET
+            0xff,               # 0x000D: KIL
         ])
         #when
         cpu.run()

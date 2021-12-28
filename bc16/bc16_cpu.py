@@ -264,9 +264,17 @@ class Bc8181:
         self.inc_pc(1)
 
     def op_CAL(self):
-        regno = lo(self.nextbyte)
+        opcode = lo(self.nextbyte)
+        directmode = opcode & Bc8181.CLC_OP_RNO == Bc8181.CLC_OP_RNO
         self.inc_pc(1)
-        addr = self.get_addr(regno)
+        if(directmode):
+            addrhi = self.nextbyte
+            self.inc_pc(1)
+            addr = (addrhi << 8) | self.nextbyte
+        else:
+            regno = hi(self.nextbyte)
+            addr = self.get_addr(regno)
+        self.inc_pc(1)
         curr = self.pc.get()
         self._PSH((curr >> 8) & 0xff)
         self._PSH(curr & 0xff)

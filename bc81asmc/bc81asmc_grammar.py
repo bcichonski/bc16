@@ -194,7 +194,7 @@ mPOP = lexeme(string('pop') >> sep >> paramreg)\
     .map(POP)\
     .desc('pop instruction')
 
-mCAL = lexeme(string('cal') >> sep >> jmpregargs)\
+mCAL = lexeme(string('cal') >> sep >> jmpaddrarg)\
     .map(CAL)\
     .desc('cal instruction')
 

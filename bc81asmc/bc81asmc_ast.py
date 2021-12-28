@@ -403,15 +403,21 @@ class POP(Instruction):
 
 @dataclass
 class CAL(Instruction):
-    regs : str
+    arg : str
     def __str__(self):
-        return 'CAL {0}'.format(self.regs.upper())
+        return 'CAL {0}'.format(self.arg.upper())
     def emit(self, context):
         super().emit(context)
         context.emit_4bit(ASMCODES.CAL)
-        context.emit_4bit(ASMCODES.REG2BIN(self.regs[0:2]))
+        if(self.arg.startswith(':')):
+            context.emit_4bit(ASMCODES.CLC_OP_RNO)
+            context.emit_hi8addr(self.arg[1:])
+            context.emit_lo8addr(self.arg[1:])
+        else:
+            context.emit_4bit(0)
+            context.emit_4bit(ASMCODES.REG2BIN(self.arg[0:2]))
+            context.emit_4bit(0)
         
-
 @dataclass
 class RET(Instruction):
     _ : str

@@ -225,10 +225,15 @@ class TestGrammar(unittest.TestCase):
             mPOP.parse('pop a'),
             POP('a'))
 
-    def test_cal_i16(self):
+    def test_cal_reg(self):
         self.assertEqual(
             mCAL.parse('cal csci'),
             CAL('csci'))
+
+    def test_cal_addr(self):
+        self.assertEqual(
+            mCAL.parse('cal :label'),
+            CAL(':label'))
 
     def test_ret(self):
         self.assertEqual(
