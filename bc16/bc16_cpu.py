@@ -192,9 +192,11 @@ class Bc8181:
 
     def set_flags(self, regno, val=None):
         if regno == Bc8181.A:
-            self.f.set_flag(FlagsRegister.ZERO, int(self.a.get() == 0))
+            if val is None:
+                val = self.a.get()
+            self.f.set_flag(FlagsRegister.ZERO, int(val == 0))
             self.f.set_flag(FlagsRegister.NEGATIVE,
-                            int(self.a.get() & 0x80 == 0x80))
+                            int(val & 0x80 == 0x80))
         if val is not None:
             self.f.set_flag(FlagsRegister.CARRY, int(val > 0xff))
             self.f.set_flag(FlagsRegister.OVERFLOW, int(val > 0xff or val < 0))
@@ -295,8 +297,8 @@ class Bc8181:
             regno2 = lo(self.nextbyte)
             port = self.regs[regno2].get()
         else:
-            regno1 = opcode & 0x7
-            port = hi(self.nextbyte)
+            regno1 = hi(self.nextbyte)
+            port = lo(self.nextbyte)
         inbyte = self.iobus.read_byte(port)
         self.regs[regno1].set(inbyte)
         self.inc_pc(1)

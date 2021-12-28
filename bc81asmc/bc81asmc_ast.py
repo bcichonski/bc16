@@ -433,7 +433,7 @@ class IN(Instruction):
     reg : str
     arg : str
     def __str__(self):
-        return "IN {0}, #{1}".format(self.reg.upper(), self.arg.upper())
+        return "IN {0}, #{1}".format(self.reg.upper(), self.arg)
     def emit(self, context):
         super().emit(context)
         context.emit_4bit(ASMCODES.IN)

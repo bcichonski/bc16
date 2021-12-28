@@ -21,7 +21,7 @@ data_help:        .db 'supported commands:', 0x0a, 0x0d
 ; subroutines
 ;=============
 ; PRINTSTR(*dsdi) - sends chars to printer
-; IN: dsdi - address of 0-ended char table, must start and end in the same ds segment!
+; IN: dsdi - address of 0-ended char table
 ; OUT:   a - set to 0x00
 ;       ci - set to 0x01
 ;     dsdi - set to end of char table
@@ -29,10 +29,9 @@ printstr:      mov ci, 0x01
 printstr_loop: mov a, #dsdi
                jmr z, :printstr_end
                out #ci, a
-               mov a, di
-               inc a
-               mov di, a
-               jmr nz, :printstr_loop
+               cal :inc16
+               xor a
+               jmr z, :printstr_loop
 printstr_end:  ret
 ;=============
 ; PRINTHEX4(a) - prints hex number from 0 to f
@@ -91,7 +90,25 @@ inc16_carry:   mov a, ds
                mov ds, a
                jmr c, :inc16_fail
 inc16_ret:     ret
-inc16_fail:    kil
+inc16_fail:    mov a, 0x10
+               cal :error
+;=============
+; DEC16(dsdi) - decrease 16bit number correctly
+; IN:    dsdi - number 16bit, break if lower than 0
+; OUT:   dsdi - sub 1
+;           a - di - 1 or ds - 1
+dec16:         mov a, di
+               dec a
+               mov di, a
+               jmr o, :dec16_ovfl
+               ret
+dec16_ovfl:    mov a, ds
+               dec a
+               mov ds, a
+               jmr o, :dec16_fail
+dec16_ret:     ret
+dec16_fail:    mov a, 0x11
+               cal :error
 ;=============
 ; SETVARPARAM16(csci) - stores dsdi value under sys variable var_param16 (2 bytes)
 ; IN:   csci - value for var_param16
@@ -143,7 +160,7 @@ add16_ok:      ret
 add16_carry1:  mov a, cs
                inc a
                jmr nc, :add16_cry_nxt
-add16_cry2err: mov a, 0x10
+add16_cry2err: mov a, 0x12
                cal :error
 ;=============
 ; SUB16(csci,dsdi) - returns value under csci address (2 bytes) 
@@ -164,15 +181,45 @@ sub16_ok:      ret
 sub16_ovr1:    mov a, cs
                dec a
                jmr no, :sub16_crynxt
-sub16_ovr2err: mov a, 0x11
+sub16_ovr2err: mov a, 0x13
                cal :error
 ;=============
 ; READSTR(#dsdi, ci) - prints error message and stops
 ; IN:   dsdi - buffer address for chars
 ;         ci - length of the buffer
 ; OUT:  
-readstr:       mov cs, 0x00
-               in a, #cs
+readstr:       in a, #0x0
+               mov cs, a
+               and 0x0d
+               jmr nz, :readstr_end
+               mov a, cs
+               and 0x08
+               jmr nz, :readstr_del
+               mov a, ci
+               dec a
+               jmr z, :readstr
+               mov ci, a
+               mov #dsdi, cs
+               cal :inc16
+               mov a, 0x01
+               out #a, cs
+               jmr nz, :readstr
+readstr_del:   mov a, ci
+               dec a
+               jmr o, :readstr
+               mov ci, a
+               xor a
+               mov #dsdi, a
+               cal :dec16
+               mov cs, 0x01
+               mov a, 0x10
+               out #cs, a
+               mov a, 0x20
+               out #cs, a
+               mov a, 0x10
+               out #cs, a
+               jmr nz, :readstr
+readstr_end:   ret
 ;=============
 ; ERROR(a) - prints error message and stops
 ; IN:   a - error code
@@ -238,7 +285,7 @@ os_prompt:     .mv dsdi, :data_prompt
                cal :printstr
                .mv dsdi, :var_promptbuf
                mov ci, 0x20
-;               cal :readstr
+               cal :readstr
 os_end:        mov a, 0xff
                cal :error
 ;
