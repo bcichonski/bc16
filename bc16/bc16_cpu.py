@@ -1,17 +1,17 @@
 def hi(b):
     return (b >> 4) & 0xf
 
-
 def lo(b):
     return b & 0xf
 
-
 class Register:
-    def __init__(self, max_value, curr_value = 0):
+    def __init__(self, max_value, curr_value=0):
         self.val = curr_value if curr_value is not None else 0
         self.max_value = max_value
 
     def set(self, val):
+        while(val < 0):
+            val += self.max_value + 1
         self.val = val & self.max_value
 
     def get(self):
@@ -19,7 +19,6 @@ class Register:
 
     def inc(self, val):
         self.set(self.val + val)
-
 
 class FlagsRegister(Register):
     ZERO = 0x0
@@ -71,7 +70,6 @@ class FlagsRegister(Register):
 
     def get_flag(self, flag):
         return bool(self.flags[flag].get())
-
 
 class Bc8181:
     A = 0x1
@@ -198,7 +196,8 @@ class Bc8181:
             self.f.set_flag(FlagsRegister.NEGATIVE,
                             int(self.a.get() & 0x80 == 0x80))
         if val is not None:
-            self.f.set_flag(FlagsRegister.CARRY, int(val > 0xff or val < 0))
+            self.f.set_flag(FlagsRegister.CARRY, int(val > 0xff))
+            self.f.set_flag(FlagsRegister.OVERFLOW, int(val > 0xff or val < 0))
 
     def op_JMP(self):
         opcode = lo(self.nextbyte)
@@ -365,13 +364,11 @@ class Bc8181:
         val = arg1 + arg2
         self.set_flags(Bc8181.A, val)
         self.a.set(val)
-        # self.f.set_flag(FlagsRegister.OVERFLOW, ) TODO
 
     def alu_sub(self, arg1, arg2):
         val = arg1 - arg2
         self.set_flags(Bc8181.A, val)
         self.a.set(val)
-        # self.f.set_flag(FlagsRegister.OVERFLOW, ) TODO
 
     def alu_and(self, arg1, arg2):
         val = arg1 & arg2
