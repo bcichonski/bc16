@@ -1,4 +1,4 @@
-; bc16 Operation System version 0.1.20211221
+; bc16 Operation System version 0.1.20211228
 ;
                .org 0x0000
 start:         .mv csci, :init
@@ -52,87 +52,72 @@ printhex4_af:  pop a
 ; OUT:   a - set to lower half
 ;       cs - set to 1
 ;       ci - set to a
-;     dsdi - addr of printhex4
-printhex8:     .mv dsdi, :printhex4
-               mov ci, a
+;     dsdi - unchanged
+printhex8:     mov ci, a
                shr 0x04
-               cal dsdi
+               cal :printhex4
                mov a, ci
                and 0x0f
-               cal dsdi
+               cal :printhex4
                ret
 ;=============
-; PRINTHEX16(dsdi) - prints hex number 4 digits
-; IN:    dsdi - hex number 4 digits
-; OUT:   dsdi - unchanged
-;           a - lo(di)
-;          cs - 1
-;          ci - like a
-printhex16:    .mv csci, :printhex8
-               mov a, ds
-               psh di
-               cal csci
-               .mv csci, :printhex8
-               pop a
-               cal csci
+; PRINTHEX16(csci) - prints hex number 4 digits
+; IN:    csci - hex number 4 digits
+; OUT:   csci - unchanged
+;           a - ci
+printhex16:    mov a, cs
+               cal :printhex8
+               mov a, ci
+               cal :printhex8
                ret
 ;=============
-; SETVARPARAM16(dsdi) - stores dsdi value under sys variable var_param16 (2 bytes)
-;                       because uses 8bit inc address must be in same ds segment
-;                       this code guards against it
-; IN:   dsdi - value for var_param16
-; OUT:  csci - #var_param16 + 1
-;       dsdi - unchanged
-;       a    - lo(var_param16) + 1
-setvarparam16: .mv csci, :var_param16
-               mov #csci, ds
-               mov a, ci
+; INC16(dsdi) - increase 16bit number correctly
+; IN:    dsdi - number 16bit, break if exceeds 16bit
+; OUT:   dsdi - add 1
+;           a - di + 1 or ds + 1
+inc16:         mov a, di
                inc a
-               jmr c, :setvarp16_fail
-               mov ci, a
-               mov #csci, di
-setvarp16_ok:  ret
-setvarp16_fail:kil
-;=============
-; POKE16(#dsdi, var_param16) - stores dsdi value under csci address (2 bytes)
-;                       because uses 8bit inc address must be in same ds segment
-;                       this code guards against it
-; IN:   dsdi - address to store
-;       var_param16 - value to store
-; OUT:  csci - #var_param16 + 1
-;       dsdi - address to store + 1
-;       a    - lo(val(var_param16))
-poke16:        .mv csci, :var_param16
-               mov a, #csci
-               mov #dsdi, a
-               mov a, ci
-               inc a
-               jmr c, :poke16_fail
-               mov ci, a
                mov a, di
+               jmr c, :inc16_carry
+               ret
+inc16_carry:   mov a, ds
                inc a
-               jmr c, :poke16_fail
-               mov di, a
-               mov a, #csci
-               mov #dsdi, a
-poke16_ok:     ret             
-poke16_fail:   kil
+               mov ds, a
+               jmr c, :inc16_fail
+inc16_ret:     ret
+inc16_fail:    kil
 ;=============
-; PEEK16(#csci) - returns value under csci address (2 bytes)
-;                 because uses 8bit inc address must be in same ds segment
-;                 this code guards against it
-; IN:   csci - address to read
-; OUT:  dsdi - value from #csci
-;       dsdi - address to store + 1
-;       a    - lo(val(var_param16))
-peek16:        mov ds, #csci
-               mov a, ci
-               inc a
-               jmr c, :peek16_fail
-               mov ci, a
-               mov di, #csci
-peek16_ok:     ret             
-peek16_fail:   kil
+; SETVARPARAM16(csci) - stores dsdi value under sys variable var_param16 (2 bytes)
+; IN:   csci - value for var_param16
+; OUT:  dsdi - #var_param16 + 1
+;       csci - unchanged
+;       a    - lo(var_param16) + 1
+setvarparam16: .mv dsdi, :var_param16
+               mov #dsdi, ds
+               cal :inc16
+               mov #dsdi, di
+               ret
+;=============
+; POKE16(#dsdi, csci) - stores csci value under #dsdi address (2 bytes)
+; IN:   dsdi - address to store
+;       csci - value to store
+; OUT:  dsdi - address to store + 1
+;       csci - unchanged
+;       a    - ci
+poke16:        mov #dsdi, cs
+               cal :inc16
+               mov #dsdi, ci
+poke16_ok:     ret             
+;=============
+; PEEK16(#dsdi) - returns value under dsdi address (2 bytes)
+; IN:   dsdi - address to read
+; OUT:  dsdi - address to read + 1
+;       csci - value
+;       a    - ci
+peek16:        mov cs, #dsdi
+               cal :inc16
+               mov ci, #dsdi
+peek16_ok:     ret
 ;=============
 ; ADD16(csci,dsdi) - returns value under csci address (2 bytes)
 ;                 because uses 8bit inc address must be in same ds segment
@@ -141,52 +126,38 @@ peek16_fail:   kil
 ; OUT:  dsdi - value from #csci
 ;       dsdi - address to store + 1
 ;       a    - lo(val(var_param16))
-peek16:        mov ds, #csci
+add16:         mov ds, #csci
                mov a, ci
                inc a
-               jmr c, :peek16_fail
+               jmr c, :add16_fail
                mov ci, a
                mov di, #csci
-peek16_ok:     ret             
-peek16_fail:   kil
+add16_ok:      ret             
+add16_fail:    kil
 ;
 ; main code
 ; 1.initialize os
-init:          mov ds, ss
-               mov di, si
-               .mv csci, :setvarparam16
-               cal csci
+init:          mov cs, ss
+               mov ci, si
                .mv dsdi, :var_top_mem
-               .mv csci, :poke16
-               cal csci
-               .mv dsdi, :user_mem
-               .mv csci, :setvarparam16
-               cal csci
+               cal :poke16
+               .mv csci, :user_mem
                .mv dsdi, :var_user_mem
-               .mv csci, :poke16
-               cal csci
+               cal :poke16
 ; 2.write greetings
 hello:         .mv dsdi, :data_os
-               .mv csci, :printstr
-               cal csci
-               .mv dsdi, :data_from
-               .mv csci, :printstr
-               cal csci
-               .mv csci, :var_user_mem
-               .mv dsdi, :peek16
-               cal dsdi
-               .mv csci, :printhex16
-               cal csci
-               .mv dsdi, :data_to
-               .mv csci, :printstr
                cal :printstr
-               .mv csci, :var_top_mem
-               .mv dsdi, :peek16
-               cal dsdi
-               .mv csci, :printhex16
-               cal csci
+               .mv dsdi, :data_from
+               cal :printstr
+               .mv dsdi, :var_user_mem
+               cal :peek16
+               cal :printhex16
+               .mv dsdi, :data_to
+               cal :printstr
+               .mv dsdi, :var_top_mem
+               cal :peek16
+               cal :printhex16
 eos:           kil
-               kil
 ;
 ; os variables
 ;
