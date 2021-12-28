@@ -1,17 +1,22 @@
 ; bc16 Operation System version 0.1.20211228
 ;
                .org 0x0000
-start:         .mv csci, :init
+os_start:      .mv csci, :os_init
                jmp z, csci
 ;
 ; data
 ;
-data_os:          .db 'bcOS 0.1'
+data_os:          .db 'bcOS 0.2'
 data_newline:     .db 0x0a, 0x0d, 0x00
 data_free:        .db 'free ', 0x00
-data_from:        .db 'from ', 0x00
+data_from:        .db ' from ', 0x00
 data_to:          .db ' to ', 0x00
-data_prompt:      .db '>', 0x00
+data_prompt:      .db '> ', 0x00
+data_error:       .db 'error ', 0x00
+data_at:          .db ' at ', 0x00
+data_helphint:    .db 'type h for help', 0x0a, 0x0d, 0x00
+data_help:        .db 'supported commands:', 0x0a, 0x0d
+                  .db 'h - prints this help', 0x0a, 0x0d, 0x00
 ;
 ; subroutines
 ;=============
@@ -37,7 +42,7 @@ printstr_end:  ret
 printhex4:     mov cs, 0x01
                psh a
                sub 0x0a
-               jmr nc, :printhex4_af
+               jmr no, :printhex4_af
 printhex4_09:  pop a
                add 0x30
                out #cs, a
@@ -66,8 +71,9 @@ printhex8:     mov ci, a
 ; OUT:   csci - unchanged
 ;           a - ci
 printhex16:    mov a, cs
+               psh ci
                cal :printhex8
-               mov a, ci
+               pop a
                cal :printhex8
                ret
 ;=============
@@ -77,7 +83,7 @@ printhex16:    mov a, cs
 ;           a - di + 1 or ds + 1
 inc16:         mov a, di
                inc a
-               mov a, di
+               mov di, a
                jmr c, :inc16_carry
                ret
 inc16_carry:   mov a, ds
@@ -119,25 +125,76 @@ peek16:        mov cs, #dsdi
                mov ci, #dsdi
 peek16_ok:     ret
 ;=============
-; ADD16(csci,dsdi) - returns value under csci address (2 bytes)
-;                 because uses 8bit inc address must be in same ds segment
-;                 this code guards against it
-; IN:   csci - address to read
-; OUT:  dsdi - value from #csci
-;       dsdi - address to store + 1
-;       a    - lo(val(var_param16))
-add16:         mov ds, #csci
-               mov a, ci
-               inc a
-               jmr c, :add16_fail
+; ADD16(csci,dsdi) - returns value under csci address (2 bytes) 
+;                    return os error 0x10 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - sum of csci and dsdi
+;       a    - rubbish
+add16:         mov a, ci
+               add di
                mov ci, a
-               mov di, #csci
-add16_ok:      ret             
-add16_fail:    kil
+               jmr c, :add16_carry1
+               mov a, cs
+add16_cry_nxt: add ds
+               mov cs, a
+               jmr c, :add16_cry2err
+add16_ok:      ret
+add16_carry1:  mov a, cs
+               inc a
+               jmr nc, :add16_cry_nxt
+add16_cry2err: mov a, 0x10
+               cal :error
+;=============
+; SUB16(csci,dsdi) - returns value under csci address (2 bytes) 
+;                    return os error 0x11 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - substracts dsdi from csci
+;       a    - rubbish
+sub16:         mov a, ci
+               sub di
+               mov ci, a
+               jmr o, :sub16_ovr1
+               mov a, cs
+sub16_crynxt:  sub ds
+               mov cs, a
+               jmr o, :sub16_ovr2err
+sub16_ok:      ret
+sub16_ovr1:    mov a, cs
+               dec a
+               jmr no, :sub16_crynxt
+sub16_ovr2err: mov a, 0x11
+               cal :error
+;=============
+; READSTR(#dsdi, ci) - prints error message and stops
+; IN:   dsdi - buffer address for chars
+;         ci - length of the buffer
+; OUT:  
+readstr:       mov cs, 0x00
+               in a, #cs
+;=============
+; ERROR(a) - prints error message and stops
+; IN:   a - error code
+;   stack - as error address
+; OUT:  KILL, messed stack
 ;
+error:         psh a
+               .mv dsdi, :data_newline
+               cal :printstr
+               .mv dsdi, :data_error
+               cal :printstr
+               pop a
+               cal :printhex8
+               .mv dsdi, :data_at
+               cal :printstr
+               pop ci
+               pop cs
+               cal :printhex16
+               kil
 ; main code
 ; 1.initialize os
-init:          mov cs, ss
+os_init:       mov cs, ss
                mov ci, si
                .mv dsdi, :var_top_mem
                cal :poke16
@@ -145,19 +202,45 @@ init:          mov cs, ss
                .mv dsdi, :var_user_mem
                cal :poke16
 ; 2.write greetings
-hello:         .mv dsdi, :data_os
+os_hello:      .mv dsdi, :data_os
                cal :printstr
-               .mv dsdi, :data_from
+               .mv dsdi, :data_free
                cal :printstr
                .mv dsdi, :var_user_mem
                cal :peek16
+               psh cs
+               psh ci
+               .mv dsdi, :var_top_mem
+               cal :peek16
+               pop di
+               pop ds
+               psh cs
+               psh ci
+               psh ds
+               psh di
+               cal :sub16
+               cal :printhex16
+               .mv dsdi, :data_from
+               cal :printstr
+               pop ci
+               pop cs
                cal :printhex16
                .mv dsdi, :data_to
                cal :printstr
-               .mv dsdi, :var_top_mem
-               cal :peek16
+               pop ci
+               pop cs
                cal :printhex16
-eos:           kil
+               .mv dsdi, :data_newline
+               cal :printstr
+               .mv dsdi, :data_helphint
+               cal :printstr
+os_prompt:     .mv dsdi, :data_prompt
+               cal :printstr
+               .mv dsdi, :var_promptbuf
+               mov ci, 0x20
+;               cal :readstr
+os_end:        mov a, 0xff
+               cal :error
 ;
 ; os variables
 ;

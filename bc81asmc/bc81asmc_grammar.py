@@ -165,8 +165,8 @@ mSHRr = \
     .map(lambda x: CLC_A_R('shr', x))\
     .desc('shr r instruction')
 
-logictest = lexeme(string('z') | string('nz') | string('c') | string('nc') \
-    | string('n') | string('nn') | string('o') | string('no'))
+logictest = lexeme(string('nz') | string('z') | string('nc') | string('c') |  \
+     string('nn') | string('o') | string('no') | string('n'))
 
 labelarg = colon + ident
 jmpregargs = ((paramreg * 2)).concat()
