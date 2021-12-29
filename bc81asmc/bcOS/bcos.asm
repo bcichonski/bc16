@@ -272,6 +272,25 @@ upchar:        mov ci, a
 upchar_skip:   mov a, ci
                ret
 ;=============
+; NEXTWORD(dsdi) - moves to the end of current word
+; IN:     dsdi - char buffer address
+; OUT:    dsdi - address of the next word or end of buffer
+;            a - >0 if next word exist
+nextword:      mov a, #dsdi
+               jmr z, :nextword_eof
+               sub 0x20
+               jmr z, :nextword_eatws
+               cal :inc16
+               xor a
+               jmr z, :nextword
+nextword_eatws:cal :inc16
+               mov a, #dsdi
+               jmr z, :nextword_eof
+               sub 0x20
+               jmr z, :nextword_eatws
+               mov a, 0x01
+nextword_eof:  ret
+;=============
 ; FATAL(a) - prints error message and stops
 ; IN:   a - error code
 ;   stack - as error address
@@ -370,12 +389,21 @@ os_exec_q:     mov a, 0xf0
                cal :fatal
 os_parse_notq: mov a, ci
                sub 0x48
-               jmr nz, :os_parse_unrec
-os_exec_h:     .mv dsdi, :data_help
+               jmr nz, :os_parse_noth
+os_exec_help:  .mv dsdi, :data_help
                cal :printstr
                .mv csci, :os_goto_parse
                xor a
                jmp z, csci
+os_parse_noth: mov a, ci
+               sub 0x44
+               jmr nz, :os_parse_notd
+os_exec_dump:  cal :nextword
+               cal :printstr
+os_parse_notd: mov a, ci
+               sub 0x50
+               jmr nz, :os_parse_unrec
+os_exec_print: nop            
 os_parse_unrec:mov a, 0x01
                cal :error               
 os_goto_parse: .mv csci, :os_prompt
