@@ -16,8 +16,9 @@ data_fatal:       .db 'fatal '
 data_error:       .db 'error ', 0x00
 data_at:          .db ' at ', 0x00
 data_helphint:    .db 'type h for help', 0x0a, 0x0d, 0x00
-data_help:        .db 'supported commands:', 0x0a, 0x0d
-                  .db 'h - prints this help', 0x0a, 0x0d, 0x00
+data_help:        .db 'commands:', 0x0a, 0x0d
+                  .db ' q - quits the os', 0x0a, 0x0d
+                  .db ' h - prints this help', 0x0a, 0x0d, 0x00
 ;
 ; subroutines
 ;=============
@@ -262,13 +263,14 @@ readstr_end:   xor a
 ;         ci - old a val
 upchar:        mov ci, a
                sub 0x7a
+               jmr no, :upchar_skip
                mov a, ci
-               jmr nz, :upchar_skip
                sub 0x61
-               mov a, ci
                jmr o, :upchar_skip
-               sub 0x20
-upchar_skip:   ret
+               add 0x41
+               ret
+upchar_skip:   mov a, ci
+               ret
 ;=============
 ; FATAL(a) - prints error message and stops
 ; IN:   a - error code
@@ -361,15 +363,22 @@ os_prompt:     .mv dsdi, :data_prompt
 os_parse:      mov a, #dsdi
                cal :upchar
                mov #dsdi, a
-               psh a
-               cal :printstr
-               pop a
+               mov ci, a
                sub 0x51
                jmr nz, :os_parse_notq
-               mov a, 0xf0
+os_exec_q:     mov a, 0xf0
                cal :fatal
-os_parse_notq: nop               
-os_exec:       .mv csci, :os_prompt
+os_parse_notq: mov a, ci
+               sub 0x48
+               jmr nz, :os_parse_unrec
+os_exec_h:     .mv dsdi, :data_help
+               cal :printstr
+               .mv csci, :os_goto_parse
+               xor a
+               jmp z, csci
+os_parse_unrec:mov a, 0x01
+               cal :error               
+os_goto_parse: .mv csci, :os_prompt
                xor a
                jmp z, csci
 os_end:        mov a, 0xff

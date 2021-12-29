@@ -12,11 +12,13 @@ quit              - quits the os
 run <addr>       - runs code from <addr> as CAL (program should end in RET)
 
 # error codes
+0x0x - soft errors
+    0x01 - unrecognized command
 0x1x - overflow
-0x10 - overflow in INC16
-0x11 - overflow in DEC16
-0x12 - overflow in ADD16
-0x13 - overflow in SUB16
+    0x10 - overflow in INC16
+    0x11 - overflow in DEC16
+    0x12 - overflow in ADD16
+    0x13 - overflow in SUB16
 0xfx - system exploded
-0xf0 - user quits the system
-0xff - unexpected system exception - should not happen
+    0xf0 - user quits the system
+    0xff - unexpected system exception - should not happen
