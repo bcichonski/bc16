@@ -442,7 +442,11 @@ class Bc8181:
     def run_next_opcode(self):
         opcode = hi(self.nextbyte)
         instruction = self.instructions[opcode]
-        instruction()
+        try:
+            instruction()
+        except Exception:
+            print('exception at {0:04x}'.format(self.pc.get()))
+            raise
         self.print_context()
 
     def print_debug(self, mesg):

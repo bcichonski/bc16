@@ -186,40 +186,54 @@ sub16_ovr2err: mov a, 0x13
 ;=============
 ; READSTR(#dsdi, ci) - prints error message and stops
 ; IN:   dsdi - buffer address for chars
-;         ci - length of the buffer
-; OUT:  
-readstr:       in a, #0x0
+;         ci - length of the buffer (since last char has to be 0x00 we can enter one less)
+; OUT:  dsdi - preserved
+;         ci - preserved
+;         cs - how many chars can we could still add
+readstr:       psh ds
+               psh di
+               psh ci
+readstr_loop:  in a, #0x0
                mov cs, a
-               and 0x0d
-               jmr nz, :readstr_end
+               sub 0x0d
+               jmr z, :readstr_end
                mov a, cs
-               and 0x08
-               jmr nz, :readstr_del
+               sub 0x08
+               jmr z, :readstr_del
                mov a, ci
                dec a
-               jmr z, :readstr
+               jmr z, :readstr_loop
                mov ci, a
                mov #dsdi, cs
                cal :inc16
                mov a, 0x01
                out #a, cs
-               jmr nz, :readstr
-readstr_del:   mov a, ci
-               dec a
-               jmr o, :readstr
+               jmr nz, :readstr_loop
+readstr_del:   pop a
+               psh a
+               sub ci
+               jmr z, :readstr_loop
+               mov a, ci
+               inc a
                mov ci, a
+               cal :dec16
                xor a
                mov #dsdi, a
-               cal :dec16
                mov cs, 0x01
-               mov a, 0x10
+               mov a, 0x08
                out #cs, a
                mov a, 0x20
                out #cs, a
-               mov a, 0x10
+               mov a, 0x08
                out #cs, a
-               jmr nz, :readstr
-readstr_end:   ret
+               jmr nz, :readstr_loop
+readstr_end:   mov cs, ci
+               pop ci
+               .mv dsdi, :data_newline
+               cal :printstr
+               pop di
+               pop ds
+               ret
 ;=============
 ; ERROR(a) - prints error message and stops
 ; IN:   a - error code
@@ -286,6 +300,8 @@ os_prompt:     .mv dsdi, :data_prompt
                .mv dsdi, :var_promptbuf
                mov ci, 0x20
                cal :readstr
+os_parse:      .mv dsdi, :var_promptbuf
+               cal :printstr
 os_end:        mov a, 0xff
                cal :error
 ;

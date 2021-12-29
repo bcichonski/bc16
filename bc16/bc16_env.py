@@ -40,4 +40,4 @@ class Environment:
     def get_char(self):
         return getch()
     def write_char(self,byte):
-        print(chr(byte), end='')
+        print(chr(byte), end='', flush=True)
