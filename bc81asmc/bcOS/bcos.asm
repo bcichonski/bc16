@@ -12,6 +12,7 @@ data_free:        .db 'free ', 0x00
 data_from:        .db ' from ', 0x00
 data_to:          .db ' to ', 0x00
 data_prompt:      .db '> ', 0x00
+data_fatal:       .db 'fatal '
 data_error:       .db 'error ', 0x00
 data_at:          .db ' at ', 0x00
 data_helphint:    .db 'type h for help', 0x0a, 0x0d, 0x00
@@ -91,7 +92,7 @@ inc16_carry:   mov a, ds
                jmr c, :inc16_fail
 inc16_ret:     ret
 inc16_fail:    mov a, 0x10
-               cal :error
+               cal :fatal
 ;=============
 ; DEC16(dsdi) - decrease 16bit number correctly
 ; IN:    dsdi - number 16bit, break if lower than 0
@@ -108,7 +109,7 @@ dec16_ovfl:    mov a, ds
                jmr o, :dec16_fail
 dec16_ret:     ret
 dec16_fail:    mov a, 0x11
-               cal :error
+               cal :fatal
 ;=============
 ; SETVARPARAM16(csci) - stores dsdi value under sys variable var_param16 (2 bytes)
 ; IN:   csci - value for var_param16
@@ -161,7 +162,7 @@ add16_carry1:  mov a, cs
                inc a
                jmr nc, :add16_cry_nxt
 add16_cry2err: mov a, 0x12
-               cal :error
+               cal :fatal
 ;=============
 ; SUB16(csci,dsdi) - returns value under csci address (2 bytes) 
 ;                    return os error 0x11 in case of overflow                
@@ -182,7 +183,7 @@ sub16_ovr1:    mov a, cs
                dec a
                jmr no, :sub16_crynxt
 sub16_ovr2err: mov a, 0x13
-               cal :error
+               cal :fatal
 ;=============
 ; READSTR(#dsdi, ci) - prints error message and stops
 ; IN:   dsdi - buffer address for chars
@@ -227,7 +228,9 @@ readstr_del:   pop a
                mov a, 0x08
                out #cs, a
                jmr nz, :readstr_loop
-readstr_end:   mov cs, ci
+readstr_end:   xor a
+               mov #dsdi, a
+               mov cs, ci
                pop ci
                .mv dsdi, :data_newline
                cal :printstr
@@ -235,15 +238,47 @@ readstr_end:   mov cs, ci
                pop ds
                ret
 ;=============
-; ERROR(a) - prints error message and stops
+; PARSEHEX4(#dsdi) - parses single char to hex number chars 0-9 and a-z and A-Z are supported
+; IN:   dsdi - buffer address for char
+; OUT:  ci - hex value of a char
+;        a - success = 0 or error code
+;    dsdi  - moved + 1
+;=============
+; PARSEHEX8(#dsdi) - parses two char to hex number
+; IN:   dsdi - buffer address for char
+; OUT:  ci - hex value for byte
+;        a - success = 0 or error code
+;     dsdi - moved + 2 if ok
+;=============
+; PARSEHEX16(#dsdi) - parses four char to hex number
+; IN:   dsdi - buffer address for char
+; OUT:  csci - hex value for value
+;          a - success = 0 or error code
+;       dsdi - moved + 4 if ok
+;=============
+; UPCHAR(a) - if a is an a-z char returns A-Z
+; IN:     a - char code
+; OUT:    a - char code A-Z or same
+;         ci - old a val
+upchar:        mov ci, a
+               sub 0x7a
+               mov a, ci
+               jmr nz, :upchar_skip
+               sub 0x61
+               mov a, ci
+               jmr o, :upchar_skip
+               sub 0x20
+upchar_skip:   ret
+;=============
+; FATAL(a) - prints error message and stops
 ; IN:   a - error code
 ;   stack - as error address
 ; OUT:  KILL, messed stack
 ;
-error:         psh a
+fatal:         psh a
                .mv dsdi, :data_newline
                cal :printstr
-               .mv dsdi, :data_error
+               .mv dsdi, :data_fatal
                cal :printstr
                pop a
                cal :printhex8
@@ -253,6 +288,29 @@ error:         psh a
                pop cs
                cal :printhex16
                kil
+;=============
+; ERROR(a)  - prints error message and continues
+; IN:     a - error code
+; OUT: dsdi - preserved
+;      csci - preserved
+error:         psh ds
+               psh di
+               psh cs
+               psh ci
+               psh a
+               .mv dsdi, :data_newline
+               cal :printstr
+               .mv dsdi, :data_error
+               cal :printstr
+               pop a
+               cal :printhex8
+               .mv dsdi, :data_newline
+               cal :printstr
+               pop ci
+               pop cs
+               pop di
+               pop ds
+               ret
 ; main code
 ; 1.initialize os
 os_init:       mov cs, ss
@@ -298,12 +356,24 @@ os_hello:      .mv dsdi, :data_os
 os_prompt:     .mv dsdi, :data_prompt
                cal :printstr
                .mv dsdi, :var_promptbuf
-               mov ci, 0x20
+               mov ci, 0x21
                cal :readstr
-os_parse:      .mv dsdi, :var_promptbuf
+os_parse:      mov a, #dsdi
+               cal :upchar
+               mov #dsdi, a
+               psh a
                cal :printstr
+               pop a
+               sub 0x51
+               jmr nz, :os_parse_notq
+               mov a, 0xf0
+               cal :fatal
+os_parse_notq: nop               
+os_exec:       .mv csci, :os_prompt
+               xor a
+               jmp z, csci
 os_end:        mov a, 0xff
-               cal :error
+               cal :fatal
 ;
 ; os variables
 ;
@@ -312,6 +382,7 @@ var_user_mem:  .db 0x00, 0x00
 var_top_mem:   .db 0x00, 0x00
 var_promptbuf: .db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                .db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+               .db 0x00
 user_mem:      nop
 ; 3.write prompt
 ; 4.read command
