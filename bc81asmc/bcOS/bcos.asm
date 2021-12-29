@@ -114,13 +114,17 @@ dec16_fail:    mov a, 0x11
 ;=============
 ; SETVARPARAM16(csci) - stores dsdi value under sys variable var_param16 (2 bytes)
 ; IN:   csci - value for var_param16
-; OUT:  dsdi - #var_param16 + 1
+; OUT:  dsdi - unchanged
 ;       csci - unchanged
 ;       a    - lo(var_param16) + 1
-setvarparam16: .mv dsdi, :var_param16
+setvarparam16: psh ds
+               psh di
+               .mv dsdi, :var_param16
                mov #dsdi, ds
                cal :inc16
                mov #dsdi, di
+               pop di
+               pop ds
                ret
 ;=============
 ; POKE16(#dsdi, csci) - stores csci value under #dsdi address (2 bytes)
@@ -240,22 +244,65 @@ readstr_end:   xor a
                ret
 ;=============
 ; PARSEHEX4(#dsdi) - parses single char to hex number chars 0-9 and a-z and A-Z are supported
-; IN:   dsdi - buffer address for char
-; OUT:  ci - hex value of a char
-;        a - success = 0 or error code
-;    dsdi  - moved + 1
+; IN:   dsdi - buffer address for char-hex
+; OUT:     a - 0 if ok, 0xff if parse error
+;         ci - hexval of a char
+parsehex4:     mov a, #dsdi
+               mov ci, a
+               sub 0x30
+               jmr n, :parsehex4_err
+               mov a, ci
+               sub 0x39
+               jmr nz, :parsehex4_af
+parsehex4_09:  mov a, ci
+               sub 0x30
+               mov ci, a
+               xor a
+               ret
+parsehex4_af:  mov a, ci
+               cal :upchar
+               mov ci, a
+               sub 0x46
+               jmr nz, :parsehex4_err
+               mov a, ci
+               sub 0x37
+               mov ci, a
+               xor a
+               ret
+parsehex4_err: mov a, 0xff
+               ret
 ;=============
 ; PARSEHEX8(#dsdi) - parses two char to hex number
 ; IN:   dsdi - buffer address for char
-; OUT:  ci - hex value for byte
-;        a - success = 0 or error code
-;     dsdi - moved + 2 if ok
+; OUT:    a - success = 0 or >0 error
+;        ci - hex value for byte
+;      dsdi - moved + 2 if ok
+;        cs - rubbish
+parsehex8:     cal :parsehex4
+               jmr nz, :parsehex8_err
+               mov cs, ci
+               cal :inc16
+               cal :parsehex4
+               jmr nz, :parsehex8_err
+               cal :inc16
+               mov a, cs
+               shl 0x04
+               and 0xf0
+               or  ci
+               mov ci, a
+parsehex8_err: ret
 ;=============
 ; PARSEHEX16(#dsdi) - parses four char to hex number
 ; IN:   dsdi - buffer address for char
 ; OUT:  csci - hex value for value
 ;          a - success = 0 or error code
 ;       dsdi - moved + 4 if ok
+parsehex16:    cal :parsehex8
+               jmr nz, :parsehex16_end
+               mov cs, ci
+               cal :parsehex8
+               jmr nz, :parsehex16_end
+parsehex16_end:ret
 ;=============
 ; UPCHAR(a) - if a is an a-z char returns A-Z
 ; IN:     a - char code
@@ -332,6 +379,71 @@ error:         psh ds
                pop di
                pop ds
                ret
+;=============
+; EXEC_DUMP(#dsdi)  - executes dump command
+; IN:  dsdi - address of var_promptbuf
+; OUT: rubbish
+exec_dump:     cal :nextword
+               jmr z, :exec_dump_nar1
+               cal :parsehex16
+               kil
+               jmr nz, :exec_dump_per1
+               psh cs
+               psh ci
+               cal :nextword
+               jmr z, :exec_dump_nar2
+               cal :parsehex16
+               jmr nz, :exec_dump_per2
+               pop di
+               pop ds
+exec_dump_prnt:mov a, 0x10
+               psh a
+exec_dump_loop:mov a, #dsdi
+               psh cs
+               psh ci
+               cal :printhex8
+               pop ci
+               pop cs
+               cal :dec16
+               mov a, cs
+               and ci
+               jmr z,:exec_dump_end
+               psh cs
+               psh ci
+               mov cs, ds
+               mov ci, di
+               cal :inc16
+               mov ds, cs
+               mov di, ci
+               pop ci
+               pop cs
+               pop a
+               dec a
+               jmr z,:exec_dump_nl
+               psh a
+               jmr nz, :exec_dump_loop
+exec_dump_nl:  mov a, 0x10
+               psh a
+               psh cs
+               mov cs, 0x01
+               mov a, 0x0a
+               out #cs, a
+               mov a, 0x0d
+               out #cs, a
+               pop cs
+               jmr nz, :exec_dump_loop
+               ret
+exec_dump_nar1:mov a, 0x02
+               jmr nz, :exec_dump_err
+exec_dump_nar2:mov a, 0x04
+               jmr nz, :exec_dump_err
+exec_dump_per1:mov a, 0x03
+               jmr nz, :exec_dump_err
+exec_dump_per2:mov a, 0x05
+               jmr nz, :exec_dump_err
+exec_dump_err: cal :error
+exec_dump_end: pop a
+               ret               
 ; main code
 ; 1.initialize os
 os_init:       mov cs, ss
@@ -398,8 +510,10 @@ os_exec_help:  .mv dsdi, :data_help
 os_parse_noth: mov a, ci
                sub 0x44
                jmr nz, :os_parse_notd
-os_exec_dump:  cal :nextword
-               cal :printstr
+os_exec_dump:  cal :exec_dump
+               .mv csci, :os_goto_parse
+               xor a
+               jmp z, csci
 os_parse_notd: mov a, ci
                sub 0x50
                jmr nz, :os_parse_unrec

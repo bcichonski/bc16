@@ -14,6 +14,10 @@ run <addr>       - runs code from <addr> as CAL (program should end in RET)
 # error codes
 0x0x - soft errors
     0x01 - unrecognized command
+    0x02 - required argument 1 missing
+    0x03 - parse 4 digit hex argument 1 failed
+    0x04 - required argument 2 missing
+    0x05 - parse 4 digit hex argument 2 failed
 0x1x - overflow
     0x10 - overflow in INC16
     0x11 - overflow in DEC16
