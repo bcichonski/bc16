@@ -439,19 +439,19 @@ exec_dump_loop:mov a, #dsdi
                cal :print_space
                pop ci
                pop cs
-               cal :dec16
-               mov a, cs
-               and ci
-               jmr z,:exec_dump_end
-               psh cs
-               psh ci
-               mov cs, ds
-               mov ci, di
-               cal :inc16
+               psh ds
+               psh di
                mov ds, cs
                mov di, ci
-               pop ci
-               pop cs
+               cal :dec16
+               mov cs, ds
+               mov ci, di
+               pop di
+               pop ds
+               mov a, cs
+               or  ci
+               jmr z,:exec_dump_end
+               cal :inc16
                pop a
                dec a
                jmr z,:exec_dump_nl
@@ -465,13 +465,11 @@ exec_dump_nl:  mov a, 0x10
                mov ci, di
                mov cs, ds
                cal :printhex16
-               mov a, 0x20
-               mov cs, 0x01
-               out #cs, a
+               cal :print_space
                pop ci
                pop cs
-               jmr nz, :exec_dump_loop
-               ret
+               xor a
+               jmr z, :exec_dump_loop
 exec_dump_nar1:mov a, 0x02
                jmr nz, :exec_dump_err
 exec_dump_nar2:pop cs
@@ -485,8 +483,7 @@ exec_dump_per2:pop cs
                mov a, 0x05
                jmr nz, :exec_dump_err
 exec_dump_err: cal :error
-exec_dump_end: pop cs
-               pop ci
+exec_dump_end: cal :print_newline
                pop a
                ret               
 ; main code
