@@ -22,6 +22,28 @@ data_help:        .db 'commands:', 0x0a, 0x0d
 ;
 ; subroutines
 ;=============
+; PRINT_NEWLINE - prints new line
+; IN:
+; OUT:   a - rubbish
+print_newline: psh cs
+               mov cs, 0x01
+               mov a, 0x0a
+               out #cs, a
+               mov a, 0x0d
+               out #cs, a
+               pop cs
+               ret
+;=============
+; PRINT_SPACE - prints ' '
+; IN:
+; OUT:   a - rubbish
+print_space:   psh cs
+               mov cs, 0x01
+               mov a, 0x20
+               out #cs, a
+               pop cs
+               ret
+;=============
 ; PRINTSTR(*dsdi) - sends chars to printer
 ; IN: dsdi - address of 0-ended char table
 ; OUT:   a - set to 0x00
@@ -253,7 +275,7 @@ parsehex4:     mov a, #dsdi
                jmr n, :parsehex4_err
                mov a, ci
                sub 0x39
-               jmr nz, :parsehex4_af
+               jmr nn, :parsehex4_af
 parsehex4_09:  mov a, ci
                sub 0x30
                mov ci, a
@@ -262,8 +284,8 @@ parsehex4_09:  mov a, ci
 parsehex4_af:  mov a, ci
                cal :upchar
                mov ci, a
-               sub 0x46
-               jmr nz, :parsehex4_err
+               sub 0x47
+               jmr nn, :parsehex4_err
                mov a, ci
                sub 0x37
                mov ci, a
@@ -277,8 +299,8 @@ parsehex4_err: mov a, 0xff
 ; OUT:    a - success = 0 or >0 error
 ;        ci - hex value for byte
 ;      dsdi - moved + 2 if ok
-;        cs - rubbish
-parsehex8:     cal :parsehex4
+parsehex8:     psh cs
+               cal :parsehex4
                jmr nz, :parsehex8_err
                mov cs, ci
                cal :inc16
@@ -290,7 +312,9 @@ parsehex8:     cal :parsehex4
                and 0xf0
                or  ci
                mov ci, a
-parsehex8_err: ret
+               xor a
+parsehex8_err: pop cs
+parsehex8_ok:  ret
 ;=============
 ; PARSEHEX16(#dsdi) - parses four char to hex number
 ; IN:   dsdi - buffer address for char
@@ -301,7 +325,6 @@ parsehex16:    cal :parsehex8
                jmr nz, :parsehex16_end
                mov cs, ci
                cal :parsehex8
-               jmr nz, :parsehex16_end
 parsehex16_end:ret
 ;=============
 ; UPCHAR(a) - if a is an a-z char returns A-Z
@@ -386,7 +409,6 @@ error:         psh ds
 exec_dump:     cal :nextword
                jmr z, :exec_dump_nar1
                cal :parsehex16
-               kil
                jmr nz, :exec_dump_per1
                psh cs
                psh ci
@@ -394,6 +416,18 @@ exec_dump:     cal :nextword
                jmr z, :exec_dump_nar2
                cal :parsehex16
                jmr nz, :exec_dump_per2
+               mov di, ci
+               mov ds, cs
+               pop ci
+               pop cs
+               cal :printhex16
+               cal :print_space
+               psh cs
+               psh ci
+               psh ds
+               psh di
+               pop ci
+               pop cs
                pop di
                pop ds
 exec_dump_prnt:mov a, 0x10
@@ -402,6 +436,7 @@ exec_dump_loop:mov a, #dsdi
                psh cs
                psh ci
                cal :printhex8
+               cal :print_space
                pop ci
                pop cs
                cal :dec16
@@ -425,24 +460,34 @@ exec_dump_loop:mov a, #dsdi
 exec_dump_nl:  mov a, 0x10
                psh a
                psh cs
+               psh ci
+               cal :print_newline
+               mov ci, di
+               mov cs, ds
+               cal :printhex16
+               mov a, 0x20
                mov cs, 0x01
-               mov a, 0x0a
                out #cs, a
-               mov a, 0x0d
-               out #cs, a
+               pop ci
                pop cs
                jmr nz, :exec_dump_loop
                ret
 exec_dump_nar1:mov a, 0x02
                jmr nz, :exec_dump_err
-exec_dump_nar2:mov a, 0x04
+exec_dump_nar2:pop cs
+               pop ci
+               mov a, 0x04
                jmr nz, :exec_dump_err
 exec_dump_per1:mov a, 0x03
                jmr nz, :exec_dump_err
-exec_dump_per2:mov a, 0x05
+exec_dump_per2:pop cs
+               pop ci
+               mov a, 0x05
                jmr nz, :exec_dump_err
 exec_dump_err: cal :error
-exec_dump_end: pop a
+exec_dump_end: pop cs
+               pop ci
+               pop a
                ret               
 ; main code
 ; 1.initialize os
