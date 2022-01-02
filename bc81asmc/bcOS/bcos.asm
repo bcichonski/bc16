@@ -142,9 +142,7 @@ dec16_fail:    mov a, 0x11
 setvarparam16: psh ds
                psh di
                .mv dsdi, :var_param16
-               mov #dsdi, ds
-               cal :inc16
-               mov #dsdi, di
+               cal :poke16
                pop di
                pop ds
                ret
@@ -154,7 +152,7 @@ setvarparam16: psh ds
 ;       csci - value to store
 ; OUT:  dsdi - address to store + 1
 ;       csci - unchanged
-;       a    - ci
+;       a    - rubbish
 poke16:        mov #dsdi, cs
                cal :inc16
                mov #dsdi, ci
@@ -164,7 +162,7 @@ poke16_ok:     ret
 ; IN:   dsdi - address to read
 ; OUT:  dsdi - address to read + 1
 ;       csci - value
-;       a    - ci
+;       a    - rubbish
 peek16:        mov cs, #dsdi
                cal :inc16
                mov ci, #dsdi
@@ -403,8 +401,37 @@ error:         psh ds
                pop ds
                ret
 ;=============
+; PRINT_FORMAT(a)  - prints value
+; IN:     a - value to print
+;  sysvar16 - print mode = 0 - hex with space, 1 - char without space
+; OUT:
+print_format:  psh ds
+               psh di
+               psh cs
+               psh ci
+               psh a
+               .mv dsdi, :var_param16
+               cal :peek16
+               mov a, ci
+               jmr z, :prnt_fmt_hexsp
+prnt_fmt_char: pop a
+               mov cs, 0x01
+               out #cs, a
+               xor a
+               jmr z, :prnt_fmt_end
+prnt_fmt_hexsp:pop a
+               cal :printhex8
+               cal :print_space
+prnt_fmt_end:  pop ci
+               pop cs
+               pop di
+               pop ds
+               ret
+;=============
 ; EXEC_DUMP(#dsdi)  - executes dump command
 ; IN:  dsdi - address of var_promptbuf
+;  sysvar16 - 0 = print hext, 1 = print dec
+;         a - how many characters per line
 ; OUT: rubbish
 exec_dump:     cal :nextword
                jmr z, :exec_dump_nar1
@@ -433,12 +460,7 @@ exec_dump:     cal :nextword
 exec_dump_prnt:mov a, 0x10
                psh a
 exec_dump_loop:mov a, #dsdi
-               psh cs
-               psh ci
-               cal :printhex8
-               cal :print_space
-               pop ci
-               pop cs
+               cal :print_format
                psh ds
                psh di
                mov ds, cs
@@ -552,14 +574,27 @@ os_exec_help:  .mv dsdi, :data_help
 os_parse_noth: mov a, ci
                sub 0x44
                jmr nz, :os_parse_notd
-os_exec_dump:  cal :exec_dump
+os_exec_dump:  mov cs, 0x00
+               mov ci, 0x00
+               cal :setvarparam16
+               cal :exec_dump
                .mv csci, :os_goto_parse
                xor a
                jmp z, csci
 os_parse_notd: mov a, ci
                sub 0x50
+               jmr nz, :os_parse_notp
+os_exec_print: mov cs, 0x00
+               mov ci, 0x01
+               cal :setvarparam16
+               cal :exec_dump
+               .mv csci, :os_goto_parse
+               xor a
+               jmp z, csci
+os_parse_notp: mov a, ci
+               sub 0x57
                jmr nz, :os_parse_unrec
-os_exec_print: nop            
+os_exec_write: nop            
 os_parse_unrec:mov a, 0x01
                cal :error               
 os_goto_parse: .mv csci, :os_prompt
