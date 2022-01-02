@@ -78,15 +78,18 @@ printhex4_af:  pop a
 ; PRINTHEX8(a) - prints hex number 
 ; IN:    a - number to print
 ; OUT:   a - set to lower half
-;       cs - set to 1
-;       ci - set to a
+;     csci - unchanged
 ;     dsdi - unchanged
-printhex8:     mov ci, a
+printhex8:     psh cs
+               psh ci
+               mov ci, a
                shr 0x04
                cal :printhex4
                mov a, ci
                and 0x0f
                cal :printhex4
+               pop ci
+               pop cs
                ret
 ;=============
 ; PRINTHEX16(csci) - prints hex number 4 digits
