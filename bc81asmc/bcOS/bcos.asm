@@ -415,7 +415,12 @@ print_format:  psh ds
                mov a, ci
                jmr z, :prnt_fmt_hexsp
 prnt_fmt_char: pop a
+               mov ci, a
                mov cs, 0x01
+               sub 0x10
+               jmr no, :prnt_fmt_char2
+               mov ci, 0x20
+prnt_fmt_char2:mov a, ci
                out #cs, a
                xor a
                jmr z, :prnt_fmt_end
@@ -433,7 +438,8 @@ prnt_fmt_end:  pop ci
 ;  sysvar16 - 0 = print hext, 1 = print dec
 ;         a - how many characters per line
 ; OUT: rubbish
-exec_dump:     cal :nextword
+exec_dump:     psh a
+               cal :nextword
                jmr z, :exec_dump_nar1
                cal :parsehex16
                jmr nz, :exec_dump_per1
@@ -457,7 +463,8 @@ exec_dump:     cal :nextword
                pop cs
                pop di
                pop ds
-exec_dump_prnt:mov a, 0x10
+exec_dump_prnt:pop a
+               psh a
                psh a
 exec_dump_loop:mov a, #dsdi
                cal :print_format
@@ -479,7 +486,8 @@ exec_dump_loop:mov a, #dsdi
                jmr z,:exec_dump_nl
                psh a
                jmr nz, :exec_dump_loop
-exec_dump_nl:  mov a, 0x10
+exec_dump_nl:  pop a
+               psh a
                psh a
                psh cs
                psh ci
@@ -506,6 +514,7 @@ exec_dump_per2:pop cs
                jmr nz, :exec_dump_err
 exec_dump_err: cal :error
 exec_dump_end: cal :print_newline
+               pop a
                pop a
                ret               
 ; main code
@@ -577,6 +586,7 @@ os_parse_noth: mov a, ci
 os_exec_dump:  mov cs, 0x00
                mov ci, 0x00
                cal :setvarparam16
+               mov a, 0x10
                cal :exec_dump
                .mv csci, :os_goto_parse
                xor a
@@ -587,6 +597,7 @@ os_parse_notd: mov a, ci
 os_exec_print: mov cs, 0x00
                mov ci, 0x01
                cal :setvarparam16
+               mov a, 0x20
                cal :exec_dump
                .mv csci, :os_goto_parse
                xor a
