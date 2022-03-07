@@ -17,6 +17,7 @@ data_error:       .db 'error ', 0x00
 data_at:          .db ' at ', 0x00
 data_helphint:    .db 'type h for help', 0x0a, 0x0d, 0x00
 data_help:        .db 'commands:', 0x0a, 0x0d
+                  .db ' d addr:hex4 len:hex4 - dumps memory from addr for len bytes', 0x0a, 0x0d
                   .db ' q - quits the os', 0x0a, 0x0d
                   .db ' h - prints this help', 0x0a, 0x0d, 0x00
 ;
@@ -438,7 +439,7 @@ prnt_fmt_end:  pop ci
 ;=============
 ; EXEC_DUMP(#dsdi)  - executes dump command
 ; IN:  dsdi - address of var_promptbuf
-;  sysvar16 - 0 = print hext, 1 = print dec
+;  sysvar16 - 0 = print hex, 1 = print char
 ;         a - how many characters per line
 ; OUT: rubbish
 exec_dump:     psh a
@@ -600,7 +601,7 @@ os_parse_notd: mov a, ci
 os_exec_print: mov cs, 0x00
                mov ci, 0x01
                cal :setvarparam16
-               mov a, 0x20
+               mov a, 0x40
                cal :exec_dump
                .mv csci, :os_goto_parse
                xor a
