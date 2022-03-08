@@ -17,7 +17,8 @@ data_error:       .db 'error ', 0x00
 data_at:          .db ' at ', 0x00
 data_helphint:    .db 'type h for help', 0x0a, 0x0d, 0x00
 data_help:        .db 'commands:', 0x0a, 0x0d
-                  .db ' d addr:hex4 len:hex4 - dumps memory from addr for len bytes', 0x0a, 0x0d
+                  .db ' d addr:h4 len:h4 - dumps memory from addr for len bytes as hex', 0x0a, 0x0d
+                  .db ' p addr:h4 len:h4 - prints memory from addr for len bytes as chars', 0x0a, 0x0d
                   .db ' q - quits the os', 0x0a, 0x0d
                   .db ' h - prints this help', 0x0a, 0x0d, 0x00
 ;
@@ -408,7 +409,7 @@ error:         psh ds
 ; PRINT_FORMAT(a)  - prints value
 ; IN:     a - value to print
 ;  sysvar16 - print mode = 0 - hex with space, 1 - char without space
-; OUT:
+; OUT:    a - 0x20 - char less that 0x10, 0x0d - print mode 1 and new line char, val > 0x20 normal print, 0x0f - normal hex print
 print_format:  psh ds
                psh di
                psh cs
@@ -421,9 +422,17 @@ print_format:  psh ds
 prnt_fmt_char: pop a
                mov ci, a
                mov cs, 0x01
-               sub 0x10
+               sub 0x80
+               jmr no, :prnt_fmt_char3
+               mov a, ci
+               sub 0x20
                jmr no, :prnt_fmt_char2
-               mov ci, 0x20
+               mov a, ci
+               sub 0x0d
+               jmr nz, :prnt_fmt_char3
+               mov a, 0x0d
+               jmr nz, :prnt_fmt_end
+prnt_fmt_char3:mov ci, 0x20
 prnt_fmt_char2:mov a, ci
                out #cs, a
                xor a
@@ -431,6 +440,7 @@ prnt_fmt_char2:mov a, ci
 prnt_fmt_hexsp:pop a
                cal :printhex8
                cal :print_space
+               mov a, 0x0f
 prnt_fmt_end:  pop ci
                pop cs
                pop di
@@ -472,6 +482,7 @@ exec_dump_prnt:pop a
                psh a
 exec_dump_loop:mov a, #dsdi
                cal :print_format
+               psh a
                psh ds
                psh di
                mov ds, cs
@@ -481,7 +492,13 @@ exec_dump_loop:mov a, #dsdi
                mov ci, di
                pop di
                pop ds
-               mov a, cs
+               pop a
+               sub 0x0d
+               jmr nz,:exec_dmp_loop2
+               pop a
+               mov a, 0x01
+               psh a
+exec_dmp_loop2:mov a, cs
                or  ci
                jmr z,:exec_dump_end
                cal :inc16
