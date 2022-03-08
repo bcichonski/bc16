@@ -19,7 +19,8 @@ data_helphint:    .db 'type h for help', 0x0a, 0x0d, 0x00
 data_help:        .db 'commands:', 0x0a, 0x0d
                   .db ' d addr:h4 len:h4 - dumps memory from addr for len bytes as hex', 0x0a, 0x0d
                   .db ' p addr:h4 len:h4 - prints memory from addr for len bytes as chars', 0x0a, 0x0d
-                  .db ' w addr:hr - stores written chars to memory from addr, stops by empty line', 0x0a, 0x0d
+                  .db ' w addr:h4 - stores written char* to memory from addr, stops by empty line', 0x0a, 0x0d
+                  .db ' x addr:h4 - stores written h2* to memory from addr, stops by empty line', 0x0a, 0x0d
                   .db ' q - quits the os', 0x0a, 0x0d
                   .db ' h - prints this help', 0x0a, 0x0d, 0x00
 ;
@@ -278,7 +279,7 @@ parsehex4:     mov a, #dsdi
                sub 0x30
                jmr n, :parsehex4_err
                mov a, ci
-               sub 0x39
+               sub 0x3a
                jmr nn, :parsehex4_af
 parsehex4_09:  mov a, ci
                sub 0x30
@@ -540,7 +541,7 @@ exec_dump_end: cal :print_newline
                pop a
                ret               
 ;=============
-; EXEC_DUMP(#dsdi)  - executes dump command
+; EXEC_WRITE(#dsdi)  - executes write command
 ; IN:  dsdi - address of var_promptbuf
 ; OUT: rubbish
 exec_write:    cal :nextword
@@ -606,6 +607,63 @@ exec_write_err:cal :error
 exec_write_fin:pop cs
                pop ci
 exec_write_end:ret
+;=============
+; EXEC_XWRITE(#dsdi)  - executes Xwrite command
+; IN:  dsdi - address of var_promptbuf
+; OUT: rubbish
+exec_xwrite:   cal :nextword
+               jmr z,:exec_xwrt_nr1
+               cal :parsehex16
+               jmr nz, :exec_xwrt_pr1
+               psh ci
+               psh cs
+exec_xwrt_addr:cal :printhex16
+               cal :print_space
+               pop cs
+               pop ci
+               psh ci
+               psh cs
+exec_xwrt_strt:.mv dsdi, :var_promptbuf
+               mov ci, 0x21
+               cal :readstr
+               mov a, cs
+               sub 0x21
+               jmr z,:exec_xwrt_fin
+exec_xwrt_copy:.mv dsdi, :var_promptbuf
+exec_xwrt_loop:mov a, #dsdi
+               jmr z,:exec_xwrt_eol
+               cal :parsehex8
+               jmr nz,:exec_xwrt_pr2
+               mov a, ci
+               pop cs
+               pop ci
+               mov #csci, a
+               psh ds
+               psh di
+               mov ds, cs
+               mov di, ci
+               cal :inc16
+               mov cs, ds
+               mov ci, di
+               pop di
+               pop ds
+               psh ci
+               psh cs
+               xor a
+               jmr z,:exec_xwrt_loop
+exec_xwrt_eol: xor a
+               jmr z,:exec_xwrt_addr
+exec_xwrt_nr1: mov a, 0x02
+               jmr nz,:exec_xwrt_err
+exec_xwrt_pr1: mov a, 0x03
+exec_xwrt_err: cal :error
+               xor a
+               jmr z,:exec_xwrt_end
+exec_xwrt_pr2: mov a, 0x06
+               cal :error         
+exec_xwrt_fin: pop cs
+               pop ci
+exec_xwrt_end: ret
 ;=============
 ; OS_INIT - main code
 ; 1.initialize os
@@ -694,9 +752,17 @@ os_exec_print: mov cs, 0x00
                jmp z, csci
 os_parse_notp: mov a, ci
                sub 0x57
-               jmr nz, :os_parse_unrec
+               jmr nz, :os_parse_notw
 os_exec_write: .mv dsdi, :var_promptbuf
                cal :exec_write
+               .mv csci, :os_goto_parse
+               xor a
+               jmp z, csci
+os_parse_notw: mov a, ci
+               sub 0x58
+               jmr nz, :os_parse_unrec
+os_exec_xwrite:.mv dsdi, :var_promptbuf
+               cal :exec_xwrite
                .mv csci, :os_goto_parse
                xor a
                jmp z, csci            
