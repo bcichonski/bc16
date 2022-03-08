@@ -19,6 +19,7 @@ data_helphint:    .db 'type h for help', 0x0a, 0x0d, 0x00
 data_help:        .db 'commands:', 0x0a, 0x0d
                   .db ' d addr:h4 len:h4 - dumps memory from addr for len bytes as hex', 0x0a, 0x0d
                   .db ' p addr:h4 len:h4 - prints memory from addr for len bytes as chars', 0x0a, 0x0d
+                  .db ' w addr:hr - stores written chars to memory from addr, stops by empty line', 0x0a, 0x0d
                   .db ' q - quits the os', 0x0a, 0x0d
                   .db ' h - prints this help', 0x0a, 0x0d, 0x00
 ;
@@ -538,7 +539,41 @@ exec_dump_end: cal :print_newline
                pop a
                pop a
                ret               
-; main code
+;=============
+; EXEC_DUMP(#dsdi)  - executes dump command
+; IN:  dsdi - address of var_promptbuf
+; OUT: rubbish
+exec_write:    cal :nextword
+               jmr z,:exec_write_nr1
+               cal :parsehex16
+               jmr nz, :exec_write_pr1
+               psh ci
+               psh cs
+exec_wrt_addr: cal :printhex16
+               cal :print_space
+               pop cs
+               pop ci
+               psh ci
+               psh cs
+exec_wrt_loop: .mv dsdi, :var_promptbuf
+               mov ci, 0x21
+               cal :readstr
+               mov a, cs
+               sub 0x21
+               jmr z,:exec_write_fin
+               xor a
+               jmr z,:exec_wrt_loop
+exec_write_nr1:mov a, 0x02
+               jmr nz,:exec_write_err
+exec_write_pr1:mov a, 0x03
+exec_write_err:cal :error
+               xor a
+               jmr z,:exec_write_end         
+exec_write_fin:pop cs
+               pop ci
+exec_write_end:ret
+;=============
+; OS_INIT - main code
 ; 1.initialize os
 os_init:       mov cs, ss
                mov ci, si
@@ -626,7 +661,11 @@ os_exec_print: mov cs, 0x00
 os_parse_notp: mov a, ci
                sub 0x57
                jmr nz, :os_parse_unrec
-os_exec_write: nop            
+os_exec_write: .mv dsdi, :var_promptbuf
+               cal :exec_write
+               .mv csci, :os_goto_parse
+               xor a
+               jmp z, csci            
 os_parse_unrec:mov a, 0x01
                cal :error               
 os_goto_parse: .mv csci, :os_prompt

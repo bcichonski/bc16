@@ -4,7 +4,7 @@ commands:
 dump <addr> <len> - dumps hex content of memory from <addr> for <len> bytes
 print <addr>       - prints content of memory from <addr> as characters, finishes on 0x00
 write <addr>       - writes memory from <addr> as chars in 30-chars lines (prints start address of every line)
-xwrite <addr>       - writes memory from <addr> as hex in 16-bytes lines
+xwrite <addr>      - writes memory from <addr> as hex in 16-bytes lines
 save <addr> <len> - saves content of memory from <addr> for <len> to tape (as file with preamble, and ending block) performs basic consistency checks
 load <addr>       - loads file from tape to memory
 help              - prints help
