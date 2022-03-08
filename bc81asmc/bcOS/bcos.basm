@@ -555,14 +555,48 @@ exec_wrt_addr: cal :printhex16
                pop ci
                psh ci
                psh cs
-exec_wrt_loop: .mv dsdi, :var_promptbuf
+exec_wrt_start: .mv dsdi, :var_promptbuf
                mov ci, 0x21
                cal :readstr
                mov a, cs
                sub 0x21
                jmr z,:exec_write_fin
+exec_wrt_copy: .mv dsdi, :var_promptbuf
+exec_wrt_loop: mov a, #dsdi
+               jmr z,:exec_wrt_eol
+               mov cs, a
+               cal :inc16
+               mov a, cs
+               pop cs
+               pop ci
+               mov #csci, a
+               psh ds
+               psh di
+               mov ds, cs
+               mov di, ci
+               cal :inc16
+               mov cs, ds
+               mov ci, di
+               pop di
+               pop ds
+               psh ci
+               psh cs
                xor a
                jmr z,:exec_wrt_loop
+exec_wrt_eol:  pop cs
+               pop ci
+               mov ds,cs
+               mov di,ci
+               mov cs,0x0a
+               mov ci,0x0d
+               cal :poke16
+               cal :inc16
+               psh di
+               psh ds
+               mov cs,ds
+               mov ci,di             
+               xor a
+               jmr z,:exec_wrt_addr
 exec_write_nr1:mov a, 0x02
                jmr nz,:exec_write_err
 exec_write_pr1:mov a, 0x03
