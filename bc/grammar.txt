@@ -1,0 +1,81 @@
+b data types:
+
+word - 16bit unsigned number 0x0000 - 0xFFFF
+byte -  8bit unsigned number 0-255
+
+expressions
+
+- constant word 0xffff
+- constant byte 0-255
+- constant byte 'char'
+
+- unary operator & - gets value from address, ! - negate 
+- binary operators + - / * > < =
+- parenthness ( )
+- variable value
+- function call  fn(params_expressions)
+
+ - rules: all types of operands must be the same
+
+ variables declaration
+ type name;
+
+ variable association instruction
+ name <- expression;
+ name <- "string" - in this case name starts pointing to adress of 'string'
+
+code block
+{
+    instructions;
+}
+
+if(expression)
+{
+    code block
+}
+
+while(expression)
+{
+    code block
+}
+
+function declaration
+type name([type paramname]*)
+{
+    code block
+
+    return expression
+}
+
+======================
+code segment (user code + system subroutines)
+data segment (all strings)
+stack segment - or use system stack ??
+
+expression evaluation - all expressions are treated 16 bit internally, only association can cast it to byte
+expression result in csci
+
+5 + 2*3  ->    2 3 * 5 +
+
+.mv csci, 0x0002
+.mv dsdi, 0x0003
+cal :mul16
+.mv dsdi, 0x0005
+cal :add16
+-- result in csci
+
+&0xABCD
+
+.mv csci, 0xABCD
+mov a, #csci
+mov cs, 0x00
+mov ci, a
+
+variable + 7
+.mv dsdi, address(variable)
+cal :peek16
+.mv dsdi, 0x0007
+cal :add16
+
+
+
