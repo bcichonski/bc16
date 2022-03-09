@@ -14,13 +14,15 @@ nl = regex(r'(\r\n|\r|\n)').desc('new line')
 lexeme = lambda p: p << ignore
 colon = lexeme(string(':'))
 comma = lexeme(string(','))
+semicolon = lexeme(string(';'))
 hash = string('#')
 underscore = string('_')
 hexprefix = string('0x')
 singlequote = string("'")
 doublequote = string('"')
+assignement = lexeme(string('<-'))
 
-ident = letter + (letter | digit | underscore).many().concat()
+ident = lexeme(letter + (letter | digit | underscore).many().concat())
 quotedstr = lexeme(doublequote >> regex(r'[^"]*') << doublequote).desc('quoted string')
 anychar = regex(r'.').desc('any single character')
 
@@ -31,7 +33,6 @@ singlechar = lexeme(singlequote >> anychar << singlequote).map(chr2int).desc('ch
 constnumber = lexeme(decnumber | hexnumber | singlechar)\
     .map(EXPRESSION_CONSTANT)\
     .desc("Constant expression")
-
 
 unary_operator = lexeme(string('&') | string('!'))
 binary_factor = lexeme(string('*') | string('/'))
@@ -49,4 +50,10 @@ expression_comparision = seq(operand1 = expression_sum, arguments = seq(binary_c
 expression_equality = seq(operand1 = expression_comparision, arguments = seq(binary_eq, expression_comparision).many()).combine_dict(EXPRESSION_BINARY).desc('binary expression equality')
 expression.become(expression_equality)
 
-program = expression
+type = lexeme(string('word') | string('byte'))
+variable_declaration = seq(vartype = type, varname = ident << semicolon).combine_dict(VARIABLE_DECLARATION).desc('variable declaration')
+variable_assignement = seq(varname = ident << assignement, expr = expression << semicolon).combine_dict(VARIABLE_ASSIGNEMENT).desc('variable assignement')
+
+statement = lexeme(variable_declaration | variable_assignement) << nl.optional()
+
+program = statement.many()

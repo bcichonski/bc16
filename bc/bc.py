@@ -10,7 +10,8 @@ def read_input_file(fname):
 def compile(ast, verbose):
     context = Context()
     
-    ast.emit(context)
+    for token in ast:
+        token.emit(context)
     
     return context.basm
 
@@ -25,13 +26,17 @@ def main():
     parser.add_argument('--verbose', action='store_true',
         help='Be more verbose')
     args = parser.parse_args()
-    print('Reading input file {}'.format(args.infile))
-    input = read_input_file(args.infile)
+    infile = args.infile
+    verbose = args.verbose
+    #infile = './bc/code/declarations.b'
+    #verbose = False
+    print('Reading input file {}'.format(infile))
+    input = read_input_file(infile)
     print('Parsing code')
     ast = program.parse(input)
     print('Generating code')
-    output = compile(ast, args.verbose)
-    outfile = Path(args.infile).with_suffix(".basm")
+    output = compile(ast, verbose)
+    outfile = Path(infile).with_suffix(".basm")
     print('Saving output file {}'.format(outfile))
     save_output_file(outfile, output)
     print('Done!')

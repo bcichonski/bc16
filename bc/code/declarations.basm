@@ -1,0 +1,31 @@
+
+            .mv dsdi, :__STACKHEAD
+            .mv csci, 0x0000
+            cal :add16
+            mov ds,cs
+            mov di,ci
+            cal :peek16
+            psh cs
+            psh ci
+            .mv csci, 0x0005
+            pop di
+            pop ds
+            cal :poke16
+            .mv dsdi, :__STACKHEAD
+            .mv csci, 0x0002
+            cal :add16
+            mov ds,cs
+            mov di,ci
+            cal :peek16
+            psh cs
+            psh ci
+            .mv csci, 0x0002
+            psh cs
+            psh ci
+            .mv csci, 0x0004
+            pop di
+            pop ds
+            cal :mul16
+            pop di
+            pop ds
+            mov #dsdi, ci

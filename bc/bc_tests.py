@@ -81,5 +81,21 @@ class TestGrammar(unittest.TestCase):
             "{0}".format(val),
             'CONST(0x0001)')
 
+    def test_variable_declaration(self):
+        val = variable_declaration.parse("word variable;")
+        if Debug: 
+            print("val={0}".format(val))
+        self.assertEqual(
+            "{0}".format(val),
+            'word variable;')
+
+    def test_program(self):
+        val = program.parse("word variable; byte second;")
+        if Debug: 
+            print("val={0}".format(val))
+        self.assertEqual(
+            "{0}".format(val),
+            "[VARIABLE_DECLARATION(vartype='word', varname='variable'), VARIABLE_DECLARATION(vartype='byte', varname='second')]")
+
 if __name__ == '__main__':
     unittest.main()

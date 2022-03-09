@@ -1,26 +1,20 @@
-<class 'bc_ast.EXPRESSION_BINARY'><class 'bc_ast.EXPRESSION_BINARY'><class 'bc_ast.EXPRESSION_BINARY'><class 'bc_ast.EXPRESSION_CONSTANT'>
+
             .mv csci, 0x0005
             psh cs
             psh ci
-            psh cs
-            psh ci<class 'bc_ast.EXPRESSION_CONSTANT'>
             .mv csci, 0x0008
             psh cs
             psh ci
             .mv csci, 0x0007
-            pop ci
-            pop cs
+            pop di
+            pop ds
             cal :mul16
-            pop ci
-            pop cs
-            cal :add16<class 'bc_ast.EXPRESSION_CONSTANT'>
+            pop di
+            pop ds
+            cal :add16
+            psh cs
+            psh ci
             .mv csci, 0x0003
-            psh cs
-            psh ci
-            pop ci
-            pop cs
+            pop di
+            pop ds
             cal :sub16
-            psh cs
-            psh ci
-            psh cs
-            psh ci
