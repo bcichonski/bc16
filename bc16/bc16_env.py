@@ -25,7 +25,7 @@ class Environment:
         if self.debug:
             print("[DBG]:"+msg)
     def get_string(self, prompt):
-        res = raw_input("]> "+prompt)
+        res = input("]> "+prompt)
         return res
     def open_file_to_read(self, filename):
         return open(filename, "rb")

@@ -9,9 +9,13 @@ def read_input_file(fname):
 
 def compile(ast, verbose):
     context = Context()
+
+    context.add_preamble()
     
     for token in ast:
         token.emit(context)
+
+    context.add_stdlib()
     
     return context.basm
 

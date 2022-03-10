@@ -24,6 +24,7 @@ data_help:        .db 'commands:', 0x0a, 0x0d
                   .db ' s addr:h4 len:h4 filename.ext - saves block of memory from addr for len as file on tape', 0x0a, 0x0d
                   .db ' q - quits the os', 0x0a, 0x0d
                   .db ' h - prints this help', 0x0a, 0x0d, 0x00
+data_tape_check1: .db 'recorder not ready: ', 0x00
 ;
 ; subroutines
 ;=============
@@ -450,6 +451,114 @@ prnt_fmt_end:  pop ci
                pop ds
                ret
 ;=============
+; STR_CPY(csci,dsdi)  - copy string from dsdi to csci
+; IN: dsdi - source  
+;     csci - desc
+; OUT: dsdi = source + length + 1
+str_cpy:       mov a, #dsdi
+               mov #csci, a
+               jmr z, :str_cpy_end
+               cal :inc16
+               psh ds
+               psh di
+               mov ds, cs
+               mov di, ci
+               cal :inc16
+               mov cs, ds
+               mov ci, di
+               pop di
+               pop ds
+               xor a
+               jmr z,:str_cpy
+str_cpy_end:   ret
+;=============
+; TAPE_CHECK(ci,dsdi)  - checks if tape recorder is in expected state
+; IN: ci - expected state  
+;   dsdi - address of message if tape recorder is not in expected state
+; OUT: cs - unchanged, a=0 if ok
+tape_check:    psh cs
+               mov cs, 0x02
+               in a, #cs
+               psh a
+               sub ci
+               jmr z, :tape_check_ok
+tape_check_bad:cal :printstr
+               mov a, ci
+               cal :printhex8
+               cal :print_space
+               pop a
+               cal :printhex8
+               cal :print_newline
+               mov a, 0x01
+               pop cs
+               ret
+tape_check_ok: pop a
+               pop cs
+               ret               
+;=============
+; TAPE_WRITE8(ci)  - write 8 bytes to tape recorder, checks after 8 bytes
+; IN: ci - byte to write
+; OUT: cs, di - preserved, a=0 if ok
+tape_write8:   psh cs
+               psh di
+               mov a, ci
+               mov di, 0x01
+               mov cs, 0x02
+               and di
+               or cs
+               out #cs, a
+               mov a, ci
+               shr 0x01
+               mov ci, a
+               and di
+               or cs
+               out #cs, a
+               mov a, ci
+               shr 0x01
+               mov ci, a
+               and di
+               or cs
+               out #cs, a
+               mov a, ci
+               shr 0x01
+               mov ci, a
+               and di
+               or cs
+               out #cs, a
+               mov a, ci
+               shr 0x01
+               mov ci, a
+               and di
+               or cs
+               out #cs, a
+               mov a, ci
+               shr 0x01
+               mov ci, a
+               and di
+               or cs
+               out #cs, a
+               mov a, ci
+               shr 0x01
+               mov ci, a
+               and di
+               or cs
+               out #cs, a
+               mov a, ci
+               shr 0x01
+               mov ci, a
+               and di
+               or cs
+               out #cs, a
+               mov a, ci
+               shr 0x01
+               psh ds
+               .mv dsdi, :data_tape_check1
+               cal :tape_check
+               pop ds
+tape_wr8_end:  pop di
+               pop cs
+               ret
+;=============
 ; EXEC_DUMP(#dsdi)  - executes dump command
 ; IN:  dsdi - address of var_promptbuf
 ;  sysvar16 - 0 = print hex, 1 = print char
@@ -687,13 +796,40 @@ exec_save:     cal :nextword
                psh ci
                psh cs
                cal :nextword
-               mov ci, di
-               mov cs, ds
-               cal :setvarparam16
-               cal :nextword
+               mov a, #dsdi
                jmr z, :exec_save_nr3
+               .mv csci, :var_promptbuf
+               cal :str_cpy
+exec_s_inittap:.mv dsdi, :data_tape_check1
+               mov ci, 0x11
+               cal :tape_check
+               jmr nz, :exec_save_fn1
+               mov ci, 0x02
+               mov a, 0x42
+               out #ci, a
+               mov ci, 0x50
+               cal :tape_check
+               jmr nz, :exec_save_fn1
+               mov a, 0x42
+               out #ci, a
+               mov ci, 0x60
+               cal :tape_check
+               jmr nz, :exec_save_fn1
+exec_s_preamb: mov ci, 0xff
+               cal :tape_write8
+               mov ci, 0x00
+               cal :tape_write8
+               mov ci, 0xff
+               cal :tape_write8
+               mov ci, 0x00
+               cal :tape_write8
+               mov ci, 0x02
+exec_s_stop:   mov a, 0x12
+               out #ci, a
+               mov ci, 0x10
+               cal :tape_check
                xor a
-               jmr z,:exec_save_end
+               jmr z,:exec_save_fn1
 exec_save_nr1: mov a, 0x02
                jmr nz,:exec_save_err
 exec_save_pr1: mov a, 0x03
@@ -714,6 +850,8 @@ exec_save_nr3: pop cs
 exec_save_err: cal :error
                xor a
                jmr z,:exec_save_end
+exec_save_fn1: pop ci
+               pop cs
 exec_save_fin: pop cs
                pop ci
 exec_save_end: ret

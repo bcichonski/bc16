@@ -35,3 +35,5 @@ preamble
 BC05addrlengchks
 00filename.ext00
 data block
+
+s 1000 1000 filename.txt

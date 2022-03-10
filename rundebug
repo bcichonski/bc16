@@ -1,0 +1,6 @@
+#!/bin/bash
+echo "$1
+q
+" >trace.in
+
+winpty -Xallow-non-tty python ./bc16.py ./bc81asmc/bcOS/bcos.b81 d <trace.in >trace.log

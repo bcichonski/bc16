@@ -21,6 +21,8 @@ hexprefix = string('0x')
 singlequote = string("'")
 doublequote = string('"')
 assignement = lexeme(string('<-'))
+leftbrace = lexeme(string('{'))
+rightbrace = lexeme(string('}'))
 
 ident = lexeme(letter + (letter | digit | underscore).many().concat())
 quotedstr = lexeme(doublequote >> regex(r'[^"]*') << doublequote).desc('quoted string')
@@ -51,9 +53,13 @@ expression_equality = seq(operand1 = expression_comparision, arguments = seq(bin
 expression.become(expression_equality)
 
 type = lexeme(string('word') | string('byte'))
-variable_declaration = seq(vartype = type, varname = ident << semicolon).combine_dict(VARIABLE_DECLARATION).desc('variable declaration')
-variable_assignement = seq(varname = ident << assignement, expr = expression << semicolon).combine_dict(VARIABLE_ASSIGNEMENT).desc('variable assignement')
+variable_declaration = seq(vartype = type, varname = ident).combine_dict(VARIABLE_DECLARATION).desc('variable declaration')
+variable_assignement = seq(varname = ident << assignement, expr = expression).combine_dict(VARIABLE_ASSIGNEMENT).desc('variable assignement')
 
-statement = lexeme(variable_declaration | variable_assignement) << nl.optional()
+statement = forward_declaration()
+code_block = (lexeme(leftbrace >> nl.optional()) >> statement.many() << ignore << rightbrace).combine(CODE_BLOCK).desc('code block')
+statement_variables = variable_declaration | variable_assignement
+statement_if = seq(lexeme(string('if')) >> lexeme(string('(')) >> expression << lexeme(string(')')), code_block)
+statement.become((statement_variables | statement_if | code_block) << semicolon << nl.optional())
 
 program = statement.many()
