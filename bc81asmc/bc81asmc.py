@@ -56,7 +56,7 @@ def save_output_file(fname, code):
         return file_handle.write(code)
 
 def main():
-    parser = argparse.ArgumentParser(description='bc81asmc - an assembler for bc8181 cpu v.0.1.0 (180908)')
+    parser = argparse.ArgumentParser(description='bc81asmc - an assembler for bc8181 cpu v.1.0.0 (180908)')
     parser.add_argument('infile', type=str,
         help='input file name')
     parser.add_argument('--verbose', action='store_true',

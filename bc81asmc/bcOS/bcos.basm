@@ -21,6 +21,7 @@ data_help:        .db 'commands:', 0x0a, 0x0d
                   .db ' p addr:h4 len:h4 - prints memory from addr for len bytes as chars', 0x0a, 0x0d
                   .db ' w addr:h4 - stores written char* to memory from addr, stops by empty line', 0x0a, 0x0d
                   .db ' x addr:h4 - stores written h2* to memory from addr, stops by empty line', 0x0a, 0x0d
+                  .db ' s addr:h4 len:h4 filename.ext - saves block of memory from addr for len as file on tape', 0x0a, 0x0d
                   .db ' q - quits the os', 0x0a, 0x0d
                   .db ' h - prints this help', 0x0a, 0x0d, 0x00
 ;
@@ -612,9 +613,9 @@ exec_write_end:ret
 ; IN:  dsdi - address of var_promptbuf
 ; OUT: rubbish
 exec_xwrite:   cal :nextword
-               jmr z,:exec_xwrt_nr1
+               jmr z,:exec_xwrt_nr1j
                cal :parsehex16
-               jmr nz, :exec_xwrt_pr1
+               jmr nz, :exec_xwrt_pr1j
                psh ci
                psh cs
 exec_xwrt_addr:cal :printhex16
@@ -628,8 +629,13 @@ exec_xwrt_strt:.mv dsdi, :var_promptbuf
                cal :readstr
                mov a, cs
                sub 0x21
-               jmr z,:exec_xwrt_fin
+               jmr nz,:exec_xwrt_copy
+               .mv csci, :exec_xwrt_fin
+               jmp z, csci
 exec_xwrt_copy:.mv dsdi, :var_promptbuf
+               jmr nz,:exec_xwrt_loop
+exec_xwrt_nr1j:jmr z, :exec_xwrt_nr1
+exec_xwrt_pr1j:jmr nz, :exec_xwrt_pr1
 exec_xwrt_loop:mov a, #dsdi
                jmr z,:exec_xwrt_eol
                cal :parsehex8
@@ -664,6 +670,58 @@ exec_xwrt_pr2: mov a, 0x06
 exec_xwrt_fin: pop cs
                pop ci
 exec_xwrt_end: ret
+;=============
+; EXEC_SAVE(#dsdi)  - executes save command
+; IN:  dsdi - address of var_promptbuf
+; OUT: rubbish
+exec_save:     cal :nextword
+               jmr z,:exec_save_nr1
+               cal :parsehex16
+               jmr nz, :exec_save_pr1
+               psh ci
+               psh cs
+               cal :nextword
+               jmr z,:exec_save_nr2
+               cal :parsehex16
+               jmr nz, :exec_save_pr2
+               psh ci
+               psh cs
+               cal :nextword
+               mov ci, di
+               mov cs, ds
+               cal :setvarparam16
+               cal :nextword
+               jmr z, :exec_save_nr3
+               xor a
+               jmr z,:exec_save_end
+exec_save_nr1: mov a, 0x02
+               jmr nz,:exec_save_err
+exec_save_pr1: mov a, 0x03
+               jmr nz,:exec_save_err
+exec_save_nr2: pop cs
+               pop ci
+               mov a, 0x04
+               jmr nz,:exec_save_err
+exec_save_pr2: pop cs
+               pop ci
+               mov a, 0x05
+               jmr nz,:exec_save_err
+exec_save_nr3: pop cs
+               pop ci
+               pop cs
+               pop ci
+               mov a, 0x07
+exec_save_err: cal :error
+               xor a
+               jmr z,:exec_save_end
+exec_save_fin: pop cs
+               pop ci
+exec_save_end: ret
+;=============
+; EXEC_SAVE(#dsdi)  - executes save command
+; IN:  dsdi - address of var_promptbuf
+; OUT: rubbish
+exec_load:     ret
 ;=============
 ; OS_INIT - main code
 ; 1.initialize os
@@ -760,12 +818,28 @@ os_exec_write: .mv dsdi, :var_promptbuf
                jmp z, csci
 os_parse_notw: mov a, ci
                sub 0x58
-               jmr nz, :os_parse_unrec
+               jmr nz, :os_parse_notx
 os_exec_xwrite:.mv dsdi, :var_promptbuf
                cal :exec_xwrite
                .mv csci, :os_goto_parse
                xor a
-               jmp z, csci            
+               jmp z, csci
+os_parse_notx: mov a, ci
+               sub 0x53
+               jmr nz, :os_parse_nots
+os_exec_save:  .mv dsci, :var_promptbuf
+               cal :exec_save
+               xor a
+               .mv csci, :os_goto_parse
+               jmp z, csci
+os_parse_nots: mov a, ci
+               sub 0x4C
+               jmr nz, :os_parse_unrec
+os_exec_load:  .mv dsci, :var_promptbuf
+               cal :exec_load
+               xor a
+               .mv csci, :os_goto_parse
+               jmp z, csci           
 os_parse_unrec:mov a, 0x01
                cal :error               
 os_goto_parse: .mv csci, :os_prompt
