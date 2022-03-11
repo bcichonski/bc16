@@ -25,6 +25,7 @@ data_help:        .db 'commands:', 0x0a, 0x0d
                   .db ' q - quits the os', 0x0a, 0x0d
                   .db ' h - prints this help', 0x0a, 0x0d, 0x00
 data_tape_check1: .db 'recorder not ready: ', 0x00
+data_tape_check2: .db 'recorder write failure: ', 0x00
 ;
 ; subroutines
 ;=============
@@ -473,27 +474,28 @@ str_cpy:       mov a, #dsdi
 str_cpy_end:   ret
 ;=============
 ; TAPE_CHECK(ci,dsdi)  - checks if tape recorder is in expected state
-; IN: ci - expected state  
+; IN: cs - expected state  
 ;   dsdi - address of message if tape recorder is not in expected state
-; OUT: cs - unchanged, a=0 if ok
-tape_check:    psh cs
-               mov cs, 0x02
-               in a, #cs
+; OUT: ci - unchanged, a=0 if ok
+tape_check:    psh ci
+               mov ci, 0x02
+               in a, #ci
                psh a
-               sub ci
+               and cs
+               sub cs
                jmr z, :tape_check_ok
 tape_check_bad:cal :printstr
-               mov a, ci
+               mov a, cs
                cal :printhex8
                cal :print_space
                pop a
                cal :printhex8
                cal :print_newline
                mov a, 0x01
-               pop cs
+               pop ci
                ret
 tape_check_ok: pop a
-               pop cs
+               pop ci
                ret               
 ;=============
 ; TAPE_WRITE8(ci)  - write 8 bytes to tape recorder, checks after 8 bytes
@@ -552,7 +554,8 @@ tape_write8:   psh cs
                mov a, ci
                shr 0x01
                psh ds
-               .mv dsdi, :data_tape_check1
+               mov cs, 0x60
+               .mv dsdi, :data_tape_check2
                cal :tape_check
                pop ds
 tape_wr8_end:  pop di
@@ -801,18 +804,18 @@ exec_save:     cal :nextword
                .mv csci, :var_promptbuf
                cal :str_cpy
 exec_s_inittap:.mv dsdi, :data_tape_check1
-               mov ci, 0x11
+               mov cs, 0x10
                cal :tape_check
                jmr nz, :exec_save_fn1
                mov ci, 0x02
                mov a, 0x42
                out #ci, a
-               mov ci, 0x50
+               mov cs, 0x50
                cal :tape_check
                jmr nz, :exec_save_fn1
-               mov a, 0x42
+               mov a, 0x22
                out #ci, a
-               mov ci, 0x60
+               mov cs, 0x60
                cal :tape_check
                jmr nz, :exec_save_fn1
 exec_s_preamb: mov ci, 0xff
@@ -826,7 +829,7 @@ exec_s_preamb: mov ci, 0xff
                mov ci, 0x02
 exec_s_stop:   mov a, 0x12
                out #ci, a
-               mov ci, 0x10
+               mov cs, 0x10
                cal :tape_check
                xor a
                jmr z,:exec_save_fn1

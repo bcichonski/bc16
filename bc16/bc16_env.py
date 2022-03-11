@@ -19,7 +19,7 @@ except ImportError:
 # end from
 
 class Environment:
-    def __init__(self, debug = False):
+    def __init__(self, debug = True):
         self.debug = debug
     def log(self, msg):
         if self.debug:

@@ -98,9 +98,11 @@ class TapeRecorder(IODevice):
     def write_bit(self):
         if(self.state.get_flag(TapeRecorder.F_TX)):
             bit = self.state.get_flag(TapeRecorder.F_DX)
-            byte = self.get_random(TapeRecorder.HALF_BYTE-1)
+            #byte = self.get_random(TapeRecorder.HALF_BYTE-1)
+            byte = 0
             if bit:
-                 byte = byte | TapeRecorder.HALF_BYTE
+                 #byte = byte | TapeRecorder.HALF_BYTE
+                 byte = 1
             self.env.write_byte(self.file_handle, byte)
             self.state.set_flag(TapeRecorder.F_TX, False)
     def set_state(self, newstate):
@@ -116,13 +118,14 @@ class TapeRecorder(IODevice):
         elif newstate == TapeRecorder.TAPE4WRITE:
             if(self.intstate == TapeRecorder.READY):
                 filename = self.env.get_string("Type name of the tape to write: ")
-                filename += ".bc16.tap"
+                filename += ".btap"
                 try:
                     self.openwrite(filename)
                     self.intstate = newstate
                     error = False
                 except Exception as e:
                     self.env.log(str(e))
+                    print(str(e))
                     error = True
                     newstate = TapeRecorder.ERROR
                 ready = True
@@ -138,7 +141,7 @@ class TapeRecorder(IODevice):
         elif newstate == TapeRecorder.TAPE4READ:
             if(self.intstate == TapeRecorder.READY):
                 filename = self.env.get_string("Type name of the tape to read: ")
-                filename += ".bc16.tap"
+                filename += ".btap"
                 try:
                     self.openread(filename)
                     self.intstate = newstate
@@ -178,10 +181,10 @@ class TapeRecorder(IODevice):
         self.state.set_flag(TapeRecorder.F_ERROR, error)
 
     def openread(self, filename):
-        self.file_handle = self.env.open_file_for_read(filename)
+        self.file_handle = self.env.open_file_to_read(filename)
 
     def openwrite(self, filename):
-        self.file_handle = self.env.open_file_for_write(filename)
+        self.file_handle = self.env.open_file_to_write(filename)
 
     def close(self):
         self.env.close_file(self.file_handle)
