@@ -1,35 +1,104 @@
-
+;
                 .org 0x1000
-                .mv dsdi, :__STACKHEAD
-                .mv csci, 0x0000
+                .mv dsdi, :sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x00
                 cal :add16
                 mov ds,cs
                 mov di,ci
                 cal :peek16
                 psh cs
                 psh ci
-                .mv csci, 0x0005
+                mov cs, 0x00
+                mov ci, 0x05
                 pop di
                 pop ds
                 cal :poke16
-                .mv dsdi, :__STACKHEAD
-                .mv csci, 0x0002
+                .mv dsdi, :sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x02
                 cal :add16
                 mov ds,cs
                 mov di,ci
                 cal :peek16
                 psh cs
                 psh ci
-                .mv csci, 0x0002
+                mov cs, 0x00
+                mov ci, 0x04
                 psh cs
                 psh ci
-                .mv csci, 0x0004
+                mov cs, 0x00
+                mov ci, 0x02
                 pop di
                 pop ds
-                cal :mul16
+                cal :sub16
                 pop di
                 pop ds
                 mov #dsdi, ci
+                .mv dsdi, :sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x00
+                cal :add16
+                mov ds,cs
+                mov di,ci
+                cal :peek16
+                psh cs
+                psh ci
+                .mv dsdi,:sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :add16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+                pop di
+                pop ds
+                cal :poke16
+;=============
+; PRINTHEX4(a) - prints hex number from 0 to f
+; IN:    a - number to print
+; OUT:   a - unchanged      10 -> 0 -> 41
+;       cs - set to 1
+printhex4:     mov cs, 0x01
+               psh a
+               sub 0x0a
+               jmr no, :printhex4_af
+printhex4_09:  pop a
+               add 0x30
+               out #cs, a
+               ret
+printhex4_af:  pop a
+               add 0x37
+               out #cs, a
+               ret
+;=============
+; PRINTHEX8(a) - prints hex number 
+; IN:    a - number to print
+; OUT:   a - set to lower half
+;     csci - unchanged
+;     dsdi - unchanged
+printhex8:     psh cs
+               psh ci
+               mov ci, a
+               shr 0x04
+               cal :printhex4
+               mov a, ci
+               and 0x0f
+               cal :printhex4
+               pop ci
+               pop cs
+               ret
+;=============
+; PRINTHEX16(csci) - prints hex number 4 digits
+; IN:    csci - hex number 4 digits
+; OUT:   csci - unchanged
+;           a - ci
+printhex16:    mov a, cs
+               psh ci
+               cal :printhex8
+               pop a
+               cal :printhex8
+               ret
 ;=============
 ; INC16(dsdi) - increase 16bit number correctly
 ; IN:    dsdi - number 16bit, break if exceeds 16bit
@@ -128,14 +197,39 @@ sub16_ovr1:    mov a, cs
 sub16_ovr2err: mov a, 0x13
                cal :fatal
 ;=============
+; PRINT_NEWLINE - prints new line
+; IN:
+; OUT:   a - rubbish
+print_newline: psh cs
+               mov cs, 0x01
+               mov a, 0x0a
+               out #cs, a
+               mov a, 0x0d
+               out #cs, a
+               pop cs
+               ret
+;=============
+; PRINTSTR(*dsdi) - sends chars to printer
+; IN: dsdi - address of 0-ended char table
+; OUT:   a - set to 0x00
+;       ci - set to 0x01
+;     dsdi - set to end of char table
+printstr:      mov ci, 0x01
+printstr_loop: mov a, #dsdi
+               jmr z, :printstr_end
+               out #ci, a
+               cal :inc16
+               xor a
+               jmr z, :printstr_loop
+printstr_end:  ret
+;=============
 ; FATAL(a) - prints error message and stops
 ; IN:   a - error code
 ;   stack - as error address
 ; OUT:  KILL, messed stack
 ;
 fatal:         psh a
-               .mv dsdi, :data_newline
-               cal :printstr
+               cal :print_newline
                .mv dsdi, :data_fatal
                cal :printstr
                pop a
@@ -146,4 +240,7 @@ fatal:         psh a
                pop cs
                cal :printhex16
                kil
-__STACKHEAD:   nop
+data_fatal:    .db 'fatal '
+data_error:    .db 'error ', 0x00
+data_at:       .db ' at ', 0x00
+sys_stackhead: nop

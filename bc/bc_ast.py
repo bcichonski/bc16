@@ -2,7 +2,13 @@ from array import array
 from dataclasses import dataclass
 from msilib.schema import Error
 
-STACKHEAD = "__STACKHEAD"
+STACKHEAD = "sys_stackhead"
+
+def hi(b):
+    return (b >> 4) & 0xf
+
+def lo(b):
+    return b & 0xf
 
 class Scope:
     def __init__(self, context, prev_scope = None):
@@ -51,6 +57,10 @@ class Context:
     def emit(self, code):
         self.basm += code
 
+    def load16(self, i16):
+        return """mov cs, 0x{0:02x}
+                mov ci, 0x{1:02x}""".format(hi(i16), lo(i16))
+
     def add_error(self, message):
         print('ERROR: {0}'.format(message))
         self.errors.append(message)
@@ -62,7 +72,7 @@ class Context:
         return self.scope.get_variable(varname)
 
     def add_preamble(self):
-        self.emit("""
+        self.emit(""";
                 .org 0x{0:04x}""".format(self.code_segment_addr))
 
     def push_scope(self):
@@ -75,6 +85,51 @@ class Context:
 
     def add_stdlib(self):
         self.emit("""
+;=============
+; PRINTHEX4(a) - prints hex number from 0 to f
+; IN:    a - number to print
+; OUT:   a - unchanged      10 -> 0 -> 41
+;       cs - set to 1
+printhex4:     mov cs, 0x01
+               psh a
+               sub 0x0a
+               jmr no, :printhex4_af
+printhex4_09:  pop a
+               add 0x30
+               out #cs, a
+               ret
+printhex4_af:  pop a
+               add 0x37
+               out #cs, a
+               ret
+;=============
+; PRINTHEX8(a) - prints hex number 
+; IN:    a - number to print
+; OUT:   a - set to lower half
+;     csci - unchanged
+;     dsdi - unchanged
+printhex8:     psh cs
+               psh ci
+               mov ci, a
+               shr 0x04
+               cal :printhex4
+               mov a, ci
+               and 0x0f
+               cal :printhex4
+               pop ci
+               pop cs
+               ret
+;=============
+; PRINTHEX16(csci) - prints hex number 4 digits
+; IN:    csci - hex number 4 digits
+; OUT:   csci - unchanged
+;           a - ci
+printhex16:    mov a, cs
+               psh ci
+               cal :printhex8
+               pop a
+               cal :printhex8
+               ret
 ;=============
 ; INC16(dsdi) - increase 16bit number correctly
 ; IN:    dsdi - number 16bit, break if exceeds 16bit
@@ -173,14 +228,39 @@ sub16_ovr1:    mov a, cs
 sub16_ovr2err: mov a, 0x13
                cal :fatal
 ;=============
+; PRINT_NEWLINE - prints new line
+; IN:
+; OUT:   a - rubbish
+print_newline: psh cs
+               mov cs, 0x01
+               mov a, 0x0a
+               out #cs, a
+               mov a, 0x0d
+               out #cs, a
+               pop cs
+               ret
+;=============
+; PRINTSTR(*dsdi) - sends chars to printer
+; IN: dsdi - address of 0-ended char table
+; OUT:   a - set to 0x00
+;       ci - set to 0x01
+;     dsdi - set to end of char table
+printstr:      mov ci, 0x01
+printstr_loop: mov a, #dsdi
+               jmr z, :printstr_end
+               out #ci, a
+               cal :inc16
+               xor a
+               jmr z, :printstr_loop
+printstr_end:  ret
+;=============
 ; FATAL(a) - prints error message and stops
 ; IN:   a - error code
 ;   stack - as error address
 ; OUT:  KILL, messed stack
 ;
 fatal:         psh a
-               .mv dsdi, :data_newline
-               cal :printstr
+               cal :print_newline
                .mv dsdi, :data_fatal
                cal :printstr
                pop a
@@ -191,7 +271,11 @@ fatal:         psh a
                pop cs
                cal :printhex16
                kil
-{0}:   nop""".format(STACKHEAD))
+data_fatal:    .db 'fatal '
+data_error:    .db 'error ', 0x00
+data_at:       .db ' at ', 0x00
+{0}: nop
+""".format(STACKHEAD))
 
 class Instruction:
     def __str__(self):
@@ -209,7 +293,27 @@ class EXPRESSION_CONSTANT(Instruction):
 
     def emit(self, context):
         context.emit("""
-                .mv csci, 0x{0:04x}""".format(self.i16))
+                {0}""".format(context.load16(self.i16)))
+
+@dataclass
+class EXPRESSION_TERM(Instruction):
+    term : object
+
+    def __str__(self):
+        return "TERM({})".format(self.term)
+
+    def emit(self, context):
+        if isinstance(self.term, str):
+            var = context.get_variable(self.term)
+            context.emit("""
+                .mv dsdi,:{0}
+                {1}
+                cal :add16
+                mov ds, cs
+                mov di, ci
+                cal :peek16""".format(STACKHEAD, context.load16(var['offset'])))
+            return
+        self.term.emit(context)        
 
 @dataclass
 class EXPRESSION_UNARY(Instruction):
@@ -300,13 +404,13 @@ class VARIABLE_ASSIGNEMENT(Instruction):
         variable_def = context.get_variable(self.varname)
         context.emit("""
                 .mv dsdi, :{0}
-                .mv csci, 0x{1:04x}
+                {1}
                 cal :add16
                 mov ds,cs
                 mov di,ci
                 cal :peek16
                 psh cs
-                psh ci""".format(STACKHEAD, variable_def['offset']))
+                psh ci""".format(STACKHEAD, context.load16(variable_def['offset'])))
         self.expr.emit(context)
         if(variable_def['type'] == 'word'):
             context.emit("""
@@ -328,4 +432,4 @@ class CODE_BLOCK(Instruction):
 
     def emit(self, context):
         context.emit("""
-                .mv csci, 0x{0:04x}""".format(self.i16))
+                {0}""".format(context.load16(self.i16)))

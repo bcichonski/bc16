@@ -81,6 +81,15 @@ class TestGrammar(unittest.TestCase):
             "{0}".format(val),
             'CONST(0x0001)')
 
+    def test_expression_variable(self):
+        val = program.parse("""word var;
+var <- var;""")
+        if Debug: 
+            print("val={0}".format(val))
+        self.assertEqual(
+            "{0}".format(val),
+            'CONST(0x0001)')
+
     def test_variable_declaration(self):
         val = statement.parse("word variable;")
         if Debug: 

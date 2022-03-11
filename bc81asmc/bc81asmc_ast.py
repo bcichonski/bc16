@@ -124,7 +124,7 @@ class CodeContext:
         self.currhalf = 0
         self.curraddr += 1
     def emit_byte_at(self, addr, b):
-        self.bytes[addr] = b
+        self.bytes[addr-self.startaddr] = b
     def hi(self, b):
         return (b >> 8) & 0xff
     def lo(self, b):

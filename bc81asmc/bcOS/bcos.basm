@@ -1,8 +1,8 @@
 ; bc16 Operation System version 0.1.20211228
 ;
-               .org 0x0000
-os_start:      .mv csci, :os_init
-               jmp z, csci
+                   .org 0x0000
+os_start:          .mv csci, :os_init
+                   jmp z, csci
 ;
 ; data
 ;
@@ -473,6 +473,28 @@ str_cpy:       mov a, #dsdi
                jmr z,:str_cpy
 str_cpy_end:   ret
 ;=============
+; STR_LEN8(dsdi)  - length of the string ending with 0x00
+; IN: dsdi - source  
+;     cs   - max length
+; OUT: dsdi - preserved, cs = rubbish, ci = actual length
+str_len8:      psh ds
+               psh di
+               mov ci, 0x00
+str_len8_loop: mov a, #dsdi
+               jmr z, :str_len8_end
+               cal :inc16
+               mov a, ci
+               inc a
+               mov ci, a
+               mov a, cs
+               dec a
+               mov cs, a
+               jmr z, :str_len8_end
+               jmr nz, :str_len8_loop
+str_len8_end:  pop di
+               pop ds
+               ret
+;=============
 ; TAPE_CHECK(ci,dsdi)  - checks if tape recorder is in expected state
 ; IN: cs - expected state  
 ;   dsdi - address of message if tape recorder is not in expected state
@@ -498,7 +520,7 @@ tape_check_ok: pop a
                pop ci
                ret               
 ;=============
-; TAPE_WRITE8(ci)  - write 8 bytes to tape recorder, checks after 8 bytes
+; TAPE_WRITE8(ci)  - write 8 bits to tape recorder, checks after 8 bits
 ; IN: ci - byte to write
 ; OUT: cs, di - preserved, a=0 if ok
 tape_write8:   psh cs
@@ -559,6 +581,44 @@ tape_write8:   psh cs
                cal :tape_check
                pop ds
 tape_wr8_end:  pop di
+               pop cs
+               ret
+;=============
+; TAPE_WRITE16(csci)  - write 16bits to tape recorder, checks after each 8 bits
+; IN: ci - byte to write
+; OUT: di - preserved, a=0 if ok
+tape_write16:  psh ci
+               mov ci, cs
+               cal :tape_write8
+               pop ci
+               jmr nz, :tape_w16_end
+               cal :tape_write8
+tape_w16_end:  ret
+;=============
+; TAPE_WRITE_BLK(dsdi,csci)  - write memory block starting from dsdi of length csci
+; IN: dsdi - addr of mem to write
+;     csci - len of mem to write
+; OUT: dsdi - addres of next byte, csci = 0, a=0 if ok
+tape_write_blk:psh cs
+               psh ci
+tape_wrbk_loop:mov a, #dsdi
+               mov ci, a
+               cal :tape_write8
+               jmr nz,:tape_wrbk_end
+               cal :inc16
+               mov cs, ds
+               mov ci, di
+               pop di
+               pop ds
+               cal :dec16
+               mov a, ds
+               or di
+               jmr z, :tape_wrbk_end
+               psh ds
+               psh di
+               xor a
+               jmr z, :tape_wrbk_loop
+tape_wrbk_end: pop ci
                pop cs
                ret
 ;=============
@@ -803,36 +863,8 @@ exec_save:     cal :nextword
                jmr z, :exec_save_nr3
                .mv csci, :var_promptbuf
                cal :str_cpy
-exec_s_inittap:.mv dsdi, :data_tape_check1
-               mov cs, 0x10
-               cal :tape_check
-               jmr nz, :exec_save_fn1
-               mov ci, 0x02
-               mov a, 0x42
-               out #ci, a
-               mov cs, 0x50
-               cal :tape_check
-               jmr nz, :exec_save_fn1
-               mov a, 0x22
-               out #ci, a
-               mov cs, 0x60
-               cal :tape_check
-               jmr nz, :exec_save_fn1
-exec_s_preamb: mov ci, 0xff
-               cal :tape_write8
-               mov ci, 0x00
-               cal :tape_write8
-               mov ci, 0xff
-               cal :tape_write8
-               mov ci, 0x00
-               cal :tape_write8
-               mov ci, 0x02
-exec_s_stop:   mov a, 0x12
-               out #ci, a
-               mov cs, 0x10
-               cal :tape_check
                xor a
-               jmr z,:exec_save_fn1
+               jmr z, :exec_s_inittap
 exec_save_nr1: mov a, 0x02
                jmr nz,:exec_save_err
 exec_save_pr1: mov a, 0x03
@@ -853,11 +885,74 @@ exec_save_nr3: pop cs
 exec_save_err: cal :error
                xor a
                jmr z,:exec_save_end
+exec_s_inittap:.mv dsdi, :data_tape_check1
+               mov cs, 0x10
+               cal :tape_check
+               jmr nz, :exec_save_fn1
+               mov ci, 0x02
+               mov a, 0x42
+               out #ci, a
+               mov cs, 0x50
+               cal :tape_check
+               jmr nz, :exec_save_fn1
+               mov a, 0x22
+               out #ci, a
+               mov cs, 0x60
+               cal :tape_check
+               jmr nz, :exec_save_fn1
+               xor a
+               jmr z, :exec_s_preamb
 exec_save_fn1: pop ci
                pop cs
 exec_save_fin: pop cs
                pop ci
 exec_save_end: ret
+exec_s_preamb: mov ci, 0xff
+               cal :tape_write8
+               mov ci, 0x00
+               cal :tape_write8
+               mov ci, 0xff
+               cal :tape_write8
+               mov ci, 0x00
+               cal :tape_write8
+               mov ci, 0xBC
+               cal :tape_write8
+               mov ci, 0x05
+               cal :tape_write8
+               pop ds
+               pop di
+               pop cs
+               pop ci
+               cal :tape_write16
+               psh ci
+               psh cs
+               mov ci, di
+               mov cs, ds
+               cal :tape_write16
+               psh ci
+               psh cs
+               mov ci, 0x00
+               cal :tape_write8
+               .mv dsdi, :var_promptbuf
+               mov cs, 0x0C
+               cal :str_len8
+               mov cs, 0x00
+               mov a, ci
+               inc a
+               mov ci, a
+               cal :tape_write_blk
+               pop cs
+               pop ci
+               pop ds
+               pop di
+               cal :tape_write_blk
+exec_s_stop:   mov ci, 0x02
+               mov a, 0x12
+               out #ci, a
+               mov cs, 0x10
+               cal :tape_check
+               xor a
+               jmr z,:exec_save_fn1
 ;=============
 ; EXEC_SAVE(#dsdi)  - executes save command
 ; IN:  dsdi - address of var_promptbuf

@@ -43,7 +43,7 @@ binary_comp = lexeme(string('>') | string('<'))
 binary_eq = lexeme(string('=') | string('!='))
 expression = forward_declaration()
 expression_nested = string('(') >> ignore >> expression << ignore << string(')').desc('nested expression')
-expression_term = constnumber | ident | expression_nested
+expression_term = (constnumber | ident | expression_nested).map(EXPRESSION_TERM).desc('term expression')
 expression_unary_act = seq(unary_operator, expression).combine(EXPRESSION_UNARY).desc('unary expression')
 expression_unary = expression_unary_act | expression_term
 expression_factor = seq(operand1 = expression_unary, arguments = seq(binary_factor, expression_unary).many()).combine_dict(EXPRESSION_BINARY).desc('binary expression factor')
