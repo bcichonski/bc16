@@ -41,6 +41,7 @@ class Scope:
         if res is None:
             if self.prev_scope is not None:
                 res = self.prev_scope.get_variable(varname)
+                res['offset'] = res['offset'] - self.offset
         if res is None:    
             self.context.add_error("Undeclared variable {0}".format(varname))
         return res
@@ -53,6 +54,7 @@ class Context:
         self.data_segment_addr = 0x2000
         self.stack_segment_addr = 0x3000
         self.scope = Scope(self)
+        self.nextident = 0
 
     def emit(self, code):
         self.basm += code
@@ -70,6 +72,10 @@ class Context:
 
     def get_variable(self, varname):
         return self.scope.get_variable(varname)
+
+    def get_next_label(self):
+        self.nextident += 1
+        return "LABEL{0:04x}".format(self.nextident)
 
     def add_preamble(self):
         self.emit(""";
@@ -305,13 +311,18 @@ class EXPRESSION_TERM(Instruction):
     def emit(self, context):
         if isinstance(self.term, str):
             var = context.get_variable(self.term)
+            offset = var['offset']
+            oper = 'add16'
+            if offset < 0:
+                oper = 'sub16'
+                offset = -offset
             context.emit("""
                 .mv dsdi,:{0}
                 {1}
-                cal :add16
+                cal :{2}
                 mov ds, cs
                 mov di, ci
-                cal :peek16""".format(STACKHEAD, context.load16(var['offset'])))
+                cal :peek16""".format(STACKHEAD, context.load16(offset), oper))
             return
         self.term.emit(context)        
 
@@ -359,18 +370,14 @@ class EXPRESSION_BINARY(Instruction):
 
     def emit(self, context):
         self.operand1.emit(context)
-
         for elem in self.arguments:
             context.emit("""
                 psh cs
                 psh ci""")
-
             elem[1].emit(context)
-
             context.emit("""
                 pop di
                 pop ds""")
-
             lib = oper2lib[elem[0]]
             if not lib:
                 context.add_error(
@@ -402,15 +409,20 @@ class VARIABLE_ASSIGNEMENT(Instruction):
     def emit(self, context):
         print('{0}={1};'.format(self.varname, self.expr))
         variable_def = context.get_variable(self.varname)
+        offset = variable_def['offset']
+        oper = 'add16'
+        if offset < 0:
+            oper = 'sub16'
+            offset = -offset
         context.emit("""
                 .mv dsdi, :{0}
                 {1}
-                cal :add16
+                cal :{2}
                 mov ds,cs
                 mov di,ci
                 cal :peek16
                 psh cs
-                psh ci""".format(STACKHEAD, context.load16(variable_def['offset'])))
+                psh ci""".format(STACKHEAD, context.load16(offset), oper))
         self.expr.emit(context)
         if(variable_def['type'] == 'word'):
             context.emit("""
@@ -425,11 +437,73 @@ class VARIABLE_ASSIGNEMENT(Instruction):
 
 @dataclass
 class CODE_BLOCK(Instruction):
-    statements:array
+    statements:list
 
     def __str__(self):
         return "BLOCK({0})".format(self.statements)
 
     def emit(self, context):
+        context.push_scope()
+        self.statements.emit(context)
+        context.pop_scope()
+
+@dataclass
+class STATEMENT_IF(Instruction):
+    expr:object
+    code:object
+
+    def __str__(self):
+        return "IF({0})[{1}]".format(self.expr, self.code)
+
+    def emit(self, context):
+        self.expr.emit(context)
+        label = context.get_next_label()
         context.emit("""
-                {0}""".format(context.load16(self.i16)))
+                mov a, cs
+                or ci
+                .mv csci, :{0}
+                jmp z, csci""".format(label))
+        self.code.emit(context)
+        context.emit("""
+{0}:      nop""".format(label))
+
+@dataclass
+class STATEMENT_WHILE(Instruction):
+    expr:object
+    code:object
+
+    def __str__(self):
+        return "WHILE({0})[{1}]".format(self.expr, self.code)
+
+    def emit(self, context):
+        label1 = context.get_next_label()
+        label2 = context.get_next_label()
+        context.emit("""
+{0}:      nop""".format(label1))
+        self.expr.emit(context)
+        context.emit("""
+                mov a, cs
+                or ci
+                .mv csci, :{0}
+                jmp z, csci""".format(label2))
+        self.code.emit(context)
+        context.emit("""
+                .mv csci, :{0}
+                xor a
+                jmp z, csci
+{1}:      nop""".format(label1, label2))
+        
+@dataclass
+class FUNCTION_DECLARATION(Instruction):
+    return_type:object
+    function_name:object
+    params:list
+    code:object
+
+    def __str__(self):
+        return "FUNCTION {0}({1})->{2}[{3}]".format(self.function_name, self.params, self.return_type, self.code)
+
+    def emit(self, context):
+        #label = context.get_function_label(self.function_name)
+        pass
+        

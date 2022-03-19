@@ -23,6 +23,8 @@ doublequote = string('"')
 assignement = lexeme(string('<-'))
 leftbrace = lexeme(string('{'))
 rightbrace = lexeme(string('}'))
+leftpar = lexeme(string('('))
+rightpar = lexeme(string(')'))
 
 ident = lexeme(letter + (letter | digit | underscore).many().concat())
 quotedstr = lexeme(doublequote >> regex(r'[^"]*') << doublequote).desc('quoted string')
@@ -57,9 +59,12 @@ variable_declaration = seq(vartype = type, varname = ident).combine_dict(VARIABL
 variable_assignement = seq(varname = ident << assignement, expr = expression).combine_dict(VARIABLE_ASSIGNEMENT).desc('variable assignement')
 
 statement = forward_declaration()
-code_block = (lexeme(leftbrace >> nl.optional()) >> statement.many() << ignore << rightbrace).combine(CODE_BLOCK).desc('code block')
-statement_variables = variable_declaration | variable_assignement
-statement_if = seq(lexeme(string('if')) >> lexeme(string('(')) >> expression << lexeme(string(')')), code_block)
-statement.become((statement_variables | statement_if | code_block) << semicolon << nl.optional())
+code_block = (leftbrace >> nl.optional() >> ignore >> statement.many() << nl.optional() << ignore << rightbrace << nl.optional()).map(CODE_BLOCK).desc('code block')
+statement_variables = (variable_declaration | variable_assignement) << semicolon << nl.optional()
+statement_if = seq(expr = lexeme(string('if')) >> leftpar >> expression << rightpar << nl.optional(), code = ignore >> code_block).combine_dict(STATEMENT_IF).desc('if statement')
+statement_while = seq(expr = lexeme(string('while')) >> leftpar >> expression << rightpar << nl.optional(), code = ignore >> code_block).combine_dict(STATEMENT_WHILE).desc('while statement')
+statement.become(ignore >> (statement_variables | statement_if | statement_while) << nl.optional())
+function_params = variable_declaration.sep_by(comma)
+function_declaration = seq(return_type = type, function_name = ident, params = leftpar >> function_params << rightpar << nl.optional() << ignore, code = code_block).combine_dict(FUNCTION_DECLARATION).desc("function declaration")
 
-program = statement.many()
+program = function_declaration.many()
