@@ -13,20 +13,32 @@ def lo(b):
 class Scope:
     def __init__(self, context, prev_scope = None):
         self.variables = {}
+        self.funcparams = {}
         self.context = context
         self.offset = 0 if prev_scope is None else prev_scope.offset
         self.prev_scope = prev_scope
 
-    def add_variable(self, vartype, varname):
-        if self.variables.get(varname) is not None:
-            self.context.add_error(
-                'Variable {0} was already defined in this scope'.format(varname))
+    def add_variable(self, vartype, varname, funcparam):
+        if funcparam:
+            if self.funcparams.get(varname) is not None:
+                self.context.add_error(
+                    'Function parameter {0} was already defined in this scope'.format(varname))
 
-        self.variables[varname] = {
-            'name': varname,
-            'type': vartype,
-            'offset': self.offset
-        }
+            self.funcparams[varname] = {
+                'name': varname,
+                'type': vartype,
+                'offset': self.offset
+            }
+        else:
+            if self.variables.get(varname) is not None:
+                self.context.add_error(
+                    'Variable {0} was already defined in this scope'.format(varname))
+
+            self.variables[varname] = {
+                'name': varname,
+                'type': vartype,
+                'offset': self.offset
+            }
 
         self.offset += self.length(vartype)
 
@@ -37,11 +49,16 @@ class Scope:
         self.context.add_error('Unknown type {0}'.format(vartype))
 
     def get_variable(self, varname):
+        res = self.funcparams.get(varname)
+        if res is not None:
+            return res
+
         res = self.variables.get(varname)
         if res is None:
             if self.prev_scope is not None:
                 res = self.prev_scope.get_variable(varname)
                 res['offset'] = res['offset'] - self.offset
+
         if res is None:    
             self.context.add_error("Undeclared variable {0}".format(varname))
         return res
@@ -55,6 +72,7 @@ class Context:
         self.stack_segment_addr = 0x3000
         self.scope = Scope(self)
         self.nextident = 0
+        self.function_dict = { }
 
     def emit(self, code):
         self.basm += code
@@ -89,8 +107,24 @@ class Context:
         if self.scope is None:
             raise Error('Scope error')
 
+    def get_function_call_label(self, function_name):
+        if len(function_name) > 10:
+            function_name = function_name[:10]
+        function_name = function_name.upper()
+        self.nextident += 1
+
+        return "F{0}{1:04x}".format(function_name, self.nextident)
+
+    def get_function_data(self, function_name):
+        return self.function_dict.get(function_name)
+
+    def set_function_data(self, function_name, data):
+        self.function_dict[function_name] = data
+        
+
     def add_stdlib(self):
         self.emit("""
+;>>>>>>>>>>COMPILER ASM LIB<<<<<<<<<<<<<
 ;=============
 ; PRINTHEX4(a) - prints hex number from 0 to f
 ; IN:    a - number to print
@@ -444,7 +478,8 @@ class CODE_BLOCK(Instruction):
 
     def emit(self, context):
         context.push_scope()
-        self.statements.emit(context)
+        for statement in self.statements:
+            statement.emit(context)
         context.pop_scope()
 
 @dataclass
@@ -492,18 +527,136 @@ class STATEMENT_WHILE(Instruction):
                 xor a
                 jmp z, csci
 {1}:      nop""".format(label1, label2))
+
+@dataclass
+class STATEMENT_RETURN(Instruction):
+    expr:object
+
+    def __str__(self):
+        return "RETURN({0})".format(self.expr)
+
+    def emit(self, context):
+        self.expr.emit(context)
+        context.emit("""
+                ret""")
+
+@dataclass
+class EXPRESSION_CALL(Instruction):
+    function_name:str
+    params:list
+
+    def __str__(self):
+        return "FUNCTION_CALL[{0}({1})]".format(self.function_name, self.params)
+
+    def emit(self, context):
+        function_data = context.get_function_data(self.function_name)
+        if function_data is None:
+            context.add_error("Undeclared function {0}".format(self.function_name))
+            return
+
+        context.push_scope()
+
+        paramdata = function_data['params']
+        paramstar = function_data['paramstar']
+        funcname = function_data['name']
+        paramno = 1
+        for param in self.params:
+            param_data = paramdata[paramno]
+            param_name = param_data['name']
+            paramtype = param_data['type']
+            if(param_data is None):
+                if not paramstar:
+                    context.add_error('Unrecognized function {0} parameter {1}'.format(self.function_name, param_name))
+
+            context.add_variable(paramtype, param_name, True)
+            param.emit(context)
+            varassignement = VARIABLE_ASSIGNEMENT(param_name, param)
+            varassignement.emit(context)
+            paramno += 1
+
+        if paramstar:
+            paramname = funcname
+            if len(paramname) > 10: 
+                paramname = paramname[:10]
+            paramname = "__SLN{0}".format(paramname)
+            paramtype = 'byte'
+            context.add_variable('byte', paramname, True)
+            varassignement = VARIABLE_ASSIGNEMENT(paramname, EXPRESSION_CONSTANT(paramno - 1))
+            varassignement.emit(context)
+
+        context.emit("""
+            CAL :{0}""".format(function_data['label']))
+
+        context.pop_scope()
+        
         
 @dataclass
 class FUNCTION_DECLARATION(Instruction):
-    return_type:object
-    function_name:object
+    return_type:str
+    function_name:str
     params:list
+    star:str
     code:object
 
     def __str__(self):
         return "FUNCTION {0}({1})->{2}[{3}]".format(self.function_name, self.params, self.return_type, self.code)
 
     def emit(self, context):
-        #label = context.get_function_label(self.function_name)
-        pass
-        
+        function_data = context.get_function_data(self.function_name)
+
+        if function_data is None:
+            function_data = self.add_declaration(context)
+
+        if self.code is not None:
+            self.add_code(function_data, context)
+            function_data['code'] = True
+
+    def add_declaration(self, context):
+        params = []
+        for param in self.params:
+            params.append({
+                'name' : param.varname,
+                'type' : param.vartype
+            })
+
+        function_data = {
+            'name': self.function_name,
+            'label': context.get_function_call_label(self.function_name),
+            'type': self.return_type,
+            'params': params,
+            'paramstar': False if self.star is None else len(self.star) > 0,
+            'code': False
+        }
+
+        context.set_function_data(self.function_name, function_data)
+        return function_data
+
+    def check_params(self, context, function_data):
+
+        for param in function_data['params']:
+            res = context.get_variable(param['name'])
+
+            if(res is None):
+                context.add_error('Undeclared function {0} parameter {1}'.format(function_data['name'], param['name']))
+                continue
+
+            if(res['type'] != param['type']):
+                context.add_error('Wrong type for function {0} parameter {1}: {2}'.format(function_data['name'], param['name'], param['type']))
+                continue
+
+            context.add_func_variable()
+
+    def add_code(self, function_data, context):
+        context.emit("""
+;FUNCTION {0}
+{1}:nop""".format(function_data['name'], function_data['label']))
+
+        if not function_data['paramstar']:
+            self.check_params(context, function_data)
+
+        scope = context.scope
+        self.code.emit(context)
+        if(scope == context.scope):
+            context.add_error('No return statement from function {0}'.format(function_data['name']))
+        context.emit("""
+;END OF FUNCTION {0}""".format(function_data['name']))

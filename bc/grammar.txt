@@ -44,8 +44,16 @@ type name([type paramname]*)
 {
     code block
 
-    return expression
+    return expression;
 }
+
+asm
+{
+    //copied to asm
+}
+
+#define SYMBOL data
+#include file.b
 
 ======================
 code segment (user code + system subroutines)

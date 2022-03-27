@@ -44,8 +44,9 @@ binary_sum = lexeme(string('+') | string('-'))
 binary_comp = lexeme(string('>') | string('<'))
 binary_eq = lexeme(string('=') | string('!='))
 expression = forward_declaration()
+expression_functioncall = seq(function_name = ident, params = ignore >> leftpar >> ignore >> nl.optional() >> ignore >> expression.sep_by(comma) << ignore << nl.optional() << ignore << rightpar << ignore).combine_dict(EXPRESSION_CALL).desc("function call")
 expression_nested = string('(') >> ignore >> expression << ignore << string(')').desc('nested expression')
-expression_term = (constnumber | ident | expression_nested).map(EXPRESSION_TERM).desc('term expression')
+expression_term = (constnumber | expression_functioncall | ident | expression_nested).map(EXPRESSION_TERM).desc('term expression')
 expression_unary_act = seq(unary_operator, expression).combine(EXPRESSION_UNARY).desc('unary expression')
 expression_unary = expression_unary_act | expression_term
 expression_factor = seq(operand1 = expression_unary, arguments = seq(binary_factor, expression_unary).many()).combine_dict(EXPRESSION_BINARY).desc('binary expression factor')
@@ -63,8 +64,11 @@ code_block = (leftbrace >> nl.optional() >> ignore >> statement.many() << nl.opt
 statement_variables = (variable_declaration | variable_assignement) << semicolon << nl.optional()
 statement_if = seq(expr = lexeme(string('if')) >> leftpar >> expression << rightpar << nl.optional(), code = ignore >> code_block).combine_dict(STATEMENT_IF).desc('if statement')
 statement_while = seq(expr = lexeme(string('while')) >> leftpar >> expression << rightpar << nl.optional(), code = ignore >> code_block).combine_dict(STATEMENT_WHILE).desc('while statement')
-statement.become(ignore >> (statement_variables | statement_if | statement_while) << nl.optional())
+statement_return = (lexeme(string('return')) >> expression << semicolon << nl.optional()).map(STATEMENT_RETURN).desc('return statement')
+statement.become(ignore >> (statement_variables | statement_if | statement_while | statement_return) << nl.optional())
 function_params = variable_declaration.sep_by(comma)
-function_declaration = seq(return_type = type, function_name = ident, params = leftpar >> function_params << rightpar << nl.optional() << ignore, code = code_block).combine_dict(FUNCTION_DECLARATION).desc("function declaration")
+function_declaration = seq(return_type = type, function_name = ident, params = leftpar >> function_params << rightpar << semicolon.optional() << nl.optional() << ignore, \
+    star = lexeme(string('***')).optional() << semicolon.optional() << nl.optional() << ignore, code = nl.optional() >> ignore >> code_block.optional()) \
+    .combine_dict(FUNCTION_DECLARATION).desc("function declaration")
 
 program = function_declaration.many()
