@@ -18,7 +18,7 @@ class Scope:
         self.offset = 0 if prev_scope is None else prev_scope.offset
         self.prev_scope = prev_scope
 
-    def add_variable(self, vartype, varname, funcparam):
+    def add_variable(self, vartype, varname, funcparam = False):
         if funcparam:
             if self.funcparams.get(varname) is not None:
                 self.context.add_error(
@@ -85,8 +85,8 @@ class Context:
         print('ERROR: {0}'.format(message))
         self.errors.append(message)
 
-    def add_variable(self, vartype, varname):
-        self.scope.add_variable(vartype, varname)
+    def add_variable(self, vartype, varname, funcparam = False):
+        self.scope.add_variable(vartype, varname, funcparam)
 
     def get_variable(self, varname):
         return self.scope.get_variable(varname)
@@ -559,7 +559,7 @@ class EXPRESSION_CALL(Instruction):
         paramdata = function_data['params']
         paramstar = function_data['paramstar']
         funcname = function_data['name']
-        paramno = 1
+        paramno = 0
         for param in self.params:
             param_data = paramdata[paramno]
             param_name = param_data['name']
@@ -631,20 +631,9 @@ class FUNCTION_DECLARATION(Instruction):
         context.set_function_data(self.function_name, function_data)
         return function_data
 
-    def check_params(self, context, function_data):
-
+    def add_func_params(self, context, function_data):
         for param in function_data['params']:
-            res = context.get_variable(param['name'])
-
-            if(res is None):
-                context.add_error('Undeclared function {0} parameter {1}'.format(function_data['name'], param['name']))
-                continue
-
-            if(res['type'] != param['type']):
-                context.add_error('Wrong type for function {0} parameter {1}: {2}'.format(function_data['name'], param['name'], param['type']))
-                continue
-
-            context.add_func_variable()
+            context.add_variable(param['type'], param['name'], True)
 
     def add_code(self, function_data, context):
         context.emit("""
@@ -652,7 +641,7 @@ class FUNCTION_DECLARATION(Instruction):
 {1}:nop""".format(function_data['name'], function_data['label']))
 
         if not function_data['paramstar']:
-            self.check_params(context, function_data)
+            self.add_func_params(context, function_data)
 
         scope = context.scope
         self.code.emit(context)

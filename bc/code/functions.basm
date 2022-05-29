@@ -1,5 +1,48 @@
 ;
                 .org 0x1000
+;FUNCTION func
+FFUNC0001:nop
+                .mv dsdi,:sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x01
+                cal :sub16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+                ret
+;END OF FUNCTION func
+;FUNCTION main
+FMAIN0002:nop
+                .mv dsdi, :sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x01
+                cal :add16
+                mov ds,cs
+                mov di,ci
+                cal :peek16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                .mv dsdi, :sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :add16
+                mov ds,cs
+                mov di,ci
+                cal :peek16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                pop di
+                pop ds
+                mov #dsdi, ci
+            CAL :FFUNC0001
+                pop di
+                pop ds
+                mov #dsdi, ci
+;END OF FUNCTION main
 ;>>>>>>>>>>COMPILER ASM LIB<<<<<<<<<<<<<
 ;=============
 ; PRINTHEX4(a) - prints hex number from 0 to f

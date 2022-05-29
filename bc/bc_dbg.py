@@ -75,9 +75,11 @@ def main():
         help='input file name')
     parser.add_argument('--verbose', action='store_true',
         help='Be more verbose')
-    args = parser.parse_args()
+    """args = parser.parse_args()
     infile = args.infile
-    verbose = args.verbose
+    verbose = args.verbose"""
+    infile = './bc/code/functions.b'
+    verbose = False
     print('Reading input file {}'.format(infile))
     input = read_input_file(infile)
     input = preprocess(input, verbose)
