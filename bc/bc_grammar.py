@@ -30,7 +30,7 @@ ident = lexeme(letter + (letter | digit | underscore).many().concat())
 quotedstr = lexeme(doublequote >> regex(r'[^"]*') << doublequote).desc('quoted string')
 anychar = regex(r'.').desc('any single character')
 
-decnumber = regex(r'[1-9][0-9]*').map(str2int).desc('byte')
+decnumber = regex(r'[1-9][0-9]*|0').map(str2int).desc('byte')
 hexnumber = hexprefix >> regex(r'[1-9a-fA-F][0-9a-fA-F]*').map(hexstr2int).desc('word')
 singlechar = lexeme(singlequote >> anychar << singlequote).map(chr2int).desc('char')
 
