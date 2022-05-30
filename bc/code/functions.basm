@@ -1,7 +1,7 @@
 ;
                 .org 0x1000
 ;FUNCTION func
-FFUNC0001:nop
+FFUNC0001:      nop
                 .mv dsdi,:sys_stackhead
                 mov cs, 0x00
                 mov ci, 0x01
@@ -12,7 +12,7 @@ FFUNC0001:nop
                 ret
 ;END OF FUNCTION func
 ;FUNCTION main
-FMAIN0002:nop
+FMAIN0002:      nop
                 .mv dsdi, :sys_stackhead
                 mov cs, 0x00
                 mov ci, 0x01
@@ -38,10 +38,13 @@ FMAIN0002:nop
                 pop di
                 pop ds
                 mov #dsdi, ci
-            CAL :FFUNC0001
+                cal :FFUNC0001
                 pop di
                 pop ds
                 mov #dsdi, ci
+                mov cs, 0x00
+                mov ci, 0x01
+                ret
 ;END OF FUNCTION main
 ;>>>>>>>>>>COMPILER ASM LIB<<<<<<<<<<<<<
 ;=============

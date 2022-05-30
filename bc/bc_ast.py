@@ -585,7 +585,7 @@ class EXPRESSION_CALL(Instruction):
             varassignement.emit(context)
 
         context.emit("""
-            CAL :{0}""".format(function_data['label']))
+                cal :{0}""".format(function_data['label']))
 
         context.pop_scope()
         
@@ -638,14 +638,11 @@ class FUNCTION_DECLARATION(Instruction):
     def add_code(self, function_data, context):
         context.emit("""
 ;FUNCTION {0}
-{1}:nop""".format(function_data['name'], function_data['label']))
+{1:<16}nop""".format(function_data['name'], function_data['label'] + ":"))
 
         if not function_data['paramstar']:
             self.add_func_params(context, function_data)
 
-        scope = context.scope
         self.code.emit(context)
-        if(scope == context.scope):
-            context.add_error('No return statement from function {0}'.format(function_data['name']))
         context.emit("""
 ;END OF FUNCTION {0}""".format(function_data['name']))
