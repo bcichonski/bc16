@@ -12,4 +12,6 @@ byte main()
     {
         var2 <- var2 - 1;
     }
+    asm "nop";
+    asm "xor a";
 }

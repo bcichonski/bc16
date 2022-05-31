@@ -12,10 +12,9 @@ def compile(ast, verbose):
 
     context.add_preamble()
     
-    for token in ast:
-        if(verbose):
-            print("{}".format(token))
-        token.emit(context)
+    if(verbose):
+        print("{}".format(ast))
+    ast.emit(context)
 
     context.add_stdlib()
 
@@ -78,7 +77,7 @@ def main():
     """args = parser.parse_args()
     infile = args.infile
     verbose = args.verbose"""
-    infile = './bc/code/functions.b'
+    infile = './bc/code/funrec.b'
     verbose = False
     print('Reading input file {}'.format(infile))
     input = read_input_file(infile)

@@ -1,5 +1,9 @@
 ;
-                .org 0x1000
+                .org 0x0000
+;MAIN ENTRYPOINT
+                cal :FMAIN0002
+                kil
+;FUNCTIONS
 ;FUNCTION func
 FFUNC0001:      nop
                 .mv dsdi,:sys_stackhead
@@ -47,6 +51,8 @@ FMAIN0002:      nop
                 ret
 ;END OF FUNCTION main
 ;>>>>>>>>>>COMPILER ASM LIB<<<<<<<<<<<<<
+               mov a, 0xff
+               cal :fatal
 ;=============
 ; PRINTHEX4(a) - prints hex number from 0 to f
 ; IN:    a - number to print

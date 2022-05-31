@@ -1,5 +1,125 @@
 ;
-                .org 0x1000
+                .org 0x0000
+;MAIN ENTRYPOINT
+                cal :FMAIN0001
+                kil
+;FUNCTIONS
+;FUNCTION main
+FMAIN0001:      nop
+                .mv dsdi, :sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x00
+                cal :add16
+                mov ds,cs
+                mov di,ci
+                cal :peek16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x05
+                pop di
+                pop ds
+                cal :poke16
+                .mv dsdi, :sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :add16
+                mov ds,cs
+                mov di,ci
+                cal :peek16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                pop di
+                pop ds
+                cal :sub16
+                pop di
+                pop ds
+                mov #dsdi, ci
+                .mv dsdi,:sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x00
+                cal :add16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0002
+                jmp z, csci
+                .mv dsdi, :sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x03
+                cal :sub16
+                mov ds,cs
+                mov di,ci
+                cal :peek16
+                psh cs
+                psh ci
+                .mv dsdi,:sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x01
+                cal :sub16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+                pop di
+                pop ds
+                cal :poke16
+LABEL0002:      nop
+LABEL0003:      nop
+                .mv dsdi,:sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x01
+                cal :sub16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0004
+                jmp z, csci
+                .mv dsdi, :sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x04
+                cal :sub16
+                mov ds,cs
+                mov di,ci
+                cal :peek16
+                psh cs
+                psh ci
+                .mv dsdi,:sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x07
+                cal :sub16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                pop di
+                pop ds
+                cal :sub16
+                pop di
+                pop ds
+                mov #dsdi, ci
+                .mv csci, :LABEL0003
+                xor a
+                jmp z, csci
+LABEL0004:      nop
+                nop
+                xor a
+;END OF FUNCTION main
+;>>>>>>>>>>COMPILER ASM LIB<<<<<<<<<<<<<
+               mov a, 0xff
+               cal :fatal
 ;=============
 ; PRINTHEX4(a) - prints hex number from 0 to f
 ; IN:    a - number to print

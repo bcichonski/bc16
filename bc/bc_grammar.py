@@ -34,7 +34,7 @@ decnumber = regex(r'[1-9][0-9]*|0').map(str2int).desc('byte')
 hexnumber = hexprefix >> regex(r'[1-9a-fA-F][0-9a-fA-F]*').map(hexstr2int).desc('word')
 singlechar = lexeme(singlequote >> anychar << singlequote).map(chr2int).desc('char')
 
-constnumber = lexeme(decnumber | hexnumber | singlechar)\
+constnumber = lexeme(hexnumber | decnumber | singlechar)\
     .map(EXPRESSION_CONSTANT)\
     .desc("Constant expression")
 
@@ -65,10 +65,11 @@ statement_variables = (variable_declaration | variable_assignement) << semicolon
 statement_if = seq(expr = lexeme(string('if')) >> leftpar >> expression << rightpar << nl.optional(), code = ignore >> code_block).combine_dict(STATEMENT_IF).desc('if statement')
 statement_while = seq(expr = lexeme(string('while')) >> leftpar >> expression << rightpar << nl.optional(), code = ignore >> code_block).combine_dict(STATEMENT_WHILE).desc('while statement')
 statement_return = (lexeme(string('return')) >> expression << semicolon << nl.optional()).map(STATEMENT_RETURN).desc('return statement')
-statement.become(ignore >> (statement_variables | statement_if | statement_while | statement_return) << nl.optional())
+statement_asm = (lexeme(string('asm')) >> quotedstr << semicolon << nl.optional()).map(STATEMENT_ASM).desc('asm statement')
+statement.become(ignore >> (statement_variables | statement_if | statement_while | statement_return | statement_asm) << nl.optional())
 function_params = variable_declaration.sep_by(comma)
 function_declaration = seq(return_type = type, function_name = ident, params = leftpar >> function_params << rightpar << semicolon.optional() << nl.optional() << ignore, \
     star = lexeme(string('***')).optional() << semicolon.optional() << nl.optional() << ignore, code = nl.optional() >> ignore >> code_block.optional()) \
     .combine_dict(FUNCTION_DECLARATION).desc("function declaration")
 
-program = function_declaration.many()
+program = function_declaration.many().map(PROGRAM).desc("b program")

@@ -1,5 +1,9 @@
 ;
-                .org 0x1000
+                .org 0x0000
+;MAIN ENTRYPOINT
+                cal :FMAIN0003
+                kil
+;FUNCTIONS
 ;FUNCTION funrec
 FFUNREC0001:    nop
                 .mv dsdi,:sys_stackhead

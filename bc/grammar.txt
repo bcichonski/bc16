@@ -47,10 +47,7 @@ type name([type paramname]*)
     return expression;
 }
 
-asm
-{
-    //copied to asm
-}
+asm "copied to asm"
 
 #define SYMBOL data
 #include file.b

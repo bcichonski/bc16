@@ -67,7 +67,7 @@ class Context:
     def __init__(self):
         self.basm = ''
         self.errors = []
-        self.code_segment_addr = 0x1000
+        self.code_segment_addr = 0x0000
         self.data_segment_addr = 0x2000
         self.stack_segment_addr = 0x3000
         self.scope = Scope(self)
@@ -76,6 +76,9 @@ class Context:
 
     def emit(self, code):
         self.basm += code
+
+    def prepend(self, code):
+        self.basm = code + self.basm
 
     def load16(self, i16):
         return """mov cs, 0x{0:02x}
@@ -96,8 +99,9 @@ class Context:
         return "LABEL{0:04x}".format(self.nextident)
 
     def add_preamble(self):
-        self.emit(""";
-                .org 0x{0:04x}""".format(self.code_segment_addr))
+        self.prepend(""";
+                .org 0x{0:04x}
+""".format(self.code_segment_addr))
 
     def push_scope(self):
         self.scope = Scope(self, self.scope)
@@ -125,6 +129,8 @@ class Context:
     def add_stdlib(self):
         self.emit("""
 ;>>>>>>>>>>COMPILER ASM LIB<<<<<<<<<<<<<
+               mov a, 0xff
+               cal :fatal
 ;=============
 ; PRINTHEX4(a) - prints hex number from 0 to f
 ; IN:    a - number to print
@@ -529,6 +535,17 @@ class STATEMENT_WHILE(Instruction):
 {1}:      nop""".format(label1, label2))
 
 @dataclass
+class STATEMENT_ASM(Instruction):
+    expr:object
+
+    def __str__(self):
+        return "ASM[{0}]".format(self.expr)
+
+    def emit(self, context):
+        context.emit("""
+                {0}""".format(self.expr))
+
+@dataclass
 class STATEMENT_RETURN(Instruction):
     expr:object
 
@@ -646,3 +663,29 @@ class FUNCTION_DECLARATION(Instruction):
         self.code.emit(context)
         context.emit("""
 ;END OF FUNCTION {0}""".format(function_data['name']))
+
+@dataclass
+class PROGRAM(Instruction):
+    functions:list
+
+    def __str__(self):
+        return "PROGRAM==>{0}".format(self.functions)
+
+    def emit(self, context):
+        mainfunc = next((x for x in self.functions if x.function_name == 'main'), None)
+
+        if mainfunc is None:
+            context.add_error('Main entry point not found')
+            return
+
+        for function in self.functions:
+            function.emit(context)
+
+        function_data = context.get_function_data(mainfunc.function_name)
+
+        context.prepend(""";MAIN ENTRYPOINT
+                cal :{0}
+                kil
+;FUNCTIONS""".format(function_data['label']))
+
+        

@@ -9,14 +9,12 @@ def read_input_file(fname):
 
 def compile(ast, verbose):
     context = Context()
+    
+    if(verbose):
+        print("{}".format(ast))
+    ast.emit(context)
 
     context.add_preamble()
-    
-    for token in ast:
-        if(verbose):
-            print("{}".format(token))
-        token.emit(context)
-
     context.add_stdlib()
 
     if len(context.errors) > 0:

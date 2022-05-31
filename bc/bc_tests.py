@@ -154,7 +154,7 @@ class TestGrammar(unittest.TestCase):
             print("val={0}".format(val))
         self.assertEqual(
             "{0}".format(val),
-            "[FUNCTION_DECLARATION(return_type='byte', function_name='main', params=[], star=None, code=CODE_BLOCK(statements=[VARIABLE_DECLARATION(vartype='word', varname='variable'), VARIABLE_DECLARATION(vartype='byte', varname='second')]))]")
+            "PROGRAM==>[FUNCTION_DECLARATION(return_type='byte', function_name='main', params=[], star=None, code=CODE_BLOCK(statements=[VARIABLE_DECLARATION(vartype='word', varname='variable'), VARIABLE_DECLARATION(vartype='byte', varname='second')]))]")
 
     def test_function_call(self):
         self.maxDiff = None
@@ -163,6 +163,32 @@ class TestGrammar(unittest.TestCase):
             print("val={0}".format(val))
         self.assertEqual("{0}".format(val),
         "TERM(FUNCTION_CALL[function([EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term=EXPRESSION_CONSTANT(i16=1)), arguments=[]), arguments=[]), arguments=[]), arguments=[]), EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term=EXPRESSION_CONSTANT(i16=2)), arguments=[]), arguments=[['+', EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term=EXPRESSION_CONSTANT(i16=3)), arguments=[])]]), arguments=[]), arguments=[])])])")
+
+    def test_quotedstr_test(self):
+        self.maxDiff = None
+        val = quotedstr.parse('"quoted"')
+        if Debug: 
+            print("val={0}".format(val))
+        self.assertEqual("{0}".format(val),
+        "quoted")
+
+    def test_asm_test(self):
+        self.maxDiff = None
+        val = statement_asm.parse('asm "quoted";')
+        if Debug: 
+            print("val={0}".format(val))
+        self.assertEqual("{0}".format(val),
+        "ASM[quoted]")
+
+    def test_asm_in_code_block(self):
+        val = code_block.parse("""{
+                asm "quoted";
+            }""")
+        if Debug: 
+            print("val={0}".format(val))
+        self.assertEqual(
+            "{0}".format(val),
+            "BLOCK([STATEMENT_ASM(expr='quoted')])")
 
 
 if __name__ == '__main__':
