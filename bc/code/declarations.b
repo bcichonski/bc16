@@ -12,6 +12,7 @@ byte main()
     {
         var2 <- var2 - 1;
     }
+    var1 <- "string";
     asm "nop";
     asm "xor a";
 }

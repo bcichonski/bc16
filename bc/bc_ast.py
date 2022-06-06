@@ -16,7 +16,9 @@ class Scope:
         self.funcparams = {}
         self.context = context
         self.offset = 0 if prev_scope is None else prev_scope.offset
+        self.startoffset = self.offset
         self.prev_scope = prev_scope
+        self.declaredOnly = False
 
     def add_variable(self, vartype, varname, funcparam = False):
         if funcparam:
@@ -27,7 +29,8 @@ class Scope:
             self.funcparams[varname] = {
                 'name': varname,
                 'type': vartype,
-                'offset': self.offset
+                'offset': self.offset,
+                'startoffset': self.startoffset
             }
         else:
             if self.variables.get(varname) is not None:
@@ -37,7 +40,8 @@ class Scope:
             self.variables[varname] = {
                 'name': varname,
                 'type': vartype,
-                'offset': self.offset
+                'offset': self.offset,
+                'startoffset': self.startoffset
             }
 
         self.offset += self.length(vartype)
@@ -49,22 +53,38 @@ class Scope:
         self.context.add_error('Unknown type {0}'.format(vartype))
 
     def get_variable(self, varname):
-        res = self.funcparams.get(varname)
-        if res is not None:
-            return res
+        if not self.declaredOnly:
+            res = self.funcparams.get(varname)
+            if res is not None:
+                return res
 
         res = self.variables.get(varname)
         if res is None:
             if self.prev_scope is not None:
                 res = self.prev_scope.get_variable(varname)
-                res['offset'] = res['offset'] - self.offset
+                scopeoffset = self.startoffset - self.prev_scope.startoffset
+                rescopy = {
+                    'name' : res['name'],
+                    'type' : res['type'],
+                    'offset': res['startoffset'] - scopeoffset,
+                    'startoffset': self.startoffset
+                }
+                
+                res = rescopy
 
         if res is None:    
             self.context.add_error("Undeclared variable {0}".format(varname))
         return res
 
+    def get_variable_declared_only(self):
+        self.declaredOnly = True
+
+    def get_variable_all(self):
+        self.declaredOnly = False
+
 class Context:
     def __init__(self):
+        self.data = ''
         self.basm = ''
         self.errors = []
         self.code_segment_addr = 0x0000
@@ -80,6 +100,12 @@ class Context:
     def prepend(self, code):
         self.basm = code + self.basm
 
+    def emit_data(self, data):
+        label = self.get_next_data_label()
+        self.data += """
+{0}:      .db '{1}', 0x00""".format(label, data)
+        return label
+
     def load16(self, i16):
         return """mov cs, 0x{0:02x}
                 mov ci, 0x{1:02x}""".format(hi(i16), lo(i16))
@@ -94,9 +120,19 @@ class Context:
     def get_variable(self, varname):
         return self.scope.get_variable(varname)
 
+    def get_variable_declared_only(self):
+        self.scope.get_variable_declared_only()
+
+    def get_variable_all(self):
+        self.scope.get_variable_all()
+
     def get_next_label(self):
         self.nextident += 1
         return "LABEL{0:04x}".format(self.nextident)
+
+    def get_next_data_label(self):
+        self.nextident += 1
+        return "DATA{0:04x}".format(self.nextident)
 
     def add_preamble(self):
         self.prepend(""";
@@ -105,11 +141,50 @@ class Context:
 
     def push_scope(self):
         self.scope = Scope(self, self.scope)
+        scopeoffset = self.scope.startoffset
+        if self.scope.prev_scope is not None:
+            scopeoffset = scopeoffset - self.scope.prev_scope.startoffset
+        if scopeoffset < 0:
+            raise Error('Scope push error')
+        if scopeoffset > 0:
+            self.scope.startoffset = scopeoffset
+            self.scope.offset = 0
+            self.emit("""
+                psh cs
+                psh ci
+                .mv dsdi, :{0}
+                cal :PEEK16
+                mov ds, cs
+                mov di, ci
+                {1}
+                cal :ADD16
+                .mv dsdi, :{0}
+                cal :POKE16
+                pop ci
+                pop cs""".format(STACKHEAD, self.load16(scopeoffset)))
 
     def pop_scope(self):
+        oldscope = self.scope
         self.scope = self.scope.prev_scope
         if self.scope is None:
-            raise Error('Scope error')
+            raise Error('Scope none error')
+        scopeoffset = oldscope.startoffset - self.scope.startoffset
+        if scopeoffset < 0:
+            raise Error('Scope pop error')
+        if scopeoffset > 0:
+            self.emit("""
+                psh cs
+                psh ci
+                .mv dsdi, :{0}
+                cal :PEEK16
+                mov ds, cs
+                mov di, ci
+                {1}
+                cal :SUB16
+                .mv dsdi, :{0}
+                cal :POKE16
+                pop ci
+                pop cs""".format(STACKHEAD, self.load16(scopeoffset)))
 
     def get_function_call_label(self, function_name):
         if len(function_name) > 10:
@@ -124,13 +199,38 @@ class Context:
 
     def set_function_data(self, function_name, data):
         self.function_dict[function_name] = data
-        
+
+    def add_data_segment(self):
+        if len(self.data) > 0:
+            self.emit("""
+;>>>>>>>>>>DATA SEGMENT<<<<<<<<<<<<<""")
+            self.emit(self.data)
 
     def add_stdlib(self):
         self.emit("""
 ;>>>>>>>>>>COMPILER ASM LIB<<<<<<<<<<<<<
                mov a, 0xff
-               cal :fatal
+               mov a, 0xff
+               mov a, 0xff
+               mov a, 0xff
+;=============
+; FATAL(a) - prints error message and stops
+; IN:   a - error code
+;   stack - as error address
+; OUT:  KILL, messed stack
+;
+fatal:         psh a
+               cal :print_newline
+               .mv dsdi, :data_fatal
+               cal :printstr
+               pop a
+               cal :printhex8
+               .mv dsdi, :data_at
+               cal :printstr
+               pop ci
+               pop cs
+               cal :printhex16
+               kil
 ;=============
 ; PRINTHEX4(a) - prints hex number from 0 to f
 ; IN:    a - number to print
@@ -299,24 +399,6 @@ printstr_loop: mov a, #dsdi
                xor a
                jmr z, :printstr_loop
 printstr_end:  ret
-;=============
-; FATAL(a) - prints error message and stops
-; IN:   a - error code
-;   stack - as error address
-; OUT:  KILL, messed stack
-;
-fatal:         psh a
-               cal :print_newline
-               .mv dsdi, :data_fatal
-               cal :printstr
-               pop a
-               cal :printhex8
-               .mv dsdi, :data_at
-               cal :printstr
-               pop ci
-               pop cs
-               cal :printhex16
-               kil
 data_fatal:    .db 'fatal '
 data_error:    .db 'error ', 0x00
 data_at:       .db ' at ', 0x00
@@ -342,6 +424,18 @@ class EXPRESSION_CONSTANT(Instruction):
                 {0}""".format(context.load16(self.i16)))
 
 @dataclass
+class EXPRESSION_CONST_STR(Instruction):
+    value: str
+
+    def __str__(self):
+        return 'CONST("{0}")'.format(self.value)
+
+    def emit(self, context):
+        label = context.emit_data(self.value)
+        context.emit("""
+                .mv csci, :{0}""".format(label))
+
+@dataclass
 class EXPRESSION_TERM(Instruction):
     term : object
 
@@ -357,12 +451,15 @@ class EXPRESSION_TERM(Instruction):
                 oper = 'sub16'
                 offset = -offset
             context.emit("""
-                .mv dsdi,:{0}
-                {1}
-                cal :{2}
+                .mv dsdi,:{0}""".format(STACKHEAD))
+            if offset != 0:
+                context.emit("""
+                {0}
+                cal :{1}
                 mov ds, cs
-                mov di, ci
-                cal :peek16""".format(STACKHEAD, context.load16(offset), oper))
+                mov di, ci""".format(context.load16(offset), oper))
+            context.emit("""
+                cal :peek16""")
             return
         self.term.emit(context)        
 
@@ -403,6 +500,9 @@ class EXPRESSION_BINARY(Instruction):
     arguments: array
 
     def __str__(self):
+        if len(self.arguments) == 0:
+            return self.operand1.__str__()
+
         ret = '{0}'.format(self.operand1)
         for elem in self.arguments:
             ret += ' {1} {0}'.format(elem[0], elem[1])
@@ -446,7 +546,7 @@ class VARIABLE_ASSIGNEMENT(Instruction):
     def __str__(self):
         return '{0}={1};'.format(self.varname, self.expr)
 
-    def emit(self, context):
+    def emit(self, context, funcCall = False):
         print('{0}={1};'.format(self.varname, self.expr))
         variable_def = context.get_variable(self.varname)
         offset = variable_def['offset']
@@ -454,26 +554,39 @@ class VARIABLE_ASSIGNEMENT(Instruction):
         if offset < 0:
             oper = 'sub16'
             offset = -offset
-        context.emit("""
+        if offset != 0:
+            context.emit("""
+;{3} offset {4}
                 .mv dsdi, :{0}
                 {1}
                 cal :{2}
-                mov ds,cs
-                mov di,ci
-                cal :peek16
                 psh cs
-                psh ci""".format(STACKHEAD, context.load16(offset), oper))
-        self.expr.emit(context)
+                psh ci""".format(STACKHEAD, context.load16(offset), oper, variable_def['name'], offset))
+        try:
+            if funcCall: context.get_variable_declared_only()
+            self.expr.emit(context)
+        finally:
+            if funcCall: context.get_variable_all()
         if(variable_def['type'] == 'word'):
-            context.emit("""
+            if offset == 0:
+                context.emit("""
+                .mv dsdi, {0}
+                cal :poke16""".format(STACKHEAD))
+            else:
+                context.emit("""
                 pop di
                 pop ds
                 cal :poke16""")
             return
-        context.emit("""
-                pop di
-                pop ds
-                mov #dsdi, ci""")
+        if offset == 0:
+            context.emit("""
+            .mv dsdi, {0}
+            mov #dsdi, ci""".format(STACKHEAD))
+        else:
+            context.emit("""
+            pop di
+            pop ds
+            mov #dsdi, ci""")
 
 @dataclass
 class CODE_BLOCK(Instruction):
@@ -483,10 +596,12 @@ class CODE_BLOCK(Instruction):
         return "BLOCK({0})".format(self.statements)
 
     def emit(self, context):
+        currscope = context.scope
         context.push_scope()
         for statement in self.statements:
             statement.emit(context)
-        context.pop_scope()
+        if currscope != context.scope:
+            context.pop_scope()
 
 @dataclass
 class STATEMENT_IF(Instruction):
@@ -554,6 +669,7 @@ class STATEMENT_RETURN(Instruction):
 
     def emit(self, context):
         self.expr.emit(context)
+        context.pop_scope()
         context.emit("""
                 ret""")
 
@@ -586,9 +702,8 @@ class EXPRESSION_CALL(Instruction):
                     context.add_error('Unrecognized function {0} parameter {1}'.format(self.function_name, param_name))
 
             context.add_variable(paramtype, param_name, True)
-            param.emit(context)
             varassignement = VARIABLE_ASSIGNEMENT(param_name, param)
-            varassignement.emit(context)
+            varassignement.emit(context, True)
             paramno += 1
 
         if paramstar:
@@ -656,11 +771,12 @@ class FUNCTION_DECLARATION(Instruction):
         context.emit("""
 ;FUNCTION {0}
 {1:<16}nop""".format(function_data['name'], function_data['label'] + ":"))
-
+        context.push_scope()
         if not function_data['paramstar']:
             self.add_func_params(context, function_data)
 
         self.code.emit(context)
+        context.pop_scope()
         context.emit("""
 ;END OF FUNCTION {0}""".format(function_data['name']))
 
@@ -684,8 +800,12 @@ class PROGRAM(Instruction):
         function_data = context.get_function_data(mainfunc.function_name)
 
         context.prepend(""";MAIN ENTRYPOINT
+                .mv dsdi, {1}
+                mov cs, ds
+                mov ci, di
+                cal :POKE16
                 cal :{0}
                 kil
-;FUNCTIONS""".format(function_data['label']))
+;FUNCTIONS""".format(function_data['label'], STACKHEAD))
 
         

@@ -1,137 +1,91 @@
 ;
                 .org 0x0000
 ;MAIN ENTRYPOINT
-                cal :FMAIN0001
+                .mv dsdi, sys_stackhead
+                mov cs, ds
+                mov ci, di
+                cal :POKE16
+                cal :FMAIN0002
                 kil
 ;FUNCTIONS
+;FUNCTION puts
+FPUTS0001:      nop
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :PEEK16
+                mov ds, cs
+                mov di, ci
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :ADD16
+                .mv dsdi, :sys_stackhead
+                cal :POKE16
+                pop ci
+                pop cs
+                kil
+                mov cs, 0x00
+                mov ci, 0x00
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :PEEK16
+                mov ds, cs
+                mov di, ci
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :SUB16
+                .mv dsdi, :sys_stackhead
+                cal :POKE16
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION puts
 ;FUNCTION main
-FMAIN0001:      nop
-                .mv dsdi, :sys_stackhead
-                mov cs, 0x00
-                mov ci, 0x00
-                cal :add16
-                mov ds,cs
-                mov di,ci
-                cal :peek16
+FMAIN0002:      nop
+                .mv csci, :DATA0003
+                .mv dsdi, sys_stackhead
+                cal :poke16
                 psh cs
                 psh ci
-                mov cs, 0x00
-                mov ci, 0x05
-                pop di
-                pop ds
-                cal :poke16
                 .mv dsdi, :sys_stackhead
+                cal :PEEK16
+                mov ds, cs
+                mov di, ci
                 mov cs, 0x00
                 mov ci, 0x02
-                cal :add16
-                mov ds,cs
-                mov di,ci
-                cal :peek16
-                psh cs
-                psh ci
-                mov cs, 0x00
-                mov ci, 0x04
-                psh cs
-                psh ci
+                cal :ADD16
+                .mv dsdi, :sys_stackhead
+                cal :POKE16
+                pop ci
+                pop cs
+                .mv dsdi,:sys_stackhead
                 mov cs, 0x00
                 mov ci, 0x02
-                pop di
-                pop ds
-                cal :sub16
-                pop di
-                pop ds
-                mov #dsdi, ci
-                .mv dsdi,:sys_stackhead
-                mov cs, 0x00
-                mov ci, 0x00
-                cal :add16
-                mov ds, cs
-                mov di, ci
-                cal :peek16
-                mov a, cs
-                or ci
-                .mv csci, :LABEL0002
-                jmp z, csci
-                .mv dsdi, :sys_stackhead
-                mov cs, 0x00
-                mov ci, 0x03
-                cal :sub16
-                mov ds,cs
-                mov di,ci
-                cal :peek16
-                psh cs
-                psh ci
-                .mv dsdi,:sys_stackhead
-                mov cs, 0x00
-                mov ci, 0x01
                 cal :sub16
                 mov ds, cs
                 mov di, ci
                 cal :peek16
-                pop di
-                pop ds
+                .mv dsdi, sys_stackhead
                 cal :poke16
-LABEL0002:      nop
-LABEL0003:      nop
-                .mv dsdi,:sys_stackhead
-                mov cs, 0x00
-                mov ci, 0x01
-                cal :sub16
+                cal :FPUTS0001
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :PEEK16
                 mov ds, cs
                 mov di, ci
-                cal :peek16
-                mov a, cs
-                or ci
-                .mv csci, :LABEL0004
-                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :SUB16
                 .mv dsdi, :sys_stackhead
-                mov cs, 0x00
-                mov ci, 0x04
-                cal :sub16
-                mov ds,cs
-                mov di,ci
-                cal :peek16
-                psh cs
-                psh ci
-                .mv dsdi,:sys_stackhead
-                mov cs, 0x00
-                mov ci, 0x07
-                cal :sub16
-                mov ds, cs
-                mov di, ci
-                cal :peek16
-                psh cs
-                psh ci
-                mov cs, 0x00
-                mov ci, 0x01
-                pop di
-                pop ds
-                cal :sub16
-                pop di
-                pop ds
-                mov #dsdi, ci
-                .mv csci, :LABEL0003
-                xor a
-                jmp z, csci
-LABEL0004:      nop
-                .mv dsdi, :sys_stackhead
-                mov cs, 0x00
-                mov ci, 0x03
-                cal :sub16
-                mov ds,cs
-                mov di,ci
-                cal :peek16
-                psh cs
-                psh ci
-                .mv csci, :DATA0005
-                pop di
-                pop ds
-                cal :poke16
-                nop
-                xor a
-;END OF FUNCTION main;>>>>>>>>>>DATA SEGMENT<<<<<<<<<<<<<
-DATA0005:      .db 'string', 0x00
-
+                cal :POKE16
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION main
+;>>>>>>>>>>DATA SEGMENT<<<<<<<<<<<<<
+DATA0003:      .db 'hello world', 0x00
 ;>>>>>>>>>>COMPILER ASM LIB<<<<<<<<<<<<<
                mov a, 0xff
                mov a, 0xff

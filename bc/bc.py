@@ -15,8 +15,9 @@ def compile(ast, verbose):
     ast.emit(context)
 
     context.add_preamble()
+    context.add_data_segment()
     context.add_stdlib()
-
+    
     if len(context.errors) > 0:
         for error in context.errors:
             print('ERROR: {}'.format(error))

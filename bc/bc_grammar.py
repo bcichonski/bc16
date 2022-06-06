@@ -38,6 +38,10 @@ constnumber = lexeme(hexnumber | decnumber | singlechar)\
     .map(EXPRESSION_CONSTANT)\
     .desc("Constant expression")
 
+conststring = lexeme(quotedstr)\
+    .map(EXPRESSION_CONST_STR)\
+    .desc("Constant string")
+
 unary_operator = lexeme(string('&') | string('!'))
 binary_factor = lexeme(string('*') | string('/'))
 binary_sum = lexeme(string('+') | string('-'))
@@ -46,7 +50,7 @@ binary_eq = lexeme(string('=') | string('!='))
 expression = forward_declaration()
 expression_functioncall = seq(function_name = ident, params = ignore >> leftpar >> ignore >> nl.optional() >> ignore >> expression.sep_by(comma) << ignore << nl.optional() << ignore << rightpar << ignore).combine_dict(EXPRESSION_CALL).desc("function call")
 expression_nested = string('(') >> ignore >> expression << ignore << string(')').desc('nested expression')
-expression_term = (constnumber | expression_functioncall | ident | expression_nested).map(EXPRESSION_TERM).desc('term expression')
+expression_term = (conststring | constnumber | expression_functioncall | ident | expression_nested).map(EXPRESSION_TERM).desc('term expression')
 expression_unary_act = seq(unary_operator, expression).combine(EXPRESSION_UNARY).desc('unary expression')
 expression_unary = expression_unary_act | expression_term
 expression_factor = seq(operand1 = expression_unary, arguments = seq(binary_factor, expression_unary).many()).combine_dict(EXPRESSION_BINARY).desc('binary expression factor')

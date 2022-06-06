@@ -98,6 +98,28 @@ FMAIN0003:      nop
                 ret
 ;END OF FUNCTION main
 ;>>>>>>>>>>COMPILER ASM LIB<<<<<<<<<<<<<
+               mov a, 0xff
+               mov a, 0xff
+               mov a, 0xff
+               mov a, 0xff
+;=============
+; FATAL(a) - prints error message and stops
+; IN:   a - error code
+;   stack - as error address
+; OUT:  KILL, messed stack
+;
+fatal:         psh a
+               cal :print_newline
+               .mv dsdi, :data_fatal
+               cal :printstr
+               pop a
+               cal :printhex8
+               .mv dsdi, :data_at
+               cal :printstr
+               pop ci
+               pop cs
+               cal :printhex16
+               kil
 ;=============
 ; PRINTHEX4(a) - prints hex number from 0 to f
 ; IN:    a - number to print
@@ -266,24 +288,6 @@ printstr_loop: mov a, #dsdi
                xor a
                jmr z, :printstr_loop
 printstr_end:  ret
-;=============
-; FATAL(a) - prints error message and stops
-; IN:   a - error code
-;   stack - as error address
-; OUT:  KILL, messed stack
-;
-fatal:         psh a
-               cal :print_newline
-               .mv dsdi, :data_fatal
-               cal :printstr
-               pop a
-               cal :printhex8
-               .mv dsdi, :data_at
-               cal :printstr
-               pop ci
-               pop cs
-               cal :printhex16
-               kil
 data_fatal:    .db 'fatal '
 data_error:    .db 'error ', 0x00
 data_at:       .db ' at ', 0x00

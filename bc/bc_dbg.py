@@ -9,15 +9,15 @@ def read_input_file(fname):
 
 def compile(ast, verbose):
     context = Context()
-
-    context.add_preamble()
     
     if(verbose):
         print("{}".format(ast))
     ast.emit(context)
 
+    context.add_preamble()
+    context.add_data_segment()
     context.add_stdlib()
-
+    
     if len(context.errors) > 0:
         for error in context.errors:
             print('ERROR: {}'.format(error))
@@ -77,7 +77,7 @@ def main():
     """args = parser.parse_args()
     infile = args.infile
     verbose = args.verbose"""
-    infile = './bc/code/funrec.b'
+    infile = './bc/code/strings.b'
     verbose = False
     print('Reading input file {}'.format(infile))
     input = read_input_file(infile)
