@@ -15,7 +15,7 @@ class Scope:
         self.variables = {}
         self.funcparams = {}
         self.context = context
-        self.offset = 0 if prev_scope is None else prev_scope.offset
+        self.offset = 2 if prev_scope is None else prev_scope.offset
         self.startoffset = self.offset
         self.prev_scope = prev_scope
         self.declaredOnly = False
@@ -150,18 +150,19 @@ class Context:
             self.scope.startoffset = scopeoffset
             self.scope.offset = 0
             self.emit("""
+;STACKHEAD += {2}
                 psh cs
                 psh ci
                 .mv dsdi, :{0}
-                cal :PEEK16
+                cal :peek16
                 mov ds, cs
                 mov di, ci
                 {1}
-                cal :ADD16
+                cal :add16
                 .mv dsdi, :{0}
-                cal :POKE16
+                cal :poke16
                 pop ci
-                pop cs""".format(STACKHEAD, self.load16(scopeoffset)))
+                pop cs""".format(STACKHEAD, self.load16(scopeoffset), scopeoffset))
 
     def pop_scope(self):
         oldscope = self.scope
@@ -173,18 +174,19 @@ class Context:
             raise Error('Scope pop error')
         if scopeoffset > 0:
             self.emit("""
+;STACKHEAD -= {2}
                 psh cs
                 psh ci
                 .mv dsdi, :{0}
-                cal :PEEK16
+                cal :peek16
                 mov ds, cs
                 mov di, ci
                 {1}
-                cal :SUB16
+                cal :sub16
                 .mv dsdi, :{0}
-                cal :POKE16
+                cal :poke16
                 pop ci
-                pop cs""".format(STACKHEAD, self.load16(scopeoffset)))
+                pop cs""".format(STACKHEAD, self.load16(scopeoffset), scopeoffset))
 
     def get_function_call_label(self, function_name):
         if len(function_name) > 10:
@@ -570,7 +572,7 @@ class VARIABLE_ASSIGNEMENT(Instruction):
         if(variable_def['type'] == 'word'):
             if offset == 0:
                 context.emit("""
-                .mv dsdi, {0}
+                .mv dsdi, :{0}
                 cal :poke16""".format(STACKHEAD))
             else:
                 context.emit("""
@@ -580,7 +582,7 @@ class VARIABLE_ASSIGNEMENT(Instruction):
             return
         if offset == 0:
             context.emit("""
-            .mv dsdi, {0}
+            .mv dsdi, :{0}
             mov #dsdi, ci""".format(STACKHEAD))
         else:
             context.emit("""
@@ -720,6 +722,17 @@ class EXPRESSION_CALL(Instruction):
                 cal :{0}""".format(function_data['label']))
 
         context.pop_scope()
+
+@dataclass
+class STATEMENT_COMMENT(Instruction):
+    comment:str
+
+    def __str__(self):
+        return "COMMENT[{0}]".format(self.comment)
+
+    def emit(self, context):
+        context.emit("""
+;{0}""".format(self.comment))
         
         
 @dataclass
@@ -800,10 +813,10 @@ class PROGRAM(Instruction):
         function_data = context.get_function_data(mainfunc.function_name)
 
         context.prepend(""";MAIN ENTRYPOINT
-                .mv dsdi, {1}
+                .mv dsdi, :{1}
                 mov cs, ds
                 mov ci, di
-                cal :POKE16
+                cal :poke16
                 cal :{0}
                 kil
 ;FUNCTIONS""".format(function_data['label'], STACKHEAD))

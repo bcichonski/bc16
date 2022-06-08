@@ -1,91 +1,115 @@
 ;
                 .org 0x0000
 ;MAIN ENTRYPOINT
-                .mv dsdi, sys_stackhead
+                .mv dsdi, :sys_stackhead
                 mov cs, ds
                 mov ci, di
-                cal :POKE16
-                cal :FMAIN0002
+                cal :poke16
+                cal :FMAIN0004
                 kil
 ;FUNCTIONS
 ;FUNCTION puts
 FPUTS0001:      nop
+;STACKHEAD += 2
                 psh cs
                 psh ci
                 .mv dsdi, :sys_stackhead
-                cal :PEEK16
+                cal :peek16
                 mov ds, cs
                 mov di, ci
                 mov cs, 0x00
                 mov ci, 0x02
-                cal :ADD16
+                cal :add16
                 .mv dsdi, :sys_stackhead
-                cal :POKE16
+                cal :poke16
                 pop ci
                 pop cs
-                kil
+;//result of this expression is value of Pstr in csci registers
+                .mv dsdi,:sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :add16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+                mov ds, cs
+                mov di, ci
+                cal :printstr
                 mov cs, 0x00
                 mov ci, 0x00
-                psh cs
-                psh ci
-                .mv dsdi, :sys_stackhead
-                cal :PEEK16
-                mov ds, cs
-                mov di, ci
-                mov cs, 0x00
-                mov ci, 0x02
-                cal :SUB16
-                .mv dsdi, :sys_stackhead
-                cal :POKE16
-                pop ci
-                pop cs
                 ret
 ;END OF FUNCTION puts
-;FUNCTION main
-FMAIN0002:      nop
-                .mv csci, :DATA0003
-                .mv dsdi, sys_stackhead
-                cal :poke16
+;FUNCTION putw
+FPUTW0002:      nop
+;STACKHEAD += 2
                 psh cs
                 psh ci
                 .mv dsdi, :sys_stackhead
-                cal :PEEK16
+                cal :peek16
                 mov ds, cs
                 mov di, ci
                 mov cs, 0x00
                 mov ci, 0x02
-                cal :ADD16
+                cal :add16
                 .mv dsdi, :sys_stackhead
-                cal :POKE16
+                cal :poke16
                 pop ci
                 pop cs
                 .mv dsdi,:sys_stackhead
                 mov cs, 0x00
                 mov ci, 0x02
-                cal :sub16
+                cal :add16
                 mov ds, cs
                 mov di, ci
                 cal :peek16
-                .mv dsdi, sys_stackhead
-                cal :poke16
-                cal :FPUTS0001
-                psh cs
-                psh ci
+                cal :printhex16
+                mov cs, 0x00
+                mov ci, 0x00
+                ret
+;END OF FUNCTION putw
+;FUNCTION putnl
+FPUTNL0003:     nop
+                cal :print_newline
+                mov cs, 0x00
+                mov ci, 0x00
+                ret
+;END OF FUNCTION putnl
+;FUNCTION main
+FMAIN0004:      nop
+;Pstr offset 2
                 .mv dsdi, :sys_stackhead
-                cal :PEEK16
-                mov ds, cs
-                mov di, ci
                 mov cs, 0x00
                 mov ci, 0x02
-                cal :SUB16
+                cal :add16
+                psh cs
+                psh ci
+                .mv csci, :DATA0005
+                pop di
+                pop ds
+                cal :poke16
+                cal :FPUTS0001
+                cal :FPUTNL0003
+;//putb(255);
+                cal :FPUTNL0003
+;value offset 2
                 .mv dsdi, :sys_stackhead
-                cal :POKE16
-                pop ci
-                pop cs
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :add16
+                psh cs
+                psh ci
+                mov cs, 0x09
+                mov ci, 0x0b
+                pop di
+                pop ds
+                cal :poke16
+                cal :FPUTW0002
+                mov cs, 0x00
+                mov ci, 0x00
                 ret
 ;END OF FUNCTION main
 ;>>>>>>>>>>DATA SEGMENT<<<<<<<<<<<<<
-DATA0003:      .db 'hello world', 0x00
+DATA0005:      .db 'hello world', 0x00
 ;>>>>>>>>>>COMPILER ASM LIB<<<<<<<<<<<<<
                mov a, 0xff
                mov a, 0xff
