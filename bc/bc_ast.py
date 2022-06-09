@@ -5,18 +5,18 @@ from msilib.schema import Error
 STACKHEAD = "sys_stackhead"
 
 def hi(b):
-    return (b >> 4) & 0xf
+    return (b >> 8) & 0xff
 
 def lo(b):
-    return b & 0xf
+    return b & 0xff
 
 class Scope:
     def __init__(self, context, prev_scope = None):
         self.variables = {}
         self.funcparams = {}
         self.context = context
-        self.offset = 2 if prev_scope is None else prev_scope.offset
-        self.startoffset = self.offset
+        self.offset = 0
+        self.startoffset = 0 if prev_scope is None else prev_scope.startoffset + prev_scope.offset
         self.prev_scope = prev_scope
         self.declaredOnly = False
 
@@ -106,9 +106,13 @@ class Context:
 {0}:      .db '{1}', 0x00""".format(label, data)
         return label
 
-    def load16(self, i16):
+    def load_csci(self, i16):
         return """mov cs, 0x{0:02x}
                 mov ci, 0x{1:02x}""".format(hi(i16), lo(i16))
+
+    def load_dsdi(self, i16):
+        return """mov ds, 0x{0:02x}
+                mov di, 0x{1:02x}""".format(hi(i16), lo(i16))
 
     def add_error(self, message):
         print('ERROR: {0}'.format(message))
@@ -147,7 +151,7 @@ class Context:
         if scopeoffset < 0:
             raise Error('Scope push error')
         if scopeoffset > 0:
-            self.scope.startoffset = scopeoffset
+            # self.scope.startoffset = scopeoffset
             self.scope.offset = 0
             self.emit("""
 ;STACKHEAD += {2}
@@ -162,7 +166,8 @@ class Context:
                 .mv dsdi, :{0}
                 cal :poke16
                 pop ci
-                pop cs""".format(STACKHEAD, self.load16(scopeoffset), scopeoffset))
+                pop cs""".format(STACKHEAD, self.load_csci(scopeoffset), scopeoffset))
+        print("PUSH SCOPE (startoffset={0}, offset={1})".format(self.scope.startoffset, self.scope.offset))
 
     def pop_scope(self):
         oldscope = self.scope
@@ -170,6 +175,7 @@ class Context:
         if self.scope is None:
             raise Error('Scope none error')
         scopeoffset = oldscope.startoffset - self.scope.startoffset
+        print("POP SCOPE (startoffset={0}, offset={1}, diff={2})".format(self.scope.startoffset, self.scope.offset, scopeoffset))
         if scopeoffset < 0:
             raise Error('Scope pop error')
         if scopeoffset > 0:
@@ -179,14 +185,12 @@ class Context:
                 psh ci
                 .mv dsdi, :{0}
                 cal :peek16
-                mov ds, cs
-                mov di, ci
                 {1}
                 cal :sub16
                 .mv dsdi, :{0}
                 cal :poke16
                 pop ci
-                pop cs""".format(STACKHEAD, self.load16(scopeoffset), scopeoffset))
+                pop cs""".format(STACKHEAD, self.load_dsdi(scopeoffset), scopeoffset))
 
     def get_function_call_label(self, function_name):
         if len(function_name) > 10:
@@ -423,7 +427,7 @@ class EXPRESSION_CONSTANT(Instruction):
 
     def emit(self, context):
         context.emit("""
-                {0}""".format(context.load16(self.i16)))
+                {0}""".format(context.load_csci(self.i16)))
 
 @dataclass
 class EXPRESSION_CONST_STR(Instruction):
@@ -453,15 +457,20 @@ class EXPRESSION_TERM(Instruction):
                 oper = 'sub16'
                 offset = -offset
             context.emit("""
-                .mv dsdi,:{0}""".format(STACKHEAD))
+                .mv dsdi,:{0}
+                cal :peek16""".format(STACKHEAD))
             if offset != 0:
                 context.emit("""
                 {0}
                 cal :{1}
                 mov ds, cs
-                mov di, ci""".format(context.load16(offset), oper))
-            context.emit("""
-                cal :peek16""")
+                mov di, ci""".format(context.load_dsdi(offset), oper))
+            if var['type'] == 'word':
+                context.emit("""
+                    cal :peek16""")
+            else:
+                context.emit("""
+                    mov ci, #dsdi""")
             return
         self.term.emit(context)        
 
@@ -556,39 +565,40 @@ class VARIABLE_ASSIGNEMENT(Instruction):
         if offset < 0:
             oper = 'sub16'
             offset = -offset
-        if offset != 0:
+        if offset == 0:
+            context.emit("""
+;{1} offset zero
+                .mv dsdi, :{0}
+                cal :peek16
+                psh cs
+                psh ci""".format(STACKHEAD, variable_def['name']))
+        else:
             context.emit("""
 ;{3} offset {4}
                 .mv dsdi, :{0}
+                cal :peek16
+                mov ds, cs
+                mov di, ci
                 {1}
                 cal :{2}
                 psh cs
-                psh ci""".format(STACKHEAD, context.load16(offset), oper, variable_def['name'], offset))
+                psh ci""".format(STACKHEAD, context.load_csci(offset), oper, variable_def['name'], offset))
         try:
             if funcCall: context.get_variable_declared_only()
             self.expr.emit(context)
         finally:
             if funcCall: context.get_variable_all()
         if(variable_def['type'] == 'word'):
-            if offset == 0:
-                context.emit("""
-                .mv dsdi, :{0}
-                cal :poke16""".format(STACKHEAD))
-            else:
-                context.emit("""
+            context.emit("""
                 pop di
                 pop ds
                 cal :poke16""")
             return
         if offset == 0:
             context.emit("""
-            .mv dsdi, :{0}
-            mov #dsdi, ci""".format(STACKHEAD))
-        else:
-            context.emit("""
-            pop di
-            pop ds
-            mov #dsdi, ci""")
+                pop di
+                pop ds
+                mov #dsdi, ci""")
 
 @dataclass
 class CODE_BLOCK(Instruction):
@@ -814,8 +824,10 @@ class PROGRAM(Instruction):
 
         context.prepend(""";MAIN ENTRYPOINT
                 .mv dsdi, :{1}
-                mov cs, ds
-                mov ci, di
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :add16
+                .mv dsdi, :{1}
                 cal :poke16
                 cal :{0}
                 kil

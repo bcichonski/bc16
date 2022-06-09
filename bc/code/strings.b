@@ -1,13 +1,3 @@
-byte puts(word Pstr)
-{
-    //result of this expression is value of Pstr in csci registers
-    Pstr;
-    asm "mov ds, cs";
-    asm "mov di, ci";
-    asm "cal :printstr";
-    return 0;
-}
-
 byte putb(byte value)
 {
     value;
@@ -29,12 +19,23 @@ byte putnl()
     return 0;
 }
 
+byte puts(word Pstr)
+{
+    //result of this expression is value of Pstr in csci registers
+    //putw(Pstr);
+    Pstr;
+    asm "mov ds, cs";
+    asm "mov di, ci";
+    asm "cal :printstr";
+    return 0;
+}
+
 byte main()
 {
     puts("hello world");
     putnl();
-    putb(255);
+    putb(0xff);
     putnl();
-    putw(45723);
+    putw(0xabcd);
     return 0;
 }
