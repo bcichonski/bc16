@@ -117,7 +117,6 @@ FPUTS0004:      nop
                 pop ci
                 pop cs
 ;//result of this expression is value of Pstr in csci registers
-;//putw(Pstr);
                 .mv dsdi,:sys_stackhead
                 cal :peek16
                 mov ds, 0x00

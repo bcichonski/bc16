@@ -77,5 +77,8 @@ function_params = variable_declaration.sep_by(comma)
 function_declaration = seq(return_type = type, function_name = ident, params = leftpar >> function_params << rightpar << semicolon.optional() << nl.optional() << ignore, \
     star = lexeme(string('***')).optional() << semicolon.optional() << nl.optional() << ignore, code = nl.optional() >> ignore >> code_block.optional()) \
     .combine_dict(FUNCTION_DECLARATION).desc("function declaration")
+globalvar_declaration = variable_declaration.desc("global variable declaration")
 
-program = function_declaration.many().map(PROGRAM).desc("b program")
+global_item = function_declaration | globalvar_declaration
+
+program = global_item.many().map(PROGRAM).desc("b program")

@@ -1,4 +1,5 @@
 import argparse
+import os
 from pathlib import Path
 from bc_ast import *
 from bc_grammar import program
@@ -30,7 +31,7 @@ def save_output_file(fname, code):
     with open(fname, 'w') as file_handle:
         return file_handle.write(code)
 
-def preprocess(input, verbose):
+def preprocess(input, verbose, defaultdir):
     if verbose:
         print('Preprocessing file')
 
@@ -49,13 +50,16 @@ def preprocess(input, verbose):
             defines[deffrom] = defto
 
         if(newline.startswith('#include')):
-            fname = newline[8:]
+            fname = newline[9:]
             if verbose:
                 print('Including file {}'.format(fname))
-            content = read_input_file(fname)
-            lines.append(';INCLUDED FILE {}'.format(fname))
+            content = read_input_file(os.path.join(defaultdir, fname))
+            j = 1
             for contentline in content.splitlines():
-                lines.append(contentline)
+                lines.insert(i + j, contentline)
+                j += 1
+            i += 1
+            continue
 
         for key in defines:
             val = defines[key]
@@ -81,7 +85,7 @@ def main():
     verbose = False
     print('Reading input file {}'.format(infile))
     input = read_input_file(infile)
-    input = preprocess(input, verbose)
+    input = preprocess(input, verbose, os.path.dirname(infile))
     print('Parsing code')
     ast = program.parse(input)
     print('Generating code')
