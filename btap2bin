@@ -1,0 +1,2 @@
+#!/bin/bash
+winpty python ./btap2bin.py $1 $2

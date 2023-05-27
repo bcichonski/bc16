@@ -220,7 +220,7 @@ sub16_ovr1:    mov a, cs
 sub16_ovr2err: mov a, 0x13
                cal :fatal
 ;=============
-; READSTR(#dsdi, ci) - prints error message and stops
+; READSTR(#dsdi, ci) - reads characters to the buffer
 ; IN:   dsdi - buffer address for chars
 ;         ci - length of the buffer (since last char has to be 0x00 we can enter one less)
 ; OUT:  dsdi - preserved
@@ -496,7 +496,7 @@ str_len8_end:  pop di
                ret
 ;=============
 ; TAPE_CHECK(ci,dsdi)  - checks if tape recorder is in expected state
-; IN: cs - expected state  
+; IN: ci - expected state  
 ;   dsdi - address of message if tape recorder is not in expected state
 ; OUT: ci - unchanged, a=0 if ok
 tape_check:    psh ci
@@ -516,7 +516,7 @@ tape_check_bad:cal :printstr
                mov a, 0x01
                pop ci
                ret
-tape_check_ok: pop a
+tape_check_ok: pop ci
                pop ci
                ret               
 ;=============
@@ -585,15 +585,19 @@ tape_wr8_end:  pop di
                ret
 ;=============
 ; TAPE_WRITE16(csci)  - write 16bits to tape recorder, checks after each 8 bits
-; IN: ci - byte to write
+; IN: csci - 2 bytes to write
 ; OUT: di - preserved, a=0 if ok
 tape_write16:  psh ci
                mov ci, cs
                cal :tape_write8
-               pop ci
+               or a
                jmr nz, :tape_w16_end
+               pop ci
                cal :tape_write8
-tape_w16_end:  ret
+               xor a
+               jmr z, :tape_w16_ret
+tape_w16_end:  pop ci
+tape_w16_ret:  ret
 ;=============
 ; TAPE_WRITE_BLK(dsdi,csci)  - write memory block starting from dsdi of length csci
 ; IN: dsdi - addr of mem to write
@@ -613,14 +617,14 @@ tape_wrbk_loop:mov a, #dsdi
                cal :dec16
                mov a, ds
                or di
-               jmr z, :tape_wrbk_end
+               jmr z, :tape_wrbk_ret
                psh ds
                psh di
                xor a
                jmr z, :tape_wrbk_loop
 tape_wrbk_end: pop ci
                pop cs
-               ret
+tape_wrbk_ret: ret
 ;=============
 ; EXEC_DUMP(#dsdi)  - executes dump command
 ; IN:  dsdi - address of var_promptbuf
@@ -896,14 +900,14 @@ exec_s_inittap:.mv dsdi, :data_tape_check1
                cal :tape_check
                jmr nz, :exec_save_fn1
                mov a, 0x22
-               out #ci, a
+               out #ci, a               
                mov cs, 0x60
                cal :tape_check
                jmr nz, :exec_save_fn1
                xor a
                jmr z, :exec_s_preamb
-exec_save_fn1: pop ci
-               pop cs
+exec_save_fn1: pop cs
+               pop ci
 exec_save_fin: pop cs
                pop ci
 exec_save_end: ret
@@ -923,14 +927,14 @@ exec_s_preamb: mov ci, 0xff
                pop di
                pop cs
                pop ci
-               cal :tape_write16
                psh ci
                psh cs
+               cal :tape_write16
                mov ci, di
                mov cs, ds
+               psh di
+               psh ds
                cal :tape_write16
-               psh ci
-               psh cs
                mov ci, 0x00
                cal :tape_write8
                .mv dsdi, :var_promptbuf
@@ -954,7 +958,7 @@ exec_s_stop:   mov ci, 0x02
                xor a
                jmr z,:exec_save_fn1
 ;=============
-; EXEC_SAVE(#dsdi)  - executes save command
+; EXEC_LOAD(#dsdi)  - executes load command
 ; IN:  dsdi - address of var_promptbuf
 ; OUT: rubbish
 exec_load:     ret

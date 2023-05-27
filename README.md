@@ -1,4 +1,4 @@
-I allways wanted to build 8bit computer, as i am to lazy to work with hardware, this is the closest thing to that.
+I always wanted to build 8bit computer, as i am to lazy to work with hardware, this is the closest thing to that.
 
 ## architecture notes
 microprocessor: bc8181

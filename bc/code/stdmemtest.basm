@@ -13,81 +13,11 @@
                 mov cs, 0x00
                 mov ci, 0x00
                 cal :poke16
-                cal :FMAIN0007
+                cal :FMAIN0006
                 kil
 ;FUNCTIONS
-;FUNCTION malloc
-FMALLOC0001:    nop
-;STACKHEAD += 2
-                psh cs
-                psh ci
-                .mv dsdi, :sys_stackhead
-                cal :peek16
-                mov ds, cs
-                mov di, ci
-                mov cs, 0x00
-                mov ci, 0x02
-                cal :add16
-                .mv dsdi, :sys_stackhead
-                cal :poke16
-                pop ci
-                pop cs
-                .mv dsdi,:sys_stackhead
-                cal :peek16
-                mov ds, 0x00
-                mov di, 0x02
-                cal :sub16
-                mov ds, cs
-                mov di, ci
-                    cal :peek16
-;STACKHEAD -= 2
-                psh cs
-                psh ci
-                .mv dsdi, :sys_stackhead
-                cal :peek16
-                mov ds, 0x00
-                mov di, 0x02
-                cal :sub16
-                .mv dsdi, :sys_stackhead
-                cal :poke16
-                pop ci
-                pop cs
-                ret
-;END OF FUNCTION malloc
-;FUNCTION free
-FFREE0002:      nop
-;STACKHEAD += 4
-                psh cs
-                psh ci
-                .mv dsdi, :sys_stackhead
-                cal :peek16
-                mov ds, cs
-                mov di, ci
-                mov cs, 0x00
-                mov ci, 0x04
-                cal :add16
-                .mv dsdi, :sys_stackhead
-                cal :poke16
-                pop ci
-                pop cs
-                mov cs, 0x00
-                mov ci, 0x00
-;STACKHEAD -= 4
-                psh cs
-                psh ci
-                .mv dsdi, :sys_stackhead
-                cal :peek16
-                mov ds, 0x00
-                mov di, 0x04
-                cal :sub16
-                .mv dsdi, :sys_stackhead
-                cal :poke16
-                pop ci
-                pop cs
-                ret
-;END OF FUNCTION free
 ;FUNCTION putb
-FPUTB0003:      nop
+FPUTB0001:      nop
 ;STACKHEAD += 1
                 psh cs
                 psh ci
@@ -109,6 +39,7 @@ FPUTB0003:      nop
                 cal :sub16
                 mov ds, cs
                 mov di, ci
+                    mov cs, 0x00
                     mov ci, #dsdi
                 mov a, ci
                 cal :printhex8
@@ -127,9 +58,10 @@ FPUTB0003:      nop
                 pop ci
                 pop cs
                 ret
+                ret
 ;END OF FUNCTION putb
 ;FUNCTION putw
-FPUTW0004:      nop
+FPUTW0002:      nop
 ;STACKHEAD += 2
                 psh cs
                 psh ci
@@ -168,16 +100,18 @@ FPUTW0004:      nop
                 pop ci
                 pop cs
                 ret
+                ret
 ;END OF FUNCTION putw
 ;FUNCTION putnl
-FPUTNL0005:     nop
+FPUTNL0003:     nop
                 cal :print_newline
                 mov cs, 0x00
                 mov ci, 0x00
                 ret
+                ret
 ;END OF FUNCTION putnl
 ;FUNCTION puts
-FPUTS0006:      nop
+FPUTS0004:      nop
 ;STACKHEAD += 2
                 psh cs
                 psh ci
@@ -219,49 +153,314 @@ FPUTS0006:      nop
                 pop ci
                 pop cs
                 ret
+                ret
 ;END OF FUNCTION puts
+;FUNCTION emptyret
+FEMPTYRET0005:  nop
+;STACKHEAD += 1
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, cs
+                mov di, ci
+                mov cs, 0x00
+                mov ci, 0x01
+                cal :add16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+                pop ci
+                pop cs
+;STACKHEAD -= 1
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, 0x00
+                mov di, 0x01
+                cal :sub16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION emptyret
 ;FUNCTION main
-FMAIN0007:      nop
+FMAIN0006:      nop
+;STACKHEAD += 2
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, cs
+                mov di, ci
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :add16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+                pop ci
+                pop cs
 ;Pstr offset zero
                 .mv dsdi, :sys_stackhead
                 cal :peek16
                 psh cs
                 psh ci
-                .mv csci, :DATA0008
+                .mv csci, :DATA0007
                 pop di
                 pop ds
                 cal :poke16
-                cal :FPUTS0006
-                cal :FPUTNL0005
+                cal :FPUTS0004
+;STACKHEAD -= 2
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, 0x00
+                mov di, 0x02
+                cal :sub16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+                pop ci
+                pop cs
+;test offset zero
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                psh cs
+                psh ci
+;STACKHEAD += 2
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, cs
+                mov di, ci
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :add16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+                pop ci
+                pop cs
 ;value offset zero
                 .mv dsdi, :sys_stackhead
                 cal :peek16
                 psh cs
                 psh ci
                 mov cs, 0x00
-                mov ci, 0xff
+                mov ci, 0xab
                 pop di
                 pop ds
                 mov #dsdi, ci
-                cal :FPUTB0003
-                cal :FPUTNL0005
+                cal :FEMPTYRET0005
+;STACKHEAD -= 2
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, 0x00
+                mov di, 0x02
+                cal :sub16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+                pop ci
+                pop cs
+                pop di
+                pop ds
+                mov #dsdi, ci
+;STACKHEAD += 2
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, cs
+                mov di, ci
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :add16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+                pop ci
+                pop cs
 ;value offset zero
                 .mv dsdi, :sys_stackhead
                 cal :peek16
                 psh cs
                 psh ci
-                mov cs, 0xab
-                mov ci, 0xcd
+                .mv dsdi,:sys_stackhead
+                cal :peek16
+                mov ds, 0x00
+                mov di, 0x02
+                cal :sub16
+                mov ds, cs
+                mov di, ci
+                    mov cs, 0x00
+                    mov ci, #dsdi
+                pop di
+                pop ds
+                mov #dsdi, ci
+                cal :FPUTB0001
+;STACKHEAD -= 2
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, 0x00
+                mov di, 0x02
+                cal :sub16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+                pop ci
+                pop cs
+;test2 offset 1
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, cs
+                mov di, ci
+                mov cs, 0x00
+                mov ci, 0x01
+                cal :add16
+                psh cs
+                psh ci
+                .mv dsdi,:sys_stackhead
+                cal :peek16
+                    mov cs, 0x00
+                    mov ci, #dsdi
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0xab
+                pop di
+                pop ds
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+;STACKHEAD += 2
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, cs
+                mov di, ci
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :add16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+                pop ci
+                pop cs
+;value offset zero
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                psh cs
+                psh ci
+                .mv dsdi,:sys_stackhead
+                cal :peek16
+                mov ds, 0x00
+                mov di, 0x02
+                cal :sub16
+                mov ds, cs
+                mov di, ci
+                    mov cs, 0x00
+                    mov ci, #dsdi
+                pop di
+                pop ds
+                mov #dsdi, ci
+                cal :FPUTB0001
+;STACKHEAD -= 2
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, 0x00
+                mov di, 0x02
+                cal :sub16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+                pop ci
+                pop cs
+                .mv dsdi,:sys_stackhead
+                cal :peek16
+                mov ds, 0x00
+                mov di, 0x01
+                cal :add16
+                mov ds, cs
+                mov di, ci
+                    mov cs, 0x00
+                    mov ci, #dsdi
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0008
+                jmp z, csci
+;STACKHEAD += 2
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, cs
+                mov di, ci
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :add16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+                pop ci
+                pop cs
+;Pstr offset zero
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                psh cs
+                psh ci
+                .mv csci, :DATA0009
                 pop di
                 pop ds
                 cal :poke16
-                cal :FPUTW0004
+                cal :FPUTS0004
+;STACKHEAD -= 2
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, 0x00
+                mov di, 0x02
+                cal :sub16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+                pop ci
+                pop cs
+LABEL0008:      nop
+;STACKHEAD += 2
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, cs
+                mov di, ci
                 mov cs, 0x00
-                mov ci, 0x00
+                mov ci, 0x02
+                cal :add16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+                pop ci
+                pop cs
+                cal :FPUTNL0003
+;STACKHEAD -= 2
+                psh cs
+                psh ci
+                .mv dsdi, :sys_stackhead
+                cal :peek16
+                mov ds, 0x00
+                mov di, 0x02
+                cal :sub16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+                pop ci
+                pop cs
                 ret
 ;END OF FUNCTION main
 ;>>>>>>>>>>DATA SEGMENT<<<<<<<<<<<<<
-DATA0008:      .db 'hello world', 0x00
+DATA0007:      .db 'test empty and ret 0xab: ', 0x00
+DATA0009:      .db 'ok', 0x00
 ;>>>>>>>>>>COMPILER ASM LIB<<<<<<<<<<<<<
                mov a, 0xff
                mov a, 0xff
@@ -444,6 +643,22 @@ gteq16:        mov a, cs
 gteq16_true:   mov a, 0x01
                ret
 gteq16_false:  xor a
+               ret
+;=============
+; EQ16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci == dsdi
+;       a - 0 otherwise
+eq16:          mov a, cs
+               sub ds
+               jmr nz, :gteq16_false
+               mov a, ci
+               sub di
+               jmr nz, :gteq16_false
+eq16_true:     mov a, 0x01
+               ret
+eq16_false:    xor a
                ret
 ;=============
 ; PRINT_NEWLINE - prints new line

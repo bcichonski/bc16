@@ -105,8 +105,10 @@ class TapeRecorder(IODevice):
                  byte = 1
             self.env.write_byte(self.file_handle, byte)
             self.state.set_flag(TapeRecorder.F_TX, False)
+            self.env.log("]> tape write 0x{0:02x}".format(byte))
     def set_state(self, newstate):
-        self.env.log("tape recorder state changed from 0x{0:02x} to 0x{1:02x}".format(self.intstate, newstate))
+        if self.intstate != newstate:
+            self.env.log("tape recorder state changed from 0x{0:02x} to 0x{1:02x}".format(self.intstate, newstate))
         if newstate == TapeRecorder.READY:
             if self.intstate == TapeRecorder.MOVE:
                 self.close()

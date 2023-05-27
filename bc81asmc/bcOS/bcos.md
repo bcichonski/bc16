@@ -31,9 +31,13 @@ run <addr>       - runs code from <addr> as CAL (program should end in RET)
 
 # tape file
 preamble
-00FF00FF00FF00FF
-BC05addrlengchks
-00filename.ext00
+00FF00FF
+BC05addr
+lengchks
+00filena
+me.ext00
 data block
 
 s 1000 1000 filename.txt
+00filename.ext00
+BC05addrlengchks

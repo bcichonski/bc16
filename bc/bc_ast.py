@@ -1,8 +1,10 @@
 from array import array
 from dataclasses import dataclass
 from msilib.schema import Error
+from pickle import TRUE
 
 STACKHEAD = "sys_stackhead"
+HEAPHEAD = "sys_heaphead"
 
 def hi(b):
     return (b >> 8) & 0xff
@@ -88,8 +90,7 @@ class Context:
         self.basm = ''
         self.errors = []
         self.code_segment_addr = 0x0000
-        self.data_segment_addr = 0x2000
-        self.stack_segment_addr = 0x3000
+        self.heap_segment_addr = 0x2000
         self.scope = Scope(self)
         self.nextident = 0
         self.function_dict = { }
@@ -380,6 +381,40 @@ sub16_ovr1:    mov a, cs
 sub16_ovr2err: mov a, 0x13
                cal :fatal
 ;=============
+; GTEQ16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci >= dsdi
+;       a - 0 otherwise
+gteq16:        mov a, cs
+               sub ds
+               jmr o, :gteq16_false
+               jmr nz, :gteq16_true
+               mov a, ci
+               sub di
+               jmr o, :gteq16_false
+               jmr nz, :gteq16_true
+gteq16_true:   mov a, 0x01
+               ret
+gteq16_false:  xor a
+               ret
+;=============
+; EQ16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci == dsdi
+;       a - 0 otherwise
+eq16:          mov a, cs
+               sub ds
+               jmr nz, :gteq16_false
+               mov a, ci
+               sub di
+               jmr nz, :gteq16_false
+eq16_true:     mov a, 0x01
+               ret
+eq16_false:    xor a
+               ret
+;=============
 ; PRINT_NEWLINE - prints new line
 ; IN:
 ; OUT:   a - rubbish
@@ -405,11 +440,65 @@ printstr_loop: mov a, #dsdi
                xor a
                jmr z, :printstr_loop
 printstr_end:  ret
+;=============
+; MALLOC(csci) - allocates csci bytes on the program heap
+; IN: csci - size of the block
+; OUT:csci - address of the block
+malloc:        psh cs
+               psh ci
+               .mv dsdi, :{1}
+               cal :peek16
+               ret
+;=============
+; SEEK(csci, dsdi) - finds address of first free block of given size
+; IN: csci - wanted size of the block
+; OUT:dsdi - address of the block after which is enough free memory
+;     csci - address after which free memory begins
+seek:          psh cs
+               psh ci
+               .mv dsdi, :{1}
+               cal :peek16
+               mov ds, cs
+               mov di, ci
+               psh cs
+               psh ci
+seek_loop:     cal :peek16
+               mov a, ci
+               xor cs
+               jmr z, :seek_end
+               cal :dec16
+               cal :sub16
+               pop di
+               pop ds
+               psh cs
+               psh ci
+               cal :inc16
+               cal :inc16
+               cal :peek16
+               mov ds, cs
+               mov di, ci
+               pop ci
+               pop cs
+               cal :sub16
+               pop di
+               pop ds
+               cal :gteq16
+               jmr nz, :seek_end
+;               ...
+               jmr z, :seek_loop
+seek_end:      pop di
+               pop ds
+               pop ci
+               pop cs
+               ret  
+;=============
+;SYS DATA
 data_fatal:    .db 'fatal '
 data_error:    .db 'error ', 0x00
 data_at:       .db ' at ', 0x00
+{1}:  .db 0x{2:02x}, 0x{3:02x}
 {0}: nop
-""".format(STACKHEAD))
+""".format(STACKHEAD, HEAPHEAD, hi(self.heap_segment_addr), lo(self.heap_segment_addr)))
 
 class Instruction:
     def __str__(self):
@@ -470,6 +559,7 @@ class EXPRESSION_TERM(Instruction):
                     cal :peek16""")
             else:
                 context.emit("""
+                    mov cs, 0x00
                     mov ci, #dsdi""")
             return
         self.term.emit(context)        
@@ -501,9 +591,10 @@ oper2lib = {
     '+': 'add16',
     '-': 'sub16',
     '*': 'mul16',
-    '/': 'div16'
+    '/': 'div16',
+    '=': None,
+    '>=': None,
 }
-
 
 @dataclass
 class EXPRESSION_BINARY(Instruction):
@@ -531,11 +622,27 @@ class EXPRESSION_BINARY(Instruction):
                 pop ds""")
             lib = oper2lib[elem[0]]
             if not lib:
-                context.add_error(
-                    "Unknown binary operator '{0}'".format(self.operator))
+                if not self.logic(context, elem[0]):
+                    context.add_error(
+                        "Unknown binary operator '{0}'".format(self.operator))
+                continue
             context.emit("""
                 cal :{0}""".format(lib))
 
+    def logic(self, context, oper):
+        if oper == '=':
+            context.emit("""
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a""")
+            return True
+        if oper == '>=':
+            context.emit("""
+                cal :gteq16
+                mov cs, 0x00
+                mov ci, a""")
+            return True
+        return False
 
 @dataclass
 class VARIABLE_DECLARATION(Instruction):
@@ -801,6 +908,7 @@ class FUNCTION_DECLARATION(Instruction):
         self.code.emit(context)
         context.pop_scope()
         context.emit("""
+                ret
 ;END OF FUNCTION {0}""".format(function_data['name']))
 
 @dataclass
@@ -823,14 +931,20 @@ class PROGRAM(Instruction):
         function_data = context.get_function_data(mainfunc.function_name)
 
         context.prepend(""";MAIN ENTRYPOINT
+;&STACKHEAD <- STACKHEAD + 2
                 .mv dsdi, :{1}
                 mov cs, 0x00
                 mov ci, 0x02
                 cal :add16
                 .mv dsdi, :{1}
                 cal :poke16
+;&HEAPHEAD <- 0
+                .mv dsdi, :{2}
+                mov cs, 0x00
+                mov ci, 0x00
+                cal :poke16
                 cal :{0}
                 kil
-;FUNCTIONS""".format(function_data['label'], STACKHEAD))
+;FUNCTIONS""".format(function_data['label'], STACKHEAD, HEAPHEAD))
 
         
