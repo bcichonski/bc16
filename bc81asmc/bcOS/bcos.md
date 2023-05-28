@@ -10,6 +10,8 @@ load <addr>       - loads file from tape to memory, <addr> is optional, prints a
 help              - prints help
 quit              - quits the os
 run <addr>       - runs code from <addr> as CAL (program should end in RET)
+exe <addr>       - runs code as jump to <addr> (program should) end in jumping back to :os_goto_parse. :os_parse or 0x0000
+which will reset the OS
 
 # error codes
 0x0x - soft errors

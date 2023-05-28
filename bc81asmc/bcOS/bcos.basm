@@ -1,4 +1,4 @@
-; bc16 Operation System version 0.1.20211228
+; bc16 Operation System version 0.1.20230528
 ;
                    .org 0x0000
 os_start:          .mv csci, :os_init
@@ -6,7 +6,7 @@ os_start:          .mv csci, :os_init
 ;
 ; data
 ;
-data_os:          .db 'bcOS 0.2'
+data_os:          .db 'bcOS 0.3'
 data_newline:     .db 0x0a, 0x0d, 0x00
 data_free:        .db 'free ', 0x00
 data_from:        .db ' from ', 0x00
@@ -22,10 +22,16 @@ data_help:        .db 'commands:', 0x0a, 0x0d
                   .db ' w addr:h4 - stores written char* to memory from addr, stops by empty line', 0x0a, 0x0d
                   .db ' x addr:h4 - stores written h2* to memory from addr, stops by empty line', 0x0a, 0x0d
                   .db ' s addr:h4 len:h4 filename.ext - saves block of memory from addr for len as file on tape', 0x0a, 0x0d
+                  .db ' l [addr:h4] - loads file from tape to given addr or original addr of saved memory block', 0x0a, 0x0d
                   .db ' q - quits the os', 0x0a, 0x0d
                   .db ' h - prints this help', 0x0a, 0x0d, 0x00
 data_tape_check1: .db 'recorder not ready: ', 0x00
 data_tape_check2: .db 'recorder write failure: ', 0x00
+data_tape_check3: .db 'recorder read failure: ', 0x00
+data_load_prbad1: .db 'load error bad preamble', 0x0a, 0x0d, 0x00
+data_load_dtbad1: .db 'load error bad data', 0x0a, 0x0d, 0x00
+data_load_prinf1: .db 'load ', 0x00
+data_load_prinf2: .db 'for ', 0x00
 ;
 ; subroutines
 ;=============
@@ -369,6 +375,27 @@ nextword_eatws:cal :inc16
                mov a, 0x01
 nextword_eof:  ret
 ;=============
+; NEXTVAL8(dsdi) - moves until expected value
+; IN:     dsdi - char buffer address
+;           ci - expected 8bit value
+;           cs - max length to check
+; OUT:    dsdi - address of the next byte or end of buffer
+;           cs - how much was left to end of buffer
+;           ci - unchanged
+;            a - >0 if value was found
+nextval8:      mov a, #dsdi
+               cal :inc16
+               sub ci
+               jmr z, :nextval8_found
+               mov a, cs
+               dec a
+               jmr z, :nextval8_eof
+               mov cs, a
+               xor a
+               jmr z, :nextval8
+nextval8_found:mov a, 0x01
+nextval8_eof:  ret
+;=============
 ; FATAL(a) - prints error message and stops
 ; IN:   a - error code
 ;   stack - as error address
@@ -577,6 +604,59 @@ tape_wr8_end:  pop di
                pop cs
                ret
 ;=============
+; TAPE_READ8(ci)  - reads 8 bits from tape recorder, checks after 8 bits
+; IN: 
+; OUT: ci - read byte,csds - preserved, a=0 if ok
+tape_read8:    psh cs
+               psh di
+               mov ci, 0x00
+               mov di, 0x01
+               mov cs, 0x02
+               in a, #cs
+               and di
+               mov ci, a
+               in a, #cs
+               and di
+               shl 0x01
+               or ci
+               mov ci, a
+               in a, #cs
+               and di
+               shl 0x02
+               or ci
+               mov ci, a
+               in a, #cs
+               and di
+               shl 0x03
+               or ci
+               mov ci, a
+               in a, #cs
+               and di
+               shl 0x04
+               or ci
+               mov ci, a
+               in a, #cs
+               and di
+               shl 0x05
+               or ci
+               mov ci, a
+               in a, #cs
+               and di
+               shl 0x06
+               or ci
+               mov ci, a
+               in a, #cs
+               and di
+               shl 0x07
+               or ci
+               mov ci, a
+               mov cs, 0xa0
+               .mv dsdi, :data_tape_check3
+               cal :tape_check
+tape_r8_end:   pop di
+               pop cs
+               ret
+;=============
 ; TAPE_WRITE16(csci)  - write 16bits to tape recorder, checks after each 8 bits
 ; IN: csci - 2 bytes to write
 ; OUT: di - preserved, a=0 if ok
@@ -621,6 +701,35 @@ tape_wrbk_loop:mov a, #dsdi
 tape_wrbk_err: pop ci
                pop cs
 tape_wrbk_ret: ret
+;=============
+; TAPE_READ_BLK(dsdi,csci)  - reads from tape to memory block starting from dsdi of length csci
+; IN: dsdi - addr of mem to read from tape
+;     csci - len of mem to read from tape
+; OUT: dsdi - addres of next byte, csci = 0, a=0 if ok
+tape_read_blk: psh cs
+               psh ci
+tape_read_loop:cal :tape_read8
+               or a
+               jmr nz,:tape_read_err
+               mov #dsdi, ci
+               cal :inc16
+               mov cs, ds
+               mov ci, di
+               pop di
+               pop ds
+               cal :dec16
+               mov a, ds
+               or di
+               jmr z, :tape_read_ret
+               psh ds
+               psh di
+               mov ds, cs
+               mov di, ci
+               xor a
+               jmr z, :tape_read_loop
+tape_read_err: pop ci
+               pop cs
+tape_read_ret: ret
 ;=============
 ; EXEC_DUMP(#dsdi)  - executes dump command
 ; IN:  dsdi - address of var_promptbuf
@@ -965,16 +1074,113 @@ exec_s_stop:   mov ci, 0x02
                mov cs, 0x10
                .mv dsdi, :data_tape_check2
                cal :tape_check
-               pop cs
-               pop ci
-               pop cs
-               pop ci
                ret
 ;=============
 ; EXEC_LOAD(#dsdi)  - executes load command
 ; IN:  dsdi - address of var_promptbuf
 ; OUT: rubbish
-exec_load:     ret
+exec_load:     cal :nextword
+               jmr z,:exec_load_def
+               cal :parsehex16
+               jmr nz, :exec_load_pr1
+               jmr z,:exec_load_addr
+exec_load_pr1: mov a, 0x03
+               cal :error
+exec_load_end: ret
+exec_load_def: xor a
+               mov cs, a
+               mov ci, a
+exec_load_addr:cal :setvarparam16
+exec_load_init:.mv dsdi, :data_tape_check1
+               mov cs, 0x10
+               cal :tape_check
+               jmr nz, :exec_load_end
+               mov ci, 0x02
+               mov a, 0x82
+               out #ci, a
+               mov cs, 0x90
+               cal :tape_check
+               jmr nz, :exec_load_end
+               mov a, 0x22
+               out #ci, a
+               mov cs, 0xa0
+               cal :tape_check
+               jmr nz, :exec_load_end
+exec_l_preamb: .mv dsdi, :var_promptbuf
+               mov cs, 0x00
+;size of the preamble
+               mov ci, 0x18
+               cal :tape_read_blk
+               or a
+               jmr nz, :exec_load_end
+               .mv dsdi, :var_promptbuf
+               mov cs, 0x18
+               mov ci, 0xbc
+               cal :nextval8
+               or a
+               jmr z, :exec_l_error
+               mov a, #dsdi
+               sub 0x05
+               jmr nz, :exec_l_error
+               cal :inc16
+               psh ds
+               psh di
+               .mv dsdi, :var_param16
+               cal :peek16
+               cal :inc16
+               mov a, cs
+               or ci
+               jmr nz, :exec_l_addrset
+               jmr z, :exec_l_addrget
+exec_l_error:  .mv dsdi, :data_load_prbad1
+               cal :printstr
+exec_load_end: ret
+exec_l_addrget:pop di
+               pop ds
+               psh ds
+               psh di
+               cal :peek16                              
+exec_l_addrset:psh cs
+               psh ci
+               .mv dsdi, :data_load_prinf1
+               cal :printstr
+               pop ci
+               pop cs
+               cal :printhex16
+               pop di
+               pop ds
+               cal :peek16
+               cal :inc16
+               cal :inc16
+               psh ds
+               psh di
+               psh cs
+               psh ci
+               cal :print_space
+               .mv dsdi, :data_load_prinf2
+               cal :printstr
+               pop ci
+               pop cs
+               cal :printhex16
+               cal :print_space
+               pop di
+               pop ds
+               psh cs
+               psh ci
+               cal :printstr
+               cal :print_newline
+               .mv dsdi, :var_param16
+               mov ds, cs
+               mov di, ci
+               pop ci
+               pop cs
+               cal :tape_read_blk
+               or a
+               jmr nz, :exec_l_err2
+               jmr z, :exec_load_ret
+exec_l_err2:   .mv dsdi, :data_load_dtbad1
+               cal :printstr
+exec_load_ret: ret
 ;=============
 ; OS_INIT - main code
 ; 1.initialize os
