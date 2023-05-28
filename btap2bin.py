@@ -20,14 +20,17 @@ i = 0
 byte = 0
 while True:
     b = env.read_byte(finHandle)
+    #env.log("read '{0}'".format(b))
+
     if not b:
         break
 
     if ord(b) > 0:
-        byte += i**2
+        byte += 2**i
     i += 1
     if i > 7:
         env.write_byte(foutHandle, byte)
+        #env.log("write '{0}'".format(byte))
         i = 0
         byte = 0
 

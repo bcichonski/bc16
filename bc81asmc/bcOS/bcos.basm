@@ -458,6 +458,7 @@ prnt_fmt_end:  pop ci
 ; OUT: dsdi = source + length + 1
 str_cpy:       mov a, #dsdi
                mov #csci, a
+               or a
                jmr z, :str_cpy_end
                cal :inc16
                psh ds
@@ -522,7 +523,7 @@ tape_check_ok: pop ci
 ;=============
 ; TAPE_WRITE8(ci)  - write 8 bits to tape recorder, checks after 8 bits
 ; IN: ci - byte to write
-; OUT: cs, di - preserved, a=0 if ok
+; OUT: cs, dsdi - preserved, a=0 if ok
 tape_write8:   psh cs
                psh di
                mov a, ci
@@ -533,48 +534,40 @@ tape_write8:   psh cs
                out #cs, a
                mov a, ci
                shr 0x01
-               mov ci, a
                and di
                or cs
                out #cs, a
                mov a, ci
-               shr 0x01
-               mov ci, a
+               shr 0x02
                and di
                or cs
                out #cs, a
                mov a, ci
-               shr 0x01
-               mov ci, a
+               shr 0x03
                and di
                or cs
                out #cs, a
                mov a, ci
-               shr 0x01
-               mov ci, a
+               shr 0x04
                and di
                or cs
                out #cs, a
                mov a, ci
-               shr 0x01
-               mov ci, a
+               shr 0x05
                and di
                or cs
                out #cs, a
                mov a, ci
-               shr 0x01
-               mov ci, a
+               shr 0x06
                and di
                or cs
                out #cs, a
                mov a, ci
-               shr 0x01
-               mov ci, a
+               shr 0x07
                and di
                or cs
                out #cs, a
                mov a, ci
-               shr 0x01
                psh ds
                mov cs, 0x60
                .mv dsdi, :data_tape_check2
@@ -608,7 +601,8 @@ tape_write_blk:psh cs
 tape_wrbk_loop:mov a, #dsdi
                mov ci, a
                cal :tape_write8
-               jmr nz,:tape_wrbk_end
+               or a
+               jmr nz,:tape_wrbk_err
                cal :inc16
                mov cs, ds
                mov ci, di
@@ -620,9 +614,11 @@ tape_wrbk_loop:mov a, #dsdi
                jmr z, :tape_wrbk_ret
                psh ds
                psh di
+               mov ds, cs
+               mov di, ci
                xor a
                jmr z, :tape_wrbk_loop
-tape_wrbk_end: pop ci
+tape_wrbk_err: pop ci
                pop cs
 tape_wrbk_ret: ret
 ;=============
@@ -864,6 +860,7 @@ exec_save:     cal :nextword
                psh cs
                cal :nextword
                mov a, #dsdi
+               or a
                jmr z, :exec_save_nr3
                .mv csci, :var_promptbuf
                cal :str_cpy
@@ -940,11 +937,23 @@ exec_s_preamb: mov ci, 0xff
                .mv dsdi, :var_promptbuf
                mov cs, 0x0C
                cal :str_len8
+               psh cs
                mov cs, 0x00
                mov a, ci
-               inc a
                mov ci, a
                cal :tape_write_blk
+               pop cs
+               mov a, cs
+exec_s_fnfil:  or a
+               jmr z, :exec_s_dtsav
+               mov ci, 0x00
+               cal :tape_write8
+               mov a, cs
+               dec a
+               mov cs, a
+               jmr nz, :exec_s_fnfil
+exec_s_dtsav:  mov ci, 0x00
+               cal :tape_write8
                pop cs
                pop ci
                pop ds
@@ -954,9 +963,13 @@ exec_s_stop:   mov ci, 0x02
                mov a, 0x12
                out #ci, a
                mov cs, 0x10
+               .mv dsdi, :data_tape_check2
                cal :tape_check
-               xor a
-               jmr z,:exec_save_fn1
+               pop cs
+               pop ci
+               pop cs
+               pop ci
+               ret
 ;=============
 ; EXEC_LOAD(#dsdi)  - executes load command
 ; IN:  dsdi - address of var_promptbuf

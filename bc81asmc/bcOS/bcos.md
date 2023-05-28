@@ -33,11 +33,10 @@ run <addr>       - runs code from <addr> as CAL (program should end in RET)
 preamble
 00FF00FF
 BC05addr
-lengchks
-00filena
-me.ext00
+leng00 f
+ i l e n
+ a m e .
+ e x t00
 data block
 
 s 1000 1000 filename.txt
-00filename.ext00
-BC05addrlengchks
