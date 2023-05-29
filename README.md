@@ -86,7 +86,9 @@ bc8181 instruction set B0H:
   when t 0x8-0xF is special mode where rno is treated like imm7
 0x8 - PSH rno
 0x9 - POP rno
-0xA - CAL (rno1,rno2)
+0xA - CAL 
+  0x0 (rno1,rno2)
+  0x8 imm16
 0xB - RET
 0xC - IN
  0x0-0x7 - rno, #imm

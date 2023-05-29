@@ -2,12 +2,12 @@
 ;
                    .org 0x0000
 os_start:          .mv csci, :os_init
+                   xor a
                    jmp z, csci
 ;
 ; data
 ;
-data_os:          .db 'bcOS 0.3'
-data_newline:     .db 0x0a, 0x0d, 0x00
+data_os:          .db 'bcOS 0.3', 0x0a, 0x0d
 data_free:        .db 'free ', 0x00
 data_from:        .db ' from ', 0x00
 data_to:          .db ' to ', 0x00
@@ -23,6 +23,8 @@ data_help:        .db 'commands:', 0x0a, 0x0d
                   .db ' x addr:h4 - stores written h2* to memory from addr, stops by empty line', 0x0a, 0x0d
                   .db ' s addr:h4 len:h4 filename.ext - saves block of memory from addr for len as file on tape', 0x0a, 0x0d
                   .db ' l [addr:h4] - loads file from tape to given addr or original addr of saved memory block', 0x0a, 0x0d
+                  .db ' r addr:h4 - runs code from addr as CAL', 0x0a, 0x0d
+                  .db ' e addr:h4 - runs code from addr as JMP', 0x0a, 0x0d
                   .db ' q - quits the os', 0x0a, 0x0d
                   .db ' h - prints this help', 0x0a, 0x0d, 0x00
 data_tape_check1: .db 'recorder not ready: ', 0x00
@@ -273,8 +275,7 @@ readstr_end:   xor a
                mov #dsdi, a
                mov cs, ci
                pop ci
-               .mv dsdi, :data_newline
-               cal :printstr
+               cal :print_newline
                pop di
                pop ds
                ret
@@ -404,8 +405,7 @@ nextval8_eof:  ret
 ; OUT:  KILL, messed stack
 ;
 fatal:         psh a
-               .mv dsdi, :data_newline
-               cal :printstr
+               cal :print_newline
                .mv dsdi, :data_fatal
                cal :printstr
                pop a
@@ -426,14 +426,12 @@ error:         psh ds
                psh cs
                psh ci
                psh a
-               .mv dsdi, :data_newline
-               cal :printstr
+               cal :print_newline
                .mv dsdi, :data_error
                cal :printstr
                pop a
                cal :printhex8
-               .mv dsdi, :data_newline
-               cal :printstr
+               cal :print_newline
                pop ci
                pop cs
                pop di
@@ -1183,7 +1181,45 @@ exec_l_addrset:psh cs
                jmr z, :exec_load_ret
 exec_l_err2:   .mv dsdi, :data_load_dtbad1
                cal :printstr
-exec_load_ret: ret
+exec_load_ret: mov ci, 0x02
+               mov a, 0x12
+               out #ci, a
+               ret
+;=============
+; EXEC_RUN(#dsdi)  - executes run command
+; IN:  dsdi - address of var_promptbuf
+; OUT: rubbish
+exec_run:      cal :nextword
+               jmr z,:exec_run_nr1
+               cal :parsehex16
+               jmr nz, :exec_run_pr1
+               cal csci
+               ret
+exec_run_nr1:  mov a, 0x02
+               jmr nz,:exec_run_err
+exec_run_pr1:  mov a, 0x03
+               jmr nz,:exec_run_err
+exec_run_err:  cal :error
+               xor a
+               jmr z,:exec_run_end
+exec_run_end:  ret                              
+;=============
+; EXEC_EXE(#dsdi)  - executes exe command
+; IN:  dsdi - address of var_promptbuf
+; OUT: rubbish
+exec_exe:      cal :nextword
+               jmr z,:exec_exe_nr1
+               cal :parsehex16
+               jmr nz, :exec_exe_pr1
+               jmp z, csci
+exec_exe_nr1:  mov a, 0x02
+               jmr nz,:exec_exe_err
+exec_exe_pr1:  mov a, 0x03
+               jmr nz,:exec_exe_err
+exec_exe_err:  cal :error
+               xor a
+               jmr z,:exec_exe_end
+exec_exe_end:  ret
 ;=============
 ; OS_INIT - main code
 ; 1.initialize os
@@ -1223,8 +1259,7 @@ os_hello:      .mv dsdi, :data_os
                pop ci
                pop cs
                cal :printhex16
-               .mv dsdi, :data_newline
-               cal :printstr
+               cal :print_newline
                .mv dsdi, :data_helphint
                cal :printstr
 os_prompt:     .mv dsdi, :data_prompt
@@ -1296,9 +1331,25 @@ os_exec_save:  .mv dsci, :var_promptbuf
                jmp z, csci
 os_parse_nots: mov a, ci
                sub 0x4C
-               jmr nz, :os_parse_unrec
+               jmr nz, :os_parse_notl
 os_exec_load:  .mv dsci, :var_promptbuf
                cal :exec_load
+               xor a
+               .mv csci, :os_goto_parse
+               jmp z, csci
+os_parse_notl: mov a, ci
+               sub 0x52
+               jmr nz, :os_parse_notr
+os_exec_run:   .mv dsci, :var_promptbuf
+               cal :exec_run
+               xor a
+               .mv csci, :os_goto_parse
+               jmp z, csci
+os_parse_notr: mov a, ci
+               sub 0x45
+               jmr nz, :os_parse_unrec
+os_exec_exe:   .mv dsci, :var_promptbuf
+               cal :exec_exe
                xor a
                .mv csci, :os_goto_parse
                jmp z, csci           
