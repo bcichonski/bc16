@@ -1,0 +1,3 @@
+#!/bin/bash
+cd tape
+winpty python ../bc16.py ../rom/bcos.b81

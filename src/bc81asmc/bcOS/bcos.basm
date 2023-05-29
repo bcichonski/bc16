@@ -1,4 +1,4 @@
-; bc16 Operation System version 0.1.20230528
+; bc16 Operation System version 1.0.20230529
 ;
                    .org 0x0000
 os_start:          .mv csci, :os_init
@@ -7,7 +7,7 @@ os_start:          .mv csci, :os_init
 ;
 ; data
 ;
-data_os:          .db 'bcOS 0.3', 0x0a, 0x0d
+data_os:          .db 'bcOS 1.0', 0x0a, 0x0d
 data_free:        .db 'free ', 0x00
 data_from:        .db ' from ', 0x00
 data_to:          .db ' to ', 0x00
