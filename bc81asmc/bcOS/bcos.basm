@@ -384,7 +384,9 @@ nextword_eof:  ret
 ;           ci - unchanged
 ;            a - >0 if value was found
 nextval8:      mov a, #dsdi
+               psh a
                cal :inc16
+               pop a
                sub ci
                jmr z, :nextval8_found
                mov a, cs
@@ -604,7 +606,7 @@ tape_wr8_end:  pop di
                pop cs
                ret
 ;=============
-; TAPE_READ8(ci)  - reads 8 bits from tape recorder, checks after 8 bits
+; TAPE_READ8(ci)  - reads 8 bits from tape recorder, checks after 8 bits if tape state is ok
 ; IN: 
 ; OUT: ci - read byte,csds - preserved, a=0 if ok
 tape_read8:    psh cs
@@ -646,13 +648,14 @@ tape_read8:    psh cs
                or ci
                mov ci, a
                in a, #cs
+               mov cs, a
                and di
                shl 0x07
                or ci
                mov ci, a
-               mov cs, 0xa0
-               .mv dsdi, :data_tape_check3
-               cal :tape_check
+               mov a, cs
+               and 0xa0
+               sub 0xa0
 tape_r8_end:   pop di
                pop cs
                ret
@@ -1103,9 +1106,7 @@ exec_load_init:.mv dsdi, :data_tape_check1
                jmr nz, :exec_load_end
                mov a, 0x22
                out #ci, a
-               mov cs, 0xa0
-               cal :tape_check
-               jmr nz, :exec_load_end
+;cannot check state, it would eat one bit
 exec_l_preamb: .mv dsdi, :var_promptbuf
                mov cs, 0x00
 ;size of the preamble
@@ -1137,9 +1138,10 @@ exec_l_error:  .mv dsdi, :data_load_prbad1
 exec_load_end: ret
 exec_l_addrget:pop di
                pop ds
+               cal :peek16
+               cal :inc16
                psh ds
                psh di
-               cal :peek16                              
 exec_l_addrset:psh cs
                psh ci
                .mv dsdi, :data_load_prinf1
@@ -1149,6 +1151,8 @@ exec_l_addrset:psh cs
                cal :printhex16
                pop di
                pop ds
+               psh cs
+               psh ci
                cal :peek16
                cal :inc16
                cal :inc16
@@ -1169,11 +1173,10 @@ exec_l_addrset:psh cs
                psh ci
                cal :printstr
                cal :print_newline
-               .mv dsdi, :var_param16
-               mov ds, cs
-               mov di, ci
                pop ci
                pop cs
+               pop di
+               pop ds
                cal :tape_read_blk
                or a
                jmr nz, :exec_l_err2
