@@ -1,7 +1,9 @@
-      org 0x0100
+      .org 0x0100
+      .def sys_parse, 0x6996
 init: inc a
       dec a
-      nop
+      .mv csci, :sys_parse
+      cal :sys_parse
       nop
 do:   mov ss, 0xff
       mov di, ss

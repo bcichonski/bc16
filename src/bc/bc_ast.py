@@ -85,12 +85,12 @@ class Scope:
         self.declaredOnly = False
 
 class Context:
-    def __init__(self):
+    def __init__(self, codeaddr = 0x0000, heapaddr = 0x2000):
         self.data = ''
         self.basm = ''
         self.errors = []
-        self.code_segment_addr = 0x0000
-        self.heap_segment_addr = 0x2000
+        self.code_segment_addr = codeaddr
+        self.heap_segment_addr = heapaddr
         self.scope = Scope(self)
         self.nextident = 0
         self.function_dict = { }
@@ -213,7 +213,7 @@ class Context:
 ;>>>>>>>>>>DATA SEGMENT<<<<<<<<<<<<<""")
             self.emit(self.data)
 
-    def add_stdlib(self):
+    def add_stdlib(self, btap):
         self.emit("""
 ;>>>>>>>>>>COMPILER ASM LIB<<<<<<<<<<<<<
                mov a, 0xff

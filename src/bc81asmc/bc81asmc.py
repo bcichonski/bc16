@@ -24,7 +24,11 @@ def compile(ast, verbose):
 
     for labelref in context.labels:
         (addr,label,ltype) = labelref
-        labeladdr = labeladdresses[label]
+        defref = context.defs[label]
+        if defref is not None:
+            labeladdr = defref
+        else:
+            labeladdr = labeladdresses[label]
         if not labeladdr:
             raise Exception('Label {0} not defined'.format(label))
         if ltype == 'hi':

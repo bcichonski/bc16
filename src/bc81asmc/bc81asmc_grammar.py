@@ -237,8 +237,12 @@ dMV  = lexeme(seq(lexeme(string('.mv')) >> lexeme((paramreg * 2).concat()) << co
             labelarg).combine(MV))\
         .desc('.mv directive')
 
+dDEF = lexeme(seq(lexeme(string('.def')) >> lexeme(ident) << comma,
+            heximm16).combine(DEF))\
+        .desc('.def directive')
+
 mnemonic = mNOP | mINC | mDEC | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | mCLC | mJMP | mJMR | mKIL | mCAL | mRET | mIN | mOUT | mPSH | mPOP
-directive = dORG | dDB | dMV
+directive = dORG | dDB | dMV | dDEF
 label = lexeme(ident << colon)
 instruction = mnemonic | directive
 linecomment = (ignore >> comment).map(LineComment)

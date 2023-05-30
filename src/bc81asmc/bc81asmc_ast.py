@@ -118,6 +118,7 @@ class CodeContext:
         self.curraddr = 0
         self.errors = []
         self.labels = []
+        self.defs = {}
     def emit_byte(self, b):
         self.bytes.extend([b])
         self.currbyte = None
@@ -152,6 +153,8 @@ class CodeContext:
         self._emit_addr(label, 'hi')
     def emit_rel8addr(self, label):
         self._emit_addr(label, 'lorel')
+    def set_const(self, label, value):
+        self.defs[label] = value
 
 class Token:
     def __str__(self):
@@ -504,6 +507,17 @@ class MV(Directive):
         context.emit_4bit(ASMCODES.MOVRI8)
         context.emit_4bit(ASMCODES.REG2BIN(self.regs[2:]))
         context.emit_lo8addr(self.lbl[1:])
+
+@dataclass
+class DEF(Directive):
+    lbl : str
+    value : int
+    def __str__(self):
+        return ".DEF {0}, 0x{1:04x} ;{2}".format(self.lbl.upper(), self.value, getattr(self, 'comment', ''))
+    def emit(self, context):
+        super().emit(context)
+        context.set_const(self.lbl, self.value)
+        
 
 def LINE(label, token, comment):
     if label:

@@ -8,16 +8,19 @@ def read_input_file(fname):
     with open(fname, 'r', encoding='utf8') as file_handle:
         return file_handle.read()
 
-def compile(ast, verbose):
-    context = Context()
+def compile(ast, verbose, btap):
+    if btap:
+        context = Context(0x1000, 0x3000)
+    else:
+        context = Context()
     
     if(verbose):
         print("{}".format(ast))
     ast.emit(context)
 
-    context.add_preamble()
+    context.add_preamble(btap)
     context.add_data_segment()
-    context.add_stdlib()
+    context.add_stdlib(btap)
     
     if len(context.errors) > 0:
         for error in context.errors:
@@ -78,16 +81,19 @@ def main():
         help='input file name')
     parser.add_argument('--verbose', action='store_true',
         help='Be more verbose')
+    parser.add_argument('--btap', action='store_true',
+        help='Save btap file')
     args = parser.parse_args()
     infile = args.infile
     verbose = args.verbose
+    btap = args.btap
     print('Reading input file {}'.format(infile))
     input = read_input_file(infile)
     input = preprocess(input, verbose, os.path.dirname(infile))
     print('Parsing code')
     ast = program.parse(input)
     print('Generating code')
-    output = compile(ast, verbose)
+    output = compile(ast, verbose, btap)
     outfile = Path(infile).with_suffix(".basm")
     print('Saving output file {}'.format(outfile))
     save_output_file(outfile, output)
