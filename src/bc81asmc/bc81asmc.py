@@ -1,4 +1,5 @@
 import argparse
+import os
 from pathlib import Path
 from bc81asmc_ast import *
 from bc81asmc_grammar import program
@@ -24,7 +25,7 @@ def compile(ast, verbose):
 
     for labelref in context.labels:
         (addr,label,ltype) = labelref
-        defref = context.defs[label]
+        defref = context.defs.get(label)
         if defref is not None:
             labeladdr = defref
         else:
@@ -53,11 +54,46 @@ def compile(ast, verbose):
 
     print('Code length: {0} labels: {1}'.format(len(context.bytes), len(labeladdresses)))
     
-    return context.bytes
+    return context
 
 def save_output_file(fname, code):
     with open(fname, 'wb') as file_handle:
         return file_handle.write(code)
+    
+def get_preamble(short_fname, context):
+    result = bytearray()
+    codeaddr = context.startaddr
+    codelen = len(context.bytes)
+    result.extend([ 0x00, 0xff, 0x00, 0xff, 0xbc, 0x05, 
+        context.hi(codeaddr), context.lo(codeaddr), 
+        context.hi(codelen), context.lo(codelen), 0x00 ])
+    fname_bytes = [ord(x) for x in short_fname]
+    while len(fname_bytes) < 13:
+        fname_bytes.append(0x00)
+    result.extend(fname_bytes)
+    return result
+
+def btapify(bytes):
+    result = bytearray()
+    for byte in bytes:
+        #print('byte: {0}'.format(byte))
+        bits = [  byte & 0b00000001, 
+                 (byte & 0b00000010) >> 1,
+                 (byte & 0b00000100) >> 2,
+                 (byte & 0b00001000) >> 3,
+                 (byte & 0b00010000) >> 4,
+                 (byte & 0b00100000) >> 5,
+                 (byte & 0b01000000) >> 6,
+                 (byte & 0b10000000) >> 7 ]
+        #print('bits: {0}'.format(bits))
+        result.extend(bits)
+    return result
+    
+def save_output_btap(fname, short_fname, context):
+    preamble = get_preamble(short_fname, context)
+    with open(fname, 'wb') as file_handle:
+        file_handle.write(btapify(preamble))
+        return file_handle.write(btapify(context.bytes))
 
 def main():
     parser = argparse.ArgumentParser(description='bc81asmc - an assembler for bc8181 cpu v.1.0.0 (180908)')
@@ -65,6 +101,8 @@ def main():
         help='input file name')
     parser.add_argument('--verbose', action='store_true',
         help='Be more verbose')
+    parser.add_argument('--btap', action='store_true',
+        help='Use btap file format')
     args = parser.parse_args()
     print('Reading input file {}'.format(args.infile))
     input = read_input_file(args.infile)
@@ -72,9 +110,14 @@ def main():
     ast = program.parse(input)
     print('Generating code')
     output = compile(ast, args.verbose)
-    outfile = Path(args.infile).with_suffix(".b81")
-    print('Saving output file {}'.format(outfile))
-    save_output_file(outfile, output)
+    if(args.btap):
+        outfile = Path(args.infile).with_suffix(".btap")
+        _, short_fname = os.path.split(Path(args.infile).with_suffix(""))
+        save_output_btap(outfile, short_fname, output)
+    else:
+        outfile = Path(args.infile).with_suffix(".b81")
+        print('Saving output file {}'.format(outfile))
+        save_output_file(outfile, output.bytes)
     print('Done!')
 
 if __name__ == "__main__":

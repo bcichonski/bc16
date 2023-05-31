@@ -214,12 +214,190 @@ class Context:
             self.emit(self.data)
 
     def add_stdlib(self, btap):
-        self.emit("""
+        if btap:
+            self.emit("""
+;>>>>>>>>>>COMPILER ASM LIB - BCOS 1.0<<<<<<<<<<<<<
+            mov a, 0xff
+            mov a, 0xff
+            mov a, 0xff
+            mov a, 0xff
+;=============
+; FATAL(a) - prints error message and stops
+; IN:   a - error code
+;   stack - as error address
+; OUT:  KILL, messed stack
+            .def fatal, 0x04ea
+;=============
+; PRINTHEX4(a) - prints hex number from 0 to f
+; IN:    a - number to print
+; OUT:   a - unchanged      10 -> 0 -> 41
+;       cs - set to 1
+            .def printhex4, 0x0349
+;=============
+; PRINTHEX8(a) - prints hex number 
+; IN:    a - number to print
+; OUT:   a - set to lower half
+;     csci - unchanged
+;     dsdi - unchanged
+            .def printhex8, 0x035c
+;=============
+; PRINTHEX16(csci) - prints hex number 4 digits
+; IN:    csci - hex number 4 digits
+; OUT:   csci - unchanged
+;           a - ci
+            .def printhex16, 0x036f
+;=============
+; INC16(dsdi) - increase 16bit number correctly
+; IN:    dsdi - number 16bit, break if exceeds 16bit
+; OUT:   dsdi - add 1
+;           a - di + 1 or ds + 1
+            .def inc16, 0x037a
+;=============
+; DEC16(dsdi) - decrease 16bit number correctly
+; IN:    dsdi - number 16bit, break if lower than 0
+; OUT:   dsdi - sub 1
+;           a - di - 1 or ds - 1
+            .def dec16, 0x038f
+;=============
+; POKE16(#dsdi, csci) - stores csci value under #dsdi address (2 bytes)
+; IN:   dsdi - address to store
+;       csci - value to store
+; OUT:  dsdi - address to store + 1
+;       csci - unchanged
+;       a    - rubbish
+            .def poke16, 0x03b0            
+;=============
+; PEEK16(#dsdi) - returns value under dsdi address (2 bytes)
+; IN:   dsdi - address to read
+; OUT:  dsdi - address to read + 1
+;       csci - value
+;       a    - rubbish
+            .def peek16, 0x03b8
+;=============
+; ADD16(csci,dsdi) - returns value under csci address (2 bytes) 
+;                    return os error 0x10 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - sum of csci and dsdi
+;       a    - rubbish
+            .def add16, 0x03c0
+;=============
+; SUB16(csci,dsdi) - returns value under csci address (2 bytes) 
+;                    return os error 0x11 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - substracts dsdi from csci
+;       a    - rubbish
+            .def sub16, 0x03db
+;=============
+; PRINT_NEWLINE - prints new line
+; IN:
+; OUT:   a - rubbish
+            .def print_newline, 0x0323
+;=============
+; PRINTSTR(*dsdi) - sends chars to printer
+; IN: dsdi - address of 0-ended char table
+; OUT:   a - set to 0x00
+;       ci - set to 0x01
+;     dsdi - set to end of char table
+            .def printstr, 0x0339
+;=============
+; GTEQ16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci >= dsdi
+;       a - 0 otherwise
+gteq16:        mov a, cs
+            sub ds
+            jmr o, :gteq16_false
+            jmr nz, :gteq16_true
+            mov a, ci
+            sub di
+            jmr o, :gteq16_false
+            jmr nz, :gteq16_true
+gteq16_true:   mov a, 0x01
+            ret
+gteq16_false:  xor a
+            ret
+;=============
+; EQ16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci == dsdi
+;       a - 0 otherwise
+eq16:          mov a, cs
+            sub ds
+            jmr nz, :gteq16_false
+            mov a, ci
+            sub di
+            jmr nz, :gteq16_false
+eq16_true:     mov a, 0x01
+            ret
+eq16_false:    xor a
+            ret
+;=============
+; MALLOC(csci) - allocates csci bytes on the program heap
+; IN: csci - size of the block
+; OUT:csci - address of the block
+malloc:        psh cs
+            psh ci
+            .mv dsdi, :{1}
+            cal :peek16
+            ret
+;=============
+; SEEK(csci, dsdi) - finds address of first free block of given size
+; IN: csci - wanted size of the block
+; OUT:dsdi - address of the block after which is enough free memory
+;     csci - address after which free memory begins
+seek:          psh cs
+            psh ci
+            .mv dsdi, :{1}
+            cal :peek16
+            mov ds, cs
+            mov di, ci
+            psh cs
+            psh ci
+seek_loop:     cal :peek16
+            mov a, ci
+            xor cs
+            jmr z, :seek_end
+            cal :dec16
+            cal :sub16
+            pop di
+            pop ds
+            psh cs
+            psh ci
+            cal :inc16
+            cal :inc16
+            cal :peek16
+            mov ds, cs
+            mov di, ci
+            pop ci
+            pop cs
+            cal :sub16
+            pop di
+            pop ds
+            cal :gteq16
+            jmr nz, :seek_end
+;               ...
+            jmr z, :seek_loop
+seek_end:      pop di
+            pop ds
+            pop ci
+            pop cs
+            ret  
+;=============
+;SYS DATA
+{1}:  .db 0x{2:02x}, 0x{3:02x}
+{0}: nop
+""".format(STACKHEAD, HEAPHEAD, hi(self.heap_segment_addr), lo(self.heap_segment_addr)))
+        else:
+            self.emit("""
 ;>>>>>>>>>>COMPILER ASM LIB<<<<<<<<<<<<<
-               mov a, 0xff
-               mov a, 0xff
-               mov a, 0xff
-               mov a, 0xff
+            mov a, 0xff
+            mov a, 0xff
+            mov a, 0xff
+            mov a, 0xff
 ;=============
 ; FATAL(a) - prints error message and stops
 ; IN:   a - error code
@@ -227,34 +405,34 @@ class Context:
 ; OUT:  KILL, messed stack
 ;
 fatal:         psh a
-               cal :print_newline
-               .mv dsdi, :data_fatal
-               cal :printstr
-               pop a
-               cal :printhex8
-               .mv dsdi, :data_at
-               cal :printstr
-               pop ci
-               pop cs
-               cal :printhex16
-               kil
+            cal :print_newline
+            .mv dsdi, :data_fatal
+            cal :printstr
+            pop a
+            cal :printhex8
+            .mv dsdi, :data_at
+            cal :printstr
+            pop ci
+            pop cs
+            cal :printhex16
+            kil
 ;=============
 ; PRINTHEX4(a) - prints hex number from 0 to f
 ; IN:    a - number to print
 ; OUT:   a - unchanged      10 -> 0 -> 41
 ;       cs - set to 1
 printhex4:     mov cs, 0x01
-               psh a
-               sub 0x0a
-               jmr no, :printhex4_af
+            psh a
+            sub 0x0a
+            jmr no, :printhex4_af
 printhex4_09:  pop a
-               add 0x30
-               out #cs, a
-               ret
+            add 0x30
+            out #cs, a
+            ret
 printhex4_af:  pop a
-               add 0x37
-               out #cs, a
-               ret
+            add 0x37
+            out #cs, a
+            ret
 ;=============
 ; PRINTHEX8(a) - prints hex number 
 ; IN:    a - number to print
@@ -262,61 +440,61 @@ printhex4_af:  pop a
 ;     csci - unchanged
 ;     dsdi - unchanged
 printhex8:     psh cs
-               psh ci
-               mov ci, a
-               shr 0x04
-               cal :printhex4
-               mov a, ci
-               and 0x0f
-               cal :printhex4
-               pop ci
-               pop cs
-               ret
+            psh ci
+            mov ci, a
+            shr 0x04
+            cal :printhex4
+            mov a, ci
+            and 0x0f
+            cal :printhex4
+            pop ci
+            pop cs
+            ret
 ;=============
 ; PRINTHEX16(csci) - prints hex number 4 digits
 ; IN:    csci - hex number 4 digits
 ; OUT:   csci - unchanged
 ;           a - ci
 printhex16:    mov a, cs
-               psh ci
-               cal :printhex8
-               pop a
-               cal :printhex8
-               ret
+            psh ci
+            cal :printhex8
+            pop a
+            cal :printhex8
+            ret
 ;=============
 ; INC16(dsdi) - increase 16bit number correctly
 ; IN:    dsdi - number 16bit, break if exceeds 16bit
 ; OUT:   dsdi - add 1
 ;           a - di + 1 or ds + 1
 inc16:         mov a, di
-               inc a
-               mov di, a
-               jmr c, :inc16_carry
-               ret
+            inc a
+            mov di, a
+            jmr c, :inc16_carry
+            ret
 inc16_carry:   mov a, ds
-               inc a
-               mov ds, a
-               jmr c, :inc16_fail
+            inc a
+            mov ds, a
+            jmr c, :inc16_fail
 inc16_ret:     ret
 inc16_fail:    mov a, 0x10
-               cal :fatal
+            cal :fatal
 ;=============
 ; DEC16(dsdi) - decrease 16bit number correctly
 ; IN:    dsdi - number 16bit, break if lower than 0
 ; OUT:   dsdi - sub 1
 ;           a - di - 1 or ds - 1
 dec16:         mov a, di
-               dec a
-               mov di, a
-               jmr o, :dec16_ovfl
-               ret
+            dec a
+            mov di, a
+            jmr o, :dec16_ovfl
+            ret
 dec16_ovfl:    mov a, ds
-               dec a
-               mov ds, a
-               jmr o, :dec16_fail
+            dec a
+            mov ds, a
+            jmr o, :dec16_fail
 dec16_ret:     ret
 dec16_fail:    mov a, 0x11
-               cal :fatal
+            cal :fatal
 ;=============
 ; POKE16(#dsdi, csci) - stores csci value under #dsdi address (2 bytes)
 ; IN:   dsdi - address to store
@@ -325,8 +503,8 @@ dec16_fail:    mov a, 0x11
 ;       csci - unchanged
 ;       a    - rubbish
 poke16:        mov #dsdi, cs
-               cal :inc16
-               mov #dsdi, ci
+            cal :inc16
+            mov #dsdi, ci
 poke16_ok:     ret             
 ;=============
 ; PEEK16(#dsdi) - returns value under dsdi address (2 bytes)
@@ -335,8 +513,8 @@ poke16_ok:     ret
 ;       csci - value
 ;       a    - rubbish
 peek16:        mov cs, #dsdi
-               cal :inc16
-               mov ci, #dsdi
+            cal :inc16
+            mov ci, #dsdi
 peek16_ok:     ret
 ;=============
 ; ADD16(csci,dsdi) - returns value under csci address (2 bytes) 
@@ -346,19 +524,19 @@ peek16_ok:     ret
 ; OUT:  csci - sum of csci and dsdi
 ;       a    - rubbish
 add16:         mov a, ci
-               add di
-               mov ci, a
-               jmr c, :add16_carry1
-               mov a, cs
+            add di
+            mov ci, a
+            jmr c, :add16_carry1
+            mov a, cs
 add16_cry_nxt: add ds
-               mov cs, a
-               jmr c, :add16_cry2err
+            mov cs, a
+            jmr c, :add16_cry2err
 add16_ok:      ret
 add16_carry1:  mov a, cs
-               inc a
-               jmr nc, :add16_cry_nxt
+            inc a
+            jmr nc, :add16_cry_nxt
 add16_cry2err: mov a, 0x12
-               cal :fatal
+            cal :fatal
 ;=============
 ; SUB16(csci,dsdi) - returns value under csci address (2 bytes) 
 ;                    return os error 0x11 in case of overflow                
@@ -367,19 +545,19 @@ add16_cry2err: mov a, 0x12
 ; OUT:  csci - substracts dsdi from csci
 ;       a    - rubbish
 sub16:         mov a, ci
-               sub di
-               mov ci, a
-               jmr o, :sub16_ovr1
-               mov a, cs
+            sub di
+            mov ci, a
+            jmr o, :sub16_ovr1
+            mov a, cs
 sub16_crynxt:  sub ds
-               mov cs, a
-               jmr o, :sub16_ovr2err
+            mov cs, a
+            jmr o, :sub16_ovr2err
 sub16_ok:      ret
 sub16_ovr1:    mov a, cs
-               dec a
-               jmr no, :sub16_crynxt
+            dec a
+            jmr no, :sub16_crynxt
 sub16_ovr2err: mov a, 0x13
-               cal :fatal
+            cal :fatal
 ;=============
 ; GTEQ16(csci,dsdi) - compares csci with dsdi            
 ; IN:   csci - argument 1
@@ -387,17 +565,17 @@ sub16_ovr2err: mov a, 0x13
 ; OUT:  a - 1 if csci >= dsdi
 ;       a - 0 otherwise
 gteq16:        mov a, cs
-               sub ds
-               jmr o, :gteq16_false
-               jmr nz, :gteq16_true
-               mov a, ci
-               sub di
-               jmr o, :gteq16_false
-               jmr nz, :gteq16_true
+            sub ds
+            jmr o, :gteq16_false
+            jmr nz, :gteq16_true
+            mov a, ci
+            sub di
+            jmr o, :gteq16_false
+            jmr nz, :gteq16_true
 gteq16_true:   mov a, 0x01
-               ret
+            ret
 gteq16_false:  xor a
-               ret
+            ret
 ;=============
 ; EQ16(csci,dsdi) - compares csci with dsdi            
 ; IN:   csci - argument 1
@@ -405,27 +583,27 @@ gteq16_false:  xor a
 ; OUT:  a - 1 if csci == dsdi
 ;       a - 0 otherwise
 eq16:          mov a, cs
-               sub ds
-               jmr nz, :gteq16_false
-               mov a, ci
-               sub di
-               jmr nz, :gteq16_false
+            sub ds
+            jmr nz, :gteq16_false
+            mov a, ci
+            sub di
+            jmr nz, :gteq16_false
 eq16_true:     mov a, 0x01
-               ret
+            ret
 eq16_false:    xor a
-               ret
+            ret
 ;=============
 ; PRINT_NEWLINE - prints new line
 ; IN:
 ; OUT:   a - rubbish
 print_newline: psh cs
-               mov cs, 0x01
-               mov a, 0x0a
-               out #cs, a
-               mov a, 0x0d
-               out #cs, a
-               pop cs
-               ret
+            mov cs, 0x01
+            mov a, 0x0a
+            out #cs, a
+            mov a, 0x0d
+            out #cs, a
+            pop cs
+            ret
 ;=============
 ; PRINTSTR(*dsdi) - sends chars to printer
 ; IN: dsdi - address of 0-ended char table
@@ -434,63 +612,63 @@ print_newline: psh cs
 ;     dsdi - set to end of char table
 printstr:      mov ci, 0x01
 printstr_loop: mov a, #dsdi
-               jmr z, :printstr_end
-               out #ci, a
-               cal :inc16
-               xor a
-               jmr z, :printstr_loop
+            jmr z, :printstr_end
+            out #ci, a
+            cal :inc16
+            xor a
+            jmr z, :printstr_loop
 printstr_end:  ret
 ;=============
 ; MALLOC(csci) - allocates csci bytes on the program heap
 ; IN: csci - size of the block
 ; OUT:csci - address of the block
 malloc:        psh cs
-               psh ci
-               .mv dsdi, :{1}
-               cal :peek16
-               ret
+            psh ci
+            .mv dsdi, :{1}
+            cal :peek16
+            ret
 ;=============
 ; SEEK(csci, dsdi) - finds address of first free block of given size
 ; IN: csci - wanted size of the block
 ; OUT:dsdi - address of the block after which is enough free memory
 ;     csci - address after which free memory begins
 seek:          psh cs
-               psh ci
-               .mv dsdi, :{1}
-               cal :peek16
-               mov ds, cs
-               mov di, ci
-               psh cs
-               psh ci
+            psh ci
+            .mv dsdi, :{1}
+            cal :peek16
+            mov ds, cs
+            mov di, ci
+            psh cs
+            psh ci
 seek_loop:     cal :peek16
-               mov a, ci
-               xor cs
-               jmr z, :seek_end
-               cal :dec16
-               cal :sub16
-               pop di
-               pop ds
-               psh cs
-               psh ci
-               cal :inc16
-               cal :inc16
-               cal :peek16
-               mov ds, cs
-               mov di, ci
-               pop ci
-               pop cs
-               cal :sub16
-               pop di
-               pop ds
-               cal :gteq16
-               jmr nz, :seek_end
+            mov a, ci
+            xor cs
+            jmr z, :seek_end
+            cal :dec16
+            cal :sub16
+            pop di
+            pop ds
+            psh cs
+            psh ci
+            cal :inc16
+            cal :inc16
+            cal :peek16
+            mov ds, cs
+            mov di, ci
+            pop ci
+            pop cs
+            cal :sub16
+            pop di
+            pop ds
+            cal :gteq16
+            jmr nz, :seek_end
 ;               ...
-               jmr z, :seek_loop
+            jmr z, :seek_loop
 seek_end:      pop di
-               pop ds
-               pop ci
-               pop cs
-               ret  
+            pop ds
+            pop ci
+            pop cs
+            ret  
 ;=============
 ;SYS DATA
 data_fatal:    .db 'fatal '

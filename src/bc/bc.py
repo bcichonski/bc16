@@ -18,7 +18,7 @@ def compile(ast, verbose, btap):
         print("{}".format(ast))
     ast.emit(context)
 
-    context.add_preamble(btap)
+    context.add_preamble()
     context.add_data_segment()
     context.add_stdlib(btap)
     

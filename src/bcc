@@ -1,0 +1,3 @@
+#!/bin/bash
+winpty python ./bc/bc.py --verbose --btap $1.b
+winpty python ./bc81asmc/bc81asmc.py --verbose --btap $1.basm
