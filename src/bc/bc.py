@@ -10,7 +10,7 @@ def read_input_file(fname):
 
 def compile(ast, verbose, btap):
     if btap:
-        context = Context(0x1000, 0x3000)
+        context = Context(0x1000, 0x3000, False)
     else:
         context = Context()
     
@@ -47,10 +47,12 @@ def preprocess(input, verbose, defaultdir):
         newline = lines[i].strip()
 
         if(newline.startswith('#define')):
-            spacepos = newline.index(' ')
-            deffrom = newline[8:spacepos-1]
+            spacepos = newline.rindex(' ')
+            deffrom = newline[8:spacepos]
             defto = newline[spacepos+1:]
             defines[deffrom] = defto
+            i += 1
+            continue
 
         if(newline.startswith('#include')):
             fname = newline[9:]
@@ -90,6 +92,10 @@ def main():
     print('Reading input file {}'.format(infile))
     input = read_input_file(infile)
     input = preprocess(input, verbose, os.path.dirname(infile))
+    if(verbose):
+        infilegen = Path(infile).with_suffix(".genb")
+        print('Saving generated input file to {0}'.format(infilegen))
+        save_output_file(infilegen, input)
     print('Parsing code')
     ast = program.parse(input)
     print('Generating code')

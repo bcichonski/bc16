@@ -85,7 +85,7 @@ class Scope:
         self.declaredOnly = False
 
 class Context:
-    def __init__(self, codeaddr = 0x0000, heapaddr = 0x2000):
+    def __init__(self, codeaddr = 0x0000, heapaddr = 0x2000, hardkill = True):
         self.data = ''
         self.basm = ''
         self.errors = []
@@ -94,6 +94,7 @@ class Context:
         self.scope = Scope(self)
         self.nextident = 0
         self.function_dict = { }
+        self.hardkill = hardkill
 
     def emit(self, code):
         self.basm += code
@@ -290,6 +291,34 @@ class Context:
 ;       a    - rubbish
             .def sub16, 0x03db
 ;=============
+; READSTR(#dsdi, ci) - reads characters to the buffer
+; IN:   dsdi - buffer address for chars
+;         ci - length of the buffer (since last char has to be 0x00 we can enter one less)
+; OUT:  dsdi - preserved
+;         ci - preserved
+;         cs - how many chars can we could still add
+            .def readstr, 0x03f6
+;=============
+; PARSEHEX4(#dsdi) - parses single char to hex number chars 0-9 and a-z and A-Z are supported
+; IN:   dsdi - buffer address for char-hex
+; OUT:     a - 0 if ok, 0xff if parse error
+;         ci - hexval of a char
+            .def parsehex4, 0x0448
+;=============
+; PARSEHEX8(#dsdi) - parses two char to hex number
+; IN:   dsdi - buffer address for char
+; OUT:    a - success = 0 or >0 error
+;        ci - hex value for byte
+;      dsdi - moved + 2 if ok
+            .def parsehex8, 0x0476
+;=============
+; PARSEHEX16(#dsdi) - parses four char to hex number
+; IN:   dsdi - buffer address for char
+; OUT:  csci - hex value for value
+;          a - success = 0 or error code
+;       dsdi - moved + 4 if ok
+            .def parsehex16, 0x0497
+;=============
 ; PRINT_NEWLINE - prints new line
 ; IN:
 ; OUT:   a - rubbish
@@ -388,6 +417,8 @@ seek_end:      pop di
             ret  
 ;=============
 ;SYS DATA
+            .def var_promptbuf, 0x0bcf
+            .def var_user_mem, 0x0bcb
 {1}:  .db 0x{2:02x}, 0x{3:02x}
 {0}: nop
 """.format(STACKHEAD, HEAPHEAD, hi(self.heap_segment_addr), lo(self.heap_segment_addr)))
@@ -559,6 +590,120 @@ sub16_ovr1:    mov a, cs
 sub16_ovr2err: mov a, 0x13
             cal :fatal
 ;=============
+; READSTR(#dsdi, ci) - reads characters to the buffer
+; IN:   dsdi - buffer address for chars
+;         ci - length of the buffer (since last char has to be 0x00 we can enter one less)
+; OUT:  dsdi - preserved
+;         ci - preserved
+;         cs - how many chars can we could still add
+readstr:       psh ds
+               psh di
+               psh ci
+readstr_loop:  in a, #0x0
+               mov cs, a
+               sub 0x0d
+               jmr z, :readstr_end
+               mov a, cs
+               sub 0x08
+               jmr z, :readstr_del
+               mov a, ci
+               dec a
+               jmr z, :readstr_loop
+               mov ci, a
+               mov #dsdi, cs
+               cal :inc16
+               mov a, 0x01
+               out #a, cs
+               jmr nz, :readstr_loop
+readstr_del:   pop a
+               psh a
+               sub ci
+               jmr z, :readstr_loop
+               mov a, ci
+               inc a
+               mov ci, a
+               cal :dec16
+               xor a
+               mov #dsdi, a
+               mov cs, 0x01
+               mov a, 0x08
+               out #cs, a
+               mov a, 0x20
+               out #cs, a
+               mov a, 0x08
+               out #cs, a
+               jmr nz, :readstr_loop
+readstr_end:   xor a
+               mov #dsdi, a
+               mov cs, ci
+               pop ci
+               cal :print_newline
+               pop di
+               pop ds
+               ret
+;=============
+; PARSEHEX4(#dsdi) - parses single char to hex number chars 0-9 and a-z and A-Z are supported
+; IN:   dsdi - buffer address for char-hex
+; OUT:     a - 0 if ok, 0xff if parse error
+;         ci - hexval of a char
+parsehex4:     mov a, #dsdi
+               mov ci, a
+               sub 0x30
+               jmr n, :parsehex4_err
+               mov a, ci
+               sub 0x3a
+               jmr nn, :parsehex4_af
+parsehex4_09:  mov a, ci
+               sub 0x30
+               mov ci, a
+               xor a
+               ret
+parsehex4_af:  mov a, ci
+               cal :upchar
+               mov ci, a
+               sub 0x47
+               jmr nn, :parsehex4_err
+               mov a, ci
+               sub 0x37
+               mov ci, a
+               xor a
+               ret
+parsehex4_err: mov a, 0xff
+               ret
+;=============
+; PARSEHEX8(#dsdi) - parses two char to hex number
+; IN:   dsdi - buffer address for char
+; OUT:    a - success = 0 or >0 error
+;        ci - hex value for byte
+;      dsdi - moved + 2 if ok
+parsehex8:     psh cs
+               cal :parsehex4
+               jmr nz, :parsehex8_err
+               mov cs, ci
+               cal :inc16
+               cal :parsehex4
+               jmr nz, :parsehex8_err
+               cal :inc16
+               mov a, cs
+               shl 0x04
+               and 0xf0
+               or  ci
+               mov ci, a
+               xor a
+parsehex8_err: pop cs
+parsehex8_ok:  ret
+;=============
+; PARSEHEX16(#dsdi) - parses four char to hex number
+; IN:   dsdi - buffer address for char
+; OUT:  csci - hex value for value
+;          a - success = 0 or error code
+;       dsdi - moved + 4 if ok
+parsehex16:    cal :parsehex8
+               jmr nz, :parsehex16_end
+               mov cs, ci
+               cal :parsehex8
+parsehex16_end:ret
+;=============
 ; GTEQ16(csci,dsdi) - compares csci with dsdi            
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
@@ -612,69 +757,73 @@ print_newline: psh cs
 ;     dsdi - set to end of char table
 printstr:      mov ci, 0x01
 printstr_loop: mov a, #dsdi
-            jmr z, :printstr_end
-            out #ci, a
-            cal :inc16
-            xor a
-            jmr z, :printstr_loop
+               jmr z, :printstr_end
+               out #ci, a
+               cal :inc16
+               xor a
+               jmr z, :printstr_loop
 printstr_end:  ret
 ;=============
 ; MALLOC(csci) - allocates csci bytes on the program heap
 ; IN: csci - size of the block
 ; OUT:csci - address of the block
-malloc:        psh cs
-            psh ci
-            .mv dsdi, :{1}
-            cal :peek16
-            ret
+malloc:         psh cs
+                psh ci
+                .mv dsdi, :{1}
+                cal :peek16
+                ret
 ;=============
 ; SEEK(csci, dsdi) - finds address of first free block of given size
 ; IN: csci - wanted size of the block
 ; OUT:dsdi - address of the block after which is enough free memory
 ;     csci - address after which free memory begins
-seek:          psh cs
-            psh ci
-            .mv dsdi, :{1}
-            cal :peek16
-            mov ds, cs
-            mov di, ci
-            psh cs
-            psh ci
-seek_loop:     cal :peek16
-            mov a, ci
-            xor cs
-            jmr z, :seek_end
-            cal :dec16
-            cal :sub16
-            pop di
-            pop ds
-            psh cs
-            psh ci
-            cal :inc16
-            cal :inc16
-            cal :peek16
-            mov ds, cs
-            mov di, ci
-            pop ci
-            pop cs
-            cal :sub16
-            pop di
-            pop ds
-            cal :gteq16
-            jmr nz, :seek_end
-;               ...
-            jmr z, :seek_loop
-seek_end:      pop di
-            pop ds
-            pop ci
-            pop cs
-            ret  
+seek:           psh cs
+                psh ci
+                .mv dsdi, :{1}
+                cal :peek16
+                mov ds, cs
+                mov di, ci
+                psh cs
+                psh ci
+seek_loop:      cal :peek16
+                mov a, ci
+                xor cs
+                jmr z, :seek_end
+                cal :dec16
+                cal :sub16
+                pop di
+                pop ds
+                psh cs
+                psh ci
+                cal :inc16
+                cal :inc16
+                cal :peek16
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :sub16
+                pop di
+                pop ds
+                cal :gteq16
+                jmr nz, :seek_end
+    ;               ...
+                jmr z, :seek_loop
+seek_end:       pop di
+                pop ds
+                pop ci
+                pop cs
+                ret  
 ;=============
 ;SYS DATA
 data_fatal:    .db 'fatal '
 data_error:    .db 'error ', 0x00
 data_at:       .db ' at ', 0x00
 {1}:  .db 0x{2:02x}, 0x{3:02x}
+var_promptbuf: .db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+               .db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+               .db 0x00
+var_user_mem:  nop
 {0}: nop
 """.format(STACKHEAD, HEAPHEAD, hi(self.heap_segment_addr), lo(self.heap_segment_addr)))
 
@@ -1108,6 +1257,11 @@ class PROGRAM(Instruction):
 
         function_data = context.get_function_data(mainfunc.function_name)
 
+        if context.hardkill:
+            last_command = 'kil'
+        else:
+            last_command = 'ret'
+
         context.prepend(""";MAIN ENTRYPOINT
 ;&STACKHEAD <- STACKHEAD + 2
                 .mv dsdi, :{1}
@@ -1122,7 +1276,7 @@ class PROGRAM(Instruction):
                 mov ci, 0x00
                 cal :poke16
                 cal :{0}
-                kil
-;FUNCTIONS""".format(function_data['label'], STACKHEAD, HEAPHEAD))
+                {3}
+;FUNCTIONS""".format(function_data['label'], STACKHEAD, HEAPHEAD, last_command))
 
         

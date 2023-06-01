@@ -15,6 +15,14 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(
             "{0}".format(val),
             'CONST(0x008b)')
+        
+    def test_expression_const_hex2(self):
+        val = constnumber.parse('0x08b0')
+        if Debug: 
+            print("val={0}".format(val))
+        self.assertEqual(
+            "{0}".format(val),
+            'CONST(0x08b0)')
 
     def test_expression_const_dec(self):
         val = constnumber.parse('128')

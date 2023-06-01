@@ -1,3 +1,8 @@
 #!/bin/bash
 winpty python ./bc/bc.py --verbose --btap $1.b
+retVal=$?
+if [ $retVal -ne 0 ]; then
+    echo "Error"
+    exit $retVal
+fi
 winpty python ./bc81asmc/bc81asmc.py --verbose --btap $1.basm
