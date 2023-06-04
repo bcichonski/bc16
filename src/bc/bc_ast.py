@@ -994,6 +994,7 @@ class VARIABLE_ASSIGNEMENT(Instruction):
     def emit(self, context, funcCall = False):
         print('{0}={1};'.format(self.varname, self.expr))
         variable_def = context.get_variable(self.varname)
+        print('{0}'.format(variable_def))
         offset = variable_def['offset']
         oper = 'add16'
         if offset < 0:
@@ -1008,15 +1009,13 @@ class VARIABLE_ASSIGNEMENT(Instruction):
                 psh ci""".format(STACKHEAD, variable_def['name']))
         else:
             context.emit("""
-;{3} offset {4}
+;{3} offset {4} OPER {2}
                 .mv dsdi, :{0}
                 cal :peek16
-                mov ds, cs
-                mov di, ci
                 {1}
                 cal :{2}
                 psh cs
-                psh ci""".format(STACKHEAD, context.load_csci(offset), oper, variable_def['name'], offset))
+                psh ci""".format(STACKHEAD, context.load_dsdi(offset), oper, variable_def['name'], offset))
         try:
             if funcCall: context.get_variable_declared_only()
             self.expr.emit(context)
@@ -1087,7 +1086,7 @@ class STATEMENT_WHILE(Instruction):
                 mov a, cs
                 or ci
                 .mv csci, :{0}
-                jmp z, csci""".format(label2))
+                jmp nz, csci""".format(label2))
         self.code.emit(context)
         context.emit("""
                 .mv csci, :{0}
