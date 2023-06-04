@@ -873,21 +873,22 @@ class EXPRESSION_TERM(Instruction):
                 oper = 'sub16'
                 offset = -offset
             context.emit("""
-                .mv dsdi,:{0}
-                cal :peek16""".format(STACKHEAD))
+            .mv dsdi,:{0}
+            cal :peek16""".format(STACKHEAD))
             if offset != 0:
                 context.emit("""
                 {0}
-                cal :{1}
-                mov ds, cs
-                mov di, ci""".format(context.load_dsdi(offset), oper))
+            cal :{1}""".format(context.load_dsdi(offset), oper))
+            context.emit("""
+            mov ds, cs
+            mov di, ci""")
             if var['type'] == 'word':
                 context.emit("""
-                    cal :peek16""")
+            cal :peek16""")
             else:
                 context.emit("""
-                    mov cs, 0x00
-                    mov ci, #dsdi""")
+            mov cs, 0x00
+            mov ci, #dsdi""")
             return
         self.term.emit(context)        
 
@@ -1083,10 +1084,11 @@ class STATEMENT_WHILE(Instruction):
 {0}:      nop""".format(label1))
         self.expr.emit(context)
         context.emit("""
+                cal :printhex16
                 mov a, cs
                 or ci
                 .mv csci, :{0}
-                jmp nz, csci""".format(label2))
+                jmp z, csci""".format(label2))
         self.code.emit(context)
         context.emit("""
                 .mv csci, :{0}
