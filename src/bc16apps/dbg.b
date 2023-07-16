@@ -1,12 +1,13 @@
-#define INPUTBUFFER 0x0f00
+#include stdio.b
+
+byte foo()
+{
+    return 1;
+}
 
 byte main()
 {
-    byte continue;
-    continue <- 1;
-
-    while(continue) 
-    {
-        continue <- 0;
-    }
+    byte res;
+    res <- foo();
+    putb(res);
 }

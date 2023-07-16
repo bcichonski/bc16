@@ -25,24 +25,30 @@ byte runcommand()
     word Pinputstr;
     Pinputstr <- INPUTBUFFER;
 
-    puts(">");
+    puts("calc>");
     readsn(Pinputstr, 32);
 
     byte command;
     command <- peek8(Pinputstr);
 
+    byte result;
+    result <- 1;
+    putb(result);
+
     if(command = 'h')
     {
         print_help();
-        return 1;
     }
 
     if(command = 'q')
     {
-        return 0;
+        result <- 0;
     }
 
-    return 1;
+    puts("res=");
+    putb(result);
+    putnl();
+    return result;
 }
 
 byte main()
@@ -58,6 +64,9 @@ byte main()
     while(continue) 
     {
         continue <- runcommand();
+        puts("cont=");
+        putb(continue);
+        putnl();
     }
 
     puts("bye");

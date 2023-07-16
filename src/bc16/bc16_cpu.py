@@ -1,8 +1,10 @@
 def hi(b):
     return (b >> 4) & 0xf
 
+
 def lo(b):
     return b & 0xf
+
 
 class Register:
     def __init__(self, max_value, curr_value=0):
@@ -19,6 +21,7 @@ class Register:
 
     def inc(self, val):
         self.set(self.val + val)
+
 
 class FlagsRegister(Register):
     ZERO = 0x0
@@ -71,6 +74,7 @@ class FlagsRegister(Register):
     def get_flag(self, flag):
         return bool(self.flags[flag].get())
 
+
 class Bc8181:
     A = 0x1
     CI = 0x4
@@ -103,6 +107,7 @@ class Bc8181:
         self.create_arithmetic_and_logical_unit()
         self.kill = False
         self.debug = debug
+        self.mesglog = []
 
     def inc_pc(self, val):
         self.pc.inc(val)
@@ -445,13 +450,25 @@ class Bc8181:
         try:
             instruction()
         except Exception:
-            print('exception at {0:04x}'.format(self.pc.get()))
+            mesg = 'exception at {0:04x}'.format(self.pc.get())
+            print(mesg)
+            self.print_debug(mesg)
             raise
         self.print_context()
 
+    def filelog(self, messages):
+        with open('cpudebug.log', 'a') as fhandle:
+            fhandle.writelines(messages)
+            fhandle.close()
+
     def print_debug(self, mesg):
         if self.debug:
-            print(mesg)
+            self.mesglog.push(mesg)
+
+    def flush_debug(self):
+        if self.debug:
+            self.filelog(self.mesglog)
+            self.mesglog = []
 
     def print_context(self):
         self.print_debug('')
@@ -465,10 +482,20 @@ class Bc8181:
             self.cs.get(), self.ci.get()))
         self.print_debug("DS: 0x{0:02x} DI: 0x{1:02x}".format(
             self.ds.get(), self.di.get()))
+        self.flush_debug()
 
     def run(self):
+        try:
+            self.inc_pc(0)
+            self.print_context()
+            while not self.kill:
+                self.run_next_opcode()
+            self.print_debug("====================== KILL")
+        finally:
+            self.flush_debug()
+
+    def runAsync(self):
         self.inc_pc(0)
         self.print_context()
-        while not self.kill:
+        while not self.kill and not self.env:
             self.run_next_opcode()
-        self.print_debug("====================== KILL")
