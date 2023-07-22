@@ -1,8 +1,13 @@
 #include stdio.b
 
+byte baz() 
+{
+    return 2;
+}
+
 byte foo()
 {
-    return 1;
+    return baz();
 }
 
 byte main()

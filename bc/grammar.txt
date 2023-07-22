@@ -55,10 +55,7 @@ asm "copied to asm"
 ======================
 code segment (user code + system subroutines)
 data segment (all strings)
-stack segment
-heap segment (for free alocations)
-
-
+stack segment - or use system stack ??
 
 expression evaluation - all expressions are treated 16 bit internally, only association can cast it to byte
 expression result in csci
@@ -87,3 +84,10 @@ cal :add16
 
 
 
+nextaddr
+length
+...
+...
+...
+...
+nextaddr

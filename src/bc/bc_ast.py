@@ -21,6 +21,7 @@ class Scope:
         self.startoffset = 0 if prev_scope is None else prev_scope.startoffset + prev_scope.offset
         self.prev_scope = prev_scope
         self.declaredOnly = False
+        self.depth = 0 if prev_scope is None else prev_scope.depth + 1
 
     def add_variable(self, vartype, varname, funcparam = False):
         if funcparam:
@@ -83,6 +84,14 @@ class Scope:
 
     def get_variable_all(self):
         self.declaredOnly = False
+
+    def offset_sum(self):
+        sum=0
+        curr_scope=self
+        while(curr_scope is not None):
+            sum+=curr_scope.offset
+            curr_scope = curr_scope.prev_scope
+        return sum
 
 class Context:
     def __init__(self, codeaddr = 0x0000, heapaddr = 0x2000, hardkill = True):
@@ -147,16 +156,16 @@ class Context:
 
     def push_scope(self):
         self.scope = Scope(self, self.scope)
-        scopeoffset = self.scope.startoffset
+        startoffset = self.scope.startoffset
+        scopeoffset = startoffset
         if self.scope.prev_scope is not None:
             scopeoffset = scopeoffset - self.scope.prev_scope.startoffset
         if scopeoffset < 0:
             raise Error('Scope push error')
         if scopeoffset > 0:
             # self.scope.startoffset = scopeoffset
-            self.scope.offset = 0
             self.emit("""
-;STACKHEAD += {2}
+;depth {3}: STACKHEAD += {2}
                 psh cs
                 psh ci
                 .mv dsdi, :{0}
@@ -168,8 +177,8 @@ class Context:
                 .mv dsdi, :{0}
                 cal :poke16
                 pop ci
-                pop cs""".format(STACKHEAD, self.load_csci(scopeoffset), scopeoffset))
-        print("PUSH SCOPE (startoffset={0}, offset={1})".format(self.scope.startoffset, self.scope.offset))
+                pop cs""".format(STACKHEAD, self.load_csci(scopeoffset), scopeoffset, self.scope.depth))
+        print("PUSH SCOPE (startoffset={0}, depth={1})".format(self.scope.startoffset, self.scope.depth))
 
     def pop_scope(self):
         oldscope = self.scope
@@ -177,12 +186,12 @@ class Context:
         if self.scope is None:
             raise Error('Scope none error')
         scopeoffset = oldscope.startoffset - self.scope.startoffset
-        print("POP SCOPE (startoffset={0}, offset={1}, diff={2})".format(self.scope.startoffset, self.scope.offset, scopeoffset))
+        print("POP SCOPE (startoffset={0}, offset={1}, diff={2}, depth={3})".format(self.scope.startoffset, self.scope.offset, scopeoffset, self.scope.depth))
         if scopeoffset < 0:
             raise Error('Scope pop error')
         if scopeoffset > 0:
             self.emit("""
-;STACKHEAD -= {2}
+;depth {3}: STACKHEAD -= {2}
                 psh cs
                 psh ci
                 .mv dsdi, :{0}
@@ -192,7 +201,7 @@ class Context:
                 .mv dsdi, :{0}
                 cal :poke16
                 pop ci
-                pop cs""".format(STACKHEAD, self.load_dsdi(scopeoffset), scopeoffset))
+                pop cs""".format(STACKHEAD, self.load_dsdi(scopeoffset), scopeoffset, self.scope.depth))
 
     def get_function_call_label(self, function_name):
         if len(function_name) > 10:
