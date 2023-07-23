@@ -65,11 +65,16 @@ class Scope:
         if res is None:
             if self.prev_scope is not None:
                 res = self.prev_scope.get_variable(varname)
+
+                #print('VAR {0} data is {1}'.format(varname, res))
+                #print('PREV SCOPE start offset is {0}'.format(self.prev_scope.startoffset))
+                #print('CURR SCOPE start offset is {0}'.format(self.startoffset))
+
                 scopeoffset = self.startoffset - self.prev_scope.startoffset
                 rescopy = {
                     'name' : res['name'],
                     'type' : res['type'],
-                    'offset': res['startoffset'] - scopeoffset,
+                    'offset': res['startoffset'] - scopeoffset + res['offset'],
                     'startoffset': self.startoffset
                 }
                 
@@ -154,7 +159,7 @@ class Context:
                 .org 0x{0:04x}
 """.format(self.code_segment_addr))
 
-    def push_scope(self):
+    def push_scope(self, caller):
         self.scope = Scope(self, self.scope)
         startoffset = self.scope.startoffset
         scopeoffset = startoffset
@@ -178,15 +183,15 @@ class Context:
                 cal :poke16
                 pop ci
                 pop cs""".format(STACKHEAD, self.load_csci(scopeoffset), scopeoffset, self.scope.depth))
-        print("PUSH SCOPE (startoffset={0}, depth={1})".format(self.scope.startoffset, self.scope.depth))
+        print("PUSH SCOPE (startoffset={0}, depth={1}, caller={2})".format(self.scope.startoffset, self.scope.depth, caller))
 
-    def pop_scope(self):
+    def pop_scope(self, caller):
         oldscope = self.scope
         self.scope = self.scope.prev_scope
         if self.scope is None:
             raise Error('Scope none error')
         scopeoffset = oldscope.startoffset - self.scope.startoffset
-        print("POP SCOPE (startoffset={0}, offset={1}, diff={2}, depth={3})".format(self.scope.startoffset, self.scope.offset, scopeoffset, self.scope.depth))
+        print("POP SCOPE (startoffset={0}, offset={1}, diff={2}, depth={3}, caller={4})".format(self.scope.startoffset, self.scope.offset, scopeoffset, self.scope.depth, caller))
         if scopeoffset < 0:
             raise Error('Scope pop error')
         if scopeoffset > 0:
@@ -873,9 +878,11 @@ class EXPRESSION_TERM(Instruction):
     def __str__(self):
         return "TERM({})".format(self.term)
 
-    def emit(self, context):
+    def emit(self, context: Context):
+        print('TERM {0}'.format(self.term))
         if isinstance(self.term, str):
             var = context.get_variable(self.term)
+            print('TERM {0} IS VAR {1}'.format(self.term, var))
             offset = var['offset']
             oper = 'add16'
             if offset < 0:
@@ -1001,7 +1008,7 @@ class VARIABLE_ASSIGNEMENT(Instruction):
     def __str__(self):
         return '{0}={1};'.format(self.varname, self.expr)
 
-    def emit(self, context, funcCall = False):
+    def emit(self, context: Context, funcCall = False):
         print('{0}={1};'.format(self.varname, self.expr))
         variable_def = context.get_variable(self.varname)
         print('{0}'.format(variable_def))
@@ -1037,11 +1044,13 @@ class VARIABLE_ASSIGNEMENT(Instruction):
                 pop ds
                 cal :poke16""")
             return
-        if offset == 0:
+        if(variable_def['type'] == 'byte'):
             context.emit("""
                 pop di
                 pop ds
                 mov #dsdi, ci""")
+            return
+        self.context.add_error('Unknown type {0} in assignment'.format(variable_def['type']))
 
 @dataclass
 class CODE_BLOCK(Instruction):
@@ -1052,11 +1061,11 @@ class CODE_BLOCK(Instruction):
 
     def emit(self, context):
         currscope = context.scope
-        context.push_scope()
+        context.push_scope('BLOCK')
         for statement in self.statements:
             statement.emit(context)
         if currscope != context.scope:
-            context.pop_scope()
+            context.pop_scope('BLOCK')
 
 @dataclass
 class STATEMENT_IF(Instruction):
@@ -1125,7 +1134,7 @@ class STATEMENT_RETURN(Instruction):
 
     def emit(self, context):
         self.expr.emit(context)
-        context.pop_scope()
+        context.pop_scope('RET')
         context.emit("""
                 ret""")
 
@@ -1137,13 +1146,13 @@ class EXPRESSION_CALL(Instruction):
     def __str__(self):
         return "FUNCTION_CALL[{0}({1})]".format(self.function_name, self.params)
 
-    def emit(self, context):
+    def emit(self, context: Context):
         function_data = context.get_function_data(self.function_name)
         if function_data is None:
             context.add_error("Undeclared function {0}".format(self.function_name))
             return
 
-        context.push_scope()
+        context.push_scope('CALL')
 
         paramdata = function_data['params']
         paramstar = function_data['paramstar']
@@ -1175,7 +1184,7 @@ class EXPRESSION_CALL(Instruction):
         context.emit("""
                 cal :{0}""".format(function_data['label']))
 
-        context.pop_scope()
+        context.pop_scope('CALL')
 
 @dataclass
 class STATEMENT_COMMENT(Instruction):
@@ -1238,12 +1247,12 @@ class FUNCTION_DECLARATION(Instruction):
         context.emit("""
 ;FUNCTION {0}
 {1:<16}nop""".format(function_data['name'], function_data['label'] + ":"))
-        context.push_scope()
+        context.push_scope('FUNC')
         if not function_data['paramstar']:
             self.add_func_params(context, function_data)
 
         self.code.emit(context)
-        context.pop_scope()
+        context.pop_scope('FUNC')
         context.emit("""
                 ret
 ;END OF FUNCTION {0}""".format(function_data['name']))
