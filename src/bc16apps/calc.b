@@ -20,13 +20,29 @@ byte print_help()
     return 0;
 }
 
+byte add()
+{
+    word Pinputstr;
+    Pinputstr <- INPUTBUFFER;
+
+    puts("calc.add.1>");
+    readsn(Pinputstr, 6);
+
+    puts("calc.add.2>");
+    readsn(Pinputstr, 6);
+
+    puts("calc.add>");
+    puts("00000");
+    putnl();
+}
+
 byte runcommand()
 {
     word Pinputstr;
     Pinputstr <- INPUTBUFFER;
 
     puts("calc>");
-    readsn(Pinputstr, 32);
+    readsn(Pinputstr, 2);
 
     byte command;
     command <- peek8(Pinputstr);
@@ -37,6 +53,11 @@ byte runcommand()
     if(command = 'h')
     {
         print_help();
+    }
+
+    if(command = '+')
+    {
+        add();
     }
 
     if(command = 'q')
