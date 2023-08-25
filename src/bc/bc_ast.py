@@ -1102,7 +1102,6 @@ class STATEMENT_WHILE(Instruction):
 {0}:      nop""".format(label1))
         self.expr.emit(context)
         context.emit("""
-                cal :printhex16
                 mov a, cs
                 or ci
                 .mv csci, :{0}
