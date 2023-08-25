@@ -35,8 +35,10 @@ byte poke8(word Paddr, byte value)
 byte poke16(word Paddr, word value) 
 {
     Paddr;
-    asm "mov ds, cs";
-    asm "mov di, ci";
+    asm "psh cs";
+    asm "psh ci";
     value;
+    asm "pop di";
+    asm "pop ds";
     asm "cal :poke16";
 }

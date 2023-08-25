@@ -30,10 +30,12 @@ byte runcommand()
 
     byte command;
     command <- peek8(Pinputstr);
+    puts("command=");
+    putb(command);
+    putnl();
 
     byte result;
     result <- 1;
-    putb(result);
 
     if(command = 'h')
     {
@@ -48,6 +50,7 @@ byte runcommand()
     puts("res=");
     putb(result);
     putnl();
+
     return result;
 }
 
@@ -67,6 +70,7 @@ byte main()
         puts("cont=");
         putb(continue);
         putnl();
+        continue <- 0;
     }
 
     puts("bye");

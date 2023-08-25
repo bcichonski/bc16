@@ -32,9 +32,11 @@ byte puts(word Pstr)
 byte readsn(word Pbuf, byte maxlen)
 {
     Pbuf;
-    asm "mov ds, cs";
-    asm "mov di, ci";
+    asm "psh cs";
+    asm "psh ci";
     maxlen;
+    asm "pop di";
+    asm "pop ds";
     asm "cal :readstr";
     return 0;
 }

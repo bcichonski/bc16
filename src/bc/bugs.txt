@@ -1,0 +1,3 @@
+return has to be last instruction in function, not working in nested blocks
+
+passing functions parameters through to other functions may fail
