@@ -1,18 +1,5 @@
-#include stdio.b
-
-byte baz() 
-{
-    return 2;
-}
-
-byte foo()
-{
-    return baz();
-}
-
 byte main()
 {
-    byte res;
-    res <- foo();
-    putb(res);
+    word a;
+    a <- 0x1234 * 0x0011;
 }

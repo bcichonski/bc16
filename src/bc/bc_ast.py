@@ -290,7 +290,7 @@ class Context:
             .def peek16, 0x03b8
 ;=============
 ; ADD16(csci,dsdi) - returns value under csci address (2 bytes) 
-;                    return os error 0x10 in case of overflow                
+;                    return os error 0x12 in case of overflow                
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
 ; OUT:  csci - sum of csci and dsdi
@@ -298,12 +298,78 @@ class Context:
             .def add16, 0x03c0
 ;=============
 ; SUB16(csci,dsdi) - returns value under csci address (2 bytes) 
-;                    return os error 0x11 in case of overflow                
+;                    return os error 0x13 in case of overflow                
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
 ; OUT:  csci - substracts dsdi from csci
 ;       a    - rubbish
             .def sub16, 0x03db
+;=============
+; MUL16(csci,dsdi) - returns value under csci address (2 bytes) 
+;                    return os error 0x20 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - mutiplies csci by dsdi
+;       dsdi - unchanged
+;       a    - rubbish
+mul16:       psh ds
+             psh di
+             cal :gteq16
+             jmr nz, :mul16_swpskp
+             psh cs
+             psh ds
+             pop cs
+             pop ds
+             psh ci
+             psh di
+             pop ci
+             pop di
+mul16_swpskp:xor a
+             psh a
+             psh a
+mul16_loop:  mov a, di
+             and 0x01
+             jmr z, :mul16_by2
+             psh cs
+             psh ci
+mul16_by2:   mov a, cs
+             shl 0x01
+             mov cs, a
+             mov a, ci
+             shl 0x01
+             jmr no, :mul16_by2nst
+             psh a
+             mov a, cs
+             or 0x01
+             mov cs, a
+             pop a
+mul16_by2nst:mov ci, a
+             mov a, di
+             shr 0x01
+             mov di, a
+             mov a, ds
+             and 0x01
+             jmr z, :mul16_by2nmt
+             mov a, di
+             or 0x80
+             mov di, a
+mul16_by2nmt:mov a, ds
+             shr 0x01
+             mov ds, a
+             or  di
+             dec a
+             jmr nz, :mul16_loop
+mul16_addlp: pop di
+             pop ds
+             mov a, di
+             or  ds
+             jmr z, :mul16_ret
+             cal :add16
+             xor a
+             jmr z, :mul16_addlp
+mul16_ret:   pop di
+             pop ds
+             ret
 ;=============
 ; READSTR(#dsdi, ci) - reads characters to the buffer
 ; IN:   dsdi - buffer address for chars

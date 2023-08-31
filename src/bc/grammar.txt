@@ -55,7 +55,7 @@ asm "copied to asm"
 ======================
 code segment (user code + system subroutines)
 data segment (all strings)
-stack segment
+stack segment  
 heap segment (for free alocations)
 
 
