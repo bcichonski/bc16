@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 from pathlib import Path
 from bc_ast import *
 from bc_grammar import program
@@ -25,6 +26,7 @@ def compile(ast, verbose, btap):
     if len(context.errors) > 0:
         for error in context.errors:
             print('ERROR: {}'.format(error))
+        sys.exit('There were compilation errors.')
     elif verbose:
         print('No errors')
     
