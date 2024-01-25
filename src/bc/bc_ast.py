@@ -66,19 +66,21 @@ class Scope:
             if self.prev_scope is not None:
                 res = self.prev_scope.get_variable(varname)
 
-                #print('VAR {0} data is {1}'.format(varname, res))
-                #print('PREV SCOPE start offset is {0}'.format(self.prev_scope.startoffset))
-                #print('CURR SCOPE start offset is {0}'.format(self.startoffset))
+                print('1VAR {0} data is {1}'.format(varname, res))
+                print('PREV SCOPE start offset is {0}'.format(self.prev_scope.startoffset))
+                print('CURR SCOPE start offset is {0}'.format(self.startoffset))
 
                 scopeoffset = self.startoffset - self.prev_scope.startoffset
                 rescopy = {
                     'name' : res['name'],
                     'type' : res['type'],
-                    'offset': res['startoffset'] - scopeoffset + res['offset'],
+                    'offset': res['offset'] - scopeoffset,
                     'startoffset': self.startoffset
                 }
                 
                 res = rescopy
+
+                print('2VAR {0} data is {1}'.format(varname, res))
 
         if res is None:    
             self.context.add_error("Undeclared variable {0}".format(varname))
@@ -992,6 +994,15 @@ class EXPRESSION_UNARY(Instruction):
                 mov a, #csci
                 mov cs,ds
                 mov ci,a""")
+        elif self.operator == '!':
+            self.operand.emit(context)
+            context.emit("""
+                mov a, cs
+                or  ci
+                mov a, f
+                and 0x01
+                mov cs,0x00
+                mov ci, a""")
         else:
             context.add_error(
                 "Unknown unary operator '{0}'".format(self.operator))
