@@ -66,9 +66,9 @@ class Scope:
             if self.prev_scope is not None:
                 res = self.prev_scope.get_variable(varname)
 
-                print('1VAR {0} data is {1}'.format(varname, res))
-                print('PREV SCOPE start offset is {0}'.format(self.prev_scope.startoffset))
-                print('CURR SCOPE start offset is {0}'.format(self.startoffset))
+                #print('1VAR {0} data is {1}'.format(varname, res))
+                #print('PREV SCOPE start offset is {0}'.format(self.prev_scope.startoffset))
+                #print('CURR SCOPE start offset is {0}'.format(self.startoffset))
 
                 scopeoffset = self.startoffset - self.prev_scope.startoffset
                 rescopy = {
@@ -80,7 +80,7 @@ class Scope:
                 
                 res = rescopy
 
-                print('2VAR {0} data is {1}'.format(varname, res))
+                #print('2VAR {0} data is {1}'.format(varname, res))
 
         if res is None:    
             self.context.add_error("Undeclared variable {0}".format(varname))
@@ -326,7 +326,14 @@ mul16:       psh ds
              psh di
              pop ci
              pop di
-mul16_swpskp:xor a
+mul16_swpskp:mov a,ds
+             or di
+             jmr nz,:mul16_calc
+             xor a
+             mov cs, a
+             mov ci, a
+             jmr z,:mul16_ret
+mul16_calc:  xor a
              psh a
              psh a
 mul16_loop:  mov a, di
@@ -1047,6 +1054,16 @@ class EXPRESSION_BINARY(Instruction):
                     context.add_error(
                         "Unknown binary operator '{0}'".format(self.operator))
                 continue
+            if lib == 'sub16': #reverse for substraction - hotfix
+                context.emit("""
+                psh cs
+                psh ci
+                psh ds
+                psh di
+                pop ci
+                pop cs
+                pop di
+                pop ds""")
             context.emit("""
                 cal :{0}""".format(lib))
 

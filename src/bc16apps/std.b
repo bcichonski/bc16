@@ -38,17 +38,22 @@ word parsew(word Pbuf, byte maxlen)
 {
     word value;
     byte digit;
-    word Pcurr;
 
-    Pcurr <- Pbuf;
     value <- 0;
+
     while (maxlen) {
-        digit <- peek8(Pcurr);
-        digit <- digit - '0';
+        digit <- peek8(Pbuf);
 
-        value <- value * 10 + digit;
+        if(!digit) {
+          maxlen <- 1;
+        }
 
-        Pcurr <- Pcurr + 1;
+        if(digit) {
+          digit <- digit - '0';
+          value <- value * 10 + digit;
+        }
+
+        Pbuf <- Pbuf + 1;
         maxlen <- maxlen - 1;
     }
 
