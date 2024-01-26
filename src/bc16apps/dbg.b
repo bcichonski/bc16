@@ -19,7 +19,7 @@ byte putnl()
     return 0;
 }
 
-word parsew(word Pbuf, byte maxlen)
+word parsedecw(word Pbuf, byte maxlen)
 {
     word value;
     byte digit;
@@ -49,9 +49,12 @@ byte main()
 {
     word Pbuf;
     word val;
-    Pbuf <- "3210";
+    Pbuf <- "123";
     putw(Pbuf);
-    val <- parsew(Pbuf, 6);
+    putnl();
+    val <- parsedecw(Pbuf, 6);
     putw(val);
+    putnl();
     putw(Pbuf);
+    putnl();
 }

@@ -28,17 +28,17 @@ byte add()
     puts("calc.add.1>");
     readsn(Pinputstr, 6);
     word add1;
-    add1 <- parsew(Pinputstr, 6);
+    add1 <- parsedecw(Pinputstr, 6);
 
     puts("calc.add.2>");
     readsn(Pinputstr, 6);
     word add2;
-    add2 <- parsew(Pinputstr, 6);
+    add2 <- parsedecw(Pinputstr, 6);
 
     add1 <- add1 + add2;
 
     puts("calc.add>");
-    putw(add1);
+    putdecw(add1);
     putnl();
 }
 

@@ -34,7 +34,7 @@ byte poke16(word Paddr, word value)
     asm "cal :poke16";
 }
 
-word parsew(word Pbuf, byte maxlen)
+word parsedecw(word Pbuf, byte maxlen)
 {
     word value;
     byte digit;
