@@ -9,7 +9,7 @@ expressions
 - constant byte 0-255
 - constant byte 'char'
 
-- unary operator & - gets value from address, ! - negate 
+- unary operator & - gets value from address, ! - negate(logical) 
 - binary operators + - / * > < =
 - parenthness ( )
 - variable value

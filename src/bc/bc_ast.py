@@ -291,7 +291,7 @@ class Context:
 ;       a    - rubbish
             .def peek16, 0x03b8
 ;=============
-; ADD16(csci,dsdi) - returns value under csci address (2 bytes) 
+; ADD16(csci,dsdi) - returns value
 ;                    return os error 0x12 in case of overflow                
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
@@ -299,7 +299,7 @@ class Context:
 ;       a    - rubbish
             .def add16, 0x03c0
 ;=============
-; SUB16(csci,dsdi) - returns value under csci address (2 bytes) 
+; SUB16(csci,dsdi) - returns value 
 ;                    return os error 0x13 in case of overflow                
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
@@ -307,8 +307,8 @@ class Context:
 ;       a    - rubbish
             .def sub16, 0x03db
 ;=============
-; MUL16(csci,dsdi) - returns value under csci address (2 bytes) 
-;                    return os error 0x20 in case of overflow                
+; MUL16(csci,dsdi) - returns value 
+;                    return os error 0x12 in case of overflow                
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
 ; OUT:  csci - mutiplies csci by dsdi
@@ -380,6 +380,65 @@ mul16_ret:   pop di
              pop ds
              ret
 ;=============
+; DIV16(csci,dsdi) - returns value 
+;                    return os error 0x13 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - divides csci by dsdi
+;       dsdi - unchanged
+;       a    - rubbish
+div16:       psh cs
+             psh ci
+             mov cs, ds
+             mov ci, di
+             .mv dsdi, :sys_div16tmp
+             cal :poke16
+             mov ds, cs
+             mov di, ci
+             pop ci
+             pop cs
+             cal :gteq16
+             jmr z, :div16_zero
+             mov a, 0x80
+             and ds
+             jmr nz, :div16_one
+             xor a
+             psh a
+             inc a
+             psh a
+div16_loop:  psh ds
+             psh di
+             cal :sub16
+             pop di
+             pop ds
+             cal :gteq16
+             jmr z, :div16_end
+             pop di
+             pop ds
+             cal :inc16
+             psh ds
+             psh di
+             psh cs
+             psh ci
+             .mv dsdi, :sys_div16tmp
+             cal :peek16
+             mov ds, cs
+             mov di, ci
+             pop ci
+             pop cs        
+             xor a
+             jmr z, :div16_loop
+div16_end:   pop ci
+             pop cs
+             ret          
+div16_one:   mov cs, 0x00
+             mov ci, 0x01
+             jmr nz, :div16_ret
+div16_zero:  xor a
+             mov cs, a
+             mov ci, a
+div16_ret:   ret
+;=============
 ; READSTR(#dsdi, ci) - reads characters to the buffer
 ; IN:   dsdi - buffer address for chars
 ;         ci - length of the buffer (since last char has to be 0x00 we can enter one less)
@@ -425,7 +484,7 @@ mul16_ret:   pop di
 ;       dsdi - argument 2
 ; OUT:  a - 1 if csci >= dsdi
 ;       a - 0 otherwise
-gteq16:        mov a, cs
+gteq16:     mov a, cs
             sub ds
             jmr o, :gteq16_false
             jmr nz, :gteq16_true
@@ -508,6 +567,7 @@ seek_end:      pop di
 ;SYS DATA
             .def var_promptbuf, 0x0bcf
             .def var_user_mem, 0x0bcb
+sys_div16tmp: .db 0x00, 0x00
 {1}:  .db 0x{2:02x}, 0x{3:02x}
 {0}: nop
 """.format(STACKHEAD, HEAPHEAD, hi(self.heap_segment_addr), lo(self.heap_segment_addr)))
@@ -1046,24 +1106,16 @@ class EXPRESSION_BINARY(Instruction):
                 psh ci""")
             elem[1].emit(context)
             context.emit("""
-                pop di
-                pop ds""")
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs""")
             lib = oper2lib[elem[0]]
             if not lib:
                 if not self.logic(context, elem[0]):
                     context.add_error(
                         "Unknown binary operator '{0}'".format(self.operator))
                 continue
-            if lib == 'sub16': #reverse for substraction - hotfix
-                context.emit("""
-                psh cs
-                psh ci
-                psh ds
-                psh di
-                pop ci
-                pop cs
-                pop di
-                pop ds""")
             context.emit("""
                 cal :{0}""".format(lib))
 
