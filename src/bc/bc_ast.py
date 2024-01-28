@@ -508,14 +508,14 @@ eq16_true:  mov a, 0x01
 eq16_false: xor a
             ret
 ;=============
-; STACKHEADROLL(csci) - increases SYS_STACKHEAD by csci and saves new value
+; STACKOFFSCALC(csci,a) - modifies SYS_STACKHEAD by csci and stores new value back in csci
 ; IN: csci - value to increase
 ;        a - 0x00 - add
 ;            0x01 - sub
-; OUT:csci - value of SYS_STACKHEAD
+; OUT:csci - value of SYS_STACKHEAD with offset
 ;     dsdi - address of SYS_STACKHEAD
 ;        a - rubbish
-stackheadroll: psh a
+stackoffscalc: psh a
                psh cs
                psh ci
                .mv dsdi, :{0}
@@ -524,14 +524,91 @@ stackheadroll: psh a
                pop ds
                pop a
                and a
-               jmr nz, :stheadrl_sub
+               jmr nz, :stoffclc_sub
                cal :add16
                xor a
-               jmr z, :stheadrl_end
-stheadrl_sub:  cal :sub16  
-stheadrl_end:  .mv dsdi, :{0}
+               jmr z, :stoffclc_end
+stoffclc_sub:  cal :sub16  
+stoffclc_end:  .mv dsdi, :{0}
+               ret
+;=============
+; STACKHEADROLL(csci, a) - modifies SYS_STACKHEAD by csci and saves new value
+; IN: csci - value to increase
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:csci - value of SYS_STACKHEAD
+;     dsdi - address of SYS_STACKHEAD
+;        a - rubbish
+stackheadroll: cal :stackoffscalc
                cal :poke16
                .mv dsdi, :{0}
+               ret
+;=============
+; STACKVARGET8(dsdi, a) - loads value of the variable of given offset dsdi from SYS_STACKHEAD to csci
+; IN: dsdi - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:ci - value of variable
+;     cs - set to 0
+;     dsdi - address of SYS_STACKHEAD
+;        a - rubbish
+stackvarget8:  mov cs, ds
+               mov ci, di
+               cal :stackoffscalc   
+               mov a, #csci
+               mov cs, 0x00
+               mov ci, a
+               ret
+;=============
+; STACKVARGET16(dsdi, a) - loads value of the variable of given offset dsdi from SYS_STACKHEAD to csci
+; IN: dsdi - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:csci - value of variable
+;     dsdi - address of variable + 1
+;        a - rubbish
+stackvarget16: mov cs, ds
+               mov ci, di
+               cal :stackoffscalc
+               mov ds, cs
+               mov di, ci   
+               cal :peek16
+               ret
+;=============
+; STACKVARSET8(ci,dsdi, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
+; IN: ci - value
+;     dsdi - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:csci - value of variable
+;     dsdi - address of SYS_STACKHEAD
+;        a - ci
+stackvarset8:  psh ci
+               mov cs, ds
+               mov ci, di
+               cal :stackoffscalc   
+               pop a
+               mov #csci, a
+               ret
+;=============
+; STACKVARSET16(csci,dsdi, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
+; IN: csci - value
+;     dsdi - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:csci - value
+;     dsdi - address of variable + 1
+;        a - ci
+stackvarset16: psh cs
+               psh ci
+               mov cs, ds
+               mov ci, di
+               cal :stackoffscalc   
+               mov ds, cs
+               mov di, ci
+               pop ci
+               pop cs
+               cal :poke16
                ret
 ;=============
 ; MALLOC(csci) - allocates csci bytes on the program heap
@@ -636,28 +713,20 @@ class EXPRESSION_TERM(Instruction):
             var = context.get_variable(self.term)
             print('TERM {0} IS VAR {1}'.format(self.term, var))
             offset = var['offset']
-            oper = 'add16'
+            oper = 'xor a'
             if offset < 0:
-                oper = 'sub16'
+                oper = 'mov a, 0x01'
                 offset = -offset
+            varget = 'stackvarget16'
+            if var['type'] == 'byte':
+                varget = 'stackvarget8'
+
             context.emit("""
-            .mv dsdi,:{0}
-            cal :peek16""".format(STACKHEAD))
-            if offset != 0:
-                context.emit("""
-                {0}
-            cal :{1}""".format(context.load_dsdi(offset), oper))
-            context.emit("""
-            mov ds, cs
-            mov di, ci""")
-            if var['type'] == 'word':
-                context.emit("""
-            cal :peek16""")
-            else:
-                context.emit("""
-            mov cs, 0x00
-            mov ci, #dsdi""")
+            {0}
+            {1}
+            cal :{2}""".format(context.load_dsdi(offset), oper, varget))
             return
+        
         self.term.emit(context)        
 
 @dataclass
@@ -776,42 +845,27 @@ class VARIABLE_ASSIGNEMENT(Instruction):
         variable_def = context.get_variable(self.varname)
         print('{0}'.format(variable_def))
         offset = variable_def['offset']
-        oper = 'add16'
+        oper = 'xor a'
         if offset < 0:
-            oper = 'sub16'
+            oper = 'mov a, 0x01'
             offset = -offset
-        if offset == 0:
-            context.emit("""
-;{1} offset zero
-                .mv dsdi, :{0}
-                cal :peek16
-                psh cs
-                psh ci""".format(STACKHEAD, variable_def['name']))
-        else:
-            context.emit("""
-;{3} offset {4} OPER {2}
-                .mv dsdi, :{0}
-                cal :peek16
-                {1}
-                cal :{2}
-                psh cs
-                psh ci""".format(STACKHEAD, context.load_dsdi(offset), oper, variable_def['name'], offset))
+        varset = 'stackvarset16'
+        if(variable_def['type'] == 'byte'):
+            varset = 'stackvarset8'
+        
         try:
             if funcCall: context.get_variable_declared_only()
             self.expr.emit(context)
         finally:
             if funcCall: context.get_variable_all()
-        if(variable_def['type'] == 'word'):
-            context.emit("""
-                pop di
-                pop ds
-                cal :poke16""")
-            return
-        if(variable_def['type'] == 'byte'):
-            context.emit("""
-                pop di
-                pop ds
-                mov #dsdi, ci""")
+        
+        context.emit("""
+;{2} offset {3} OPER {1}
+            {0}
+            {1}
+            cal :{4}""".format(context.load_dsdi(offset), oper, variable_def['name'], offset, varset))
+
+        if(variable_def['type'] == 'word' or variable_def['type'] == 'byte'):
             return
         self.context.add_error('Unknown type {0} in assignment'.format(variable_def['type']))
 

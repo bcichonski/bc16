@@ -4,3 +4,10 @@ code length 5459 (0x1553)
 code seg 0x1000
 heap seg 0x3000 (not used)
 stack seg ~0x2554
+bc v 0.6.0 (240129)
+code length 4489 (0x1189) less by 18%
+code seg 0x1000
+heap seg 0x3000 (not used)
+stack seg ~0x2189
+code length 3860
+code length 3409 less by 38% !!!
