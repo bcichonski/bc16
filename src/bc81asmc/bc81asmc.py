@@ -110,14 +110,11 @@ def main():
     ast = program.parse(input)
     print('Generating code')
     output = compile(ast, args.verbose)
-    if(args.btap):
-        outfile = Path(args.infile).with_suffix(".btap")
-        _, short_fname = os.path.split(Path(args.infile).with_suffix(""))
-        save_output_btap(outfile, short_fname, output)
-    else:
-        outfile = Path(args.infile).with_suffix(".b81")
-        print('Saving output file {}'.format(outfile))
-        save_output_file(outfile, output.bytes)
+    
+    outfile = Path(args.infile).with_suffix(".btap")
+    _, short_fname = os.path.split(Path(args.infile).with_suffix(""))
+    save_output_btap(outfile, short_fname, output)
+
     print('Done!')
 
 if __name__ == "__main__":

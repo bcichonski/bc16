@@ -9,11 +9,8 @@ def read_input_file(fname):
     with open(fname, 'r', encoding='utf8') as file_handle:
         return file_handle.read()
 
-def compile(ast, verbose, btap):
-    if btap:
-        context = Context(0x1000, 0x3000, False)
-    else:
-        context = Context()
+def compile(ast, verbose):
+    context = Context(0x1000, 0x3000, False)
     
     if(verbose):
         print("{}".format(ast))
@@ -21,7 +18,7 @@ def compile(ast, verbose, btap):
 
     context.add_preamble()
     context.add_data_segment()
-    context.add_stdlib(btap)
+    context.add_stdlib()
     
     if len(context.errors) > 0:
         for error in context.errors:
@@ -80,17 +77,16 @@ def preprocess(input, verbose, defaultdir):
 """.join(newlines)
 
 def main():
-    parser = argparse.ArgumentParser(description='bc - b language compiler for bc8181 cpu v 0.5.0 (240128)')
+    parser = argparse.ArgumentParser(description='bc - b language compiler for bc8181 cpu v 0.6.0 (240128)')
     parser.add_argument('infile', type=str,
         help='input file name')
     parser.add_argument('--verbose', action='store_true',
         help='Be more verbose')
     parser.add_argument('--btap', action='store_true',
-        help='Save btap file')
+        help='Save btap file [OBSOLETE]')
     args = parser.parse_args()
     infile = args.infile
     verbose = args.verbose
-    btap = args.btap
     print('Reading input file {}'.format(infile))
     input = read_input_file(infile)
     input = preprocess(input, verbose, os.path.dirname(infile))
@@ -101,7 +97,7 @@ def main():
     print('Parsing code')
     ast = program.parse(input)
     print('Generating code')
-    output = compile(ast, verbose, btap)
+    output = compile(ast, verbose)
     outfile = Path(infile).with_suffix(".basm")
     print('Saving output file {}'.format(outfile))
     save_output_file(outfile, output)
