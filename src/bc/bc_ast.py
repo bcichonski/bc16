@@ -319,20 +319,24 @@ mul16:       psh ds
              cal :gteq16
              jmr nz, :mul16_swpskp
              psh cs
-             psh ds
-             pop cs
+             mov cs, ds
              pop ds
              psh ci
-             psh di
-             pop ci
+             mov ci, di
              pop di
 mul16_swpskp:mov a,ds
              or di
-             jmr nz,:mul16_calc
+             jmr nz,:mul16_isone
              xor a
              mov cs, a
              mov ci, a
              jmr z,:mul16_ret
+mul16_isone: mov a, ds
+             jmr nz, :mul16_calc
+             mov a, di
+             dec a
+             jmr nz, :mul16_calc
+             jmr z, :mul16_ret
 mul16_calc:  xor a
              psh a
              psh a
