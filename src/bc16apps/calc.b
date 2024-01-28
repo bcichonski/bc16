@@ -93,7 +93,7 @@ byte runcommand()
 
 byte main()
 {
-    puts("calc v.0.1");
+    puts("calc v1.0");
     putnl();
     puts("type h for help");
     putnl();
