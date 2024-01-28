@@ -1,6 +1,7 @@
 byte putdigit(byte digit)
 {
     digit;
+    asm "mov a, ci";
     asm "cal :printhex4";
     return 0;
 }

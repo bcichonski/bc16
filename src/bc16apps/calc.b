@@ -20,25 +20,39 @@ byte print_help()
     return 0;
 }
 
-byte add()
+byte calc(byte operator)
 {
     word Pinputstr;
     Pinputstr <- INPUTBUFFER;
 
-    puts("calc.add.1>");
+    puts("1>");
     readsn(Pinputstr, 6);
-    word add1;
-    add1 <- parsedecw(Pinputstr, 6);
+    word arg1;
+    arg1 <- parsedecw(Pinputstr, 6);
 
-    puts("calc.add.2>");
+    puts("2>");
     readsn(Pinputstr, 6);
-    word add2;
-    add2 <- parsedecw(Pinputstr, 6);
+    word arg2;
+    arg2 <- parsedecw(Pinputstr, 6);
 
-    add1 <- add1 + add2;
+    if(operator = '+') {
+        arg1 <- arg1 + arg2;
+    }
+    
+    if(operator = '-') {
+        arg1 <- arg1 - arg2;
+    }
 
-    puts("calc.add>");
-    putdecw(add1);
+    if(operator = '*') {
+        arg1 <- arg1 * arg2;
+    }
+
+    if(operator = '/') {
+        arg1 <- arg1 / arg2;
+    }
+
+    puts("res>");
+    putdecw(arg1);
     putnl();
 }
 
@@ -55,20 +69,23 @@ byte runcommand()
 
     byte result;
     result <- 1;
+    byte handled;
+    handled <- 0;
 
     if(command = 'h')
     {
         print_help();
-    }
-
-    if(command = '+')
-    {
-        add();
+        handled <- 1;
     }
 
     if(command = 'q')
     {
         result <- 0;
+        handled <- 1;
+    }
+
+    if(!handled) {
+        calc(command);
     }
 
     return result;
