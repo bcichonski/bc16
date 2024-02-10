@@ -80,32 +80,75 @@ word malloc(word size)
         asm "cal :poke16";
     }
 
-    if(!(PfirstFree = PlastNode)) {
+    if(!(PfirstFree = PlastNode)) 
+    {
         puts("case b");
         putnl();
-        PlastNode - 2;
-        asm "psh cs";
-        asm "psh ci";
-        PfirstFree;
-        asm "pop di";
-        asm "pop ds";
-        asm "cal :poke16";
-        
-        PfirstFree;
-        asm "psh cs";
-        asm "psh ci";
-        size;
-        asm "pop di";
-        asm "pop ds";
-        asm "cal :poke16";
 
-        asm "cal :inc16";
-        asm "psh ds";
-        asm "psh di";
-        PfirstFree + size;
-        asm "pop di";
-        asm "pop ds";
-        asm "cal :poke16";
+        word PcurrNodeLen;
+        PcurrNodeLen <- #PfirstFree;
+
+        if (PcurrNodeLen) 
+        {
+            puts("case b1");
+            putnl();
+
+            word PnewNodeAddr;
+            PnewNodeAddr <- PfirstFree + 4 + PcurrNodeLen;
+
+            if(PnewNodeAddr >= PlastNode) 
+            {
+                puts("nope");
+                putnl();
+            }
+
+            PfirstFree + 2;
+            asm "psh cs";
+            asm "psh ci";
+            PnewNodeAddr;
+            asm "pop di";
+            asm "pop ds";
+            asm "cal :poke16";
+
+            PnewNodeAddr;
+            asm "psh cs";
+            asm "psh ci";
+            size;
+            asm "pop di";
+            asm "pop ds";
+            asm "cal :poke16";
+
+            asm "cal :inc16";
+            asm "psh ds";
+            asm "psh di";
+            PlastNode;
+            asm "pop di";
+            asm "pop ds";
+            asm "cal :poke16";
+
+            PfirstFree <- PnewNodeAddr + 4;
+        }
+
+        if (!PcurrNodeLen) {
+            puts("case b2");
+            putnl();
+
+            PfirstFree;
+            asm "psh cs";
+            asm "psh ci";
+            size;
+            asm "pop di";
+            asm "pop ds";
+            asm "cal :poke16";
+
+            asm "cal :inc16";
+            asm "psh ds";
+            asm "psh di";
+            PlastNode;
+            asm "pop di";
+            asm "pop ds";
+            asm "cal :poke16";
+        }
     }
 
     return PfirstFree;
@@ -124,11 +167,57 @@ byte mfree(word Phandle)
     return 0;
 }
 
+word mhead()
+{
+    asm ".mv dsdi, :sys_heaphead";
+    asm "cal :peek16";
+}
+
+word mtotal()
+{
+    word Pcurr;
+    word Plast;
+
+    Pcurr <- mhead();
+    puts("#sys_heaphead: ");
+    putwnl(Pcurr);
+
+    Plast <- Pcurr;
+    
+    while(Pcurr) {
+        puts("curr: ");
+        putwnl(Pcurr);
+
+        Plast <- Pcurr;
+        Pcurr <- #(Pcurr + 2);
+
+        puts("#curr: ");
+        putwnl(Pcurr);
+    }
+
+    Pcurr;
+    asm "cal :dec16";
+    asm "mov cs, ss";
+    asm "mov ci, si";
+    asm "cal :poke16";
+
+    puts("sssi: ");
+    putwnl(Pcurr);
+    puts("last: ");
+    putwnl(Plast);
+
+    Pcurr <- Pcurr - Plast;
+
+    return Pcurr;
+}
+
 byte main()
 {
     word Pbuf;
     word Pbuf2;
     word Pbuf3;
+    puts("mtotal: ");
+    putwnl(mtotal());
     Pbuf <- malloc(16);
     puts("malloc(16): ");
     putwnl(Pbuf);
@@ -144,4 +233,16 @@ byte main()
     Pbuf <- malloc(8);
     puts("malloc(8): ");
     putwnl(Pbuf);
+
+    //8 not working!!!
+    Pbuf <- malloc(4);
+    puts("malloc(4): ");
+    putwnl(Pbuf);
+
+    Pbuf <- malloc(128);
+    puts("malloc(128): ");
+    putwnl(Pbuf);
+
+    puts("mtotal: ");
+    putwnl(mtotal());
 }

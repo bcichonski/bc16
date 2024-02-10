@@ -396,7 +396,9 @@ mseek:      .mv dsdi, :sys_seektmp
             cal :peek16
             mov ds, cs
             mov di, ci
-mseek_loop: cal :peek16
+mseek_loop: psh ds
+            psh di
+            cal :peek16
             psh cs
             psh ci
             cal :inc16
@@ -427,9 +429,13 @@ mseek_loop: cal :peek16
             jmr nz, :mseek_ret
             pop di
             pop ds
+            pop a
+            pop a
             xor a
             jmr z, :mseek_loop
 mseek_end:  pop a
+            pop a
+            pop a
             pop a
             pop a
             pop a
@@ -438,6 +444,8 @@ mseek_end:  pop a
             ret
 mseek_ret:  pop di
             pop ds
+            pop ci
+            pop cs
             ret  
 ;=============
 ;SYS DATA

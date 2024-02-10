@@ -294,7 +294,7 @@ class EXPRESSION_UNARY(Instruction):
         return "{0} {1}".format(self.operand, self.operator)
 
     def emit(self, context):
-        if self.operator == '&':
+        if self.operator == '#':
             self.operand.emit(context)
             context.emit("""
                 mov ds, cs

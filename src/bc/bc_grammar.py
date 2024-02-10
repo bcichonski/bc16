@@ -42,10 +42,10 @@ conststring = lexeme(quotedstr)\
     .map(EXPRESSION_CONST_STR)\
     .desc("Constant string")
 
-unary_operator = lexeme(string('&') | string('!'))
+unary_operator = lexeme(string('#') | string('!'))
 binary_factor = lexeme(string('*') | string('/'))
 binary_sum = lexeme(string('+') | string('-'))
-binary_comp = lexeme(string('>') | string('<'))
+binary_comp = lexeme(string('<=') | string('>=') | string('>') | string('<'))
 binary_eq = lexeme(string('=') | string('!='))
 expression = forward_declaration()
 expression_functioncall = seq(function_name = ident, params = ignore >> leftpar >> ignore >> nl.optional() >> ignore >> expression.sep_by(comma) << ignore << nl.optional() << ignore << rightpar << ignore).combine_dict(EXPRESSION_CALL).desc("function call")

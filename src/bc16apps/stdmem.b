@@ -35,7 +35,7 @@ word malloc(word size)
     asm "cal :poke16";
 
     if(PfirstFree = PlastNode) {
-        PlastNode - 4;
+        PfirstFree - 4;
         asm "psh cs";
         asm "psh ci";
         size;
@@ -51,35 +51,64 @@ word malloc(word size)
         asm "cal :poke16";
     }
 
-    if(!(PfirstFree = PlastNode)) {
-        PlastNode - 2;
-        asm "psh cs";
-        asm "psh ci";
-        PfirstFree;
-        asm "pop di";
-        asm "pop ds";
-        asm "cal :poke16";
-        
-        PfirstFree;
-        asm "psh cs";
-        asm "psh ci";
-        size;
-        asm "pop di";
-        asm "pop ds";
-        asm "cal :poke16";
+    if(!(PfirstFree = PlastNode)) 
+    {
+        word PcurrNodeLen;
+        PcurrNodeLen <- #PfirstFree;
 
-        asm "cal :inc16";
-        asm "psh ds";
-        asm "psh di";
-        PfirstFree + size;
-        asm "pop di";
-        asm "pop ds";
-        asm "cal :poke16";
+        if (PcurrNodeLen) 
+        {
+            word PnewNodeAddr;
+            PnewNodeAddr <- PfirstFree + 4 + PcurrNodeLen;
+
+            PfirstFree + 2;
+            asm "psh cs";
+            asm "psh ci";
+            PnewNodeAddr;
+            asm "pop di";
+            asm "pop ds";
+            asm "cal :poke16";
+
+            PnewNodeAddr;
+            asm "psh cs";
+            asm "psh ci";
+            size;
+            asm "pop di";
+            asm "pop ds";
+            asm "cal :poke16";
+
+            asm "cal :inc16";
+            asm "psh ds";
+            asm "psh di";
+            PlastNode;
+            asm "pop di";
+            asm "pop ds";
+            asm "cal :poke16";
+
+            PfirstFree <- PnewNodeAddr + 4;
+        }
+
+        if (!PcurrNodeLen) {
+            PfirstFree;
+            asm "psh cs";
+            asm "psh ci";
+            size;
+            asm "pop di";
+            asm "pop ds";
+            asm "cal :poke16";
+
+            asm "cal :inc16";
+            asm "psh ds";
+            asm "psh di";
+            PlastNode;
+            asm "pop di";
+            asm "pop ds";
+            asm "cal :poke16";
+        }
     }
 
     return PfirstFree;
 }
-
 
 byte mfree(word Phandle)
 {
@@ -94,7 +123,32 @@ byte mfree(word Phandle)
     return 0;
 }
 
-//return how much free heap is left, value is calculated including cpu stack at given time
-word total()
+word mhead()
 {
+    asm ".mv dsdi, :sys_heaphead";
+    asm "cal :peek16";
+}
+
+word mtotal()
+{
+    word Pcurr;
+    word Plast;
+
+    Pcurr <- mhead();
+    Plast <- Pcurr;
+    
+    while(Pcurr) {
+        Plast <- Pcurr;
+        Pcurr <- #(Pcurr + 2);
+    }
+
+    Pcurr;
+    asm "cal :dec16";
+    asm "mov cs, ss";
+    asm "mov ci, si";
+    asm "cal :poke16";
+
+    Pcurr <- Pcurr - Plast;
+
+    return Pcurr;
 }
