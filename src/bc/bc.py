@@ -65,6 +65,10 @@ def preprocess(input, verbose, defaultdir):
             i += 1
             continue
 
+        if(newline.startswith('//')):
+            i += 1
+            continue
+
         for key in defines:
             val = defines[key]
             newline = newline.replace(key, val)
