@@ -376,8 +376,8 @@ class EXPRESSION_BINARY(Instruction):
             context.emit("""
                 cal :eq16
                 mov cs, 0x00
-                mov ci, a
-                dec a""")
+                dec a
+                mov ci, a""")
             return True
         return False
 
