@@ -386,61 +386,65 @@ stackvarset16: psh cs
                cal :poke16
                ret
 ;=============
-; MALLOC(csci) - allocates csci bytes on the program heap
-; IN: csci - size of the block
-; OUT:csci - address of the block
-malloc:        psh cs
-            psh ci
-            .mv dsdi, :{1}
-            cal :peek16
-            ret
-;=============
-; SEEK(csci, dsdi) - finds address of first free block of given size
+; MSEEK(csci) - finds address of first free block of given size
 ; IN: csci - wanted size of the block
-; OUT:dsdi - address of the block after which is enough free memory
-;     csci - address after which free memory begins
-seek:          psh cs
-            psh ci
+; OUT:csci - address after which free memory begins
+;     dsdi - address of the block after which is enough free memory
+mseek:      .mv dsdi, :sys_seektmp
+            cal :poke16
             .mv dsdi, :{1}
             cal :peek16
             mov ds, cs
             mov di, ci
+mseek_loop: cal :peek16
             psh cs
             psh ci
-seek_loop:     cal :peek16
+            cal :inc16
+            cal :peek16
+            pop f
+            pop a
+            psh cs
+            psh ci
+            psh a
+            psh f
+            cal :inc16           
             mov a, ci
             xor cs
-            jmr z, :seek_end
-            cal :dec16
+            jmr z, :mseek_end
             cal :sub16
             pop di
             pop ds
+            cal :sub16
             psh cs
             psh ci
-            cal :inc16
-            cal :inc16
+            .mv dsdi, :sys_seektmp
             cal :peek16
             mov ds, cs
             mov di, ci
             pop ci
             pop cs
-            cal :sub16
+            cal :gteq16
+            jmr nz, :mseek_ret
             pop di
             pop ds
-            cal :gteq16
-            jmr nz, :seek_end
-;               ...
-            jmr z, :seek_loop
-seek_end:      pop di
+            xor a
+            jmr z, :mseek_loop
+mseek_end:  pop a
+            pop a
+            pop a
+            pop a
+            mov cs, ds
+            mov ci, di            
+            ret
+mseek_ret:  pop di
             pop ds
-            pop ci
-            pop cs
             ret  
 ;=============
 ;SYS DATA
             .def var_promptbuf, 0x0bcf
             .def var_user_mem, 0x0bcb
 sys_div16tmp: .db 0x00, 0x00
+sys_seektmp: .db 0x00, 0x00 
 {1}:  .db 0x{2:02x}, 0x{3:02x}
 {0}: nop
 """

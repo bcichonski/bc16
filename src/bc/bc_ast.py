@@ -297,12 +297,9 @@ class EXPRESSION_UNARY(Instruction):
         if self.operator == '&':
             self.operand.emit(context)
             context.emit("""
-                mov a, #csci
-                mov ds,a
-                cal :inc16
-                mov a, #csci
-                mov cs,ds
-                mov ci,a""")
+                mov ds, cs
+                mov di, ci
+                cal :peek16""")
         elif self.operator == '!':
             self.operand.emit(context)
             context.emit("""
@@ -324,6 +321,7 @@ oper2lib = {
     '/': 'div16',
     '=': None,
     '>=': None,
+    '!=': None
 }
 
 @dataclass
@@ -373,6 +371,13 @@ class EXPRESSION_BINARY(Instruction):
                 cal :gteq16
                 mov cs, 0x00
                 mov ci, a""")
+            return True
+        if oper == '!=':
+            context.emit("""
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                dec a""")
             return True
         return False
 
