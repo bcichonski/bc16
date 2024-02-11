@@ -68,11 +68,11 @@ code_block = (leftbrace >> nl.optional() >> ignore >> statement.many() << nl.opt
 statement_comment = comment.map(STATEMENT_COMMENT).desc('comment')
 statement_expression = expression << semicolon << nl.optional()
 statement_variables = (variable_declaration | variable_assignement) << semicolon << nl.optional()
-statement_if = seq(expr = lexeme(string('if')) >> leftpar >> expression << rightpar << nl.optional(), code = ignore >> code_block).combine_dict(STATEMENT_IF).desc('if statement')
+statement_ifelse = seq(expr = lexeme(string('if')) >> leftpar >> expression << rightpar << nl.optional(), code = ignore >> code_block << nl.optional(), last = (lexeme(string('else')) >> nl.optional() >> (code_block | statement)).optional()).combine_dict(STATEMENT_IFELSE).desc('if else statement')
 statement_while = seq(expr = lexeme(string('while')) >> leftpar >> expression << rightpar << nl.optional(), code = ignore >> code_block).combine_dict(STATEMENT_WHILE).desc('while statement')
 statement_return = (lexeme(string('return')) >> expression << semicolon << nl.optional()).map(STATEMENT_RETURN).desc('return statement')
 statement_asm = (lexeme(string('asm')) >> quotedstr << semicolon << nl.optional()).map(STATEMENT_ASM).desc('asm statement')
-statement.become(ignore >> (statement_variables | statement_if | statement_while | statement_return | statement_asm | statement_expression | statement_comment) << nl.optional())
+statement.become(ignore >> (statement_variables | statement_ifelse | statement_while | statement_return | statement_asm | statement_expression | statement_comment) << nl.optional())
 function_params = variable_declaration.sep_by(comma)
 function_declaration = seq(return_type = type, function_name = ident, params = leftpar >> function_params << rightpar << semicolon.optional() << nl.optional() << ignore, \
     star = lexeme(string('***')).optional() << semicolon.optional() << nl.optional() << ignore, code = nl.optional() >> ignore >> code_block.optional()) \

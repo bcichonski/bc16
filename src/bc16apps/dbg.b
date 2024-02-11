@@ -25,29 +25,22 @@ byte main()
 {
     word a;
     word b;
-    word r;
 
-    a <- 2;
+    a <- 3;
     b <- 2;
 
-    puts("a = b ? ");
-    putwnl(a = b);
+    if(a < b) 
+    {
+        puts("a < b");
+    } 
+    else if(a = b)
+    {
+        puts("a = b");
+    }
+    else
+    {
+        puts("a > b");
+    }
 
-    puts("a != b ? ");
-    putwnl(a != b);
-
-    puts("!(a = b) ? ");
-    putwnl(!(a = b));
-
-    puts("a < b ? ");
-    putwnl(a < b);
-
-    puts("a <= b ? ");
-    putwnl(a <= b);
-
-    puts("a > b ? ");
-    putwnl(a > b);
-
-    puts("a >= b ? ");
-    putwnl(a >= b);
+    putnl();
 }

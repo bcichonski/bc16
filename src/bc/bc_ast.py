@@ -470,24 +470,41 @@ class CODE_BLOCK(Instruction):
             context.pop_scope('BLOCK')
 
 @dataclass
-class STATEMENT_IF(Instruction):
+class STATEMENT_IFELSE(Instruction):
     expr:object
     code:object
+    last:object
 
     def __str__(self):
-        return "IF({0})[{1}]".format(self.expr, self.code)
+        if self.last is None:
+            return "IF({0})[{1}]".format(self.expr, self.code)
+        return "IF({0})[{1}]else[{2}]".format(self.expr, self.code, self.last)
 
     def emit(self, context):
         self.expr.emit(context)
         label = context.get_next_label()
+
         context.emit("""
                 mov a, cs
                 or ci
                 .mv csci, :{0}
                 jmp z, csci""".format(label))
         self.code.emit(context)
-        context.emit("""
+
+        if self.last is None:
+            context.emit("""
 {0}:      nop""".format(label))
+        else:
+            label2 = context.get_next_label()
+            context.emit("""
+                xor a
+                .mv csci, :{0}
+                jmp z, csci""".format(label2))
+            context.emit("""
+{0}:      nop""".format(label))
+            self.last.emit(context)
+            context.emit("""
+{0}:      nop""".format(label2))
 
 @dataclass
 class STATEMENT_WHILE(Instruction):
