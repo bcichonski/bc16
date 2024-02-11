@@ -17,7 +17,6 @@ byte print_help()
     putnl();
     puts("q for quit");
     putnl();
-    return 0;
 }
 
 byte calc(byte operator)

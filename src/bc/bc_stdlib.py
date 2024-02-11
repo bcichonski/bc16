@@ -249,6 +249,24 @@ div16_ret:   ret
 ;     dsdi - set to end of char table
             .def printstr, 0x0339
 ;=============
+; GT16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci > dsdi
+;       a - 0 otherwise
+gt16:        mov a, cs
+             sub ds
+             jmr o, :gt16_false
+             jmr nz, :gt16_true
+             mov a, ci
+             sub di
+             jmr o, :gt16_false
+             jmr nz, :gt16_true
+gt16_false:  xor a
+             ret
+gt16_true:   mov a, 0x01
+             ret
+;=============
 ; GTEQ16(csci,dsdi) - compares csci with dsdi            
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
@@ -446,7 +464,35 @@ mseek_ret:  pop di
             pop ds
             pop ci
             pop cs
-            ret  
+            ret
+;=============
+; MFILL(csci,dsdi, a) - fills memory starting from dsdi for csci bytes of value a
+; IN: csci - length
+;     dsdi - address of memory
+;        a - value to fill
+mfill:      psh a
+mfill_loop: mov a, cs
+            or ci
+            jmr z, :mfill_ret
+            pop a
+            psh a
+            mov #dsdi, a
+            cal :inc16
+            psh ds
+            psh di
+            mov ds, cs
+            mov di, ci
+            cal :dec16
+            mov cs, ds
+            mov ci, di
+            pop di
+            pop ds
+            xor a
+            jmr z, :mfill_loop
+mfill_ret:  pop a
+            ret
+; OUT:csci - address after which free memory begins
+;     dsdi - address of the block after which is enough free memory
 ;=============
 ;SYS DATA
             .def var_promptbuf, 0x0bcf

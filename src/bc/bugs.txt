@@ -1,2 +1,4 @@
 return has to be last instruction in function, not working in nested blocks
 division from standard compiler lib is slow
+malloc when allocated 16 and freed and allocated again will not pick the same spot because it is allways asking for +4 bytes for header
+  while there is an edge case where 1:1 can be replaced

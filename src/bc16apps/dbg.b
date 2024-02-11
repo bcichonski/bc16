@@ -1,11 +1,3 @@
-byte peek8(word Paddr)
-{
-    Paddr;
-    asm "mov a, #csci";
-    asm "mov cs, 0x00";
-    asm "mov ci, a";
-}
-
 byte putwnl(word value)
 {
     value;
@@ -29,220 +21,33 @@ byte puts(word Pstr)
     return 0;
 }
 
-word malloc(word size)
-{
-    //allocates new chunk of given size if possible
-    //returns pointer to that chunk(+4 from start of chunk to point straight to data)
-    //can return 0 which means it is impossible to allocate of given size
-    word PlastNode;
-    word PfirstFree;
-
-    size;
-    asm "cal :mseek";
-    asm "psh cs";
-    asm "psh ci";
-    asm "psh ds";
-    asm "psh di";
-
-    //side effect csci has PlastFree value but dsdi has PlastFree address + 1
-    PlastNode;
-    asm "cal :dec16";
-    asm "pop ci";
-    asm "pop cs";
-    asm "cal :poke16";
-    PfirstFree;
-    asm "cal :dec16";
-    asm "pop ci";
-    asm "pop cs";
-    asm "cal :poke16";
-
-    puts("PfirstFree: ");
-    putwnl(PfirstFree);
-    puts("PlastNode: ");
-    putwnl(PlastNode);
-
-    if(PfirstFree = PlastNode) {
-        puts("case a");
-        putnl();
-        PfirstFree - 4;
-        asm "psh cs";
-        asm "psh ci";
-        size;
-        asm "pop di";
-        asm "pop ds";
-        asm "cal :poke16";
-        asm "cal :inc16";
-        asm "psh ds";
-        asm "psh di";
-        PfirstFree + size;
-        asm "pop di";
-        asm "pop ds";
-        asm "cal :poke16";
-    }
-
-    if(!(PfirstFree = PlastNode)) 
-    {
-        puts("case b");
-        putnl();
-
-        word PcurrNodeLen;
-        PcurrNodeLen <- #PfirstFree;
-
-        if (PcurrNodeLen) 
-        {
-            puts("case b1");
-            putnl();
-
-            word PnewNodeAddr;
-            PnewNodeAddr <- PfirstFree + 4 + PcurrNodeLen;
-
-            if(PnewNodeAddr >= PlastNode) 
-            {
-                puts("nope");
-                putnl();
-            }
-
-            PfirstFree + 2;
-            asm "psh cs";
-            asm "psh ci";
-            PnewNodeAddr;
-            asm "pop di";
-            asm "pop ds";
-            asm "cal :poke16";
-
-            PnewNodeAddr;
-            asm "psh cs";
-            asm "psh ci";
-            size;
-            asm "pop di";
-            asm "pop ds";
-            asm "cal :poke16";
-
-            asm "cal :inc16";
-            asm "psh ds";
-            asm "psh di";
-            PlastNode;
-            asm "pop di";
-            asm "pop ds";
-            asm "cal :poke16";
-
-            PfirstFree <- PnewNodeAddr + 4;
-        }
-
-        if (!PcurrNodeLen) {
-            puts("case b2");
-            putnl();
-
-            PfirstFree;
-            asm "psh cs";
-            asm "psh ci";
-            size;
-            asm "pop di";
-            asm "pop ds";
-            asm "cal :poke16";
-
-            asm "cal :inc16";
-            asm "psh ds";
-            asm "psh di";
-            PlastNode;
-            asm "pop di";
-            asm "pop ds";
-            asm "cal :poke16";
-        }
-    }
-
-    return PfirstFree;
-}
-
-byte mfree(word Phandle)
-{
-    //frees chunk of given pointer
-    Phandle - 4;
-    asm "mov ds, cs";
-    asm "mov di, ci";
-    asm "mov cs, 0x00";
-    asm "mov ci, 0x00";
-    asm "cal :poke16";
-
-    return 0;
-}
-
-word mhead()
-{
-    asm ".mv dsdi, :sys_heaphead";
-    asm "cal :peek16";
-}
-
-word mtotal()
-{
-    word Pcurr;
-    word Plast;
-
-    Pcurr <- mhead();
-    puts("#sys_heaphead: ");
-    putwnl(Pcurr);
-
-    Plast <- Pcurr;
-    
-    while(Pcurr) {
-        puts("curr: ");
-        putwnl(Pcurr);
-
-        Plast <- Pcurr;
-        Pcurr <- #(Pcurr + 2);
-
-        puts("#curr: ");
-        putwnl(Pcurr);
-    }
-
-    Pcurr;
-    asm "cal :dec16";
-    asm "mov cs, ss";
-    asm "mov ci, si";
-    asm "cal :poke16";
-
-    puts("sssi: ");
-    putwnl(Pcurr);
-    puts("last: ");
-    putwnl(Plast);
-
-    Pcurr <- Pcurr - Plast;
-
-    return Pcurr;
-}
-
 byte main()
 {
-    word Pbuf;
-    word Pbuf2;
-    word Pbuf3;
-    puts("mtotal: ");
-    putwnl(mtotal());
-    Pbuf <- malloc(16);
-    puts("malloc(16): ");
-    putwnl(Pbuf);
+    word a;
+    word b;
+    word r;
 
-    Pbuf2 <- malloc(32);
-    puts("malloc(32): ");
-    putwnl(Pbuf2);
+    a <- 2;
+    b <- 2;
 
-    puts("mfree");
-    putnl();
-    mfree(Pbuf);
+    puts("a = b ? ");
+    putwnl(a = b);
 
-    Pbuf <- malloc(8);
-    puts("malloc(8): ");
-    putwnl(Pbuf);
+    puts("a != b ? ");
+    putwnl(a != b);
 
-    //8 not working!!!
-    Pbuf <- malloc(4);
-    puts("malloc(4): ");
-    putwnl(Pbuf);
+    puts("!(a = b) ? ");
+    putwnl(!(a = b));
 
-    Pbuf <- malloc(128);
-    puts("malloc(128): ");
-    putwnl(Pbuf);
+    puts("a < b ? ");
+    putwnl(a < b);
 
-    puts("mtotal: ");
-    putwnl(mtotal());
+    puts("a <= b ? ");
+    putwnl(a <= b);
+
+    puts("a > b ? ");
+    putwnl(a > b);
+
+    puts("a >= b ? ");
+    putwnl(a >= b);
 }

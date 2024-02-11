@@ -5,7 +5,36 @@
 //0x0002: next chunk address
 //0x0004: data(of requested length)
 
-#define NULL 0x0000
+byte peek8(word Paddr)
+{
+    Paddr;
+    asm "mov a, #csci";
+    asm "mov cs, 0x00";
+    asm "mov ci, a";
+}
+
+byte putwnl(word value)
+{
+    value;
+    asm "cal :printhex16";
+    asm "cal :print_newline";
+}
+
+byte putnl()
+{
+    asm "cal :print_newline";
+    return 0;
+}
+
+byte puts(word Pstr)
+{
+    //result of this expression is value of Pstr in csci registers
+    Pstr;
+    asm "mov ds, cs";
+    asm "mov di, ci";
+    asm "cal :printstr";
+    return 0;
+}
 
 word malloc(word size)
 {
@@ -15,7 +44,7 @@ word malloc(word size)
     word PlastNode;
     word PfirstFree;
 
-    size+4;
+    size;
     asm "cal :mseek";
     asm "psh cs";
     asm "psh ci";
@@ -34,7 +63,14 @@ word malloc(word size)
     asm "pop cs";
     asm "cal :poke16";
 
+    puts("PfirstFree: ");
+    putwnl(PfirstFree);
+    puts("PlastNode: ");
+    putwnl(PlastNode);
+
     if(PfirstFree = PlastNode) {
+        puts("case a");
+        putnl();
         PfirstFree - 4;
         asm "psh cs";
         asm "psh ci";
@@ -51,15 +87,27 @@ word malloc(word size)
         asm "cal :poke16";
     }
 
-    if(!(PfirstFree = PlastNode)) 
+    if(PfirstFree != PlastNode) 
     {
+        puts("case b");
+        putnl();
+
         word PcurrNodeLen;
         PcurrNodeLen <- #PfirstFree;
 
         if (PcurrNodeLen) 
         {
+            puts("case b1");
+            putnl();
+
             word PnewNodeAddr;
             PnewNodeAddr <- PfirstFree + 4 + PcurrNodeLen;
+
+            if(PnewNodeAddr >= PlastNode) 
+            {
+                puts("nope");
+                putnl();
+            }
 
             PfirstFree + 2;
             asm "psh cs";
@@ -89,6 +137,9 @@ word malloc(word size)
         }
 
         if (!PcurrNodeLen) {
+            puts("case b2");
+            putnl();
+
             PfirstFree;
             asm "psh cs";
             asm "psh ci";
@@ -135,11 +186,20 @@ word mtotal()
     word Plast;
 
     Pcurr <- mhead();
+    puts("#sys_heaphead: ");
+    putwnl(Pcurr);
+
     Plast <- Pcurr;
     
     while(Pcurr) {
+        puts("curr: ");
+        putwnl(Pcurr);
+
         Plast <- Pcurr;
         Pcurr <- #(Pcurr + 2);
+
+        puts("#curr: ");
+        putwnl(Pcurr);
     }
 
     Pcurr;
@@ -148,26 +208,48 @@ word mtotal()
     asm "mov ci, si";
     asm "cal :poke16";
 
+    puts("sssi: ");
+    putwnl(Pcurr);
+    puts("last: ");
+    putwnl(Plast);
+
     Pcurr <- Pcurr - Plast;
 
     return Pcurr;
 }
 
-word mfill(word Paddr, word length, byte value)
+byte main()
 {
-    Paddr;
-    asm "psh cs";
-    asm "psh ci";
-    value;
-    asm "mov a, ci";
-    length;
-    asm "pop di";
-    asm "pop ds";
+    word Pbuf;
+    word Pbuf2;
+    word Pbuf3;
+    puts("mtotal: ");
+    putwnl(mtotal());
+    Pbuf <- malloc(16);
+    puts("malloc(16): ");
+    putwnl(Pbuf);
 
-    asm "cal :mfill";
-}
+    Pbuf2 <- malloc(32);
+    puts("malloc(32): ");
+    putwnl(Pbuf2);
 
-word mzero(word Paddr, word length)
-{
-    mfill(Paddr, length, 0);
+    puts("mfree");
+    putnl();
+    mfree(Pbuf);
+
+    Pbuf <- malloc(8);
+    puts("malloc(8): ");
+    putwnl(Pbuf);
+
+    //8 not working!!!
+    Pbuf <- malloc(8);
+    puts("malloc(8): ");
+    putwnl(Pbuf);
+
+    Pbuf <- malloc(128);
+    puts("malloc(128): ");
+    putwnl(Pbuf);
+
+    puts("mtotal: ");
+    putwnl(mtotal());
 }

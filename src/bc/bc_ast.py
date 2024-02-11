@@ -321,7 +321,11 @@ oper2lib = {
     '/': 'div16',
     '=': None,
     '>=': None,
-    '!=': None
+    '!=': None,
+    '<=': None,
+    '>': None,
+    '<': None,
+    '<=': None
 }
 
 @dataclass
@@ -377,6 +381,26 @@ class EXPRESSION_BINARY(Instruction):
                 cal :eq16
                 mov cs, 0x00
                 dec a
+                mov ci, a""")
+            return True
+        if oper == '<': # a < b    = !(a >= b)
+            context.emit("""
+                cal :gteq16
+                dec a
+                mov cs, 0x00
+                mov ci, a""")
+            return True
+        if oper == '>': 
+            context.emit("""
+                cal :gt16
+                mov cs, 0x00
+                mov ci, a""")
+            return True
+        if oper == '<=': # a <= b    = !(a > b)
+            context.emit("""
+                cal :gt16
+                dec a
+                mov cs, 0x00
                 mov ci, a""")
             return True
         return False
