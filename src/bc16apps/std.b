@@ -19,7 +19,9 @@ byte poke8(word Paddr, byte value)
 {
     value;
     asm "mov a, ci";
+    asm "psh a";
     Paddr;
+    asm "pop a";
     asm "mov #csci, a";
 }
 

@@ -217,6 +217,34 @@ div16_ret:   ret
 ;         cs - how many chars can we could still add
             .def readstr, 0x03f6
 ;=============
+; NEXTWORD(dsdi) - moves to the end of current word
+; IN:     dsdi - char buffer address
+; OUT:    dsdi - address of the next word or end of buffer
+;            a - >0 if next word exist
+            .def nextword, 0x04b4
+;=============
+; NEXTVAL8(dsdi) - moves until expected value
+; IN:     dsdi - char buffer address
+;           ci - expected 8bit value
+;           cs - max length to check
+; OUT:    dsdi - address of the next byte or end of buffer
+;           cs - how much was left to end of buffer
+;           ci - unchanged
+;            a - >0 if value was found
+            .def nextval8, 0x04d1
+;=============
+; STR_CPY(csci,dsdi)  - copy string from dsdi to csci
+; IN: dsdi - source  
+;     csci - desc
+; OUT: dsdi = source + length + 1
+            .def strcpy, 0x0562
+;=============
+; STR_LEN8(dsdi)  - length of the string ending with 0x00
+; IN: dsdi - source  
+;     cs   - max length
+; OUT: dsdi - preserved, cs = rubbish, ci = actual length
+            .def str_len8, 0x0581
+;=============
 ; PARSEHEX4(#dsdi) - parses single char to hex number chars 0-9 and a-z and A-Z are supported
 ; IN:   dsdi - buffer address for char-hex
 ; OUT:     a - 0 if ok, 0xff if parse error

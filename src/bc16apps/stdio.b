@@ -18,6 +18,13 @@ byte putw(word value)
     asm "cal :printhex16";
 }
 
+byte putwnl(word value)
+{
+    value;
+    asm "cal :printhex16";
+    asm "cal :print_newline";
+}
+
 byte putnl()
 {
     asm "cal :print_newline";
@@ -30,6 +37,16 @@ byte puts(word Pstr)
     asm "mov ds, cs";
     asm "mov di, ci";
     asm "cal :printstr";
+}
+
+byte putsnl(word Pstr)
+{
+    //result of this expression is value of Pstr in csci registers
+    Pstr;
+    asm "mov ds, cs";
+    asm "mov di, ci";
+    asm "cal :printstr";
+    asm "cal :print_newline";
 }
 
 byte readsn(word Pbuf, byte maxlen)

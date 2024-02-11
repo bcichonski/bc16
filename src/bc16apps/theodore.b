@@ -36,8 +36,7 @@ byte mainLoop(word PinputBuf, byte theodoreStopNumber)
 
     while(!(theodoreFound + playerExit)) 
     {
-        puts("Where is uncle Theodore?");
-        putnl();
+        putsnl("Where is uncle Theodore?");
         puts("Type train stop number (0..");
         putdecw(MAXSTOPS);
         puts("): ");
@@ -49,21 +48,18 @@ byte mainLoop(word PinputBuf, byte theodoreStopNumber)
         {
             if(playerStop = theodoreStopNumber) 
             {
-                puts("Yes! You have found uncle Theodore!");
-                putnl();
+                putsnl("Yes! You have found uncle Theodore!");
                 theodoreFound <- 1;
             }
 
             if(theodoreStopNumber < playerStop) 
             {
-                puts("Uncle Theodore went south.");
-                putnl();
+                putsnl("Uncle Theodore went south.");
             }
 
             if(playerStop < theodoreStopNumber) 
             {
-                puts("Uncle Theodore went north.");
-                putnl();
+                putsnl("Uncle Theodore went north.");
             }
         }
 
@@ -79,8 +75,7 @@ byte main()
     word PinputBuf;
     word rand;
     
-    puts("Looking for ucle Theodore v1.0");
-    putnl();
+    putsnl("Looking for ucle Theodore v1.0");
 
     PinputBuf <- malloc(PINPUTBUFLEN);
 
@@ -89,8 +84,7 @@ byte main()
     mainLoop(PinputBuf, rand);
     mfree(PinputBuf);
     
-    puts("Bye!");
-    putnl();
+    putsnl("Bye!");
 
     return 0;
 }
