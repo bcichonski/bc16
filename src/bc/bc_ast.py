@@ -325,7 +325,9 @@ oper2lib = {
     '<=': None,
     '>': None,
     '<': None,
-    '<=': None
+    '<=': None,
+    '&&': None,
+    '||': None
 }
 
 @dataclass
@@ -401,6 +403,24 @@ class EXPRESSION_BINARY(Instruction):
                 cal :gt16
                 dec a
                 mov cs, 0x00
+                mov ci, a""")
+            return True
+        if oper == '&&':
+            context.emit("""
+                mov a, cs
+                and ds
+                mov cs, a
+                mov a, ci
+                and di
+                mov ci, a""")
+            return True
+        if oper == '||':
+            context.emit("""
+                mov a, cs
+                or ds
+                mov cs, a
+                mov a, ci
+                or di
                 mov ci, a""")
             return True
         return False
