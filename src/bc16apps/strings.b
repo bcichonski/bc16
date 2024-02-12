@@ -24,3 +24,14 @@ byte strnlen8(word Pstring, byte maxLength)
     asm "cal :str_len8";
     asm "mov cs, 0x00";
 }
+
+byte strcpy(word Pstring, word Ptarget)
+{
+    Pstring;
+    asm "psh ds";
+    asm "psh di";
+    Ptarget;
+    asm "pop di";
+    asm "pop ds";
+    asm "cal :str_cpy";
+}

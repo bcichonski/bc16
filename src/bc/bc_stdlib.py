@@ -237,7 +237,7 @@ div16_ret:   ret
 ; IN: dsdi - source  
 ;     csci - desc
 ; OUT: dsdi = source + length + 1
-            .def strcpy, 0x0562
+            .def str_cpy, 0x0562
 ;=============
 ; STR_LEN8(dsdi)  - length of the string ending with 0x00
 ; IN: dsdi - source  

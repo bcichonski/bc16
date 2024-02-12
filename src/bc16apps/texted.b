@@ -6,8 +6,13 @@
 #define MAXLINELENGTH 128
 #define TEVARS_SIZE 6
 #define TEVARS_TOTALLINES 0
-#define TEVARS_ARG1 2
-#define TEVARS_ARG2 4
+#define TEVARS_PFIRSTLINE 2
+#define TEVARS_ARG1 4
+#define TEVARS_ARG2 6
+#define TELINE_PNEXT 0
+#define TELINE_NUMBER 2
+#define TELINE_TEXT 4
+#define TELINE_HEADSIZE 5
 
 byte printHelp() 
 {
@@ -53,7 +58,33 @@ byte parse2args(word PinputBuf, word PtextedVars)
 
 word findPreviousLine(word PtextedVars, word lineNumber)
 {
+    word PcurrLine;
+    word PprevLine;
+    word prevLineNumber;
+
+    PcurrLine <- #(PtextedVars + TEVARS_PFIRSTLINE);
+    PprevLine <- PcurrLine;
+    prevLineNumber <- #(PprevLine + TELINE_NUMBER);
     
+    while(PcurrLine && lineNumber < prevLineNumber) 
+    {
+        PprevLine <- PcurrLine;
+        prevLineNumber <- #(PprevLine + TELINE_NUMBER);
+
+        PcurrLine = #(PcurrLine + TELINE_PNEXT);
+    }
+
+    return PprevLine;
+}
+
+byte incTotalLines(word PinputBuf, word increment)
+{
+    word totalLines;
+
+    totalLines <- #(PinputBuf + TEVARS_TOTALLINES);
+    totalLines <- totalLines + increment;
+
+    poke16(PinputBuf + TEVARS_TOTALLINES, totalLines);
 }
 
 byte insertLine(word PinputBuf, word PtextedVars, word lineNumber) 
@@ -71,12 +102,42 @@ byte insertLine(word PinputBuf, word PtextedVars, word lineNumber)
         word PnewLine;
         word PprevLine;
         word PnextLine;
+        word PfirstLine;
 
         lineLength <- strnlen8(PinputBuf, MAXLINELENGTH);
-        PnewLine <- malloc(lineLength + 5);
+        PnewLine <- malloc(lineLength + TELINE_HEADSIZE);
+        PfirstLine <- #(PtextedVars + TEVARS_PFIRSTLINE);
+
+        strcpy(PinputBuf, PnewLine + TELINE_HEADSIZE);
 
         PprevLine <- findPreviousLine(PtextedVars, lineNumber);
-        PnextLine <- #PprevLine;
+        poke16(PnewLine + TELINE_NUMBER, lineNumber);
+
+        if(PprevLine) 
+        {
+            if(PprevLine = PfirstLine) 
+            {
+                PnextLine = #(PprevLine + TELINE_PNEXT);
+
+                poke16(PprevLine + TELINE_PNEXT, PnewLine);
+                poke16(PnewLine + TELINE_PNEXT, PnextLine);
+            }
+            else 
+            {
+                PnextLine = PfirstLine;
+
+                poke16(PnewLine + TELINE_PNEXT, PnextLine);
+                poke16(PtextedVars + TEVARS_PFIRSTLINE, PnewLine);
+            }
+        }
+        else
+        {
+            poke16(PnewLine + TELINE_PNEXT, NULL);
+
+            poke16(PtextedVars + TEVARS_PFIRSTLINE, PnewLine);
+        }
+
+        incTotalLines(PinputBuf, 1);
     }
     else
     {
@@ -151,6 +212,11 @@ byte mainLoop(word PinputBuf, word PtextedVars)
     }
 }
 
+byte initVariables(word PtextedVars) {
+    poke16(PtextedVars + TEVARS_SIZE, 0);
+    poke16(PtextedVars + TEVARS_PFIRSTLINE, NULL);
+}
+
 byte main()
 {
     word PinputBuf;
@@ -159,6 +225,7 @@ byte main()
     putsnl("type h for help");
 
     PtextedVars <- malloc(TEVARS_SIZE);
+    initVariables(PtextedVars);
     PinputBuf <- malloc(MAXLINELENGTH);
     mainLoop(PinputBuf, PtextedVars);
 

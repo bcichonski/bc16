@@ -29,11 +29,11 @@ byte main()
     a <- 3;
     b <- 2;
 
-    if(a < b) 
+    if(a < b && b > a) 
     {
         puts("a < b");
     } 
-    else if(a = b)
+    else if(a = b || a = b + 1)
     {
         puts("a = b");
     }
