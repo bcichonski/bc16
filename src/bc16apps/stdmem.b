@@ -6,7 +6,6 @@
 //0x0004: data(of requested length)
 
 #define NULL 0x0000
-
 word malloc(word size)
 {
     //allocates new chunk of given size if possible
@@ -23,16 +22,23 @@ word malloc(word size)
     asm "psh di";
 
     //side effect csci has PlastFree value but dsdi has PlastFree address + 1
-    PlastNode;
-    asm "cal :dec16";
-    asm "pop ci";
-    asm "pop cs";
-    asm "cal :poke16";
     PfirstFree;
     asm "cal :dec16";
     asm "pop ci";
     asm "pop cs";
     asm "cal :poke16";
+    PlastNode;
+    asm "cal :dec16";
+    asm "pop ci";
+    asm "pop cs";
+    asm "cal :poke16";
+
+    //puts("size: ");
+    //putwnl(size);
+    //puts("PfirstFree: ");
+    //putwnl(PfirstFree);
+    //puts("PlastNode: ");
+    //putwnl(PlastNode);
 
     if(PfirstFree = PlastNode) {
         PfirstFree - 4;
@@ -42,6 +48,7 @@ word malloc(word size)
         asm "pop di";
         asm "pop ds";
         asm "cal :poke16";
+
         asm "cal :inc16";
         asm "psh ds";
         asm "psh di";
@@ -49,19 +56,26 @@ word malloc(word size)
         asm "pop di";
         asm "pop ds";
         asm "cal :poke16";
-    }
 
-    if(!(PfirstFree = PlastNode)) 
+        PfirstFree + size;
+        asm "mov ds, cs";
+        asm "mov di, ci";
+        asm "mov cs, 0x00";
+        asm "mov ci, cs";
+        asm "cal :poke16";
+    } 
+    else 
     {
         word PcurrNodeLen;
-        PcurrNodeLen <- #PfirstFree;
+        PcurrNodeLen <- #PlastNode;
 
         if (PcurrNodeLen) 
         {
+            //putsnl("B");
             word PnewNodeAddr;
-            PnewNodeAddr <- PfirstFree + 4 + PcurrNodeLen;
+            PnewNodeAddr <- PlastNode + 4 + PcurrNodeLen;
 
-            PfirstFree + 2;
+            PlastNode + 2;
             asm "psh cs";
             asm "psh ci";
             PnewNodeAddr;
@@ -80,16 +94,17 @@ word malloc(word size)
             asm "cal :inc16";
             asm "psh ds";
             asm "psh di";
-            PlastNode;
+            PfirstFree;
             asm "pop di";
             asm "pop ds";
             asm "cal :poke16";
 
             PfirstFree <- PnewNodeAddr + 4;
         }
-
-        if (!PcurrNodeLen) {
-            PfirstFree;
+        else
+        {
+            //putsnl("C");
+            PlastNode;
             asm "psh cs";
             asm "psh ci";
             size;
@@ -100,10 +115,12 @@ word malloc(word size)
             asm "cal :inc16";
             asm "psh ds";
             asm "psh di";
-            PlastNode;
+            PfirstFree;
             asm "pop di";
             asm "pop ds";
             asm "cal :poke16";
+
+            PfirstFree <- PlastNode + 4;
         }
     }
 
@@ -159,8 +176,9 @@ word mfill(word Paddr, word length, byte value)
     asm "psh cs";
     asm "psh ci";
     value;
-    asm "mov a, ci";
+    asm "psh a";
     length;
+    asm "pop a";
     asm "pop di";
     asm "pop ds";
 
