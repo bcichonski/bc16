@@ -347,7 +347,7 @@ class Bc8181:
     def create_registers(self, memsize):
         memsize -= 1
         self.pc = Register(0xffff)
-        self.f = FlagsRegister(0xf)
+        self.f = FlagsRegister(0xff)
         self.a = Register(0xff)
         self.ss = Register(0xff, (memsize >> 8) & 0xff)
         self.si = Register(0xff, memsize & 0xff)

@@ -342,7 +342,7 @@ class Bc8181:
     def create_registers(self, memsize):
         memsize -= 1
         self.pc = Register(0xffff)
-        self.f = FlagsRegister(0xf)
+        self.f = FlagsRegister(0xff)
         self.a = Register(0xff)
         self.ss = Register(0xff, (memsize >> 8) & 0xff)
         self.si = Register(0xff, memsize & 0xff)
@@ -445,7 +445,10 @@ class Bc8181:
         try:
             instruction()
         except Exception:
+            print("====================== FAIL")
             print('exception at {0:04x}'.format(self.pc.get()))
+            self.debug = True
+            self.print_context()
             raise
         self.print_context()
 
@@ -471,4 +474,5 @@ class Bc8181:
         self.print_context()
         while not self.kill:
             self.run_next_opcode()
+
         self.print_debug("====================== KILL")
