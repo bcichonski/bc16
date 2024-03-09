@@ -457,7 +457,7 @@ mseek_loop: psh ds
             psh f
             cal :inc16           
             mov a, ci
-            xor cs
+            or cs
             jmr z, :mseek_end
             cal :sub16
             pop di
