@@ -28,8 +28,8 @@ byte strnlen8(word Pstring, byte maxLength)
 byte strcpy(word Pstring, word Ptarget)
 {
     Pstring;
-    asm "psh ds";
-    asm "psh di";
+    asm "psh cs";
+    asm "psh ci";
     Ptarget;
     asm "pop di";
     asm "pop ds";
