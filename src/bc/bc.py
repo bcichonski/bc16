@@ -5,12 +5,15 @@ from pathlib import Path
 from bc_ast import *
 from bc_grammar import program
 
+codeSegment = 0x1000
+heapSegment = 0x3000
+
 def read_input_file(fname):
     with open(fname, 'r', encoding='utf8') as file_handle:
         return file_handle.read()
 
 def compile(ast, verbose):
-    context = Context(0x1000, 0x3000, False)
+    context = Context(codeSegment, heapSegment, False)
     
     if(verbose):
         print("{}".format(ast))
@@ -62,6 +65,22 @@ def preprocess(input, verbose, defaultdir):
             for contentline in content.splitlines():
                 lines.insert(i + j, contentline)
                 j += 1
+            i += 1
+            continue
+
+        if(newline.startswith('#code')):
+            addr = newline[6:]
+            global codeSegment
+            codeSegment = int(addr, 16)
+            print('Code segment was set to 0x{0:04x}'.format(codeSegment));
+            i += 1
+            continue
+        
+        if(newline.startswith('#heap')):
+            addr = newline[6:]
+            global heapSegment
+            heapSegment = int(addr, 16)
+            print('Heap segment was set to 0x{0:04x}'.format(heapSegment));
             i += 1
             continue
 

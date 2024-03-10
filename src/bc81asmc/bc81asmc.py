@@ -64,6 +64,7 @@ def get_preamble(short_fname, context):
     result = bytearray()
     codeaddr = context.startaddr
     codelen = len(context.bytes)
+    print("Creating btap file from {0:04x} for {1:04x}".format(codeaddr, codelen))
     result.extend([ 0x00, 0xff, 0x00, 0xff, 0xbc, 0x05, 
         context.hi(codeaddr), context.lo(codeaddr), 
         context.hi(codelen), context.lo(codelen), 0x00 ])

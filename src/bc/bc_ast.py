@@ -102,7 +102,7 @@ class Scope:
         return sum
 
 class Context:
-    def __init__(self, codeaddr = 0x0000, heapaddr = 0x2000, hardkill = True):
+    def __init__(self, codeaddr = 0x0000, heapaddr = 0x3000, hardkill = True):
         self.data = ''
         self.basm = ''
         self.errors = []
