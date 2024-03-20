@@ -505,12 +505,12 @@ class CODE_BLOCK(Instruction):
         return "BLOCK({0})".format(self.statements)
 
     def emit(self, context):
-        currscope = context.scope
-        context.push_scope('BLOCK')
+        # currscope = context.scope
+        # context.push_scope('BLOCK')
         for statement in self.statements:
             statement.emit(context)
-        if currscope != context.scope:
-            context.pop_scope('BLOCK')
+        # if currscope != context.scope:
+            # context.pop_scope('BLOCK')
 
 @dataclass
 class STATEMENT_IFELSE(Instruction):
