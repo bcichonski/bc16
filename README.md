@@ -1,14 +1,61 @@
-I always wanted to build 8bit computer, as i am to lazy to work with hardware, this is the closest thing to that.
+I have always wanted to build 8bit computer, as i am to lazy to work with hardware, this is the closest thing to that.
 
-## architecture notes
-microprocessor: bc8181
+# BC32
+## architectural notes
+### OS
+bcos v1.1 
+ - some procedures from b compiler stdlib incorporated
+ - minor fixes
+ - still tape-only suport with for .btap files
+ - new code to recognize presence of floppy disk drive to boot their system
+
+bdos v1
+ - disk operation system
+   - micromode (the os itself just knows how to load and run executables)
+ - bfs file system
+   - directories and files
+   - 
+
+### CPU
+microprocessor: bc8182 (very small fixes regarding f register)
 64kb address space
-16 in and 16 out ports
+16 in/out ports
+no interrupts
+one extension slot (basically allows a device to use memory directly)
+
+## memory
+memory: 32kb
+~6kb rom + 26kb ram with option to extend in future
+
+### peripherals
+same as BC16 plus
+- real time clock 0x3
+- random generator 0x4
+- floppy disk drive 0x8
+  - port 0x8 used for instructions and communication
+  - uses direct memory access to read entire sector
+  - double drive for single side 3" floppy disks that has 64 tracks of 16 sectors of 128 bytes = 128 KB
+
+# BC16
+## architectural notes
+### OS
+bcos v1.0
+tape-only suport with for .btap files
+
+### CPU
+microprocessor: bc8181 - bc8182
+64kb address space
+16 in/out ports
 no interrupts
 
 ### memory
 memory: 16kb
 4kb rom + 12kb ram with option to extend in future
+
+### the bc8182 microprocessor
+same as bc8181 but with some small errors fixed
+some extentions like 16bit arithmetic? or 8bit div/mod/mul
+
 
 ### peripherals:
 - terminal keyboard uses io ports 0x0
@@ -99,3 +146,10 @@ bc8181 instruction set B0H:
 0xE - NOP not_used
 0xF - KIL
 ```
+### software
+external assembler bc81asmc up to 1.1 (240317)
+external compiler bc of b language for bc8181-bc8182 cpu v 1.0.0 (240317)
+calc - basic calculator
+texted - basic line editor
+theodore - simple game
+
