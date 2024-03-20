@@ -84,3 +84,9 @@ byte putdecw(word value)
         divisor <- divisor / 10;
     }
 }
+
+byte putdecwnl(word value)
+{
+    putdecw(value);
+    asm "cal :print_newline";
+}

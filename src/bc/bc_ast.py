@@ -408,13 +408,36 @@ class EXPRESSION_BINARY(Instruction):
         if oper == '&&':
             context.emit("""
                 mov a, cs
+                or ci
+                mov ci, f
+                mov a, ds
+                or di
+                mov a, f
+                or ci
+                not a
+                and 0x01
+                mov cs, 0x00
+                mov ci, a""")
+            return True
+        if oper == '||':
+            context.emit("""
+                mov a, cs
+                or ds
+                mov cs, a
+                mov a, ci
+                or di
+                mov ci, a""")
+            return True
+        if oper == '&':
+            context.emit("""
+                mov a, cs
                 and ds
                 mov cs, a
                 mov a, ci
                 and di
                 mov ci, a""")
             return True
-        if oper == '||':
+        if oper == '|':
             context.emit("""
                 mov a, cs
                 or ds

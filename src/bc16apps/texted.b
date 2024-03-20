@@ -1,3 +1,5 @@
+#code 0x0C00
+
 #include std.b
 #include stdio.b
 #include stdmem.b
@@ -66,7 +68,7 @@ word findPreviousLine(word PtextedVars, word lineNumber)
 
     PcurrLine <- #(PtextedVars + TEVARS_PFIRSTLINE);
     PprevLine <- PcurrLine;
-
+   
     currLineNumber <- #(PcurrLine + TELINE_NUMBER);
     prevLineNumber <- currLineNumber;
     
@@ -79,7 +81,11 @@ word findPreviousLine(word PtextedVars, word lineNumber)
         currLineNumber <- #(PcurrLine + TELINE_NUMBER);
     }
 
-    return PprevLine;
+    if(currLineNumber >= lineNumber)
+    {
+        PcurrLine <- PprevLine;
+    }
+    return PcurrLine;
 }
 
 byte incTotalLines(word PtextedVars, word increment)
@@ -96,7 +102,7 @@ byte insertLine(word PinputBuf, word PtextedVars, word lineNumber)
 {
     byte continue;
     continue <- 1;
-
+    
     poke16(PinputBuf, 0);
     putdecw(lineNumber);
     puts(": ");
@@ -104,52 +110,75 @@ byte insertLine(word PinputBuf, word PtextedVars, word lineNumber)
 
     if(#PinputBuf)
     {
+        byte inserted;
         word lineLength;
         word PnewLine;
         word PprevLine;
         word PnextLine;
-        word PfirstLine;
+        word prevLineNumber;
+        word nextLineNumber;
+
+        inserted <- 1;
+        prevLineNumber <- 0;
 
         lineLength <- strnlen8(PinputBuf, MAXLINELENGTH);
         PnewLine <- malloc(lineLength + TELINE_HEADSIZE);
-        
-        PfirstLine <- #(PtextedVars + TEVARS_PFIRSTLINE);
+        poke16(PnewLine + TELINE_NUMBER, lineNumber);
 
         strcpy(PinputBuf, PnewLine + TELINE_TEXT);
 
         PprevLine <- findPreviousLine(PtextedVars, lineNumber);
-        poke16(PnewLine + TELINE_NUMBER, lineNumber);
-
-        if(PprevLine) 
+        if(PprevLine != NULL) 
         {
-            if(PprevLine = PfirstLine) 
-            {
-                PnextLine = #(PprevLine + TELINE_PNEXT);
+            prevLineNumber <- #(PprevLine + TELINE_NUMBER);
+        }
 
-                poke16(PprevLine + TELINE_PNEXT, PnewLine);
+        if(PprevLine != NULL && (lineNumber > prevLineNumber)) 
+        {
+            PnextLine <- #(PprevLine + TELINE_PNEXT);
+            nextLineNumber <- #(PnextLine + TELINE_NUMBER);
+
+            if (PnextLine = NULL) 
+            {
+                nextLineNumber <- 0xffff;
+            }
+
+            if (lineNumber < nextLineNumber) {
                 poke16(PnewLine + TELINE_PNEXT, PnextLine);
+                poke16(PprevLine + TELINE_PNEXT, PnewLine);
             }
             else 
             {
-                PnextLine = PfirstLine;
+                if (lineNumber = nextLineNumber) 
+                {
+                    word PnextNextLine;
+                    PnextNextLine <- #(PnextLine + TELINE_PNEXT);
 
-                poke16(PnewLine + TELINE_PNEXT, PnextLine);
-                poke16(PtextedVars + TEVARS_PFIRSTLINE, PnewLine);
+                    poke16(PprevLine + TELINE_PNEXT, PnewLine);
+                    poke16(PnewLine + TELINE_PNEXT, PnextNextLine);
+                    mfree(PnextLine);
+                    inserted <- 0;
+                }
             }
         }
         else
         {
-            poke16(PnewLine + TELINE_PNEXT, PfirstLine);
+            poke16(PnewLine + TELINE_PNEXT, PprevLine);
 
             poke16(PtextedVars + TEVARS_PFIRSTLINE, PnewLine);
         }
 
-        incTotalLines(PtextedVars, 1);
+        if(inserted) 
+        {
+            incTotalLines(PtextedVars, 1);
+        }
     }
     else
     {
         continue <- 0;
     }
+
+    putnl();
 
     return continue;
 }
@@ -179,6 +208,40 @@ byte insertLines(word PinputBuf, word PtextedVars)
     }
 }
 
+byte printLines(word PinputBuf, word PtextedVars)
+{
+    word lineNumberStart;
+    word lineNumberEnd;
+    byte error;
+
+    error <- parse2args(PinputBuf, PtextedVars);
+
+    if(!error)
+    {
+        lineNumberStart <- #(PtextedVars + TEVARS_ARG1);
+        lineNumberEnd <- #(PtextedVars + TEVARS_ARG2);
+
+        word currentLineNumber;
+        word PcurrentLine;
+        word PlineText;
+
+        PcurrentLine <- findPreviousLine(PtextedVars, lineNumberStart);
+        currentLineNumber <- #(PcurrentLine + TELINE_NUMBER);
+
+        while(PcurrentLine && currentLineNumber <= lineNumberEnd) 
+        {
+            putdecw(currentLineNumber);
+            puts(": ");
+            PlineText <- PcurrentLine + TELINE_TEXT;
+
+            putsnl(PlineText);
+
+            PcurrentLine <- #(PcurrentLine + TELINE_PNEXT);
+            currentLineNumber <- #(PcurrentLine + TELINE_NUMBER);
+        }
+    }
+}
+
 byte mainLoop(word PinputBuf, word PtextedVars) 
 {
     byte choice;
@@ -201,6 +264,11 @@ byte mainLoop(word PinputBuf, word PtextedVars)
             knownCommand <- 1;
         }
 
+        if(choice = 'p') {
+            printLines(PinputBuf, PtextedVars);
+            knownCommand <- 1;
+        }
+
         if(choice = 'h')
         {
             printHelp();
@@ -217,10 +285,6 @@ byte mainLoop(word PinputBuf, word PtextedVars)
             putsnl("Unknown command.");
         }
     }
-}
-
-byte initVariables(word PtextedVars) {
-    
 }
 
 byte main()
