@@ -242,6 +242,54 @@ byte printLines(word PinputBuf, word PtextedVars)
     }
 }
 
+byte deleteLines(word PinputBuf, word PtextedVars)
+{
+    word lineNumberStart;
+    word lineNumberEnd;
+    byte error;
+
+    error <- parse2args(PinputBuf, PtextedVars);
+
+    if(!error)
+    {
+        lineNumberStart <- #(PtextedVars + TEVARS_ARG1);
+        lineNumberEnd <- #(PtextedVars + TEVARS_ARG2);
+
+        word currentLineNumber;
+        word PcurrentLine;
+        word PstartLine;
+        word PlineText;
+        word removedCount;
+
+        PstartLine <- findPreviousLine(PtextedVars, lineNumberStart);
+        PcurrentLine <- PstartLine;
+        currentLineNumber <- #(PcurrentLine + TELINE_NUMBER);
+        removedCount <- 0;
+
+        while(PcurrentLine && currentLineNumber <= lineNumberEnd) 
+        {
+            mfree(PcurrentLine);
+            removedCount <- removedCount + 1;
+
+            PcurrentLine <- #(PcurrentLine + TELINE_PNEXT);
+            currentLineNumber <- #(PcurrentLine + TELINE_NUMBER);
+        }
+
+        if (currentLineNumber <= lineNumberEnd) 
+        {
+            poke16(PstartLine + TELINE_PNEXT, PcurrentLine);
+        }
+        else
+        {
+            mfree(PstartLine);
+            poke16(PtextedVars + TEVARS_PFIRSTLINE, NULL);
+        }
+        
+        putdecw(removedCount);
+        putsnl(" lines removed");
+    }
+}
+
 byte mainLoop(word PinputBuf, word PtextedVars) 
 {
     byte choice;
