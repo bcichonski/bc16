@@ -124,6 +124,9 @@ class Context:
         self.data += """
 {0}:      .db '{1}', 0x00""".format(label, data)
         return label
+    
+    def load_a(self, i8):
+        return """mov a, 0x{0:02x}""".format(i8)
 
     def load_csci(self, i16):
         return """mov cs, 0x{0:02x}
@@ -171,16 +174,21 @@ class Context:
         if scopeoffset < 0:
             raise Error('Scope push error')
         if scopeoffset > 0:
-            # self.scope.startoffset = scopeoffset
-            self.emit("""
-;depth {2}: STACKHEAD += {1}
-                psh cs
-                psh ci
-                {0}
-                xor a
-                cal :stackheadroll
-                pop ci
-                pop cs""".format(self.load_csci(scopeoffset), scopeoffset, self.scope.depth))
+            if scopeoffset < 127:
+                self.emit("""
+    ;depth {2}: STACKHEAD += {1}
+                    {0}
+                    cal :stackheadrll8""".format(self.load_a(scopeoffset & 0x7f), scopeoffset, self.scope.depth))
+            else:
+                self.emit("""
+    ;depth {2}: STACKHEAD += {1}
+                    psh cs
+                    psh ci
+                    {0}
+                    xor a
+                    cal :stackheadroll
+                    pop ci
+                    pop cs""".format(self.load_csci(scopeoffset), scopeoffset, self.scope.depth))
         print("PUSH SCOPE (startoffset={0}, depth={1}, caller={2})".format(self.scope.startoffset, self.scope.depth, caller))
 
     def pop_scope(self, caller):
@@ -193,15 +201,21 @@ class Context:
         if scopeoffset < 0:
             raise Error('Scope pop error')
         if scopeoffset > 0:
-            self.emit("""
-;depth {2}: STACKHEAD -= {1}
-                psh cs
-                psh ci
-                {0}
-                mov a, 0x01
-                cal :stackheadroll
-                pop ci
-                pop cs""".format(self.load_csci(scopeoffset), scopeoffset, self.scope.depth))
+            if scopeoffset < 127:
+                self.emit("""
+    ;depth {2}: STACKHEAD -= {1}
+                    {0}
+                    cal :stackheadrll8""".format(self.load_a(scopeoffset | 0x80), scopeoffset, self.scope.depth))
+            else:                
+                self.emit("""
+    ;depth {2}: STACKHEAD -= {1}
+                    psh cs
+                    psh ci
+                    {0}
+                    mov a, 0x01
+                    cal :stackheadroll
+                    pop ci
+                    pop cs""".format(self.load_csci(scopeoffset), scopeoffset, self.scope.depth))
 
     def get_function_call_label(self, function_name):
         if len(function_name) > 10:
@@ -595,7 +609,7 @@ class STATEMENT_RETURN(Instruction):
 
     def emit(self, context):
         self.expr.emit(context)
-        context.pop_scope('RET')
+        # context.pop_scope('RET')
         context.emit("""
                 ret""")
 

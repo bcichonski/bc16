@@ -353,6 +353,33 @@ stoffclc_sub:  cal :sub16
 stoffclc_end:  .mv dsdi, :{0}
                ret
 ;=============
+; STACKOFFSCLC8(a) - modifies SYS_STACKHEAD by a and stores new value back in csci, if a > 128 then this is to be substracted
+; IN:    a - value to increase
+;        a - 0x00 - add
+;            0x80 - sub
+; OUT:csci - value of SYS_STACKHEAD with offset
+;     dsdi - address of SYS_STACKHEAD
+;        a - rubbish
+stackoffsclc8: psh a
+               psh a
+               .mv dsdi, :{0}
+               cal :peek16
+               pop a
+               and 0x80
+               jmr nz, :stoffcl8_sub
+               mov ds, 0x00
+               pop di
+               cal :add16
+               xor a
+               jmr z, :stoffcl8_end
+stoffcl8_sub:  pop a
+               and 0x7f
+               mov di, a
+               mov ds, 0x00
+               cal :sub16  
+stoffcl8_end:  .mv dsdi, :{0}
+               ret
+;=============
 ; STACKHEADROLL(csci, a) - modifies SYS_STACKHEAD by csci and saves new value
 ; IN: csci - value to increase
 ;        a - 0x00 - add
@@ -363,6 +390,22 @@ stoffclc_end:  .mv dsdi, :{0}
 stackheadroll: cal :stackoffscalc
                cal :poke16
                .mv dsdi, :{0}
+               ret
+;=============
+; STACKHEADRLL8(a) - modifies SYS_STACKHEAD by csci and saves new value
+; IN:    a - value to increase
+;        a - 0x00 - add
+;            0x80 - sub
+; OUT:csci - value of SYS_STACKHEAD
+;     dsdi - address of SYS_STACKHEAD
+;        a - rubbish
+stackheadrll8: psh cs
+               psh ci
+               cal :stackoffsclc8
+               cal :poke16
+               .mv dsdi, :{0}
+               pop ci
+               pop cs
                ret
 ;=============
 ; STACKVARGET8(dsdi, a) - loads value of the variable of given offset dsdi from SYS_STACKHEAD to csci
