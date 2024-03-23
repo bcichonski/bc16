@@ -5,7 +5,7 @@
 #include stdmem.b
 #include strings.b
 
-#define MAXLINELENGTH 32
+#define MAXLINELENGTH 64
 #define MAXLINENUMBER 0xffff
 #define TEVARS_SIZE 8
 #define TEVARS_TOTALLINES 0
@@ -20,7 +20,9 @@
 byte printHelp() 
 {
     putsnl("i <n> <s> - insert new lines starting from line number <n> with step <s>");
-    putsnl("p <n> <m> - prints lines from <n> to <m>");
+    putsnl("p <n> <m> - print lines from <n> to <m>");
+    putsnl("d <n> <m> - delete lines from <n> to <m>");
+    putsnl("m - memory stats");
     putsnl("h - help");
     putsnl("q - quit");
 }
@@ -264,21 +266,19 @@ byte deleteLines(word PinputBuf, word PtextedVars)
         word currentLineNumber;
         word PcurrentLine;
         word PstartLine;
+        word startLineNumber;
         word PlineText;
         word removedCount;
 
         PstartLine <- findPreviousLine(PtextedVars, lineNumberStart);
         PcurrentLine <- PstartLine;
         currentLineNumber <- #(PcurrentLine + TELINE_NUMBER);
+        startLineNumber <- currentLineNumber;
 
-        if(PcurrentLine && currentLineNumber < lineNumberStart) 
+        if(PcurrentLine && startLineNumber < lineNumberStart) 
         {
             PcurrentLine <- #(PcurrentLine + TELINE_PNEXT);
             currentLineNumber <- #(PcurrentLine + TELINE_NUMBER);
-        }
-        else
-        {
-            currentLineNumber <- MAXLINENUMBER;
         }
         
         removedCount <- 0;
@@ -293,21 +293,38 @@ byte deleteLines(word PinputBuf, word PtextedVars)
         }
 
         if (PcurrentLine)
-        { 
-            if(currentLineNumber <= lineNumberEnd) 
+        {
+            if(removedCount > 0) 
             {
-                poke16(PstartLine + TELINE_PNEXT, NULL);
-            }
-            else 
-            {
-                poke16(PstartLine + TELINE_PNEXT, PcurrentLine);
+                if(currentLineNumber <= lineNumberEnd) 
+                {
+                    poke16(PstartLine + TELINE_PNEXT, NULL);
+                }
+                else 
+                {
+                    if(startLineNumber <= lineNumberStart) 
+                    {
+                        poke16(PstartLine + TELINE_PNEXT, PcurrentLine);
+                    }
+                    else
+                    {
+                        poke16(PtextedVars + TEVARS_PFIRSTLINE, PcurrentLine);
+                    }
+                }
             }
         }
         else
         {
             if(removedCount > 0) 
             {
-                poke16(PtextedVars + TEVARS_PFIRSTLINE, NULL);
+                if(startLineNumber <= lineNumberStart) 
+                {
+                    poke16(PstartLine + TELINE_PNEXT, NULL);
+                }
+                else 
+                {
+                    poke16(PtextedVars + TEVARS_PFIRSTLINE, NULL);
+                }
             }
         }
         
@@ -315,6 +332,24 @@ byte deleteLines(word PinputBuf, word PtextedVars)
         putdecw(removedCount);
         putsnl(" lines removed");
     }
+}
+
+byte memStat(word PinputBuf, word PtextedVars)
+{
+    word memtotal;
+    word firstLineNumber;
+    word PfirstLine;
+    word totalLines;
+
+    memtotal <- mtotal();
+    totalLines <- #(PtextedVars + TEVARS_TOTALLINES);
+
+    PfirstLine <- #(PtextedVars + TEVARS_PFIRSTLINE);
+    firstLineNumber <- #(PfirstLine + TELINE_NUMBER);
+
+    puts("total lines: "); putdecwnl(totalLines);
+    puts("from ");putdecw(firstLineNumber);puts(" (");putw(PfirstLine);putsnl(")");
+    puts("free text memory: ");putdecw(memtotal);putsnl(" bytes");
 }
 
 byte mainLoop(word PinputBuf, word PtextedVars) 
@@ -349,6 +384,10 @@ byte mainLoop(word PinputBuf, word PtextedVars)
             knownCommand <- 1;
         }
 
+        if(choice = 'm') {
+            memStat(PinputBuf, PtextedVars);
+            knownCommand <- 1;
+        }
 
         if(choice = 'h')
         {
@@ -372,7 +411,7 @@ byte main()
 {
     word PinputBuf;
     word PtextedVars;
-    putsnl("TextEd v1.0");
+    putsnl("TextEd v1.1");
     putsnl("type h for help");
 
     PtextedVars <- malloc(TEVARS_SIZE);
