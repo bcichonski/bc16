@@ -475,6 +475,65 @@ stackvarset16: psh cs
                cal :poke16
                ret
 ;=============
+; STACKVAR8GT8(a) - loads value of the variable of given offset a from SYS_STACKHEAD to csci
+; IN:    a - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x80 - sub
+; OUT:  ci - value of variable
+;       cs - set to 0
+;     dsdi - address of SYS_STACKHEAD
+;        a - same as ci
+stackvar8gt8:  cal :stackoffsclc8   
+               mov a, #csci
+               mov cs, 0x00
+               mov ci, a
+               ret
+;=============
+; STACKVAR8GT16(a) - loads value of the variable of given offset a from SYS_STACKHEAD to csci
+; IN:    a - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x80 - sub
+; OUT:csci - value of variable
+;     dsdi - address of variable + 1
+;        a - rubbish
+stackvar8gt16: cal :stackoffsclc8
+               mov ds, cs
+               mov di, ci   
+               cal :peek16
+               ret
+;=============
+; STACKVAR8ST8(ci, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
+; IN: ci - value
+;        a - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x80 - sub
+; OUT:  ci - value of variable
+;     dsdi - address of SYS_STACKHEAD
+;        a - ci
+stackvar8st8:  psh ci
+               cal :stackoffsclc8   
+               pop a
+               mov #csci, a
+               ret
+;=============
+; STACKVAR8ST16(csci,a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
+; IN: csci - value
+;        a - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x80 - sub
+; OUT:csci - value
+;     dsdi - address of variable + 1
+;        a - rubbish
+stackvar8st16: psh cs
+               psh ci
+               cal :stackoffsclc8   
+               mov ds, cs
+               mov di, ci
+               pop ci
+               pop cs
+               cal :poke16
+               ret
+;=============
 ; MSEEK(csci) - finds address of first free block of given size
 ; IN: csci - wanted size of the block
 ; OUT:csci - address after which free memory begins

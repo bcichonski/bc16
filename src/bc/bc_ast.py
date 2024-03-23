@@ -283,13 +283,29 @@ class EXPRESSION_TERM(Instruction):
             var = context.get_variable(self.term)
             print('TERM {0} IS VAR {1}'.format(self.term, var))
             offset = var['offset']
+
+            if abs(offset) < 127:
+                offs8 = offset
+                if (offset < 0):
+                    offs8 = -offs8 | 0x80
+
+                varget = 'stackvar8gt16'
+                if var['type'] == 'byte':
+                    varget = 'stackvar8gt8'
+                
+                context.emit("""
+                {0}
+                cal :{1}""".format(context.load_a(offs8), varget))
+                return
+            
+            varget = 'stackvarget16'
+            if var['type'] == 'byte':
+                varget = 'stackvarget8'
+            
             oper = 'xor a'
             if offset < 0:
                 oper = 'mov a, 0x01'
                 offset = -offset
-            varget = 'stackvarget16'
-            if var['type'] == 'byte':
-                varget = 'stackvarget8'
 
             context.emit("""
             {0}
@@ -487,19 +503,40 @@ class VARIABLE_ASSIGNEMENT(Instruction):
         variable_def = context.get_variable(self.varname)
         print('{0}'.format(variable_def))
         offset = variable_def['offset']
-        oper = 'xor a'
-        if offset < 0:
-            oper = 'mov a, 0x01'
-            offset = -offset
-        varset = 'stackvarset16'
-        if(variable_def['type'] == 'byte'):
-            varset = 'stackvarset8'
+
+
+
+        if(variable_def['type'] != 'word' and variable_def['type'] != 'byte'):
+            self.context.add_error('Unknown type {0} in assignment'.format(variable_def['type']))
         
         try:
             if funcCall: context.get_variable_declared_only()
             self.expr.emit(context)
         finally:
             if funcCall: context.get_variable_all()
+
+        if abs(offset) < 127:
+            offs8 = offset
+            if (offset < 0):
+                offs8 = -offs8 | 0x80
+
+            varset = 'stackvar8st16'
+            if(variable_def['type'] == 'byte'):
+                varset = 'stackvar8st8'
+            
+            context.emit("""
+            {0}
+            cal :{1}""".format(context.load_a(offs8), varset))
+            return
+        
+        oper = 'xor a'
+        if offset < 0:
+            oper = 'mov a, 0x01'
+            offset = -offset
+
+        varset = 'stackvarset16'
+        if(variable_def['type'] == 'byte'):
+            varset = 'stackvarset8'
         
         context.emit("""
 ;{2} offset {3} OPER {1}
@@ -507,9 +544,7 @@ class VARIABLE_ASSIGNEMENT(Instruction):
             {1}
             cal :{4}""".format(context.load_dsdi(offset), oper, variable_def['name'], offset, varset))
 
-        if(variable_def['type'] == 'word' or variable_def['type'] == 'byte'):
-            return
-        self.context.add_error('Unknown type {0} in assignment'.format(variable_def['type']))
+
 
 @dataclass
 class CODE_BLOCK(Instruction):
