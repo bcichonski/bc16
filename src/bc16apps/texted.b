@@ -6,6 +6,7 @@
 #include strings.b
 
 #define MAXLINELENGTH 32
+#define MAXLINENUMBER 0xffff
 #define TEVARS_SIZE 8
 #define TEVARS_TOTALLINES 0
 #define TEVARS_PFIRSTLINE 2
@@ -88,12 +89,19 @@ word findPreviousLine(word PtextedVars, word lineNumber)
     return PcurrLine;
 }
 
-byte incTotalLines(word PtextedVars, word increment)
+byte setTotalLines(word PtextedVars, word change, byte inc)
 {
     word totalLines;
 
     totalLines <- #(PtextedVars + TEVARS_TOTALLINES);
-    totalLines <- totalLines + increment;
+    if (inc) 
+    {
+        totalLines <- totalLines + change;
+    }
+    else
+    {
+        totalLines <- totalLines - change;
+    }
 
     poke16(PtextedVars + TEVARS_TOTALLINES, totalLines);
 }
@@ -140,7 +148,7 @@ byte insertLine(word PinputBuf, word PtextedVars, word lineNumber)
 
             if (PnextLine = NULL) 
             {
-                nextLineNumber <- 0xffff;
+                nextLineNumber <- MAXLINENUMBER;
             }
 
             if (lineNumber < nextLineNumber) {
@@ -170,15 +178,13 @@ byte insertLine(word PinputBuf, word PtextedVars, word lineNumber)
 
         if(inserted) 
         {
-            incTotalLines(PtextedVars, 1);
+            setTotalLines(PtextedVars, 1, 1);
         }
     }
     else
     {
         continue <- 0;
     }
-
-    putnl();
 
     return continue;
 }
@@ -264,6 +270,17 @@ byte deleteLines(word PinputBuf, word PtextedVars)
         PstartLine <- findPreviousLine(PtextedVars, lineNumberStart);
         PcurrentLine <- PstartLine;
         currentLineNumber <- #(PcurrentLine + TELINE_NUMBER);
+
+        if(PcurrentLine && currentLineNumber < lineNumberStart) 
+        {
+            PcurrentLine <- #(PcurrentLine + TELINE_PNEXT);
+            currentLineNumber <- #(PcurrentLine + TELINE_NUMBER);
+        }
+        else
+        {
+            currentLineNumber <- MAXLINENUMBER;
+        }
+        
         removedCount <- 0;
 
         while(PcurrentLine && currentLineNumber <= lineNumberEnd) 
@@ -275,16 +292,26 @@ byte deleteLines(word PinputBuf, word PtextedVars)
             currentLineNumber <- #(PcurrentLine + TELINE_NUMBER);
         }
 
-        if (currentLineNumber <= lineNumberEnd) 
-        {
-            poke16(PstartLine + TELINE_PNEXT, PcurrentLine);
+        if (PcurrentLine)
+        { 
+            if(currentLineNumber <= lineNumberEnd) 
+            {
+                poke16(PstartLine + TELINE_PNEXT, NULL);
+            }
+            else 
+            {
+                poke16(PstartLine + TELINE_PNEXT, PcurrentLine);
+            }
         }
         else
         {
-            mfree(PstartLine);
-            poke16(PtextedVars + TEVARS_PFIRSTLINE, NULL);
+            if(removedCount > 0) 
+            {
+                poke16(PtextedVars + TEVARS_PFIRSTLINE, NULL);
+            }
         }
         
+        setTotalLines(PtextedVars, removedCount, 0);
         putdecw(removedCount);
         putsnl(" lines removed");
     }
@@ -316,6 +343,12 @@ byte mainLoop(word PinputBuf, word PtextedVars)
             printLines(PinputBuf, PtextedVars);
             knownCommand <- 1;
         }
+
+        if(choice = 'd') {
+            deleteLines(PinputBuf, PtextedVars);
+            knownCommand <- 1;
+        }
+
 
         if(choice = 'h')
         {
