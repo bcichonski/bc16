@@ -123,5 +123,35 @@ class TapeRecorderTests(unittest.TestCase):
         for bit in read_data:
             out = (out << 1) | bit
         self.assertEqual(data_hex, out)
+
+class ClockTests(unittest.TestCase):
+    def create_clock(self):
+        env = MockedEnvironment(debug)
+        io = bc16_io.IOBus()
+        dev = bc16_io.Clock(env)
+        io.add_device(dev)
+
+        return (io, dev)
+
+    def test_should_get_time(self):
+        #given
+        (io, dev) = self.create_clock()
+
+        #when
+        self.assertEqual(dev.state, bc16_io.Clock.STATE_READY)
+        io.write_byte(bc16_io.Clock.DEFAULT_IO_PORT, bc16_io.Clock.COMMAND_GETTIME)
+        
+        hour = io.read_byte(bc16_io.Clock.DEFAULT_IO_PORT)
+        minute = io.read_byte(bc16_io.Clock.DEFAULT_IO_PORT)
+        second = io.read_byte(bc16_io.Clock.DEFAULT_IO_PORT)
+
+        #then
+        self.assertEqual(dev.state, bc16_io.Clock.STATE_READY)
+        self.assertIn(hour, range(0, 59))
+        self.assertIn(minute, range(0, 59))
+        self.assertIn(second, range(0, 59))
+
+        
+
 if __name__ == '__main__':
     unittest.main()

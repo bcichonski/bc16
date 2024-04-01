@@ -1,5 +1,6 @@
 from bc16 import bc16_cpu
 import random
+import datetime
 
 class IODevice:
     def __init__(self):
@@ -202,3 +203,60 @@ class IOBus:
         return self.in_ports[port]()
     def write_byte(self, port, val):
         self.out_ports[port](val)
+
+class Clock(IODevice):
+    DEFAULT_IO_PORT = 0x03
+    STATE_READY = 0x80
+    STATE_ERROR = 0xff
+    STATE_TIME_HOUR = 0x01
+    STATE_TIME_MINUTE = 0x02
+    STATE_TIME_SECOND = 0x03
+    STATE_DATE_YEAR = 0x11
+    STATE_DATE_MONTH = 0x12
+    STATE_DATE_DAY = 0x13
+    COMMAND_GETTIME = 0x01
+    COMMAND_GETDATE = 0x02
+    COMMAND_RESET = 0xff
+
+    def __init__(self, env):
+        self.env = env
+        self.io_port = Clock.DEFAULT_IO_PORT
+        self.state = Clock.STATE_READY
+
+    def read_byte(self):
+        if(self.state == Clock.STATE_READY):
+            return Clock.STATE_READY
+        elif(self.state == Clock.STATE_TIME_HOUR):
+            self.state = Clock.STATE_TIME_MINUTE
+            return self.currtime.hour
+        elif(self.state == Clock.STATE_TIME_MINUTE):
+            self.state = Clock.STATE_TIME_SECOND
+            return self.currtime.minute
+        elif(self.state == Clock.STATE_TIME_SECOND):
+            self.state = Clock.STATE_READY
+            return self.currtime.second
+        elif(self.state == Clock.STATE_DATE_YEAR):
+            self.state = Clock.STATE_DATE_MONTH
+            return self.currdate.year
+        elif(self.state == Clock.STATE_DATE_MONTH):
+            self.state = Clock.STATE_DATE_DAY
+            return self.currtime.month
+        elif(self.state == Clock.STATE_DATE_DAY):
+            self.state = Clock.STATE_READY
+            return self.currtime.day
+        
+        return Clock.STATE_ERROR
+    
+    def write_byte(self, byte):
+        if (byte == Clock.COMMAND_RESET):
+            self.state = Clock.STATE_READY
+        elif (self.state == Clock.STATE_READY and byte == Clock.COMMAND_GETTIME):
+            self.currtime = datetime.datetime.now()
+            self.state = Clock.STATE_TIME_HOUR
+            return
+        elif (self.state == Clock.STATE_READY and byte == Clock.COMMAND_GETDATE):
+            self.currdate = datetime.datetime.now()
+            self.state = Clock.STATE_DATE_YEAR
+            return
+        
+        

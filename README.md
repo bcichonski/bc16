@@ -1,6 +1,16 @@
 I have always wanted to build 8bit computer, as i am to lazy to work with hardware, this is the closest thing to that.
 
 # BC32
+## roadmap
+0. smaller peripherals
+1. fdd
+2. memory extension
+3. bcos upgrade
+4. bdos development
+5. new binary file format
+6. new assembler
+7. new blang compiler
+
 ## architectural notes
 ### OS
 bcos v1.1 
