@@ -237,13 +237,13 @@ class Clock(IODevice):
             return self.currtime.second
         elif(self.state == Clock.STATE_DATE_YEAR):
             self.state = Clock.STATE_DATE_MONTH
-            return self.currdate.year
+            return (self.currtime.year - 2000) & 0xff
         elif(self.state == Clock.STATE_DATE_MONTH):
             self.state = Clock.STATE_DATE_DAY
-            return self.currtime.month
+            return self.currtime.month & 0xff
         elif(self.state == Clock.STATE_DATE_DAY):
             self.state = Clock.STATE_READY
-            return self.currtime.day
+            return self.currtime.day & 0xff
         
         return Clock.STATE_ERROR
     
@@ -255,7 +255,7 @@ class Clock(IODevice):
             self.state = Clock.STATE_TIME_HOUR
             return
         elif (self.state == Clock.STATE_READY and byte == Clock.COMMAND_GETDATE):
-            self.currdate = datetime.datetime.now()
+            self.currtime = datetime.datetime.now()
             self.state = Clock.STATE_DATE_YEAR
             return
         

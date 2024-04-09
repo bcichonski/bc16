@@ -1,4 +1,5 @@
 import unittest
+import datetime
 from bc16 import bc16_io
 from bc16 import bc16_env
 
@@ -140,7 +141,7 @@ class ClockTests(unittest.TestCase):
         #when
         self.assertEqual(dev.state, bc16_io.Clock.STATE_READY)
         io.write_byte(bc16_io.Clock.DEFAULT_IO_PORT, bc16_io.Clock.COMMAND_GETTIME)
-        
+
         hour = io.read_byte(bc16_io.Clock.DEFAULT_IO_PORT)
         minute = io.read_byte(bc16_io.Clock.DEFAULT_IO_PORT)
         second = io.read_byte(bc16_io.Clock.DEFAULT_IO_PORT)
@@ -151,7 +152,25 @@ class ClockTests(unittest.TestCase):
         self.assertIn(minute, range(0, 59))
         self.assertIn(second, range(0, 59))
 
+    def test_should_get_date(self):
+        #given
+        (io, dev) = self.create_clock()
+        today = datetime.datetime.now()
+
+        #when
+        self.assertEqual(dev.state, bc16_io.Clock.STATE_READY)
+        io.write_byte(bc16_io.Clock.DEFAULT_IO_PORT, bc16_io.Clock.COMMAND_GETDATE)
         
+        year = io.read_byte(bc16_io.Clock.DEFAULT_IO_PORT)
+        month = io.read_byte(bc16_io.Clock.DEFAULT_IO_PORT)
+        day = io.read_byte(bc16_io.Clock.DEFAULT_IO_PORT)
+
+        #then
+        self.assertEqual(dev.state, bc16_io.Clock.STATE_READY)
+        self.assertEqual(year, today.year % 2000)
+        self.assertEqual(month, today.month)
+        self.assertEqual(day, today.day)
+
 
 if __name__ == '__main__':
     unittest.main()
