@@ -259,4 +259,16 @@ class Clock(IODevice):
             self.state = Clock.STATE_DATE_YEAR
             return
         
-        
+class RandomGenerator(IODevice):
+    DEFAULT_IO_PORT = 0x05
+
+    def __init__(self, env):
+        self.env = env
+        self.io_port = RandomGenerator.DEFAULT_IO_PORT
+        self.rnd = random.Random()
+
+    def read_byte(self):
+        return self.rnd.randint(0x00, 0xff)
+    
+    def write_byte(self, byte):
+        None

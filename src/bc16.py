@@ -15,10 +15,14 @@ class Bc16:
         self.keyboard = bc16_io.TerminalKeyboard(env)
         self.printer = bc16_io.TerminalPrinter(env)
         self.taperecorder = bc16_io.TapeRecorder(env)
+        self.clock = bc16_io.Clock(env)
+        self.randgen = bc16_io.RandomGenerator(env)
         self.io = bc16_io.IOBus()
         self.io.add_device(self.keyboard)
         self.io.add_device(self.printer)
         self.io.add_device(self.taperecorder)
+        self.io.add_device(self.clock)
+        self.io.add_device(self.randgen)
         self.cpu = bc16_cpu.Bc8181(self.mem, self.io, debug)
 
     def run(self):

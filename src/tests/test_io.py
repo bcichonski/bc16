@@ -171,6 +171,24 @@ class ClockTests(unittest.TestCase):
         self.assertEqual(month, today.month)
         self.assertEqual(day, today.day)
 
+class RandomGeneratorTests(unittest.TestCase):
+    def create(self):
+        env = MockedEnvironment(debug)
+        io = bc16_io.IOBus()
+        dev = bc16_io.RandomGenerator(env)
+        io.add_device(dev)
+
+        return (io, dev)
+
+    def test_should_get_time(self):
+        #given
+        (io, dev) = self.create()
+
+        #when
+        val = io.read_byte(bc16_io.RandomGenerator.DEFAULT_IO_PORT)
+
+        #then
+        self.assertIn(val, range(0x00, 0xff))
 
 if __name__ == '__main__':
     unittest.main()
