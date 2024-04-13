@@ -1,0 +1,2656 @@
+;
+                .org 0x1000
+;MAIN ENTRYPOINT
+;&STACKHEAD <- STACKHEAD + 2
+                .mv dsdi, :sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :add16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+;&HEAPHEAD <- 12288
+                .mv dsdi, :sys_heaphead
+                mov cs, 0x30
+                mov ci, 0x00
+                cal :poke16
+                cal :FMAIN0031
+                ret
+;FUNCTIONS
+;FUNCTION peek8
+FPEEK80001:     nop
+;depth 2: STACKHEAD += 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+                mov a, #csci
+                mov cs, 0x00
+                mov ci, a
+;depth 1: STACKHEAD -= 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION peek8
+;FUNCTION peek16
+FPEEK160002:    nop
+;depth 2: STACKHEAD += 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+;depth 1: STACKHEAD -= 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION peek16
+;FUNCTION poke8
+FPOKE80003:     nop
+;depth 2: STACKHEAD += 3
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x03
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarget8
+                mov a, ci
+            mov ds, 0x00
+                mov di, 0x03
+            mov a, 0x01
+            cal :stackvarget16
+                mov #csci, a
+;depth 1: STACKHEAD -= 3
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x03
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION poke8
+;FUNCTION poke16
+FPOKE160004:    nop
+;depth 2: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+                pop di
+                pop ds
+                cal :poke16
+;depth 1: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION poke16
+;FUNCTION parsedecw
+FPARSEDECW0005: nop
+;depth 2: STACKHEAD += 3
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x03
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+                mov cs, 0x00
+                mov ci, 0x00
+;value offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+LABEL0006:      nop
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarget8
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0007
+                jmp z, csci
+;depth 3: STACKHEAD += 3
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x03
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x06
+            mov a, 0x01
+            cal :stackvarget16
+;Paddr offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                cal :FPEEK80001
+;digit offset 1 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarset8
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarget8
+                mov a, cs
+                or  ci
+                mov a, f
+                and 0x01
+                mov cs,0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0008
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0x01
+;maxlen offset 4 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarset8
+LABEL0008:      nop
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarget8
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0009
+                jmp z, csci
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarget8
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x30
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :sub16
+;digit offset 1 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarset8
+            mov ds, 0x00
+                mov di, 0x03
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x0a
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :mul16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarget8
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :add16
+;value offset 3 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x03
+            mov a, 0x01
+            cal :stackvarset16
+LABEL0009:      nop
+            mov ds, 0x00
+                mov di, 0x06
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :add16
+;Pbuf offset 6 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x06
+            mov a, 0x01
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget8
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :sub16
+;maxlen offset 4 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarset8
+;depth 2: STACKHEAD -= 3
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x03
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                .mv csci, :LABEL0006
+                xor a
+                jmp z, csci
+LABEL0007:      nop
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+;depth 1: STACKHEAD -= 3
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x03
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+                ret
+;END OF FUNCTION parsedecw
+;FUNCTION putdigit
+FPUTDIGIT000a:  nop
+;depth 2: STACKHEAD += 1
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarget8
+                mov a, ci
+                cal :printhex4
+;depth 1: STACKHEAD -= 1
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION putdigit
+;FUNCTION putb
+FPUTB000b:      nop
+;depth 2: STACKHEAD += 1
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarget8
+                mov a, ci
+                cal :printhex8
+;depth 1: STACKHEAD -= 1
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION putb
+;FUNCTION putw
+FPUTW000c:      nop
+;depth 2: STACKHEAD += 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+                cal :printhex16
+;depth 1: STACKHEAD -= 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION putw
+;FUNCTION putnl
+FPUTNL000d:     nop
+                cal :print_newline
+                ret
+;END OF FUNCTION putnl
+;FUNCTION puts
+FPUTS000e:      nop
+;depth 2: STACKHEAD += 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+                mov ds, cs
+                mov di, ci
+                cal :printstr
+;depth 1: STACKHEAD -= 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION puts
+;FUNCTION readsn
+FREADSN000f:    nop
+;depth 2: STACKHEAD += 3
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x03
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x03
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarget8
+                pop di
+                pop ds
+                cal :readstr
+;depth 1: STACKHEAD -= 3
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x03
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION readsn
+;FUNCTION putdecw
+FPUTDECW0010:   nop
+;depth 2: STACKHEAD += 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+                mov cs, 0x27
+                mov ci, 0x10
+;divisor offset 1 OPER xor a
+            mov ds, 0x00
+                mov di, 0x01
+            xor a
+            cal :stackvarset16
+                mov cs, 0x00
+                mov ci, 0x00
+;nonzero offset 3 OPER xor a
+            mov ds, 0x00
+                mov di, 0x03
+            xor a
+            cal :stackvarset8
+LABEL0011:      nop
+            mov ds, 0x00
+                mov di, 0x01
+            xor a
+            cal :stackvarget16
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0012
+                jmp z, csci
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x06
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x03
+            mov a, 0x01
+            cal :stackvarget16
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :div16
+;digit offset 4 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarset8
+            mov ds, 0x00
+                mov di, 0x06
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget8
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x03
+            mov a, 0x01
+            cal :stackvarget16
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :mul16
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :sub16
+;value offset 6 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x06
+            mov a, 0x01
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget8
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x03
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :add16
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0013
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0x01
+;nonzero offset 1 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarset8
+LABEL0013:      nop
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarget8
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0014
+                jmp z, csci
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget8
+;digit offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset8
+                cal :FPUTDIGIT000a
+LABEL0014:      nop
+            mov ds, 0x00
+                mov di, 0x03
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x0a
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :div16
+;divisor offset 3 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x03
+            mov a, 0x01
+            cal :stackvarset16
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                .mv csci, :LABEL0011
+                xor a
+                jmp z, csci
+LABEL0012:      nop
+;depth 1: STACKHEAD -= 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION putdecw
+;FUNCTION malloc
+FMALLOC0015:    nop
+;depth 2: STACKHEAD += 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :add16
+                cal :mseek
+                psh cs
+                psh ci
+                psh ds
+                psh di
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                cal :dec16
+                pop ci
+                pop cs
+                cal :poke16
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarget16
+                cal :dec16
+                pop ci
+                pop cs
+                cal :poke16
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0016
+                jmp z, csci
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :sub16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x06
+            mov a, 0x01
+            cal :stackvarget16
+                pop di
+                pop ds
+                cal :poke16
+                cal :inc16
+                psh ds
+                psh di
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x06
+            mov a, 0x01
+            cal :stackvarget16
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :add16
+                pop di
+                pop ds
+                cal :poke16
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+LABEL0016:      nop
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or  ci
+                mov a, f
+                and 0x01
+                mov cs,0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0017
+                jmp z, csci
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+;PcurrNodeLen offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0018
+                jmp z, csci
+;depth 4: STACKHEAD += 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :add16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :add16
+;PnewNodeAddr offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :add16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                pop di
+                pop ds
+                cal :poke16
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x08
+            mov a, 0x01
+            cal :stackvarget16
+                pop di
+                pop ds
+                cal :poke16
+                cal :inc16
+                psh ds
+                psh di
+            mov ds, 0x00
+                mov di, 0x06
+            mov a, 0x01
+            cal :stackvarget16
+                pop di
+                pop ds
+                cal :poke16
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :add16
+;PfirstFree offset 4 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarset16
+;depth 3: STACKHEAD -= 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+LABEL0018:      nop
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                mov a, cs
+                or  ci
+                mov a, f
+                and 0x01
+                mov cs,0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0019
+                jmp z, csci
+;depth 4: STACKHEAD += 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x08
+            mov a, 0x01
+            cal :stackvarget16
+                pop di
+                pop ds
+                cal :poke16
+                cal :inc16
+                psh ds
+                psh di
+            mov ds, 0x00
+                mov di, 0x06
+            mov a, 0x01
+            cal :stackvarget16
+                pop di
+                pop ds
+                cal :poke16
+;depth 3: STACKHEAD -= 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+LABEL0019:      nop
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+LABEL0017:      nop
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarget16
+;depth 1: STACKHEAD -= 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+                ret
+;END OF FUNCTION malloc
+;FUNCTION mfree
+FMFREE001a:     nop
+;depth 2: STACKHEAD += 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :sub16
+                mov ds, cs
+                mov di, ci
+                mov cs, 0x00
+                mov ci, 0x00
+                cal :poke16
+                mov cs, 0x00
+                mov ci, 0x00
+;depth 1: STACKHEAD -= 2
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+                ret
+;END OF FUNCTION mfree
+;FUNCTION mhead
+FMHEAD001b:     nop
+                .mv dsdi, :sys_heaphead
+                cal :peek16
+                ret
+;END OF FUNCTION mhead
+;FUNCTION mtotal
+FMTOTAL001c:    nop
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+                cal :FMHEAD001b
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+;Pcurr offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+;Plast offset 2 OPER xor a
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarset16
+LABEL001d:      nop
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                mov a, cs
+                or ci
+                .mv csci, :LABEL001e
+                jmp z, csci
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget16
+;Plast offset 2 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x02
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :add16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+;Pcurr offset 4 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarset16
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                .mv csci, :LABEL001d
+                xor a
+                jmp z, csci
+LABEL001e:      nop
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                cal :dec16
+                mov cs, ss
+                mov ci, si
+                cal :poke16
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarget16
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :sub16
+;Pcurr offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                ret
+                ret
+;END OF FUNCTION mtotal
+;FUNCTION mfill
+FMFILL001f:     nop
+;depth 2: STACKHEAD += 5
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x05
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x05
+            mov a, 0x01
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarget8
+                mov a, ci
+            mov ds, 0x00
+                mov di, 0x03
+            mov a, 0x01
+            cal :stackvarget16
+                pop di
+                pop ds
+                cal :mfill
+;depth 1: STACKHEAD -= 5
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x05
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION mfill
+;FUNCTION mzero
+FMZERO0020:     nop
+;depth 2: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget16
+;Paddr offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+;length offset 2 OPER xor a
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarset16
+                mov cs, 0x00
+                mov ci, 0x00
+;value offset 4 OPER xor a
+            mov ds, 0x00
+                mov di, 0x04
+            xor a
+            cal :stackvarset8
+                cal :FMFILL001f
+;depth 1: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION mzero
+;FUNCTION getRandomSeed
+FGETRANDOMS0021:nop
+;depth 2: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+                .mv csci, :DATA0022
+;Pstr offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                cal :FPUTS000e
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x08
+            mov a, 0x01
+            cal :stackvarget16
+;Pbuf offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                mov cs, 0x00
+                mov ci, 0x20
+;maxlen offset 2 OPER xor a
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarset8
+                cal :FREADSN000f
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x08
+            mov a, 0x01
+            cal :stackvarget16
+;Pbuf offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                mov cs, 0x00
+                mov ci, 0x20
+;maxlen offset 2 OPER xor a
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarset8
+                cal :FPARSEDECW0005
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+;rand offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x05
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :mul16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :add16
+;rand offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x26
+                mov ci, 0x9f
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :div16
+;temp offset 2 OPER xor a
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x26
+                mov ci, 0x9f
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :mul16
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :sub16
+;rand offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x03
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :mul16
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :add16
+;rand offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :div16
+;temp offset 2 OPER xor a
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarget16
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :mul16
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :sub16
+;rand offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget16
+;depth 1: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+                ret
+;END OF FUNCTION getRandomSeed
+;FUNCTION mainLoop
+FMAINLOOP0023:  nop
+;depth 2: STACKHEAD += 3
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x03
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+                mov cs, 0x00
+                mov ci, 0x00
+;theodoreFound offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset8
+                mov cs, 0x00
+                mov ci, 0x00
+;playerStop offset 1 OPER xor a
+            mov ds, 0x00
+                mov di, 0x01
+            xor a
+            cal :stackvarset8
+                mov cs, 0x00
+                mov ci, 0x00
+;playerExit offset 2 OPER xor a
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarset8
+LABEL0024:      nop
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarget8
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarget8
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :add16
+                mov a, cs
+                or  ci
+                mov a, f
+                and 0x01
+                mov cs,0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0025
+                jmp z, csci
+;depth 3: STACKHEAD += 3
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x03
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+                .mv csci, :DATA0026
+;Pstr offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                cal :FPUTS000e
+                cal :FPUTNL000d
+                .mv csci, :DATA0027
+;Pstr offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                cal :FPUTS000e
+                mov cs, 0x00
+                mov ci, 0x64
+;value offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                cal :FPUTDECW0010
+                .mv csci, :DATA0028
+;Pstr offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                cal :FPUTS000e
+            mov ds, 0x00
+                mov di, 0x06
+            mov a, 0x01
+            cal :stackvarget16
+;Pbuf offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                mov cs, 0x00
+                mov ci, 0x20
+;maxlen offset 2 OPER xor a
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarset8
+                cal :FREADSN000f
+            mov ds, 0x00
+                mov di, 0x06
+            mov a, 0x01
+            cal :stackvarget16
+;Pbuf offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                mov cs, 0x00
+                mov ci, 0x20
+;maxlen offset 2 OPER xor a
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarset8
+                cal :FPARSEDECW0005
+;playerStop offset 2 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarset8
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget8
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x64
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :gteq16
+                dec a
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0029
+                jmp z, csci
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget8
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget8
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL002a
+                jmp z, csci
+                .mv csci, :DATA002b
+;Pstr offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                cal :FPUTS000e
+                cal :FPUTNL000d
+                mov cs, 0x00
+                mov ci, 0x01
+;theodoreFound offset 3 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x03
+            mov a, 0x01
+            cal :stackvarset8
+LABEL002a:      nop
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget8
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget8
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :gteq16
+                dec a
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL002c
+                jmp z, csci
+                .mv csci, :DATA002d
+;Pstr offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                cal :FPUTS000e
+                cal :FPUTNL000d
+LABEL002c:      nop
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget8
+                psh cs
+                psh ci
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget8
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :gteq16
+                dec a
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL002e
+                jmp z, csci
+                .mv csci, :DATA002f
+;Pstr offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                cal :FPUTS000e
+                cal :FPUTNL000d
+LABEL002e:      nop
+LABEL0029:      nop
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget8
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x64
+                mov ds, cs
+                mov di, ci
+                pop ci
+                pop cs
+                cal :gteq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0030
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0x01
+;playerExit offset 1 OPER mov a, 0x01
+            mov ds, 0x00
+                mov di, 0x01
+            mov a, 0x01
+            cal :stackvarset8
+LABEL0030:      nop
+;depth 2: STACKHEAD -= 3
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x03
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                .mv csci, :LABEL0024
+                xor a
+                jmp z, csci
+LABEL0025:      nop
+;depth 1: STACKHEAD -= 3
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x03
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                ret
+;END OF FUNCTION mainLoop
+;FUNCTION main
+FMAIN0031:      nop
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+                .mv csci, :DATA0032
+;Pstr offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                cal :FPUTS000e
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+                cal :FPUTNL000d
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+                mov cs, 0x00
+                mov ci, 0x20
+;size offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                cal :FMALLOC0015
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+;PinputBuf offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget16
+;PinputBuf offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                mov cs, 0x00
+                mov ci, 0x64
+;maxValue offset 2 OPER xor a
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarset16
+                cal :FGETRANDOMS0021
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+;rand offset 2 OPER xor a
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarset16
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget16
+;PinputBuf offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+            mov ds, 0x00
+                mov di, 0x02
+            mov a, 0x01
+            cal :stackvarget16
+;theodoreStopNumber offset 2 OPER xor a
+            mov ds, 0x00
+                mov di, 0x02
+            xor a
+            cal :stackvarset8
+                cal :FMAINLOOP0023
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+            mov ds, 0x00
+                mov di, 0x04
+            mov a, 0x01
+            cal :stackvarget16
+;Phandle offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                cal :FMFREE001a
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+                .mv csci, :DATA0033
+;Pstr offset 0 OPER xor a
+            mov ds, 0x00
+                mov di, 0x00
+            xor a
+            cal :stackvarset16
+                cal :FPUTS000e
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+;depth 3: STACKHEAD += 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                xor a
+                cal :stackheadroll
+                pop ci
+                pop cs
+                cal :FPUTNL000d
+;depth 2: STACKHEAD -= 4
+                psh cs
+                psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                mov a, 0x01
+                cal :stackheadroll
+                pop ci
+                pop cs
+                mov cs, 0x00
+                mov ci, 0x00
+                ret
+                ret
+;END OF FUNCTION main
+;>>>>>>>>>>DATA SEGMENT<<<<<<<<<<<<<
+DATA0022:      .db 'What time is it? (hhmm) ', 0x00
+DATA0026:      .db 'Where is uncle Theodore?', 0x00
+DATA0027:      .db 'Type train stop number (0..', 0x00
+DATA0028:      .db '): ', 0x00
+DATA002b:      .db 'Yes! You have found uncle Theodore!', 0x00
+DATA002d:      .db 'Uncle Theodore went south.', 0x00
+DATA002f:      .db 'Uncle Theodore went north.', 0x00
+DATA0032:      .db 'Looking for ucle Theodore v1.0', 0x00
+DATA0033:      .db 'Bye!', 0x00
+;>>>>>>>>>>COMPILER ASM STDLIB for BCOS v1.0 on BC16 v1.0<<<<<<<<<<<<<
+            mov a, 0xff
+            mov a, 0xff
+            mov a, 0xff
+            mov a, 0xff
+;=============
+; FATAL(a) - prints error message and stops
+; IN:   a - error code
+;   stack - as error address
+; OUT:  KILL, messed stack
+            .def fatal, 0x04ea
+;=============
+; PRINTHEX4(a) - prints hex number from 0 to f
+; IN:    a - number to print
+; OUT:   a - unchanged      10 -> 0 -> 41
+;       cs - set to 1
+            .def printhex4, 0x0349
+;=============
+; PRINTHEX8(a) - prints hex number 
+; IN:    a - number to print
+; OUT:   a - set to lower half
+;     csci - unchanged
+;     dsdi - unchanged
+            .def printhex8, 0x035c
+;=============
+; PRINTHEX16(csci) - prints hex number 4 digits
+; IN:    csci - hex number 4 digits
+; OUT:   csci - unchanged
+;           a - ci
+            .def printhex16, 0x036f
+;=============
+; INC16(dsdi) - increase 16bit number correctly
+; IN:    dsdi - number 16bit, break if exceeds 16bit
+; OUT:   dsdi - add 1
+;           a - di + 1 or ds + 1
+            .def inc16, 0x037a
+;=============
+; DEC16(dsdi) - decrease 16bit number correctly
+; IN:    dsdi - number 16bit, break if lower than 0
+; OUT:   dsdi - sub 1
+;           a - di - 1 or ds - 1
+            .def dec16, 0x038f
+;=============
+; POKE16(#dsdi, csci) - stores csci value under #dsdi address (2 bytes)
+; IN:   dsdi - address to store
+;       csci - value to store
+; OUT:  dsdi - address to store + 1
+;       csci - unchanged
+;       a    - rubbish
+            .def poke16, 0x03b0            
+;=============
+; PEEK16(#dsdi) - returns value under dsdi address (2 bytes)
+; IN:   dsdi - address to read
+; OUT:  dsdi - address to read + 1
+;       csci - value
+;       a    - rubbish
+            .def peek16, 0x03b8
+;=============
+; ADD16(csci,dsdi) - returns value
+;                    return os error 0x12 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - sum of csci and dsdi
+;       a    - rubbish
+            .def add16, 0x03c0
+;=============
+; SUB16(csci,dsdi) - returns value 
+;                    return os error 0x13 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - substracts dsdi from csci
+;       a    - rubbish
+            .def sub16, 0x03db
+;=============
+; MUL16(csci,dsdi) - returns value 
+;                    return os error 0x12 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - mutiplies csci by dsdi
+;       dsdi - unchanged
+;       a    - rubbish
+mul16:       psh ds
+             psh di
+             cal :gteq16
+             jmr nz, :mul16_swpskp
+             psh cs
+             mov cs, ds
+             pop ds
+             psh ci
+             mov ci, di
+             pop di
+mul16_swpskp:mov a,ds
+             or di
+             jmr nz,:mul16_isone
+             xor a
+             mov cs, a
+             mov ci, a
+             jmr z,:mul16_ret
+mul16_isone: mov a, ds
+             jmr nz, :mul16_calc
+             mov a, di
+             dec a
+             jmr nz, :mul16_calc
+             jmr z, :mul16_ret
+mul16_calc:  xor a
+             psh a
+             psh a
+mul16_loop:  mov a, di
+             and 0x01
+             jmr z, :mul16_by2
+             psh cs
+             psh ci
+mul16_by2:   mov a, cs
+             shl 0x01
+             mov cs, a
+             mov a, ci
+             shl 0x01
+             jmr no, :mul16_by2nst
+             psh a
+             mov a, cs
+             or 0x01
+             mov cs, a
+             pop a
+mul16_by2nst:mov ci, a
+             mov a, di
+             shr 0x01
+             mov di, a
+             mov a, ds
+             and 0x01
+             jmr z, :mul16_by2nmt
+             mov a, di
+             or 0x80
+             mov di, a
+mul16_by2nmt:mov a, ds
+             shr 0x01
+             mov ds, a
+             or  di
+             dec a
+             jmr nz, :mul16_loop
+mul16_addlp: pop di
+             pop ds
+             mov a, di
+             or  ds
+             jmr z, :mul16_ret
+             cal :add16
+             xor a
+             jmr z, :mul16_addlp
+mul16_ret:   pop di
+             pop ds
+             ret
+;=============
+; DIV16(csci,dsdi) - returns value 
+;                    return os error 0x13 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - divides csci by dsdi
+;       dsdi - unchanged
+;       a    - rubbish
+div16:       psh cs
+             psh ci
+             mov cs, ds
+             mov ci, di
+             .mv dsdi, :sys_div16tmp
+             cal :poke16
+             mov ds, cs
+             mov di, ci
+             pop ci
+             pop cs
+             cal :gteq16
+             jmr z, :div16_zero
+             mov a, 0x80
+             and ds
+             jmr nz, :div16_one
+             xor a
+             psh a
+             inc a
+             psh a
+div16_loop:  psh ds
+             psh di
+             cal :sub16
+             pop di
+             pop ds
+             cal :gteq16
+             jmr z, :div16_end
+             pop di
+             pop ds
+             cal :inc16
+             psh ds
+             psh di
+             psh cs
+             psh ci
+             .mv dsdi, :sys_div16tmp
+             cal :peek16
+             mov ds, cs
+             mov di, ci
+             pop ci
+             pop cs        
+             xor a
+             jmr z, :div16_loop
+div16_end:   pop ci
+             pop cs
+             ret          
+div16_one:   mov cs, 0x00
+             mov ci, 0x01
+             jmr nz, :div16_ret
+div16_zero:  xor a
+             mov cs, a
+             mov ci, a
+div16_ret:   ret
+;=============
+; READSTR(#dsdi, ci) - reads characters to the buffer
+; IN:   dsdi - buffer address for chars
+;         ci - length of the buffer (since last char has to be 0x00 we can enter one less)
+; OUT:  dsdi - preserved
+;         ci - preserved
+;         cs - how many chars can we could still add
+            .def readstr, 0x03f6
+;=============
+; PARSEHEX4(#dsdi) - parses single char to hex number chars 0-9 and a-z and A-Z are supported
+; IN:   dsdi - buffer address for char-hex
+; OUT:     a - 0 if ok, 0xff if parse error
+;         ci - hexval of a char
+            .def parsehex4, 0x0448
+;=============
+; PARSEHEX8(#dsdi) - parses two char to hex number
+; IN:   dsdi - buffer address for char
+; OUT:    a - success = 0 or >0 error
+;        ci - hex value for byte
+;      dsdi - moved + 2 if ok
+            .def parsehex8, 0x0476
+;=============
+; PARSEHEX16(#dsdi) - parses four char to hex number
+; IN:   dsdi - buffer address for char
+; OUT:  csci - hex value for value
+;          a - success = 0 or error code
+;       dsdi - moved + 4 if ok
+            .def parsehex16, 0x0497
+;=============
+; PRINT_NEWLINE - prints new line
+; IN:
+; OUT:   a - rubbish
+            .def print_newline, 0x0323
+;=============
+; PRINTSTR(*dsdi) - sends chars to printer
+; IN: dsdi - address of 0-ended char table
+; OUT:   a - set to 0x00
+;       ci - set to 0x01
+;     dsdi - set to end of char table
+            .def printstr, 0x0339
+;=============
+; GT16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci > dsdi
+;       a - 0 otherwise
+gt16:        mov a, cs
+             sub ds
+             jmr o, :gt16_false
+             jmr nz, :gt16_true
+             mov a, ci
+             sub di
+             jmr o, :gt16_false
+             jmr nz, :gt16_true
+gt16_false:  xor a
+             ret
+gt16_true:   mov a, 0x01
+             ret
+;=============
+; GTEQ16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci >= dsdi
+;       a - 0 otherwise
+gteq16:      mov a, cs
+             sub ds
+             jmr o, :gteq16_false
+             jmr nz, :gteq16_true
+             mov a, ci
+             sub di
+             jmr o, :gteq16_false
+             jmr nz, :gteq16_true
+gteq16_true: mov a, 0x01
+             ret
+gteq16_false:xor a
+             ret
+;=============
+; EQ16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci == dsdi
+;       a - 0 otherwise
+eq16:       mov a, cs
+            sub ds
+            jmr nz, :gteq16_false
+            mov a, ci
+            sub di
+            jmr nz, :gteq16_false
+eq16_true:  mov a, 0x01
+            ret
+eq16_false: xor a
+            ret
+;=============
+; STACKOFFSCALC(csci,a) - modifies SYS_STACKHEAD by csci and stores new value back in csci
+; IN: csci - value to increase
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:csci - value of SYS_STACKHEAD with offset
+;     dsdi - address of SYS_STACKHEAD
+;        a - rubbish
+stackoffscalc: psh a
+               psh cs
+               psh ci
+               .mv dsdi, :sys_stackhead
+               cal :peek16
+               pop di
+               pop ds
+               pop a
+               and a
+               jmr nz, :stoffclc_sub
+               cal :add16
+               xor a
+               jmr z, :stoffclc_end
+stoffclc_sub:  cal :sub16  
+stoffclc_end:  .mv dsdi, :sys_stackhead
+               ret
+;=============
+; STACKHEADROLL(csci, a) - modifies SYS_STACKHEAD by csci and saves new value
+; IN: csci - value to increase
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:csci - value of SYS_STACKHEAD
+;     dsdi - address of SYS_STACKHEAD
+;        a - rubbish
+stackheadroll: cal :stackoffscalc
+               cal :poke16
+               .mv dsdi, :sys_stackhead
+               ret
+;=============
+; STACKVARGET8(dsdi, a) - loads value of the variable of given offset dsdi from SYS_STACKHEAD to csci
+; IN: dsdi - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:ci - value of variable
+;     cs - set to 0
+;     dsdi - address of SYS_STACKHEAD
+;        a - rubbish
+stackvarget8:  mov cs, ds
+               mov ci, di
+               cal :stackoffscalc   
+               mov a, #csci
+               mov cs, 0x00
+               mov ci, a
+               ret
+;=============
+; STACKVARGET16(dsdi, a) - loads value of the variable of given offset dsdi from SYS_STACKHEAD to csci
+; IN: dsdi - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:csci - value of variable
+;     dsdi - address of variable + 1
+;        a - rubbish
+stackvarget16: mov cs, ds
+               mov ci, di
+               cal :stackoffscalc
+               mov ds, cs
+               mov di, ci   
+               cal :peek16
+               ret
+;=============
+; STACKVARSET8(ci,dsdi, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
+; IN: ci - value
+;     dsdi - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:csci - value of variable
+;     dsdi - address of SYS_STACKHEAD
+;        a - ci
+stackvarset8:  psh ci
+               mov cs, ds
+               mov ci, di
+               cal :stackoffscalc   
+               pop a
+               mov #csci, a
+               ret
+;=============
+; STACKVARSET16(csci,dsdi, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
+; IN: csci - value
+;     dsdi - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:csci - value
+;     dsdi - address of variable + 1
+;        a - ci
+stackvarset16: psh cs
+               psh ci
+               mov cs, ds
+               mov ci, di
+               cal :stackoffscalc   
+               mov ds, cs
+               mov di, ci
+               pop ci
+               pop cs
+               cal :poke16
+               ret
+;=============
+; MSEEK(csci) - finds address of first free block of given size
+; IN: csci - wanted size of the block
+; OUT:csci - address after which free memory begins
+;     dsdi - address of the block after which is enough free memory
+mseek:      .mv dsdi, :sys_seektmp
+            cal :poke16
+            .mv dsdi, :sys_heaphead
+            cal :peek16
+            mov ds, cs
+            mov di, ci
+mseek_loop: psh ds
+            psh di
+            cal :peek16
+            psh cs
+            psh ci
+            cal :inc16
+            cal :peek16
+            pop f
+            pop a
+            psh cs
+            psh ci
+            psh a
+            psh f
+            cal :inc16           
+            mov a, ci
+            xor cs
+            jmr z, :mseek_end
+            cal :sub16
+            pop di
+            pop ds
+            cal :sub16
+            psh cs
+            psh ci
+            .mv dsdi, :sys_seektmp
+            cal :peek16
+            mov ds, cs
+            mov di, ci
+            pop ci
+            pop cs
+            cal :gteq16
+            jmr nz, :mseek_ret
+            pop di
+            pop ds
+            pop a
+            pop a
+            xor a
+            jmr z, :mseek_loop
+mseek_end:  pop a
+            pop a
+            pop a
+            pop a
+            pop a
+            pop a
+            mov cs, ds
+            mov ci, di            
+            ret
+mseek_ret:  pop di
+            pop ds
+            pop ci
+            pop cs
+            ret
+;=============
+; MFILL(csci,dsdi, a) - fills memory starting from dsdi for csci bytes of value a
+; IN: csci - length
+;     dsdi - address of memory
+;        a - value to fill
+mfill:      psh a
+mfill_loop: mov a, cs
+            or ci
+            jmr z, :mfill_ret
+            pop a
+            psh a
+            mov #dsdi, a
+            cal :inc16
+            psh ds
+            psh di
+            mov ds, cs
+            mov di, ci
+            cal :dec16
+            mov cs, ds
+            mov ci, di
+            pop di
+            pop ds
+            xor a
+            jmr z, :mfill_loop
+mfill_ret:  pop a
+            ret
+; OUT:csci - address after which free memory begins
+;     dsdi - address of the block after which is enough free memory
+;=============
+;SYS DATA
+            .def var_promptbuf, 0x0bcf
+            .def var_user_mem, 0x0bcb
+sys_div16tmp: .db 0x00, 0x00
+sys_seektmp: .db 0x00, 0x00 
+sys_heaphead:  .db 0x30, 0x00
+sys_stackhead: nop

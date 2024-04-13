@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 
-from bc16 import bc16_env
+from bc32 import bc32_env
 from sys import argv
 
-env = bc16_env.Environment()
+env = bc32_env.Environment()
 if len(argv) < 2:
     env.log('Need two args fin.btap and fout.bin')
     exit(1)

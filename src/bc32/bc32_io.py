@@ -1,4 +1,4 @@
-from bc16 import bc16_cpu
+from bc32 import bc8182_cpu
 import random
 import datetime
 
@@ -40,16 +40,16 @@ class TapeRecorder(IODevice):
     ERROR = 0x08
     DX = 0x1
     TX = 0x2
-    F_READY = bc16_cpu.FlagsRegister.B4
-    F_TAPE4WRITE = bc16_cpu.FlagsRegister.B6
-    F_TAPE4READ = bc16_cpu.FlagsRegister.B7
-    F_MOVE = bc16_cpu.FlagsRegister.B5
-    F_ERROR = bc16_cpu.FlagsRegister.B3
-    F_DX = bc16_cpu.FlagsRegister.B0
-    F_TX = bc16_cpu.FlagsRegister.B1
+    F_READY = bc8182_cpu.FlagsRegister.B4
+    F_TAPE4WRITE = bc8182_cpu.FlagsRegister.B6
+    F_TAPE4READ = bc8182_cpu.FlagsRegister.B7
+    F_MOVE = bc8182_cpu.FlagsRegister.B5
+    F_ERROR = bc8182_cpu.FlagsRegister.B3
+    F_DX = bc8182_cpu.FlagsRegister.B0
+    F_TX = bc8182_cpu.FlagsRegister.B1
     HALF_BYTE = 0x80
     def __init__(self, env):
-        self.state = bc16_cpu.FlagsRegister(0xff)
+        self.state = bc8182_cpu.FlagsRegister(0xff)
         self.intstate = TapeRecorder.READY
         self.env = env
         self.set_state(TapeRecorder.READY)

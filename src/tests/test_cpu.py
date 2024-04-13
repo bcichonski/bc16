@@ -1,21 +1,21 @@
 import unittest
-from bc16 import bc16_cpu
-from bc16 import bc16_mem
-from bc16 import bc16_env
+from bc32 import bc8182_cpu
+from bc32 import bc32_mem
+from bc32 import bc32_env
 
 debug = False
 
 class CpuTests(unittest.TestCase):
     def create_cpu(self, code):
-        environment = bc16_env.Environment()
-        mem = bc16_mem.MemBus(environment, 0x0100)
+        environment = bc32_env.Environment()
+        mem = bc32_mem.MemBus(environment, 0x0100)
         i = 0
         for b in code:
             mem.write_byte(i, b)
             i += 1
         mem.write_byte(0xff, 0xff) #ultimate KIL
         environment.debug = debug
-        return bc16_cpu.Bc8181(mem, None, debug)
+        return bc8182_cpu.Bc8181(mem, None, debug)
     def test_MOV_opcodes_internal(self):
         if debug: print("test_MOV_opcodes_internal")
         #given

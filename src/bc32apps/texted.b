@@ -91,6 +91,32 @@ word findPreviousLine(word PtextedVars, word lineNumber)
     return PcurrLine;
 }
 
+word findMaxLineEndAddress(word PtextedVars)
+{
+    word PcurrLine;
+    word PmaxLineAddress;
+
+    PmaxLineAddress <- 0;
+
+    PcurrLine <- #(PtextedVars + TEVARS_PFIRSTLINE);
+    
+    while(PcurrLine) 
+    {
+        if (PmaxLineAddress < PcurrLine) 
+        {
+            PmaxLineAddress <- PcurrLine;
+        }
+
+        PcurrLine <- #(PcurrLine + TELINE_PNEXT);
+    }
+
+    byte length;
+    PcurrLine <- #(PmaxLineAddress + TELINE_TEXT);
+    length <- strnlen8(PcurrLine, MAXLINELENGTH);
+
+    return PmaxLineAddress + TELINE_HEADSIZE + length;
+}
+
 byte setTotalLines(word PtextedVars, word change, byte inc)
 {
     word totalLines;
@@ -339,6 +365,7 @@ byte memStat(word PinputBuf, word PtextedVars)
     word memtotal;
     word firstLineNumber;
     word PfirstLine;
+    word PlastLineLastByte;
     word totalLines;
 
     memtotal <- mtotal();
@@ -347,9 +374,12 @@ byte memStat(word PinputBuf, word PtextedVars)
     PfirstLine <- #(PtextedVars + TEVARS_PFIRSTLINE);
     firstLineNumber <- #(PfirstLine + TELINE_NUMBER);
 
+    PlastLineLastByte <- findMaxLineEndAddress(PtextedVars);
+
     puts("total lines: "); putdecwnl(totalLines);
-    puts("from ");putdecw(firstLineNumber);puts(" (");putw(PfirstLine);putsnl(")");
-    puts("free text memory: ");putdecw(memtotal);putsnl(" bytes");
+    puts("from: ");putdecw(firstLineNumber);puts(" (");putw(PfirstLine);putsnl(")");
+    puts("last byte: ");putwnl(PlastLineLastByte);
+    puts("estimated free memory: ");putdecw(memtotal);putsnl(" bytes");
 }
 
 byte mainLoop(word PinputBuf, word PtextedVars) 

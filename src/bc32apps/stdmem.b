@@ -127,17 +127,50 @@ word malloc(word size)
     return PfirstFree;
 }
 
+byte mcompact(word Pstart)
+{
+    word Pnext;
+    word nextLen;
+    word count;
+
+    Pnext <- #(Pstart + 2);
+    nextLen <- #(Pnext);
+    count <- 0;
+
+    while(Pnext && !nextLen) 
+    {
+        Pnext <- #(Pnext + 2);
+        nextLen <- #(Pnext);
+
+        putwnl(Pnext);
+        putwnl(nextLen);
+        count <- count + 1;
+    }
+
+    if (Pnext && count > 0) 
+    {
+        Pstart + 2;
+        asm "psh cs";
+        asm "psh ci";
+        Pnext;
+        asm "pop di";
+        asm "pop ds";
+        asm "cal :poke16";
+    }
+}
+
 byte mfree(word Phandle)
 {
     //frees chunk of given pointer
-    Phandle - 4;
+    Phandle <- Phandle - 4;
+    Phandle;
     asm "mov ds, cs";
     asm "mov di, ci";
     asm "mov cs, 0x00";
     asm "mov ci, 0x00";
     asm "cal :poke16";
 
-    return 0;
+    mcompact(Phandle);
 }
 
 word mhead()
