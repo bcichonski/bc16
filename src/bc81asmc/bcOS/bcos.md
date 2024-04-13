@@ -1,3 +1,8 @@
+# os v1.1 features
+extended library of subroutines
+additional code at boot to detect floppy drive and load a bootloader for bdos 1.0
+small fixes
+
 # os features
 commandline supports up to 31 characters at single input
 commands:

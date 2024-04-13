@@ -489,8 +489,12 @@ class DB(Directive):
     def emit(self, context):
         for val in self.values:
             if isinstance(val, str):
-                for char in val:
-                    context.emit_byte(ord(char))
+                if val.startswith(":"):
+                    context.emit_hi8addr(val[1:])
+                    context.emit_lo8addr(val[1:])
+                else:
+                    for char in val:
+                        context.emit_byte(ord(char))
             else: context.emit_byte(val)
 
 @dataclass

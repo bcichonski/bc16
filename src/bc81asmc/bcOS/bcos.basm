@@ -1,13 +1,23 @@
-; bc16 Operation System version 1.0.20230529
+; bc16 Operation System version 1.1.20240413
 ;
                    .org 0x0000
 os_start:          .mv csci, :os_init
                    xor a
                    jmp z, csci
 ;
+; os meta table
+;
+os_metatab:      .db :print_newline, :print_space, :printstr, :printhex4, :printhex8, :printhex16, :inc16, :dec16
+                 .db :setvarparam16, :poke16, :peek16, :add16, :sub16, :readstr, :parsehex4, :parsehex8, :parsehex16
+                 .db :upchar, :nextword, :nextval8, :fatal, :error, :print_format, :str_cpy, :str_len8, :tape_check
+                 .db :tape_write8, :tape_read8, :tape_write16, :tape_write_blk, :tape_read_blk, :exec_dump
+                 .db :exec_write, :exec_xwrite, :exec_save, :exec_load, :exec_run, :exec_exe, :os_init, :os_hello
+                 .db :os_prompt, :os_parse, :os_end, :var_param16, :var_user_mem, :var_top_mem, :var_promptbuf
+                 .db :user_mem
+;
 ; data
 ;
-data_os:          .db 'bcOS 1.0', 0x0a, 0x0d
+data_os:          .db 'bcOS 1.1', 0x0a, 0x0d, 0x00
 data_free:        .db 'free ', 0x00
 data_from:        .db ' from ', 0x00
 data_to:          .db ' to ', 0x00

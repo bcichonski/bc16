@@ -20,6 +20,7 @@ quote = string("'")
 
 ident = letter + (letter | digit | underscore).many().concat()
 quotedstr = lexeme(quote >> regex(r"[^']*") << quote).desc('quoted string')
+labelstr = lexeme(colon + ident).desc('label string')
 
 heximm4 = lexeme(
   (hexprefix >> regex(r'[0-9a-fA-F]'))
@@ -50,7 +51,7 @@ paramreg = (
   string('ci') | string('cs') | string('di') | string('ds')
  ).desc('register name')
 
-paramdb = lexeme(quotedstr | heximm8)
+paramdb = lexeme(labelstr | quotedstr | heximm8)
 
 mNOP = lexeme(string('nop')).map(NOP).desc('nop instruction')
 mINC = lexeme(string('inc') >> sep >> accumulator)\
