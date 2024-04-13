@@ -272,3 +272,179 @@ class RandomGenerator(IODevice):
     
     def write_byte(self, byte):
         None
+
+class FloppyDriveV1(IODevice):
+    DEFAULT_IO_PORT = 0x08
+    SECTOR_SIZE = 128
+    SECTORS = 16
+    TRACKS = 64
+
+    CMD_PING = 0xf0
+    CMD_CFG = 0xf1
+    CMD_SETDRVA = 0xfa
+    CMD_SETDRVB = 0xfb
+    CMD_READSECT = 0xf2
+    CMD_WRITESECT = 0xf3
+    CMD_EJECT = 0xf4
+
+    STATE_READY = 0x01
+    STATE_CFG1 = 0x02
+    STATE_CFG2 = 0x03
+    STATE_DRIVE_FAILURE = 0xe1
+    STATE_READ_FAILURE = 0xe2
+    STATE_WRITE_FAILURE = 0xe3
+    STATE_RD1 = 0x04
+    STATE_RD2 = 0x05
+    STATE_WR1 = 0x06
+    STATE_WR2 = 0x07
+
+    def __init__(self, env, mem):
+        self.env = env
+        self.mem = mem
+        self.io_port = FloppyDriveV1.DEFAULT_IO_PORT
+        self.state = FloppyDriveV1.STATE_READY
+        self.dmaaddr = None
+        self.fileA_name = None
+        self.fileB_name = None
+
+    def read_byte(self):
+        return self.state
+    
+    def create_disk(self, name):
+        handle = self.env.open_file_to_write(name)
+        disksize = FloppyDriveV1.TRACKS * FloppyDriveV1.SECTORS * FloppyDriveV1.SECTOR_SIZE
+
+        bytes = bytearray(disksize)
+        self.env.write_bytes(handle, bytes)
+        self.env.close_file(handle)
+    
+    def eject_disk(self, handle, name):
+        if handle is not None:
+            self.env.close_file(handle)
+            self.env.log("Disk {}: {} ejected.".format(self.active_drive, name))
+            return (None, None)
+        
+        return (handle, name)
+    
+    def check(self, handle, name):
+        if self.sector < 0 or self.sector >= FloppyDriveV1.SECTORS:
+            return (handle, name, FloppyDriveV1.STATE_READ_FAILURE)
+        
+        if self.track < 0 or self.track >= FloppyDriveV1.TRACKS:
+            return (handle, name, FloppyDriveV1.STATE_READ_FAILURE)
+        
+        if name is None:
+            name = self.env.get_string('Disk {} name:'.format(self.active_drive))
+
+        if handle is None:
+            if not self.env.file_exists(name):
+                self.create_disk(name)
+            handle = self.env.open_file_to_readwrite(name)
+
+        return (handle, name, FloppyDriveV1.STATE_READY)
+    
+    def read_sector(self, handle, name):
+        (handle, name, state) = self.check(handle, name)
+        if state != FloppyDriveV1.STATE_READY:
+            return (handle, name, state)
+
+        position = self.track * FloppyDriveV1.SECTORS * FloppyDriveV1.SECTOR_SIZE + self.sector * FloppyDriveV1.SECTOR_SIZE
+        self.env.move_file_handle(handle, position)
+        bytes = self.env.read_bytes(handle, FloppyDriveV1.SECTOR_SIZE)
+
+        dmaaddr = self.dmaaddr
+        for byte in bytes:
+            self.mem.write_byte(dmaaddr, byte & 0xff)
+            dmaaddr += 1
+
+        return (handle, name, FloppyDriveV1.STATE_READY)
+    
+    def write_sector(self, handle, name):
+        (handle, name, state) = self.check(handle, name)
+        if state != FloppyDriveV1.STATE_READY:
+            return (handle, name, state)
+
+        bytes = bytearray(FloppyDriveV1.SECTOR_SIZE)
+
+        i = 0
+        while (i < FloppyDriveV1.SECTOR_SIZE):
+            bytes[i] = self.mem.read_byte(self.dmaaddr + i)
+            i += 1
+
+        position = self.track * FloppyDriveV1.SECTORS * FloppyDriveV1.SECTOR_SIZE + self.sector * FloppyDriveV1.SECTOR_SIZE
+        self.env.move_file_handle(handle, position)
+        res = self.env.write_bytes(handle, bytes)
+        if res != FloppyDriveV1.SECTOR_SIZE:
+            raise Exception("Disk write error")
+
+        return (handle, name, FloppyDriveV1.STATE_READY)
+    
+    def write_byte(self, byte):
+        if (byte == FloppyDriveV1.CMD_PING):
+            self.state = FloppyDriveV1.STATE_READY | FloppyDriveV1.RES_CMDV1
+            return
+        if (byte == FloppyDriveV1.CMD_CFG):
+            self.state = FloppyDriveV1.STATE_CFG1
+            return
+        elif (self.state == FloppyDriveV1.STATE_CFG1):
+            self.state = FloppyDriveV1.STATE_CFG2
+            self.dmaaddr = byte
+            return
+        elif (self.state == FloppyDriveV1.STATE_CFG2):
+            self.state = FloppyDriveV1.STATE_READY
+            self.dmaaddr = self.dmaaddr * 256 + byte
+            return
+        elif (byte == FloppyDriveV1.CMD_SETDRVA):
+            self.active_drive = 'A'
+            self.state = FloppyDriveV1.STATE_READY
+            return
+        elif (byte == FloppyDriveV1.CMD_SETDRVB):
+            self.active_drive = 'B'
+            self.state = FloppyDriveV1.STATE_READY
+            return
+        elif (byte == FloppyDriveV1.CMD_EJECT):
+            if self.active_drive is None:
+                self.state = FloppyDriveV1.STATE_DRIVE_FAILURE
+                return
+            if self.active_drive == 'A':
+                (self.fileA_handle, self.fileA_name) = self.eject_disk(self.fileA_handle, self.fileA_name)
+                return
+            elif self.active_drive == 'B':
+                (self.fileB_handle, self.fileB_name) = self.eject_disk(self.fileB_handle, self.fileB_name)
+                return
+            self.state = FloppyDriveV1.STATE_DRIVE_FAILURE
+        elif byte == FloppyDriveV1.CMD_READSECT and self.state == FloppyDriveV1.STATE_READY:
+            self.state = FloppyDriveV1.STATE_RD1
+            return
+        elif self.state == FloppyDriveV1.STATE_RD1:
+            self.track = byte
+            self.state = FloppyDriveV1.STATE_RD2
+            return
+        elif self.state == FloppyDriveV1.STATE_RD2:
+            self.sector = byte
+            if self.active_drive == 'A':
+                (self.fileA_handle, self.fileA_name, self.state) = self.read_sector(self.fileA_handle, self.fileA_name)
+                return
+            elif self.active_drive == 'B':
+                (self.fileB_handle, self.fileB_name, self.state) = self.read_sector(self.fileB_handle, self.fileB_name)
+                return
+        elif byte == FloppyDriveV1.CMD_WRITESECT and self.state == FloppyDriveV1.STATE_READY:
+            self.state = FloppyDriveV1.STATE_WR1
+            return
+        elif self.state == FloppyDriveV1.STATE_WR1:
+            self.track = byte
+            self.state = FloppyDriveV1.STATE_WR2
+            return
+        elif self.state == FloppyDriveV1.STATE_WR2:
+            self.sector = byte
+            if self.active_drive == 'A':
+                (self.fileA_handle, self.fileA_name, self.state) = self.write_sector(self.fileA_handle, self.fileA_name)
+                return
+            elif self.active_drive == 'B':
+                (self.fileB_handle, self.fileB_name, self.state) = self.write_sector(self.fileB_handle, self.fileB_name)
+                return
+            self.state = FloppyDriveV1.STATE_DRIVE_FAILURE
+            return
+        
+        self.setate = FloppyDriveV1.STATE_DRIVE_FAILURE
+         

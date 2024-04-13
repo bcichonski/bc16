@@ -42,7 +42,20 @@ same as BC16 plus
 - real time clock 0x3
 - random generator 0x4
 - floppy disk drive 0x8
-  - port 0x8 used for instructions and communication
+  - port 0x8 used for instructions and communication:
+    - 0xf0 - ping with response with version of the drive: returns READY | FDVER1
+    - 0xf1 <imm16> - configure DMA - sets where drive can put read sector, always 128 bytes returns READY
+    - 0xfa - set active drive A returns READY
+    - 0xfb - set active drive B returns READY
+    - 0xf2 <imm8:t> <imm8:s> - reads sector s from track t returns READY or CFGERROR or CMDERROR
+    - 0xf3 <imm8:t> <imm8:s> - writes sector s from track t returns READY or CFGERROR or CMDERROR
+    - 0xf4 - eject active drive
+    - response codes:
+      - READY: 0x10
+      - FDVER1: 0x01
+      - CFGERROR: 0xe1
+      - CMDERROR: 0xe2
+
   - uses direct memory access to read entire sector
   - double drive for single side 3" floppy disks that has 64 tracks of 16 sectors of 128 bytes = 128 KB
 
