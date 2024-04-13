@@ -10,8 +10,9 @@ os_start:          .mv csci, :os_init
 os_metatab:      .db :print_newline, :print_space, :printstr, :printhex4, :printhex8, :printhex16, :inc16, :dec16
                  .db :setvarparam16, :poke16, :peek16, :add16, :sub16, :readstr, :parsehex4, :parsehex8, :parsehex16
                  .db :upchar, :nextword, :nextval8, :fatal, :error, :print_format, :str_cpy, :str_len8, :tape_check
-                 .db :tape_write8, :tape_read8, :tape_write16, :tape_write_blk, :tape_read_blk, :exec_dump
-                 .db :exec_write, :exec_xwrite, :exec_save, :exec_load, :exec_run, :exec_exe, :os_init, :os_hello
+                 .db :tape_write8, :tape_read8, :tape_write16, :tape_write_blk, :tape_read_blk
+                 .db :mul16, :div16, :gteq16, :gt16, :eq16
+                 .db :exec_dump, :exec_write, :exec_xwrite, :exec_save, :exec_load, :exec_run, :exec_exe, :os_init, :os_hello
                  .db :os_prompt, :os_parse, :os_end, :var_param16, :var_user_mem, :var_top_mem, :var_promptbuf
                  .db :user_mem
 ;
@@ -47,7 +48,7 @@ data_load_prinf2: .db 'for ', 0x00
 ;
 ; subroutines
 ;=============
-; PRINT_NEWLINE - prints new line
+; #00: PRINT_NEWLINE - prints new line 
 ; IN:
 ; OUT:   a - rubbish
 print_newline: psh cs
@@ -59,7 +60,7 @@ print_newline: psh cs
                pop cs
                ret
 ;=============
-; PRINT_SPACE - prints ' '
+; #01: PRINT_SPACE - prints ' '
 ; IN:
 ; OUT:   a - rubbish
 print_space:   psh cs
@@ -69,7 +70,7 @@ print_space:   psh cs
                pop cs
                ret
 ;=============
-; PRINTSTR(*dsdi) - sends chars to printer
+; #02: PRINTSTR(*dsdi) - sends chars to printer
 ; IN: dsdi - address of 0-ended char table
 ; OUT:   a - set to 0x00
 ;       ci - set to 0x01
@@ -83,7 +84,7 @@ printstr_loop: mov a, #dsdi
                jmr z, :printstr_loop
 printstr_end:  ret
 ;=============
-; PRINTHEX4(a) - prints hex number from 0 to f
+; #03: PRINTHEX4(a) - prints hex number from 0 to f
 ; IN:    a - number to print
 ; OUT:   a - unchanged      10 -> 0 -> 41
 ;       cs - set to 1
@@ -100,7 +101,7 @@ printhex4_af:  pop a
                out #cs, a
                ret
 ;=============
-; PRINTHEX8(a) - prints hex number 
+; #04: PRINTHEX8(a) - prints hex number 
 ; IN:    a - number to print
 ; OUT:   a - set to lower half
 ;     csci - unchanged
@@ -117,7 +118,7 @@ printhex8:     psh cs
                pop cs
                ret
 ;=============
-; PRINTHEX16(csci) - prints hex number 4 digits
+; #05: PRINTHEX16(csci) - prints hex number 4 digits
 ; IN:    csci - hex number 4 digits
 ; OUT:   csci - unchanged
 ;           a - ci
@@ -128,7 +129,7 @@ printhex16:    mov a, cs
                cal :printhex8
                ret
 ;=============
-; INC16(dsdi) - increase 16bit number correctly
+; #06: INC16(dsdi) - increase 16bit number correctly
 ; IN:    dsdi - number 16bit, break if exceeds 16bit
 ; OUT:   dsdi - add 1
 ;           a - di + 1 or ds + 1
@@ -145,7 +146,7 @@ inc16_ret:     ret
 inc16_fail:    mov a, 0x10
                cal :fatal
 ;=============
-; DEC16(dsdi) - decrease 16bit number correctly
+; #07: DEC16(dsdi) - decrease 16bit number correctly
 ; IN:    dsdi - number 16bit, break if lower than 0
 ; OUT:   dsdi - sub 1
 ;           a - di - 1 or ds - 1
@@ -162,7 +163,7 @@ dec16_ret:     ret
 dec16_fail:    mov a, 0x11
                cal :fatal
 ;=============
-; SETVARPARAM16(csci) - stores dsdi value under sys variable var_param16 (2 bytes)
+; #08: SETVARPARAM16(csci) - stores dsdi value under sys variable var_param16 (2 bytes)
 ; IN:   csci - value for var_param16
 ; OUT:  dsdi - unchanged
 ;       csci - unchanged
@@ -175,7 +176,7 @@ setvarparam16: psh ds
                pop ds
                ret
 ;=============
-; POKE16(#dsdi, csci) - stores csci value under #dsdi address (2 bytes)
+; #09: POKE16(#dsdi, csci) - stores csci value under #dsdi address (2 bytes)
 ; IN:   dsdi - address to store
 ;       csci - value to store
 ; OUT:  dsdi - address to store + 1
@@ -186,7 +187,7 @@ poke16:        mov #dsdi, cs
                mov #dsdi, ci
 poke16_ok:     ret             
 ;=============
-; PEEK16(#dsdi) - returns value under dsdi address (2 bytes)
+; #0a: PEEK16(#dsdi) - returns value under dsdi address (2 bytes)
 ; IN:   dsdi - address to read
 ; OUT:  dsdi - address to read + 1
 ;       csci - value
@@ -196,7 +197,7 @@ peek16:        mov cs, #dsdi
                mov ci, #dsdi
 peek16_ok:     ret
 ;=============
-; ADD16(csci,dsdi) - returns value under csci address (2 bytes) 
+; #0b: ADD16(csci,dsdi) - returns value under csci address (2 bytes) 
 ;                    return os error 0x10 in case of overflow                
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
@@ -217,7 +218,7 @@ add16_carry1:  mov a, cs
 add16_cry2err: mov a, 0x12
                cal :fatal
 ;=============
-; SUB16(csci,dsdi) - returns value under csci address (2 bytes) 
+; #0c: SUB16(csci,dsdi) - returns value under csci address (2 bytes) 
 ;                    return os error 0x11 in case of overflow                
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
@@ -238,7 +239,7 @@ sub16_ovr1:    mov a, cs
 sub16_ovr2err: mov a, 0x13
                cal :fatal
 ;=============
-; READSTR(#dsdi, ci) - reads characters to the buffer
+; #0d: READSTR(#dsdi, ci) - reads characters to the buffer
 ; IN:   dsdi - buffer address for chars
 ;         ci - length of the buffer (since last char has to be 0x00 we can enter one less)
 ; OUT:  dsdi - preserved
@@ -290,7 +291,7 @@ readstr_end:   xor a
                pop ds
                ret
 ;=============
-; PARSEHEX4(#dsdi) - parses single char to hex number chars 0-9 and a-z and A-Z are supported
+; #0e: PARSEHEX4(#dsdi) - parses single char to hex number chars 0-9 and a-z and A-Z are supported
 ; IN:   dsdi - buffer address for char-hex
 ; OUT:     a - 0 if ok, 0xff if parse error
 ;         ci - hexval of a char
@@ -319,7 +320,7 @@ parsehex4_af:  mov a, ci
 parsehex4_err: mov a, 0xff
                ret
 ;=============
-; PARSEHEX8(#dsdi) - parses two char to hex number
+; #0f: PARSEHEX8(#dsdi) - parses two char to hex number
 ; IN:   dsdi - buffer address for char
 ; OUT:    a - success = 0 or >0 error
 ;        ci - hex value for byte
@@ -341,7 +342,7 @@ parsehex8:     psh cs
 parsehex8_err: pop cs
 parsehex8_ok:  ret
 ;=============
-; PARSEHEX16(#dsdi) - parses four char to hex number
+; #10: PARSEHEX16(#dsdi) - parses four char to hex number
 ; IN:   dsdi - buffer address for char
 ; OUT:  csci - hex value for value
 ;          a - success = 0 or error code
@@ -352,7 +353,7 @@ parsehex16:    cal :parsehex8
                cal :parsehex8
 parsehex16_end:ret
 ;=============
-; UPCHAR(a) - if a is an a-z char returns A-Z
+; #11: UPCHAR(a) - if a is an a-z char returns A-Z
 ; IN:     a - char code
 ; OUT:    a - char code A-Z or same
 ;         ci - old a val
@@ -367,7 +368,7 @@ upchar:        mov ci, a
 upchar_skip:   mov a, ci
                ret
 ;=============
-; NEXTWORD(dsdi) - moves to the end of current word
+; #12: NEXTWORD(dsdi) - moves to the end of current word
 ; IN:     dsdi - char buffer address
 ; OUT:    dsdi - address of the next word or end of buffer
 ;            a - >0 if next word exist
@@ -386,7 +387,7 @@ nextword_eatws:cal :inc16
                mov a, 0x01
 nextword_eof:  ret
 ;=============
-; NEXTVAL8(dsdi) - moves until expected value
+; #13: NEXTVAL8(dsdi) - moves until expected value
 ; IN:     dsdi - char buffer address
 ;           ci - expected 8bit value
 ;           cs - max length to check
@@ -409,7 +410,7 @@ nextval8:      mov a, #dsdi
 nextval8_found:mov a, 0x01
 nextval8_eof:  ret
 ;=============
-; FATAL(a) - prints error message and stops
+; #14: FATAL(a) - prints error message and stops
 ; IN:   a - error code
 ;   stack - as error address
 ; OUT:  KILL, messed stack
@@ -427,7 +428,7 @@ fatal:         psh a
                cal :printhex16
                kil
 ;=============
-; ERROR(a)  - prints error message and continues
+; #15: ERROR(a)  - prints error message and continues
 ; IN:     a - error code
 ; OUT: dsdi - preserved
 ;      csci - preserved
@@ -448,7 +449,7 @@ error:         psh ds
                pop ds
                ret
 ;=============
-; PRINT_FORMAT(a)  - prints value
+; #16: PRINT_FORMAT(a)  - prints value
 ; IN:     a - value to print
 ;  sysvar16 - print mode = 0 - hex with space, 1 - char without space
 ; OUT:    a - 0x20 - char less that 0x10, 0x0d - print mode 1 and new line char, val > 0x20 normal print, 0x0f - normal hex print
@@ -489,7 +490,7 @@ prnt_fmt_end:  pop ci
                pop ds
                ret
 ;=============
-; STR_CPY(csci,dsdi)  - copy string from dsdi to csci
+; #17: STR_CPY(csci,dsdi)  - copy string from dsdi to csci
 ; IN: dsdi - source  
 ;     csci - desc
 ; OUT: dsdi = source + length + 1
@@ -511,7 +512,7 @@ str_cpy:       mov a, #dsdi
                jmr z,:str_cpy
 str_cpy_end:   ret
 ;=============
-; STR_LEN8(dsdi)  - length of the string ending with 0x00
+; #18: STR_LEN8(dsdi)  - length of the string ending with 0x00
 ; IN: dsdi - source  
 ;     cs   - max length
 ; OUT: dsdi - preserved, cs = rubbish, ci = actual length
@@ -533,7 +534,7 @@ str_len8_end:  pop di
                pop ds
                ret
 ;=============
-; TAPE_CHECK(ci,dsdi)  - checks if tape recorder is in expected state
+; #19: TAPE_CHECK(ci,dsdi)  - checks if tape recorder is in expected state
 ; IN: ci - expected state  
 ;   dsdi - address of message if tape recorder is not in expected state
 ; OUT: ci - unchanged, a=0 if ok
@@ -558,7 +559,7 @@ tape_check_ok: pop ci
                pop ci
                ret               
 ;=============
-; TAPE_WRITE8(ci)  - write 8 bits to tape recorder, checks after 8 bits
+; #1a: TAPE_WRITE8(ci)  - write 8 bits to tape recorder, checks after 8 bits
 ; IN: ci - byte to write
 ; OUT: cs, dsdi - preserved, a=0 if ok
 tape_write8:   psh cs
@@ -614,7 +615,7 @@ tape_wr8_end:  pop di
                pop cs
                ret
 ;=============
-; TAPE_READ8(ci)  - reads 8 bits from tape recorder, checks after 8 bits if tape state is ok
+; #1b: TAPE_READ8(ci)  - reads 8 bits from tape recorder, checks after 8 bits if tape state is ok
 ; IN: 
 ; OUT: ci - read byte,csds - preserved, a=0 if ok
 tape_read8:    psh cs
@@ -668,7 +669,7 @@ tape_r8_end:   pop di
                pop cs
                ret
 ;=============
-; TAPE_WRITE16(csci)  - write 16bits to tape recorder, checks after each 8 bits
+; #1c: TAPE_WRITE16(csci)  - write 16bits to tape recorder, checks after each 8 bits
 ; IN: csci - 2 bytes to write
 ; OUT: di - preserved, a=0 if ok
 tape_write16:  psh ci
@@ -683,7 +684,7 @@ tape_write16:  psh ci
 tape_w16_end:  pop ci
 tape_w16_ret:  ret
 ;=============
-; TAPE_WRITE_BLK(dsdi,csci)  - write memory block starting from dsdi of length csci
+; #1d: TAPE_WRITE_BLK(dsdi,csci)  - write memory block starting from dsdi of length csci
 ; IN: dsdi - addr of mem to write
 ;     csci - len of mem to write
 ; OUT: dsdi - addres of next byte, csci = 0, a=0 if ok
@@ -713,7 +714,7 @@ tape_wrbk_err: pop ci
                pop cs
 tape_wrbk_ret: ret
 ;=============
-; TAPE_READ_BLK(dsdi,csci)  - reads from tape to memory block starting from dsdi of length csci
+; #1e: TAPE_READ_BLK(dsdi,csci)  - reads from tape to memory block starting from dsdi of length csci
 ; IN: dsdi - addr of mem to read from tape
 ;     csci - len of mem to read from tape
 ; OUT: dsdi - addres of next byte, csci = 0, a=0 if ok
@@ -742,7 +743,195 @@ tape_read_err: pop ci
                pop cs
 tape_read_ret: ret
 ;=============
-; EXEC_DUMP(#dsdi)  - executes dump command
+; #1f: MUL16(csci,dsdi) - returns value 
+;                    return os error 0x12 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - mutiplies csci by dsdi
+;       dsdi - unchanged
+;       a    - rubbish
+mul16:       psh ds
+             psh di
+             cal :gteq16
+             jmr nz, :mul16_swpskp
+             psh cs
+             mov cs, ds
+             pop ds
+             psh ci
+             mov ci, di
+             pop di
+mul16_swpskp:mov a,ds
+             or di
+             jmr nz,:mul16_isone
+             xor a
+             mov cs, a
+             mov ci, a
+             jmr z,:mul16_ret
+mul16_isone: mov a, ds
+             jmr nz, :mul16_calc
+             mov a, di
+             dec a
+             jmr nz, :mul16_calc
+             jmr z, :mul16_ret
+mul16_calc:  xor a
+             psh a
+             psh a
+mul16_loop:  mov a, di
+             and 0x01
+             jmr z, :mul16_by2
+             psh cs
+             psh ci
+mul16_by2:   mov a, cs
+             shl 0x01
+             mov cs, a
+             mov a, ci
+             shl 0x01
+             jmr no, :mul16_by2nst
+             psh a
+             mov a, cs
+             or 0x01
+             mov cs, a
+             pop a
+mul16_by2nst:mov ci, a
+             mov a, di
+             shr 0x01
+             mov di, a
+             mov a, ds
+             and 0x01
+             jmr z, :mul16_by2nmt
+             mov a, di
+             or 0x80
+             mov di, a
+mul16_by2nmt:mov a, ds
+             shr 0x01
+             mov ds, a
+             or  di
+             dec a
+             jmr nz, :mul16_loop
+mul16_addlp: pop di
+             pop ds
+             mov a, di
+             or  ds
+             jmr z, :mul16_ret
+             cal :add16
+             xor a
+             jmr z, :mul16_addlp
+mul16_ret:   pop di
+             pop ds
+             ret
+;=============
+; #20: DIV16(csci,dsdi) - returns value 
+;                    return os error 0x13 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - divides csci by dsdi
+;       dsdi - unchanged
+;       a    - rubbish
+div16:       psh cs
+             psh ci
+             mov cs, ds
+             mov ci, di
+             .mv dsdi, :var_div16tmp
+             cal :poke16
+             mov ds, cs
+             mov di, ci
+             pop ci
+             pop cs
+             cal :gteq16
+             jmr z, :div16_zero
+             mov a, 0x80
+             and ds
+             jmr nz, :div16_one
+             xor a
+             psh a
+             inc a
+             psh a
+div16_loop:  psh ds
+             psh di
+             cal :sub16
+             pop di
+             pop ds
+             cal :gteq16
+             jmr z, :div16_end
+             pop di
+             pop ds
+             cal :inc16
+             psh ds
+             psh di
+             psh cs
+             psh ci
+             .mv dsdi, :var_div16tmp
+             cal :peek16
+             mov ds, cs
+             mov di, ci
+             pop ci
+             pop cs        
+             xor a
+             jmr z, :div16_loop
+div16_end:   pop ci
+             pop cs
+             ret          
+div16_one:   mov cs, 0x00
+             mov ci, 0x01
+             jmr nz, :div16_ret
+div16_zero:  xor a
+             mov cs, a
+             mov ci, a
+div16_ret:   ret
+;=============
+; #21: GT16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci > dsdi
+;       a - 0 otherwise
+gt16:        mov a, cs
+             sub ds
+             jmr o, :gt16_false
+             jmr nz, :gt16_true
+             mov a, ci
+             sub di
+             jmr o, :gt16_false
+             jmr nz, :gt16_true
+gt16_false:  xor a
+             ret
+gt16_true:   mov a, 0x01
+             ret
+;=============
+; #22: GTEQ16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci >= dsdi
+;       a - 0 otherwise
+gteq16:      mov a, cs
+             sub ds
+             jmr o, :gteq16_false
+             jmr nz, :gteq16_true
+             mov a, ci
+             sub di
+             jmr o, :gteq16_false
+             jmr nz, :gteq16_true
+gteq16_true: mov a, 0x01
+             ret
+gteq16_false:xor a
+             ret
+;=============
+; #23: EQ16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci == dsdi
+;       a - 0 otherwise
+eq16:       mov a, cs
+            sub ds
+            jmr nz, :gteq16_false
+            mov a, ci
+            sub di
+            jmr nz, :gteq16_false
+eq16_true:  mov a, 0x01
+            ret
+eq16_false: xor a
+            ret
+;=============
+; #24: EXEC_DUMP(#dsdi)  - executes dump command
 ; IN:  dsdi - address of var_promptbuf
 ;  sysvar16 - 0 = print hex, 1 = print char
 ;         a - how many characters per line
@@ -834,7 +1023,7 @@ exec_dump_end: cal :print_newline
                pop a
                ret               
 ;=============
-; EXEC_WRITE(#dsdi)  - executes write command
+; #25: EXEC_WRITE(#dsdi)  - executes write command
 ; IN:  dsdi - address of var_promptbuf
 ; OUT: rubbish
 exec_write:    cal :nextword
@@ -901,7 +1090,7 @@ exec_write_fin:pop cs
                pop ci
 exec_write_end:ret
 ;=============
-; EXEC_XWRITE(#dsdi)  - executes Xwrite command
+; #26: EXEC_XWRITE(#dsdi)  - executes Xwrite command
 ; IN:  dsdi - address of var_promptbuf
 ; OUT: rubbish
 exec_xwrite:   cal :nextword
@@ -963,7 +1152,7 @@ exec_xwrt_fin: pop cs
                pop ci
 exec_xwrt_end: ret
 ;=============
-; EXEC_SAVE(#dsdi)  - executes save command
+; #27: EXEC_SAVE(#dsdi)  - executes save command
 ; IN:  dsdi - address of var_promptbuf
 ; OUT: rubbish
 exec_save:     cal :nextword
@@ -1087,7 +1276,7 @@ exec_s_stop:   mov ci, 0x02
                cal :tape_check
                ret
 ;=============
-; EXEC_LOAD(#dsdi)  - executes load command
+; #28: EXEC_LOAD(#dsdi)  - executes load command
 ; IN:  dsdi - address of var_promptbuf
 ; OUT: rubbish
 exec_load:     cal :nextword
@@ -1196,7 +1385,7 @@ exec_load_ret: mov ci, 0x02
                out #ci, a
                ret
 ;=============
-; EXEC_RUN(#dsdi)  - executes run command
+; #29: EXEC_RUN(#dsdi)  - executes run command
 ; IN:  dsdi - address of var_promptbuf
 ; OUT: rubbish
 exec_run:      cal :nextword
@@ -1214,7 +1403,7 @@ exec_run_err:  cal :error
                jmr z,:exec_run_end
 exec_run_end:  ret                              
 ;=============
-; EXEC_EXE(#dsdi)  - executes exe command
+; #2a: EXEC_EXE(#dsdi)  - executes exe command
 ; IN:  dsdi - address of var_promptbuf
 ; OUT: rubbish
 exec_exe:      cal :nextword
@@ -1231,7 +1420,7 @@ exec_exe_err:  cal :error
                jmr z,:exec_exe_end
 exec_exe_end:  ret
 ;=============
-; OS_INIT - main code
+; #2b: OS_INIT - main code
 ; 1.initialize os
 os_init:       mov cs, ss
                mov ci, si
@@ -1373,12 +1562,19 @@ os_end:        mov a, 0xff
 ;
 ; os variables
 ;
+; #2c:
 var_param16:   .db 0x00, 0x00
+; #2c:
+var_div16tmp:  .db 0x00, 0x00
+; #2d:
 var_user_mem:  .db 0x00, 0x00
+; #2e
 var_top_mem:   .db 0x00, 0x00
+; #2f: 
 var_promptbuf: .db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                .db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                .db 0x00
+; #30
 user_mem:      nop
 ; 3.write prompt
 ; 4.read command

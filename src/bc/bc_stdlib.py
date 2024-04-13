@@ -80,75 +80,7 @@ stdlib_template = """
 ; OUT:  csci - mutiplies csci by dsdi
 ;       dsdi - unchanged
 ;       a    - rubbish
-mul16:       psh ds
-             psh di
-             cal :gteq16
-             jmr nz, :mul16_swpskp
-             psh cs
-             mov cs, ds
-             pop ds
-             psh ci
-             mov ci, di
-             pop di
-mul16_swpskp:mov a,ds
-             or di
-             jmr nz,:mul16_isone
-             xor a
-             mov cs, a
-             mov ci, a
-             jmr z,:mul16_ret
-mul16_isone: mov a, ds
-             jmr nz, :mul16_calc
-             mov a, di
-             dec a
-             jmr nz, :mul16_calc
-             jmr z, :mul16_ret
-mul16_calc:  xor a
-             psh a
-             psh a
-mul16_loop:  mov a, di
-             and 0x01
-             jmr z, :mul16_by2
-             psh cs
-             psh ci
-mul16_by2:   mov a, cs
-             shl 0x01
-             mov cs, a
-             mov a, ci
-             shl 0x01
-             jmr no, :mul16_by2nst
-             psh a
-             mov a, cs
-             or 0x01
-             mov cs, a
-             pop a
-mul16_by2nst:mov ci, a
-             mov a, di
-             shr 0x01
-             mov di, a
-             mov a, ds
-             and 0x01
-             jmr z, :mul16_by2nmt
-             mov a, di
-             or 0x80
-             mov di, a
-mul16_by2nmt:mov a, ds
-             shr 0x01
-             mov ds, a
-             or  di
-             dec a
-             jmr nz, :mul16_loop
-mul16_addlp: pop di
-             pop ds
-             mov a, di
-             or  ds
-             jmr z, :mul16_ret
-             cal :add16
-             xor a
-             jmr z, :mul16_addlp
-mul16_ret:   pop di
-             pop ds
-             ret
+             .def mul16, 0x0000
 ;=============
 ; DIV16(csci,dsdi) - returns value 
 ;                    return os error 0x13 in case of overflow                
@@ -157,57 +89,7 @@ mul16_ret:   pop di
 ; OUT:  csci - divides csci by dsdi
 ;       dsdi - unchanged
 ;       a    - rubbish
-div16:       psh cs
-             psh ci
-             mov cs, ds
-             mov ci, di
-             .mv dsdi, :sys_div16tmp
-             cal :poke16
-             mov ds, cs
-             mov di, ci
-             pop ci
-             pop cs
-             cal :gteq16
-             jmr z, :div16_zero
-             mov a, 0x80
-             and ds
-             jmr nz, :div16_one
-             xor a
-             psh a
-             inc a
-             psh a
-div16_loop:  psh ds
-             psh di
-             cal :sub16
-             pop di
-             pop ds
-             cal :gteq16
-             jmr z, :div16_end
-             pop di
-             pop ds
-             cal :inc16
-             psh ds
-             psh di
-             psh cs
-             psh ci
-             .mv dsdi, :sys_div16tmp
-             cal :peek16
-             mov ds, cs
-             mov di, ci
-             pop ci
-             pop cs        
-             xor a
-             jmr z, :div16_loop
-div16_end:   pop ci
-             pop cs
-             ret          
-div16_one:   mov cs, 0x00
-             mov ci, 0x01
-             jmr nz, :div16_ret
-div16_zero:  xor a
-             mov cs, a
-             mov ci, a
-div16_ret:   ret
+             .def mul16, 0x0000
 ;=============
 ; READSTR(#dsdi, ci) - reads characters to the buffer
 ; IN:   dsdi - buffer address for chars
@@ -282,52 +164,21 @@ div16_ret:   ret
 ;       dsdi - argument 2
 ; OUT:  a - 1 if csci > dsdi
 ;       a - 0 otherwise
-gt16:        mov a, cs
-             sub ds
-             jmr o, :gt16_false
-             jmr nz, :gt16_true
-             mov a, ci
-             sub di
-             jmr o, :gt16_false
-             jmr nz, :gt16_true
-gt16_false:  xor a
-             ret
-gt16_true:   mov a, 0x01
-             ret
+             .def gt16, 0x0000
 ;=============
 ; GTEQ16(csci,dsdi) - compares csci with dsdi            
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
 ; OUT:  a - 1 if csci >= dsdi
 ;       a - 0 otherwise
-gteq16:      mov a, cs
-             sub ds
-             jmr o, :gteq16_false
-             jmr nz, :gteq16_true
-             mov a, ci
-             sub di
-             jmr o, :gteq16_false
-             jmr nz, :gteq16_true
-gteq16_true: mov a, 0x01
-             ret
-gteq16_false:xor a
-             ret
+             .def gteq16, 0x0000
 ;=============
 ; EQ16(csci,dsdi) - compares csci with dsdi            
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
 ; OUT:  a - 1 if csci == dsdi
 ;       a - 0 otherwise
-eq16:       mov a, cs
-            sub ds
-            jmr nz, :gteq16_false
-            mov a, ci
-            sub di
-            jmr nz, :gteq16_false
-eq16_true:  mov a, 0x01
-            ret
-eq16_false: xor a
-            ret
+            .def eq16, 0x0000
 ;=============
 ; STACKOFFSCALC(csci,a) - modifies SYS_STACKHEAD by csci and stores new value back in csci
 ; IN: csci - value to increase
@@ -627,7 +478,6 @@ mfill_ret:  pop a
 ;SYS DATA
             .def var_promptbuf, 0x0bcf
             .def var_user_mem, 0x0bcb
-sys_div16tmp: .db 0x00, 0x00
 sys_seektmp: .db 0x00, 0x00 
 {1}:  .db 0x{2:02x}, 0x{3:02x}
 {0}: nop

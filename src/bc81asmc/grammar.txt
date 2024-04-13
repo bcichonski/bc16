@@ -31,6 +31,7 @@ NOT ::= 'NOT' param_reg
 
 ORG ::= 'ORG' param_imm16
 DB ::= 'DB' params
+DEF ::= 'DEF' param
 
 param_reg ::= 'PC' | 'SS' | 'SI' | 'F' | 'A' | 'CI' | 'CS' | 'DI' | 'DS'
 param_imm8 ::= '0x' hex hex
