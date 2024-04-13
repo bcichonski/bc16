@@ -22,7 +22,7 @@ class Bc16:
         self.io.add_device(self.taperecorder)
         self.io.add_device(self.clock)
         self.io.add_device(self.randgen)
-        self.cpu = bc8182_cpu.Bc8181(self.mem, self.io, debug)
+        self.cpu = bc8182_cpu.Bc8182(self.mem, self.io, debug)
 
     def run(self):
         self.cpu.run()

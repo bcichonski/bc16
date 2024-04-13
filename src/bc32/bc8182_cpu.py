@@ -75,7 +75,7 @@ class FlagsRegister(Register):
         return bool(self.flags[flag].get())
 
 
-class Bc8181:
+class Bc8182:
     A = 0x1
     CI = 0x4
     DI = 0x5
@@ -163,16 +163,16 @@ class Bc8181:
         subcode = lo(self.nextbyte)
         self.inc_pc(1)
         arg2 = None
-        if subcode == Bc8181.CLC_INC or \
-                subcode == Bc8181.CLC_DEC or \
-                subcode == Bc8181.CLC_NOT or \
-                subcode == Bc8181.CLC_ZER:
+        if subcode == Bc8182.CLC_INC or \
+                subcode == Bc8182.CLC_DEC or \
+                subcode == Bc8182.CLC_NOT or \
+                subcode == Bc8182.CLC_ZER:
             pass
         else:
-            if subcode & Bc8181.CLC_OP_RNO == \
-                    Bc8181.CLC_OP_RNO:
+            if subcode & Bc8182.CLC_OP_RNO == \
+                    Bc8182.CLC_OP_RNO:
                 regno = hi(self.nextbyte)
-                subcode = subcode & (Bc8181.CLC_OP_RNO - 1)
+                subcode = subcode & (Bc8182.CLC_OP_RNO - 1)
                 arg2 = self.regs[regno].get()
             else:
                 arg2 = self.nextbyte
@@ -181,13 +181,13 @@ class Bc8181:
         oper(self.a.get(), arg2)
 
     def get_addr(self, regno):
-        if(regno == Bc8181.CI or regno == Bc8181.CS):
+        if(regno == Bc8182.CI or regno == Bc8182.CS):
             hi = self.cs.get()
             lo = self.ci.get()
-        elif (regno == Bc8181.DI or regno == Bc8181.DS):
+        elif (regno == Bc8182.DI or regno == Bc8182.DS):
             hi = self.ds.get()
             lo = self.di.get()
-        elif (regno == Bc8181.SI or regno == Bc8181.SS):
+        elif (regno == Bc8182.SI or regno == Bc8182.SS):
             hi = self.ss.get()
             lo = self.si.get()
         else:
@@ -196,7 +196,7 @@ class Bc8181:
         return addr
 
     def set_flags(self, regno, val=None):
-        if regno == Bc8181.A:
+        if regno == Bc8182.A:
             if val is None:
                 val = self.a.get()
             self.f.set_flag(FlagsRegister.ZERO, int(val == 0))
@@ -248,13 +248,13 @@ class Bc8181:
             self.inc_pc(1)
 
     def _PSH(self, val):
-        addr = self.get_addr(Bc8181.SI)
+        addr = self.get_addr(Bc8182.SI)
         self.membus.write_byte(addr, val)
         self.si.set(self.si.get()-1)
 
     def _POP(self):
         self.si.set(self.si.get()+1)
-        addr = self.get_addr(Bc8181.SI)
+        addr = self.get_addr(Bc8182.SI)
         return self.membus.read_byte(addr)
 
     def op_PSH(self):
@@ -271,7 +271,7 @@ class Bc8181:
 
     def op_CAL(self):
         opcode = lo(self.nextbyte)
-        directmode = opcode & Bc8181.CLC_OP_RNO == Bc8181.CLC_OP_RNO
+        directmode = opcode & Bc8182.CLC_OP_RNO == Bc8182.CLC_OP_RNO
         self.inc_pc(1)
         if(directmode):
             addrhi = self.nextbyte
@@ -356,84 +356,84 @@ class Bc8181:
         self.cs = Register(0xff)
         self.ci = Register(0xff)
         self.regs = {
-            Bc8181.A: self.a,
-            Bc8181.CI: self.ci,
-            Bc8181.DI: self.di,
-            Bc8181.CS: self.cs,
-            Bc8181.DS: self.ds,
-            Bc8181.F: self.f,
-            Bc8181.SI: self.si,
-            Bc8181.SS: self.ss,
-            Bc8181.PC: self.pc
+            Bc8182.A: self.a,
+            Bc8182.CI: self.ci,
+            Bc8182.DI: self.di,
+            Bc8182.CS: self.cs,
+            Bc8182.DS: self.ds,
+            Bc8182.F: self.f,
+            Bc8182.SI: self.si,
+            Bc8182.SS: self.ss,
+            Bc8182.PC: self.pc
         }
 
     def alu_add(self, arg1, arg2):
         val = arg1 + arg2
-        self.set_flags(Bc8181.A, val)
+        self.set_flags(Bc8182.A, val)
         self.a.set(val)
 
     def alu_sub(self, arg1, arg2):
         val = arg1 - arg2
-        self.set_flags(Bc8181.A, val)
+        self.set_flags(Bc8182.A, val)
         self.a.set(val)
 
     def alu_and(self, arg1, arg2):
         val = arg1 & arg2
-        self.set_flags(Bc8181.A, val)
+        self.set_flags(Bc8182.A, val)
         self.a.set(val)
 
     def alu_or(self, arg1, arg2):
         val = arg1 | arg2
-        self.set_flags(Bc8181.A, val)
+        self.set_flags(Bc8182.A, val)
         self.a.set(val)
 
     def alu_xor(self, arg1, arg2):
         val = arg1 ^ arg2
-        self.set_flags(Bc8181.A, val)
+        self.set_flags(Bc8182.A, val)
         self.a.set(val)
 
     def alu_shl(self, arg1, arg2):
         val = arg1 << arg2
-        self.set_flags(Bc8181.A, val & 0x100)
+        self.set_flags(Bc8182.A, val & 0x100)
         self.a.set(val)
 
     def alu_shr(self, arg1, arg2):
         val = arg1 >> arg2
-        self.set_flags(Bc8181.A, -(val & 0x1))
+        self.set_flags(Bc8182.A, -(val & 0x1))
         self.a.set(val)
 
     def alu_not(self, arg1, arg2):
         val = ~arg1
-        self.set_flags(Bc8181.A, val)
+        self.set_flags(Bc8182.A, val)
         self.a.set(val)
 
     def alu_inc(self, arg1, arg2):
         val = arg1 + 1
-        self.set_flags(Bc8181.A, val)
+        self.set_flags(Bc8182.A, val)
         self.a.set(val)
 
     def alu_dec(self, arg1, arg2):
         val = arg1 - 1
-        self.set_flags(Bc8181.A, val)
+        self.set_flags(Bc8182.A, val)
         self.a.set(val)
 
     def alu_zer(self, arg1, arg2):
-        self.set_flags(Bc8181.A, 0)
+        self.set_flags(Bc8182.A, 0)
         self.a.set(0)
 
     def create_arithmetic_and_logical_unit(self):
         self.alu = {
-            Bc8181.CLC_ADD: self.alu_add,
-            Bc8181.CLC_SUB: self.alu_sub,
-            Bc8181.CLC_AND: self.alu_and,
-            Bc8181.CLC_OR: self.alu_or,
-            Bc8181.CLC_XOR: self.alu_xor,
-            Bc8181.CLC_SHL: self.alu_shl,
-            Bc8181.CLC_SHR: self.alu_shr,
-            Bc8181.CLC_NOT: self.alu_not,
-            Bc8181.CLC_INC: self.alu_inc,
-            Bc8181.CLC_DEC: self.alu_dec,
-            Bc8181.CLC_ZER: self.alu_zer
+            Bc8182.CLC_ADD: self.alu_add,
+            Bc8182.CLC_SUB: self.alu_sub,
+            Bc8182.CLC_AND: self.alu_and,
+            Bc8182.CLC_OR: self.alu_or,
+            Bc8182.CLC_XOR: self.alu_xor,
+            Bc8182.CLC_SHL: self.alu_shl,
+            Bc8182.CLC_SHR: self.alu_shr,
+            Bc8182.CLC_NOT: self.alu_not,
+            Bc8182.CLC_INC: self.alu_inc,
+            Bc8182.CLC_DEC: self.alu_dec,
+            Bc8182.CLC_ZER: self.alu_zer
         }
 
     def set_reg(self, regno, val):

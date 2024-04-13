@@ -15,7 +15,7 @@ class CpuTests(unittest.TestCase):
             i += 1
         mem.write_byte(0xff, 0xff) #ultimate KIL
         environment.debug = debug
-        return bc8182_cpu.Bc8181(mem, None, debug)
+        return bc8182_cpu.Bc8182(mem, None, debug)
     def test_MOV_opcodes_internal(self):
         if debug: print("test_MOV_opcodes_internal")
         #given
