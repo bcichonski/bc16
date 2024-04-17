@@ -287,7 +287,8 @@ class FloppyDriveV1(IODevice):
     CMD_WRITESECT = 0xf3
     CMD_EJECT = 0xf4
 
-    STATE_READY = 0x01
+    STATE_READY = 0x10
+    STATE_FDDV1 = 0x01
     STATE_CFG1 = 0x02
     STATE_CFG2 = 0x03
     STATE_DRIVE_FAILURE = 0xe1
@@ -381,7 +382,7 @@ class FloppyDriveV1(IODevice):
     
     def write_byte(self, byte):
         if (byte == FloppyDriveV1.CMD_PING):
-            self.state = FloppyDriveV1.STATE_READY | FloppyDriveV1.RES_CMDV1
+            self.state = FloppyDriveV1.STATE_READY | FloppyDriveV1.STATE_FDDV1
             return
         if (byte == FloppyDriveV1.CMD_CFG):
             self.state = FloppyDriveV1.STATE_CFG1

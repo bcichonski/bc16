@@ -32,6 +32,7 @@ which will reset the OS
     0x11 - overflow in DEC16
     0x12 - overflow in ADD16
     0x13 - overflow in SUB16
+0xex - fdd errors
 0xfx - system exploded
     0xf0 - user quits the system
     0xff - unexpected system exception - should not happen
