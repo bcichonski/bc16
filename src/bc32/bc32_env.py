@@ -44,7 +44,7 @@ class Environment:
     def write_byte(self, handle, byte):
         handle.write(byte.to_bytes(1, 'big'))
     def read_bytes(self, handle, size):
-        handle.read(size)
+        return handle.read(size)
     def write_bytes(self, handle, bytes):
         res = handle.write(bytes)
         handle.flush()

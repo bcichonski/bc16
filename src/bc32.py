@@ -16,12 +16,16 @@ class Bc16:
         self.taperecorder = bc32_io.TapeRecorder(env)
         self.clock = bc32_io.Clock(env)
         self.randgen = bc32_io.RandomGenerator(env)
+        self.floppydrive = bc32_io.FloppyDriveV1(env, self.mem)
+        
         self.io = bc32_io.IOBus()
         self.io.add_device(self.keyboard)
         self.io.add_device(self.printer)
         self.io.add_device(self.taperecorder)
         self.io.add_device(self.clock)
         self.io.add_device(self.randgen)
+        self.io.add_device(self.floppydrive)
+
         self.cpu = bc8182_cpu.Bc8182(self.mem, self.io, debug)
 
     def run(self):
