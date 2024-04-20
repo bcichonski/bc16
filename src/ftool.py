@@ -52,7 +52,7 @@ def createbdd(fname):
     env.close_file(fhandle)
 
 def dumpsector(fname, track, sector):
-    env.log('file {} track {} sector {}'.format(fname, track, sector))
+    env.log('dump sector file {} track {} sector {}'.format(fname, track, sector))
     fhandle = env.open_file_to_read(fname)
     position = (track*sectors + sector)*sectorSize
     env.move_file_handle(fhandle, position)
@@ -72,6 +72,28 @@ def dumpsector(fname, track, sector):
     if i != 0:
         env.log(line)
 
+def exportsector(fname, fsectorname, track, sector):
+    env.log('export sector file {} track {} sector {} to file {}'.format(fname, track, sector, fsectorname))
+    fhandle = env.open_file_to_read(fname+'.bdd')
+    position = (track*sectors + sector)*sectorSize
+    env.move_file_handle(fhandle, position)
+    buf = env.read_bytes(fhandle, sectorSize)
+    env.close_file(fhandle)
+    fhandle = env.open_file_to_write(fsectorname+'.sector')
+    env.write_bytes(fhandle, buf)
+    env.close_file(fhandle)
+
+def importsector(fsectorname, fname, track, sector):
+    env.log('import sector file {} to {} track {} sector {}'.format(fsectorname, fname, track, sector))
+    fhandle = env.open_file_to_read(fsectorname+'.sector')
+    buf = env.read_bytes(fhandle, sectorSize)
+    env.close_file(fhandle)
+    fhandle = env.open_file_to_readwrite(fname+'.bdd')
+    position = (track*sectors + sector)*sectorSize
+    env.move_file_handle(fhandle, position)
+    env.write_bytes(fhandle, buf)
+    env.close_file(fhandle)
+
 def main():
     env.log("ftool v1.0")
 
@@ -87,6 +109,12 @@ def main():
     elif command=='dumpsector':
         checkargs(4)
         dumpsector(argv[2]+'.bdd', int(argv[3]), int(argv[4]))
+    elif command=='exportsector':
+        checkargs(4)
+        exportsector(argv[2], argv[3], int(argv[4]), int(argv[5]))
+    elif command=='importsector':
+        checkargs(5)
+        importsector(argv[2], argv[3], int(argv[4]), int(argv[5]))
     else:
         env.log('Unknown command: {}'.format(command))
 
