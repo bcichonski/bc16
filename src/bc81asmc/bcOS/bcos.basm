@@ -1439,7 +1439,7 @@ os_call:       psh a
                psh f
                pop a
                .mv dsdi, :os_metatab
-               shl 0x02
+               shl 0x01
                add di
                mov di, a
                mov cs, #dsdi

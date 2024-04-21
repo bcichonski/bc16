@@ -101,8 +101,8 @@ def main():
     command=argv[1]
 
     if command=="btap2bin":
-        checkargs(2)
-        btap2bin(argv[2]+'.btap',argv[2]+'.bin')
+        checkargs(3)
+        btap2bin(argv[2],argv[3])
     elif command=='createbdd':
         checkargs(2)
         createbdd(argv[2]+'.bdd')

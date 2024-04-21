@@ -463,7 +463,7 @@ class Bc8182:
 
     def print_debug(self, mesg):
         if self.debug:
-            self.mesglog.push(mesg)
+            self.mesglog.append(mesg+'\n')
 
     def flush_debug(self):
         if self.debug:

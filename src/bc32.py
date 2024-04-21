@@ -8,7 +8,7 @@ from sys import argv
 
 TOPMEM = 0x8000
 
-class Bc16:
+class Bc32:
     def __init__(self, env, debug):
         self.mem = bc32_mem.MemBus(env, TOPMEM)
         self.keyboard = bc32_io.TerminalKeyboard(env)
@@ -33,12 +33,12 @@ class Bc16:
 
 def main(argv):
     env = bc32_env.Environment()
-    computer = Bc16(env, len(argv) >= 3)
+    computer = Bc32(env, len(argv) >= 3)
     if len(argv) >= 2:
         import_rom(argv[1], env, computer.mem)
     computer.mem.write_byte(TOPMEM-1, 0xff)
     computer.run()
-    dump_mem('bc16.dmp', env, computer.mem)
+    dump_mem('bc32.dmp', env, computer.mem)
 
 def dump_mem(file, env, mem):
     fhandle = env.open_file_to_write(file)

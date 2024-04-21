@@ -5,6 +5,11 @@ stdlib_template = """
             mov a, 0xff
             mov a, 0xff
 ;=============
+; OS_METACALL(a) - calls given bcos subroutine indirectly
+;           - other registers as required
+; OUT:      - as returned
+            .def os_metacall, 0x0008
+;=============
 ; FATAL(a) - prints error message and stops
 ; IN:   a - error code
 ;   stack - as error address
@@ -22,25 +27,43 @@ stdlib_template = """
 ; OUT:   a - set to lower half
 ;     csci - unchanged
 ;     dsdi - unchanged
-            .def printhex8, 0x035c
+printhex8:      psh ci
+                mov ci, 0x04
+                psh a
+                pop f
+                pop ci
+                cal :os_metacall
+                ret  
 ;=============
 ; PRINTHEX16(csci) - prints hex number 4 digits
 ; IN:    csci - hex number 4 digits
 ; OUT:   csci - unchanged
 ;           a - ci
-            .def printhex16, 0x036f
+printhex16:     mov a, 0x05
+                psh a
+                pop f
+                cal :os_metacall
+                ret 
 ;=============
 ; INC16(dsdi) - increase 16bit number correctly
 ; IN:    dsdi - number 16bit, break if exceeds 16bit
 ; OUT:   dsdi - add 1
 ;           a - di + 1 or ds + 1
-            .def inc16, 0x037a
+inc16:          mov a, 0x06
+                psh a
+                pop f
+                cal :os_metacall
+                ret 
 ;=============
 ; DEC16(dsdi) - decrease 16bit number correctly
 ; IN:    dsdi - number 16bit, break if lower than 0
 ; OUT:   dsdi - sub 1
 ;           a - di - 1 or ds - 1
-            .def dec16, 0x038f
+dec16:          mov a, 0x07
+                psh a
+                pop f
+                cal :os_metacall
+                ret  
 ;=============
 ; POKE16(#dsdi, csci) - stores csci value under #dsdi address (2 bytes)
 ; IN:   dsdi - address to store
@@ -48,14 +71,22 @@ stdlib_template = """
 ; OUT:  dsdi - address to store + 1
 ;       csci - unchanged
 ;       a    - rubbish
-            .def poke16, 0x03b0            
+poke16:         mov a, 0x09
+                psh a
+                pop f
+                cal :os_metacall
+                ret          
 ;=============
 ; PEEK16(#dsdi) - returns value under dsdi address (2 bytes)
 ; IN:   dsdi - address to read
 ; OUT:  dsdi - address to read + 1
 ;       csci - value
 ;       a    - rubbish
-            .def peek16, 0x03b8
+peek16:         mov a, 0x0a
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; ADD16(csci,dsdi) - returns value
 ;                    return os error 0x12 in case of overflow                
@@ -63,7 +94,11 @@ stdlib_template = """
 ;       dsdi - argument 2
 ; OUT:  csci - sum of csci and dsdi
 ;       a    - rubbish
-            .def add16, 0x03c0
+add16:          mov a, 0x0b
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; SUB16(csci,dsdi) - returns value 
 ;                    return os error 0x13 in case of overflow                
@@ -71,7 +106,11 @@ stdlib_template = """
 ;       dsdi - argument 2
 ; OUT:  csci - substracts dsdi from csci
 ;       a    - rubbish
-            .def sub16, 0x03db
+sub16:          mov a, 0x0c
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; MUL16(csci,dsdi) - returns value 
 ;                    return os error 0x12 in case of overflow                
@@ -80,7 +119,11 @@ stdlib_template = """
 ; OUT:  csci - mutiplies csci by dsdi
 ;       dsdi - unchanged
 ;       a    - rubbish
-             .def mul16, 0x0000
+mul16:          mov a, 0x1f
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; DIV16(csci,dsdi) - returns value 
 ;                    return os error 0x13 in case of overflow                
@@ -89,7 +132,11 @@ stdlib_template = """
 ; OUT:  csci - divides csci by dsdi
 ;       dsdi - unchanged
 ;       a    - rubbish
-             .def mul16, 0x0000
+div16:          mov a, 0x20
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; READSTR(#dsdi, ci) - reads characters to the buffer
 ; IN:   dsdi - buffer address for chars
@@ -150,35 +197,55 @@ stdlib_template = """
 ; PRINT_NEWLINE - prints new line
 ; IN:
 ; OUT:   a - rubbish
-            .def print_newline, 0x0323
+print_newline:  mov a, 0x00
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; PRINTSTR(*dsdi) - sends chars to printer
 ; IN: dsdi - address of 0-ended char table
 ; OUT:   a - set to 0x00
 ;       ci - set to 0x01
 ;     dsdi - set to end of char table
-            .def printstr, 0x0339
+printstr:       mov a, 0x02
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; GT16(csci,dsdi) - compares csci with dsdi            
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
 ; OUT:  a - 1 if csci > dsdi
 ;       a - 0 otherwise
-             .def gt16, 0x0000
+gt16:           mov a, 0x21
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; GTEQ16(csci,dsdi) - compares csci with dsdi            
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
 ; OUT:  a - 1 if csci >= dsdi
 ;       a - 0 otherwise
-             .def gteq16, 0x0000
+gteq16:         mov a, 0x22
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; EQ16(csci,dsdi) - compares csci with dsdi            
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
 ; OUT:  a - 1 if csci == dsdi
 ;       a - 0 otherwise
-            .def eq16, 0x0000
+eq16:           mov a, 0x23
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; STACKOFFSCALC(csci,a) - modifies SYS_STACKHEAD by csci and stores new value back in csci
 ; IN: csci - value to increase
