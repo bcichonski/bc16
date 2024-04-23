@@ -1,0 +1,70 @@
+; bDOS Disk Operation System Boot Loader version 1.0.20240421
+;
+; assuming bcos bootstrap did fdd initial configuration
+                   .org 0x0e80
+                   .def bd_shell, 0x0f00
+                   .def bd_sectsize, 0x0080
+                   .def os_metacall, 0x0008
+;bd_dstart 0x0001
+bd_bootstrap:      mov ci, 0x01
+                   .mv dsdi, :bd_shell
+bd_loop:           mov cs, 0x08
+bd_dmaconfig:      mov a, 0xf1
+                   out #cs, a
+                   mov a, ds
+                   out #cs, a
+                   mov a, di
+                   out #cs, a
+                   in a, #cs
+                   and 0x10
+                   jmr z, :bd_boot_error
+bd_readsect:       mov a, 0xf2
+                   out #cs, a
+                   mov a, ci
+                   and 0xf0
+                   shr 0x04
+                   out #cs, a
+                   mov a, ci
+                   and 0x0f
+                   out #cs, a
+                   in a, #cs
+                   and 0xe0
+                   jmr nz, :bd_boot_error
+                   psh ci
+;bd_dend 0x0003
+                   mov ci, 0x0a
+                   mov a, ci
+                   pop ci
+                   sub ci
+                   jmr z, :bd_boot_run
+                   psh ci
+                   mov cs, ds
+                   mov ci, di
+                   .mv dsdi, :bd_sectsize
+                   mov a, 0x0b
+                   psh a
+                   pop f
+                   cal :os_metacall
+                   mov ds, cs
+                   mov di, ci
+                   pop ci
+                   mov a, ci
+                   inc a
+                   mov ci, a
+                   xor a
+                   jmr z, :bd_loop
+bd_boot_errmsg:    .db 'error', 0x00
+bd_boot_run:       .mv csci, :bd_shell
+                   xor a
+                   jmp z, csci
+bd_boot_error:     mov a, 0x02
+                   .mv dsdi, :bd_boot_errmsg
+                   psh a
+                   pop f
+                   cal :os_metacall
+                   mov a, 0x2e
+                   psh a
+                   pop f
+                   cal :os_metacall
+                   kil
+bd_diskver:        .db 0xbc, 0x05, 0x01, 0x00

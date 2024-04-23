@@ -74,25 +74,35 @@ def dumpsector(fname, track, sector):
 
 def exportsector(fname, fsectorname, track, sector):
     env.log('export sector file {} track {} sector {} to file {}'.format(fname, track, sector, fsectorname))
-    fhandle = env.open_file_to_read(fname+'.bdd')
+    fhandle = env.open_file_to_read(fname)
     position = (track*sectors + sector)*sectorSize
     env.move_file_handle(fhandle, position)
     buf = env.read_bytes(fhandle, sectorSize)
     env.close_file(fhandle)
-    fhandle = env.open_file_to_write(fsectorname+'.sector')
+    fhandle = env.open_file_to_write(fsectorname)
     env.write_bytes(fhandle, buf)
     env.close_file(fhandle)
 
 def importsector(fsectorname, fname, track, sector):
     env.log('import sector file {} to {} track {} sector {}'.format(fsectorname, fname, track, sector))
-    fhandle = env.open_file_to_read(fsectorname+'.sector')
-    buf = env.read_bytes(fhandle, sectorSize)
-    env.close_file(fhandle)
-    fhandle = env.open_file_to_readwrite(fname+'.bdd')
+    fhandle = env.open_file_to_read(fsectorname)
+    fouthandle = env.open_file_to_readwrite(fname)
     position = (track*sectors + sector)*sectorSize
-    env.move_file_handle(fhandle, position)
-    env.write_bytes(fhandle, buf)
+    env.move_file_handle(fouthandle, position)
+    buf = env.read_bytes(fhandle, sectorSize)
+    i = 0;
+    while len(buf) > 0:
+        env.write_bytes(fouthandle, buf)
+        buf = env.read_bytes(fhandle, sectorSize)
+        sector += 1
+        i += 1
+        if (sector > 15):
+            sector = 0
+            track += 1
+    
     env.close_file(fhandle)
+    env.close_file(fouthandle)
+    env.log('{} sectors imported'.format(i))
 
 def main():
     env.log("ftool v1.0")
@@ -105,10 +115,10 @@ def main():
         btap2bin(argv[2],argv[3])
     elif command=='createbdd':
         checkargs(2)
-        createbdd(argv[2]+'.bdd')
+        createbdd(argv[2])
     elif command=='dumpsector':
         checkargs(4)
-        dumpsector(argv[2]+'.bdd', int(argv[3]), int(argv[4]))
+        dumpsector(argv[2], int(argv[3]), int(argv[4]))
     elif command=='exportsector':
         checkargs(4)
         exportsector(argv[2], argv[3], int(argv[4]), int(argv[5]))

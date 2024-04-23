@@ -1,6 +1,7 @@
 ; bc16 Operation System version 1.1.20240413
 ;
                    .org 0x0000
+                   .def bdos_bootaddr, 0x0e80
 os_start:          .mv csci, :os_init
                    xor a
                    jmp z, csci
@@ -15,7 +16,7 @@ os_metatab:      .db :print_newline, :print_space, :printstr, :printhex4, :print
                  .db :tape_write8, :tape_read8, :tape_write16, :tape_write_blk, :tape_read_blk
                  .db :mul16, :div16, :gt16, :gteq16, :eq16
                  .db :exec_dump, :exec_write, :exec_xwrite, :exec_save, :exec_load, :exec_run, :exec_exe, :os_boot
-                 .db :os_init, :os_hello, :os_prompt, :os_parse, :os_end
+                 .db :os_init, :os_hello_nxt, :os_prompt, :os_parse, :os_end
                  .db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 
                  .db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
                  .db 0x00, 0x00
@@ -1456,7 +1457,7 @@ os_call:       psh a
                cal :var_oscall
                ret
 ;=============
-; #2d: OS_INIT - main code
+; #2c: OS_INIT - main code
 ; 1.initialize os
 os_init:       mov cs, ss
                mov ci, si
@@ -1465,20 +1466,19 @@ os_init:       mov cs, ss
                .mv csci, :user_mem
                .mv dsdi, :var_user_mem
                cal :poke16
-; 2.write greetings
+; #2d 2.write greetings
 os_hello:      .mv dsdi, :data_os
                cal :printstr
-; #2d
 ; checks if floppy drive is present, if so loads the bootsector to memory and executes it
 os_boot:       mov a, 0xf0
                mov ci, 0x08
                out #ci, a
                in a, #ci
                and 0x10
-               shr 0x03
                jmr z, :os_hello_nxt
 bdos_boot:     .mv dsdi, :data_bdos_boot
                cal :printstr
+               mov ci, 0x08
                mov a, 0xfa
                out #ci, a
                in a, #ci
@@ -1490,7 +1490,7 @@ bdos_boot:     .mv dsdi, :data_bdos_boot
                cal :error
                xor a
                jmr z, :os_hello_nxt
-bdos_boot_cfg: .mv dsdi, :user_mem
+bdos_boot_cfg: .mv dsdi, :bdos_bootaddr
                mov a, 0xf1
                out #ci, a
                mov a, ds
@@ -1520,9 +1520,10 @@ bdos_boot_read:mov a, 0xf2
                cal :error
                xor a
                jmr z, :os_hello_nxt
-bdos_boot_run: .mv csci, :user_mem
+bdos_boot_run: .mv csci, :bdos_bootaddr
                xor a
                jmp z, csci
+; #2e continue bcos
 os_hello_nxt:  .mv dsdi, :data_free
                cal :printstr
                .mv dsdi, :var_user_mem

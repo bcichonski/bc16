@@ -307,8 +307,12 @@ class FloppyDriveV1(IODevice):
         self.dmaaddr = None
         self.fileA_name = None
         self.fileB_name = None
+        self.fileA_handle = None
+        self.fileB_handle = None
+        self.active_drive = 'A'
 
     def read_byte(self):
+        self.env.log("FDD]>0x{0:02x}".format(self.state))
         return self.state
     
     def create_disk(self, name):
@@ -381,6 +385,7 @@ class FloppyDriveV1(IODevice):
         return (handle, name, FloppyDriveV1.STATE_READY)
     
     def write_byte(self, byte):
+        self.env.log("FDD<[0x{0:02x}".format(byte))
         if (byte == FloppyDriveV1.CMD_PING):
             self.state = FloppyDriveV1.STATE_READY | FloppyDriveV1.STATE_FDDV1
             return
