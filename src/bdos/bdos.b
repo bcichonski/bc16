@@ -4,9 +4,10 @@
 #include std.b
 #include stdio.b
 #include strings.b
+#include bdio.b
 
 byte main()
 {
-    puts("bdos 1.0 shell");
+    puts("bDOS 1.0 shell");
     asm "kil";
 }

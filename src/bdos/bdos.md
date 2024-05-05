@@ -1,5 +1,5 @@
 # key assumptions
-- has to be written in asm unfortunately
+- is written in b
 - as thin as possible subroutines library for basic operations
 - reuse bcOS subroutines where possible
 - disk format that supports:
@@ -36,7 +36,7 @@ if there is max 255 files/dirs it can take 32 sectors = two full tracks
 single fnode can have max 16 sectors size (full track)
 so max file of size 64kb can have 32 fnodes, but it can have more
 fnode size: 8bytes = 16 per sector
-full track will contain 256 inodes
+full track will contain 256 fnodes
 00 - 01 fnode number
 02 - 03 next fnode number
 04 - 04 entry number
@@ -59,12 +59,13 @@ key assumptions
 
 # bdio
 ## low level unbuffered disk io
-0x00: bdio_rsect(track, sector, memaddr) - read sector and write it to memory
-0x01: bdio_wsect(track, sector, memaddr) - write sector from memory
+0x00: bdio_readsec(track, sector, memaddr) - read sector and write it to memory
+0x01: bdio_writesec(track, sector, memaddr) - write sector from memory
+0x04: bdio_setdrive(drive) - selects active drive
+## medium level io
+0x05: bdio_getdrive() - return number of active drive
 0x02: bdio_cfindsect(cnameext, mamaddr) - find a sector in which catalog entry for given name and extension is located, leave it in memory
 0x03: bdio_freesect() - returns next free sector to allocate
-0x04: bdio_setdrive(drive) - selects active drive
-0x05: bdio_getdrive() - return number of active drive
 ## high level unbuffered file io
 0x10: bdio_fbinopenr(cparent, cnameext) - opens a file handle associated with given cnameext for read
 0x11: bdio_fbinopenw(cparent, cnameext) - opens a file handle for write (this is append only)

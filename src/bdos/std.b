@@ -61,3 +61,23 @@ word parsedecw(word Pbuf, byte maxlen)
 
     return value;
 }
+
+word mfill(word Paddr, word length, byte value)
+{
+    Paddr;
+    asm "psh cs";
+    asm "psh ci";
+    value;
+    asm "psh a";
+    length;
+    asm "pop a";
+    asm "pop di";
+    asm "pop ds";
+
+    asm "cal :mfill";
+}
+
+word mzero(word Paddr, word length)
+{
+    mfill(Paddr, length, 0);
+}
