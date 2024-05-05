@@ -18,11 +18,19 @@
 #define BDIO_FNODETAB_ENDTRACK 0x05
 #define BDIO_FNODE_PERSECTOR 0x10
 #define BDIO_FNODE_SIZE 0x10
+#define BDIO_FNODE_NUMEMPTY 0x00
+#define BDIO_FNODE_NUM_OFFSET1 0x00
+#define BDIO_FNODE_NUM_OFFSET2 0x01
+#define BDIO_FNODE_STARTTRACK_OFFSET 0x05
+#define BDIO_FNODE_STARTSECT_OFFSET 0x06
+#define BDIO_FNODE_SECTLEN_OFFSET 0x07
+
+#define BDIO_FREEMAP_FULL 0x0000
 
 #define BDIO_VAR_LASTERROR 0x2f00
 #define BDIO_VAR_ACTIVEDRV 0x2f01
 #define BDIO_VAR_FREESECTDRV 0x2f02
-#define BDIO_TAB_FREESECT 0x2f80
+#define BDIO_TAB_FREESECT_ADDR 0x2f80
 #define BDIO_TAB_FREESECT_LEN 0x80
 #define BDIO_TMP_SECTBUF 0x0e80
 
@@ -133,27 +141,92 @@ byte bdio_getdrive()
     return #(BDIO_VAR_ACTIVEDRV);
 }
 
+word bdio_freemap_ts2addr(byte track, byte sector)
+{
+    word Paddr;
+    Paddr <- track * BDIO_FNODE_PERSECTOR + sector;
+    Paddr <- Paddr >> 3;
+    return BDIO_TAB_FREESECT_ADDR + Paddr - 1;
+}
+
+byte bdio_freemap_ts2bitflag(byte track, byte sector)
+{
+    word calc;
+    byte bitflag;
+    calc <- track * BDIO_FNODE_PERSECTOR + sector;
+    bitflag <- calc & 0x07 - 1;
+    return 0x01 << bitflag;
+}
+
+byte bdio_fnode_freemap_mark(byte track, byte sector, byte len)
+{
+    word Pcurrtabitem;
+    byte currtabitem;
+    byte currbit;
+    byte i;
+
+    i <- 1;
+    Pcurrtabitem <- bdio_freemap_ts2addr(track, sector);
+    currbit <- bdio_freemap_ts2bitflag(track, sector);
+    currtabitem <- currbit;
+
+    while (i < len)
+    {
+        i <- i + 1;
+
+        currbit <- currbit << 1;
+        currtabitem <- currtabitem | currbit;
+
+        if(currbit = 0)
+        {
+            poke16(Pcurrtabitem, currtabitem);
+            currbit <- 0x01;
+            Pcurrtabitem <- Pcurrtabitem + 1;
+        }
+    }
+
+    if (currtabitem != 0)
+    {
+        currbit <- #(Pcurrtabitem);
+        currtabitem <- currtabitem | currbit;
+        poke16(Pcurrtabitem, currtabitem);
+    }
+}
+
 byte bdio_fnode_freemap_refresh(byte track, byte sector)
 {
     byte currFnode;
     word Pcurrfnode;
-    word Pcurrtabitem;
-    byte currtabitem;
-
+    
+    byte fnodeval;
+    byte starttrack;
+    byte startsect;
+    byte sectlen;
+    
     track <- track - BDIO_FNODETAB_STARTTRACK;
     currFnode <- 0;
-    Pcurrtabitem <- track * BDIO_FNODE_PERSECTOR + sector;
-    Pcurrtabitem <- Pcurrtabitem >> 3;
-    currtabitem <- 0;
-
+    
     while (currFnode < BDIO_FNODE_PERSECTOR) 
     {
-        Pcurrfnode <- currFnode * BDIO_FNODE_SIZE + BDIO_TMP_SECTBUF;
- 
+        Pcurrfnode <- BDIO_TMP_SECTBUF + currFnode * BDIO_FNODE_SIZE;
+
+        fnodeval <- #(Pcurrfnode + BDIO_FNODE_NUM_OFFSET1);
+        fnodeval <- fnodeval | #(Pcurrfnode + BDIO_FNODE_NUM_OFFSET2);
+
+        if(fnodeval != BDIO_FNODE_NUMEMPTY)
+        {
+            starttrack <- #(Pcurrfnode + BDIO_FNODE_STARTTRACK_OFFSET);
+            startsect <- #(Pcurrfnode + BDIO_FNODE_STARTSECT_OFFSET);
+            sectlen <- #(Pcurrfnode + BDIO_FNODE_SECTLEN_OFFSET);
+
+            bdio_fnode_freemap_mark(starttrack, startsect, sectlen);
+        }
+
+        currFnode <- currFnode + 1;
     }
 }
 
-byte bdio_freesect_refresh()
+byte bdio_freemap_refresh()
 {
     byte track;
     byte sector;
@@ -163,7 +236,9 @@ byte bdio_freesect_refresh()
     sector <- 0;
     result <- FDD_RESULT_OK;
 
-    while (track <= BDIO_FNODETAB_ENDTRACK || result != FDD_RESULT_OK)
+    mzero(BDIO_TMP_SECTBUF, FDD_TRACKS * FDD_SECTORS >> 3);
+
+    while (track <= BDIO_FNODETAB_ENDTRACK && result = FDD_RESULT_OK)
     {
         result <- bdio_readsec(track, sector, BDIO_TMP_SECTBUF);
 
@@ -180,6 +255,52 @@ byte bdio_freesect_refresh()
         }
     }
 
+    return result;
+}
+
+word bdio_freemap_getnextfree(byte track, byte sector)
+{
+    word Pcurrtabitem;
+    byte currtabitem;
+    byte currbit;
+    word result;
+
+    result <- BDIO_FREEMAP_FULL;
+    sector <- sector + 1;
+
+    if(sector >= FDD_SECTORS)
+    {
+        track <- track + 1;
+        sector <- 0;
+    }
+
+    Pcurrtabitem <- bdio_freemap_ts2addr(track, sector);
+
+    while (Pcurrtabitem < BDIO_TAB_FREESECT_ADDR + BDIO_TAB_FREESECT_LEN && result = BDIO_FREEMAP_FULL)
+    {
+        currbit <- bdio_freemap_ts2bitflag(track, sector);
+        currtabitem <- #(Pcurrtabitem);
+
+        if (currtabitem & currbit = 0x00)
+        {
+            result <- track * FDD_SECTORS << 8;
+            result <- result + sector;
+        }
+
+        if (result = BDIO_FREEMAP_FULL)
+        {
+            sector <- sector + 1;
+
+            if(sector >= FDD_SECTORS)
+            {
+                track <- track + 1;
+                sector <- 0;
+            }
+
+            Pcurrtabitem <- bdio_freemap_ts2addr(track, sector);
+        }
+    }
+    
     return result;
 }
 
