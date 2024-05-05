@@ -339,6 +339,15 @@ class EXPRESSION_UNARY(Instruction):
                 and 0x01
                 mov cs,0x00
                 mov ci, a""")
+        elif self.operator == '~':
+            self.operand.emit(context)
+            context.emit("""
+                mov a, cs
+                not a
+                mov cs, a
+                mov a, ci
+                not a
+                mov ci, a""")
         else:
             context.add_error(
                 "Unknown unary operator '{0}'".format(self.operator))
@@ -357,7 +366,11 @@ oper2lib = {
     '<': None,
     '<=': None,
     '&&': None,
-    '||': None
+    '||': None,
+    '&' : None,
+    '|' : None,
+    '<<': None,
+    '>>': None
 }
 
 @dataclass
@@ -476,6 +489,34 @@ class EXPRESSION_BINARY(Instruction):
                 or di
                 mov ci, a""")
             return True
+        if oper == '<<':
+            context.emit("""
+                mov a, ci
+                shl di
+                psh f
+                mov ci, a
+                mov a, cs
+                shl di
+                mov cs, a
+                pop a
+                shr 0x01
+                or cs
+                mov cs, a""")
+            return True
+        if oper == '>>':
+            context.emit("""
+                mov a, ci
+                shr di
+                mov ci, a
+                mov a, cs
+                and 0x01
+                shl 0x08
+                or ci
+                mov ci, a
+                mov a, cs
+                shr 0x01
+                mov cs, a""")
+            return True
         return False
 
 @dataclass
@@ -503,8 +544,6 @@ class VARIABLE_ASSIGNEMENT(Instruction):
         variable_def = context.get_variable(self.varname)
         print('{0}'.format(variable_def))
         offset = variable_def['offset']
-
-
 
         if(variable_def['type'] != 'word' and variable_def['type'] != 'byte'):
             self.context.add_error('Unknown type {0} in assignment'.format(variable_def['type']))

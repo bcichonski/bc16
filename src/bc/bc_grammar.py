@@ -42,9 +42,11 @@ conststring = lexeme(quotedstr)\
     .map(EXPRESSION_CONST_STR)\
     .desc("Constant string")
 
-unary_operator = lexeme(string('#') | string('!'))
+unary_operator = lexeme(string('#') | string('!') | string('~'))
 binary_factor = lexeme(string('*') | string('/'))
 binary_sum = lexeme(string('+') | string('-'))
+binary_binop = lexeme(string('&') | string('|'))
+binary_bincal = lexeme(string('<<') | string('>>'))
 binary_comp = lexeme(string('<=') | string('>=') | string('>') | string('<'))
 binary_logic = lexeme(string('&&') | string('||'))
 binary_eq = lexeme(string('=') | string('!='))
@@ -56,7 +58,9 @@ expression_unary_act = seq(unary_operator, expression).combine(EXPRESSION_UNARY)
 expression_unary = expression_unary_act | expression_term
 expression_factor = seq(operand1 = expression_unary, arguments = seq(binary_factor, expression_unary).many()).combine_dict(EXPRESSION_BINARY).desc('binary expression factor')
 expression_sum = seq(operand1 = expression_factor, arguments = seq(binary_sum, expression_factor).many()).combine_dict(EXPRESSION_BINARY).desc('binary expression sum')
-expression_comparision = seq(operand1 = expression_sum, arguments = seq(binary_comp, expression_factor).many()).combine_dict(EXPRESSION_BINARY).desc('binary expression comparision')
+expression_binop = seq(operand1 = expression_sum, arguments = seq(binary_binop, expression_sum).many()).combine_dict(EXPRESSION_BINARY).desc('binary expression binary operations')
+expression_bincal = seq(operand1 = expression_binop, arguments = seq(binary_bincal, expression_binop).many()).combine_dict(EXPRESSION_BINARY).desc('binary expression bitwise operators')
+expression_comparision = seq(operand1 = expression_bincal, arguments = seq(binary_comp, expression_bincal).many()).combine_dict(EXPRESSION_BINARY).desc('binary expression bitwise shifts')
 expression_equality = seq(operand1 = expression_comparision, arguments = seq(binary_eq, expression_comparision).many()).combine_dict(EXPRESSION_BINARY).desc('binary expression equality')
 expression_logic = seq(operand1 = expression_equality, arguments = seq(binary_logic, expression_equality).many()).combine_dict(EXPRESSION_BINARY).desc('binary expression logical')
 expression.become(expression_logic)
