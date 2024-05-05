@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 from bc_ast import *
 from bc_grammar import program
+from parsy import ParseError, line_info_at
 
 codeSegment = 0x1000
 heapSegment = 0x3000
@@ -118,7 +119,19 @@ def main():
         print('Saving generated input file to {0}'.format(infilegen))
         save_output_file(infilegen, input)
     print('Parsing code')
-    ast = program.parse(input)
+    try:
+        ast = program.parse(input)
+    except ParseError as ex:
+        (line, col) = line_info_at(input, ex.index)
+        lines = input.splitlines()
+        errLines = lines[line-2:line+2]
+        i = line-2
+        for line in errLines:
+            print('ERR {0}: {1}'.format(i, line))
+            i += 1
+        print(ex)
+        raise
+
     print('Generating code')
     output = compile(ast, verbose)
     outfile = Path(infile).with_suffix(".basm")
