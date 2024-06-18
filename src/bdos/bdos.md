@@ -55,8 +55,8 @@ key assumptions
 0x02: bdio_setdrive(drive) - selects active drive
 ## medium level io
 0x03: bdio_getdrive() - return number of active drive
-0x04: bdio_cfindsect(cnameext, mamaddr) - find a sector in which catalog entry for given name and extension is located, leave it in memory
-0x05: bdio_freesect() - returns next free sector to allocate
+0x04: bdio_ffindfile(cnameext, memaddr) - find a sector in which catalog entry for given name and extension is located, leave it in memory
+0x05: bdio_getfreesect() - returns next free sector to allocate
 ## high level unbuffered file io
 0x10: bdio_fbinopenr(cparent, cnameext) - opens a file handle associated with given cnameext for read
 0x11: bdio_fbinopenw(cparent, cnameext) - opens a file handle for write (this is append only)

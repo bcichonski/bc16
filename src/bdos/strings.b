@@ -1,3 +1,7 @@
+#define STRCMP_GT 0xf0
+#define STRCMP_LT 0x0f
+#define STRCMP_EQ 0x00
+
 word strnextword(word Pstring) 
 {
     //returns pointer to the next word in string, or _STRNULL if not found
@@ -34,4 +38,59 @@ byte strcpy(word Pstring, word Ptarget)
     asm "pop di";
     asm "pop ds";
     asm "cal :str_cpy";
+}
+
+byte strncmp(word Pstring1, word Pstring2, word maxlen)
+{
+    byte result;
+    byte char1;
+    byte char2;
+    byte loop;
+    word i;
+
+    result <- STRCMP_EQ;
+    i <- 0;
+    char1 <- #(Pstring1);
+    char2 <- #(Pstring2);
+    loop <- (char1 != 0) && (char2 != 0) && (maxlen > 0);
+
+    while(loop)
+    {
+        if(char1 > char2)
+        {
+            result <- STRCMP_GT;
+        }
+        else
+        {
+            if(char1 < char2)
+            {
+                result <- STRCMP_LT;
+            }
+        }
+
+        i <- i + 1;
+        Pstring1 <- Pstring1 + 1;
+        Pstring2 <- Pstring2 + 1;
+
+        char1 <- #(Pstring1);
+        char2 <- #(Pstring2);
+        loop <- (result = 0) && (char1 != 0) && (char2 != 0) && (i < maxlen);
+    }
+
+    if((result = 0) && (i < maxlen))
+    {
+        if(char1 != 0)
+        {
+            result <- STRCMP_GT;
+        }
+        else 
+        {
+            if(char2 != 0)
+            {
+                result <- STRCMP_LT;
+            }
+        }
+    }
+
+    return result;
 }
