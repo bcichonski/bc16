@@ -11,31 +11,39 @@
 #define FDD_STATE_READY 0x10
 
 #define FDD_RESULT_OK 0x00
+#define BDIO_RESULT_ENDOFCAT 0xc0
 
 #define BDIO_DRIVEA 0x00
 #define BDIO_DRIVEB 0x01
-#define BDIO_FNODETAB_STARTTRACK 0x04
-#define BDIO_FNODETAB_ENDTRACK 0x05
-#define BDIO_FNODE_PERSECTOR 0x10
-#define BDIO_FNODE_SIZE 0x10
-#define BDIO_FNODE_NUMEMPTY 0x00
-#define BDIO_FNODE_NUM_OFFSET1 0x00
-#define BDIO_FNODE_NUM_OFFSET2 0x01
-#define BDIO_FNODE_STARTTRACK_OFFSET 0x05
-#define BDIO_FNODE_STARTSECT_OFFSET 0x06
-#define BDIO_FNODE_SECTLEN_OFFSET 0x07
+#define BDIO_FCAT_STARTTRACK 0x04
+#define BDIO_FCAT_ENDTRACK 0x05
+#define BDIO_FCAT_ENTRYOFF_NUMBER 0x00
+#define BDIO_FCAT_ENTRYOFF_STARTTRACK 0x01
+#define BDIO_FCAT_ENTRYOFF_STARTSECTOR 0x02
+#define BDIO_FCAT_ENTRYOFF_SECTLEN 0x03
+#define BDIO_FCAT_ENTRYOFF_FNAME 0x04
+#define BDIO_FCAT_ENTRY_LENGTH 0x10
+#define BDIO_FCAT_FREEENTRY_FULL 0xff
 
 #define BDIO_FREEMAP_FULL 0x0000
 
 #define BDIO_VAR_LASTERROR 0x2f00
 #define BDIO_VAR_ACTIVEDRV 0x2f01
-#define BDIO_VAR_FREESECTDRV 0x2f02
+#define BDIO_VAR_FCAT_SCAN_TRACK 0x2f02
+#define BDIO_VAR_FCAT_SCAN_SECT 0x2f03
+#define BDIO_VAR_FCAT_FREEENTRY 0x2f04
+#define BDIO_VAR_FCAT_FREETRACK 0x2f05
+#define BDIO_VAR_FCAT_FREESECT 0x2f06
+#define BDIO_VAR_FCAT_NEWENTRYADDR 0x2f08
 #define BDIO_TAB_FREESECT_ADDR 0x2f80
 #define BDIO_TAB_FREESECT_LEN 0x80
 #define BDIO_TMP_SECTBUF 0x0e80
+#define BDIO_TMP_SECTBUF_LEN 0x80
 
 byte bdio_getstate()
 {
+    //reads the fdd state
+
     FDD_PORT;
     asm "in a, #ci";
     asm "mov ci, a";
@@ -43,6 +51,10 @@ byte bdio_getstate()
 
 byte bdio_checkstate()
 {
+    //checks the fdd state
+    //returns FDD_RESULT_OK if ok
+    //stores last error in BDIO_VAR_LASTERROR
+
     byte fddstate;
     fddstate <- bdio_getstate();
     poke8(BDIO_VAR_LASTERROR, fddstate);
@@ -57,6 +69,9 @@ byte bdio_checkstate()
 
 byte bdio_configure(word Pmembuf)
 {
+    //sets fdd dma address to Pmembuf
+    //returns fdd state
+
     FDD_PORT;
     asm "psh ci";
     FDD_CMD_CONFIG;
@@ -75,6 +90,10 @@ byte bdio_configure(word Pmembuf)
 
 byte bdio_setdrive(byte drive)
 {
+    // sets active drive
+    // stores current active drive to BDIO_VAR_ACTIVEDRV
+    // returns fdd state
+
     byte fdddrivecmd;
     fdddrivecmd <- FDD_CMD_SETDRVA + drive;
 
@@ -99,6 +118,9 @@ byte bdio_setdrive(byte drive)
 
 byte bdio_iosec(byte fddcmd, byte track, byte sector, word Pmembuf) 
 {
+    //low level function to configure dma and read or write sector there
+    //returns fdd state
+
     byte result;
     result <- bdio_configure(Pmembuf);
 
@@ -128,179 +150,227 @@ byte bdio_iosec(byte fddcmd, byte track, byte sector, word Pmembuf)
 
 byte bdio_readsec(byte track, byte sector, word Pmembuf) 
 {
+    // reads sector to given mem address
+    // returns fdd state
+
     return bdio_iosec(FDD_CMD_READ, track, sector, Pmembuf);
 }
 
 byte bdio_writesec(byte track, byte sector, word Pmembuf) 
 {
+    // writes sector from given mem address
+    // returns fdd state
+
     return bdio_iosec(FDD_CMD_WRITE, track, sector, Pmembuf);
 }
 
 byte bdio_getdrive()
 {
+    // returns active drive as os remembers
     return #(BDIO_VAR_ACTIVEDRV);
 }
 
-word bdio_freemap_ts2addr(byte track, byte sector)
+byte bdio_fcat_scanfirst()
 {
-    word Paddr;
-    Paddr <- track * BDIO_FNODE_PERSECTOR + sector;
-    Paddr <- Paddr >> 3;
-    return BDIO_TAB_FREESECT_ADDR + Paddr - 1;
-}
+    // method that initiates catalog scan
+    // reads first sector to BDIO_TMP_SECTBUF
+    // stores current track and sector in BDIO_VAR_FCAT_SCAN_TRACK and BDIO_VAR_FCAT_SCAN_SECT
+    // returns fdd state
 
-byte bdio_freemap_ts2bitflag(byte track, byte sector)
-{
-    word calc;
-    byte bitflag;
-    calc <- track * BDIO_FNODE_PERSECTOR + sector;
-    bitflag <- calc & 0x07 - 1;
-    return 0x01 << bitflag;
-}
-
-byte bdio_fnode_freemap_mark(byte track, byte sector, byte len)
-{
-    word Pcurrtabitem;
-    byte currtabitem;
-    byte currbit;
-    byte i;
-
-    i <- 1;
-    Pcurrtabitem <- bdio_freemap_ts2addr(track, sector);
-    currbit <- bdio_freemap_ts2bitflag(track, sector);
-    currtabitem <- currbit;
-
-    while (i < len)
-    {
-        i <- i + 1;
-
-        currbit <- currbit << 1;
-        currtabitem <- currtabitem | currbit;
-
-        if(currbit = 0)
-        {
-            poke16(Pcurrtabitem, currtabitem);
-            currbit <- 0x01;
-            Pcurrtabitem <- Pcurrtabitem + 1;
-        }
-    }
-
-    if (currtabitem != 0)
-    {
-        currbit <- #(Pcurrtabitem);
-        currtabitem <- currtabitem | currbit;
-        poke16(Pcurrtabitem, currtabitem);
-    }
-}
-
-byte bdio_fnode_freemap_refresh(byte track, byte sector)
-{
-    byte currFnode;
-    word Pcurrfnode;
-    
-    byte fnodeval;
-    byte starttrack;
-    byte startsect;
-    byte sectlen;
-    
-    track <- track - BDIO_FNODETAB_STARTTRACK;
-    currFnode <- 0;
-    
-    while (currFnode < BDIO_FNODE_PERSECTOR) 
-    {
-        Pcurrfnode <- BDIO_TMP_SECTBUF + currFnode * BDIO_FNODE_SIZE;
-
-        fnodeval <- #(Pcurrfnode + BDIO_FNODE_NUM_OFFSET1);
-        fnodeval <- fnodeval | #(Pcurrfnode + BDIO_FNODE_NUM_OFFSET2);
-
-        if(fnodeval != BDIO_FNODE_NUMEMPTY)
-        {
-            starttrack <- #(Pcurrfnode + BDIO_FNODE_STARTTRACK_OFFSET);
-            startsect <- #(Pcurrfnode + BDIO_FNODE_STARTSECT_OFFSET);
-            sectlen <- #(Pcurrfnode + BDIO_FNODE_SECTLEN_OFFSET);
-
-            bdio_fnode_freemap_mark(starttrack, startsect, sectlen);
-        }
-
-        currFnode <- currFnode + 1;
-    }
-}
-
-byte bdio_freemap_refresh()
-{
     byte track;
     byte sector;
     byte result;
 
-    track <- BDIO_FNODETAB_STARTTRACK;
+    track <- BDIO_FCAT_STARTTRACK;
     sector <- 0;
+
+    result <- bdio_readsec(track, sector, BDIO_TMP_SECTBUF);
+
+    if (result = FDD_RESULT_OK) 
+    {
+        poke16(BDIO_VAR_FCAT_SCAN_TRACK, track);
+        poke16(BDIO_VAR_FCAT_SCAN_SECT, sector);
+    }
+
+    return result;
+}
+
+byte bdio_fcat_scannext()
+{
+    // method continues catalog read
+    // reads next sector to BDIO_TMP_SECTBUF
+    // stores current track and sector in BDIO_VAR_FCAT_SCAN_TRACK and BDIO_VAR_FCAT_SCAN_SECT
+    // returns fdd state or BDIO_RESULT_ENDOFCAT
+
+    byte track;
+    byte sector;
+    byte result;
+
+    track <- #(BDIO_VAR_FCAT_SCAN_TRACK);
+    sector <- #(BDIO_VAR_FCAT_SCAN_SECT);
     result <- FDD_RESULT_OK;
 
-    mzero(BDIO_TMP_SECTBUF, FDD_TRACKS * FDD_SECTORS >> 3);
+    sector <- sector + 1;
+    if (sector >= FDD_SECTORS)
+    {
+        track <- track + 1;
+        sector <- 0;
 
-    while (track <= BDIO_FNODETAB_ENDTRACK && result = FDD_RESULT_OK)
+        if(track >= BDIO_FCAT_ENDTRACK)
+        {
+            result <- BDIO_RESULT_ENDOFCAT;
+        }
+    }
+
+    if(result = FDD_RESULT_OK)
     {
         result <- bdio_readsec(track, sector, BDIO_TMP_SECTBUF);
 
-        if (result = FDD_RESULT_OK)
+        if (result = FDD_RESULT_OK) 
         {
-            bdio_fnode_freemap_refresh(track, sector);
-        }
-
-        sector <- sector + 1;
-        if(sector > FDD_TRACKS)
-        {
-            track <- track + 1;
-            sector <- 0;
+            poke16(BDIO_VAR_FCAT_SCAN_TRACK, track);
+            poke16(BDIO_VAR_FCAT_SCAN_SECT, sector);
         }
     }
 
     return result;
 }
 
-word bdio_freemap_getnextfree(byte track, byte sector)
+word bdio_tracksector_get(byte track, byte sector)
 {
-    word Pcurrtabitem;
-    byte currtabitem;
-    byte currbit;
+    return (track << 3) | sector;
+}
+
+word bdio_tracksector_add(byte track, byte sector, byte sectorlen)
+{
+    //calculates track sector that is a result of adding sectorlen sectors to given track/sector
+    //returns word value in which first byte is track, second is sector
     word result;
+    word sectors;
 
-    result <- BDIO_FREEMAP_FULL;
-    sector <- sector + 1;
-
-    if(sector >= FDD_SECTORS)
-    {
-        track <- track + 1;
-        sector <- 0;
-    }
-
-    Pcurrtabitem <- bdio_freemap_ts2addr(track, sector);
-
-    while (Pcurrtabitem < BDIO_TAB_FREESECT_ADDR + BDIO_TAB_FREESECT_LEN && result = BDIO_FREEMAP_FULL)
-    {
-        currbit <- bdio_freemap_ts2bitflag(track, sector);
-        currtabitem <- #(Pcurrtabitem);
-
-        if (currtabitem & currbit = 0x00)
-        {
-            result <- track * FDD_SECTORS << 8;
-            result <- result + sector;
-        }
-
-        if (result = BDIO_FREEMAP_FULL)
-        {
-            sector <- sector + 1;
-
-            if(sector >= FDD_SECTORS)
-            {
-                track <- track + 1;
-                sector <- 0;
-            }
-
-            Pcurrtabitem <- bdio_freemap_ts2addr(track, sector);
-        }
-    }
+    sectors <- (track << 3) | sector;
+    sectors <- sectors + sectorlen - 1;
     
+    result <- (sectors >> 3) << 8;
+    result <- result | (sectors & 0x0f);
+
+    return result;
+}
+
+byte bdio_fcat_scanmem()
+{
+    byte freeentry;
+    byte freetrack;
+    byte freesector;
+    word Pentry;
+    word PlastAddr;
+    word freetracksector;
+    byte currentry;
+    byte currtrack;
+    byte currsector;
+    byte currsectlen;
+    word currfreetracksector;
+
+    freeentry <- #(BDIO_VAR_FCAT_FREEENTRY);
+    freetrack <- #(BDIO_VAR_FCAT_FREETRACK);
+    freesector <- #(BDIO_VAR_FCAT_FREESECT);
+
+    freetracksector <- bdio_tracksector_get(freetrack, freesector);
+
+    Pentry <- BDIO_TMP_SECTBUF;
+    PlastAddr <- BDIO_TMP_SECTBUF + BDIO_TMP_SECTBUF_LEN;
+    while(Pentry < PlastAddr)
+    {
+        currsectlen <- #(Pentry + BDIO_FCAT_ENTRYOFF_SECTLEN);
+        currentry <- #(Pentry + BDIO_FCAT_ENTRYOFF_NUMBER);
+
+        if(currsectlen > 0)
+        {
+            
+            currtrack <- #(Pentry + BDIO_FCAT_ENTRYOFF_STARTTRACK);
+            currsector <- #(Pentry + BDIO_FCAT_ENTRYOFF_STARTSECTOR);
+
+            currfreetracksector <- bdio_tracksector_add(currtrack, currsector, currsectlen + 1);
+            currtrack <- freetracksector >> 8;
+            currsector <- freetracksector & 0x0f;
+
+            if (freetracksector < currfreetracksector)
+            {
+                freetracksector <- currfreetracksector;
+                poke16(BDIO_VAR_FCAT_FREETRACK, currtrack);
+                poke16(BDIO_VAR_FCAT_FREESECT, currsector);
+            }
+        }
+        else
+        {
+            if (currentry < freeentry)
+            {
+                freeentry <- currentry;
+                poke16(BDIO_VAR_FCAT_FREEENTRY, freeentry);
+            }
+        }
+
+        Pentry <- Pentry + BDIO_FCAT_ENTRY_LENGTH;
+    }
+}
+
+byte bdio_fcat_read()
+{
+    //reads file catalog
+    //initializes variables BDIO_VAR_FCAT_FREEENTRY, BDIO_VAR_FCAT_FREETRACK, BDIO_VAR_FCAT_FREESECT
+
+    byte result;
+
+    poke16(BDIO_VAR_FCAT_FREEENTRY, BDIO_FCAT_FREEENTRY_FULL);
+    poke16(BDIO_VAR_FCAT_FREETRACK, 0x00);
+    poke16(BDIO_VAR_FCAT_FREESECT, 0x00);
+
+    result <- bdio_fcat_scanfirst();
+
+    while(result = FDD_RESULT_OK)
+    {
+        bdio_fcat_scanmem();
+
+        result <- bdio_fcat_scannext();
+    }
+
+    if(result = BDIO_RESULT_ENDOFCAT)
+    {
+        result <- FDD_RESULT_OK;
+    }
+
+    if(#(BDIO_VAR_FCAT_FREEENTRY) = BDIO_FCAT_FREEENTRY_FULL)
+    {
+        result <- BDIO_RESULT_ENDOFCAT;
+    }
+
+    return result;
+}
+
+byte bdio_fcat_new()
+{
+    //creates a new entry in fcat table
+    //memory address of that entry is BDIO_VAR_FCAT_NEWENTRYADDR
+    //track and sector in which this entry resides is taken from BDIO_VAR_FCAT_FREETRACK and BDIO_VAR_FCAT_FREESECT
+    //initializes entry with the start track and sector
+    //returns fdd state
+
+    byte result;
+    byte entryNo;
+
+    result <- FDD_RESULT_OK;
+    entryNo <- #(BDIO_VAR_FCAT_FREEENTRY);
+
+    if(entryNo != BDIO_FCAT_FREEENTRY_FULL)
+    {
+        poke8(BDIO_VAR_FCAT_NEWENTRYADDR, entryNo);
+        mzero(BDIO_VAR_FCAT_NEWENTRYADDR + 1, BDIO_FCAT_ENTRY_LENGTH - 1);
+    }
+    else
+    {
+        result <- BDIO_RESULT_ENDOFCAT;
+    }
+
     return result;
 }
 
