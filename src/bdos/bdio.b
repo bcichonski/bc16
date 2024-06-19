@@ -58,28 +58,32 @@
 #define BDIO_FEXEC_FDESCFCAT_ERR 0xe5
 #define BDIO_FEXEC_OUTOFMEM 0xe6
 #define BDIO_FEXEC_SECTFAIL 0xe7
+#define BDIO_FEXEC_OK 0x00
 
 #define BDIO_FILE_ATTRIB_READ 0x01
 #define BDIO_FILE_ATTRIB_WRITE 0x02
 #define BDIO_FILE_ATTRIB_EXEC 0x04
 #define BDIO_FILE_ATTRIB_SYSTEM 0x80
 
-#define BDIO_VAR_LASTERROR 0x2f00
-#define BDIO_VAR_ACTIVEDRV 0x2f01
-#define BDIO_VAR_FCAT_SCAN_TRACK 0x2f02
-#define BDIO_VAR_FCAT_SCAN_SECT 0x2f03
-#define BDIO_VAR_FCAT_FREEENTRY 0x2f04
-#define BDIO_VAR_FCAT_FREETRACK 0x2f05
-#define BDIO_VAR_FCAT_FREESECT 0x2f06
-#define BDIO_VAR_FCAT_PLASTFOUND 0x2f08
-#define BDIO_VAR_FCAT_NEWENTRYADDR 0x2f10
-#define BDIO_VAR_FDESCTAB_WRITE 0x2f12
-#define BDIO_VAR_FDESCTAB_READ 0x2f1a
-#define BDIO_TAB_SCANSECTBUF 0x2f40
+#define BDIO_VAR_LASTERROR 0x3f00
+#define BDIO_VAR_ACTIVEDRV 0x3f01
+#define BDIO_VAR_FCAT_SCAN_TRACK 0x3f02
+#define BDIO_VAR_FCAT_SCAN_SECT 0x3f03
+#define BDIO_VAR_FCAT_FREEENTRY 0x3f04
+#define BDIO_VAR_FCAT_FREETRACK 0x3f05
+#define BDIO_VAR_FCAT_FREESECT 0x3f06
+#define BDIO_VAR_FCAT_PLASTFOUND 0x3f08
+#define BDIO_VAR_FCAT_NEWENTRYADDR 0x3f10
+#define BDIO_VAR_FDESCTAB_WRITE 0x3f12
+#define BDIO_VAR_FDESCTAB_READ 0x3f1a
+
+#define BDIO_CMDPROMPTADDR 0x3fc0
+#define BDIO_CMDPROMPTLEN 0x40
 #define BDIO_TMP_SECTBUF 0x0e80
+#define BDIO_TAB_SCANSECTBUF 0x3f40
 #define BDIO_SECTBUF_LEN 0x80
 
-#define BDIO_USERMEM 0x3000
+#define BDIO_USERMEM 0x4000
 #define BDIO_NULL 0x0000
 
 byte bdio_getstate()
@@ -803,6 +807,7 @@ byte bdio_execute(word Pfnameext)
                             //load usermem to csci
                             BDIO_USERMEM;
                             asm "cal csci";
+                            result <- BDIO_FEXEC_OK;
                         }
                     }
                 }

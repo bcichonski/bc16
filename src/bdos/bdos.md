@@ -11,10 +11,10 @@
 track, sector - kind - description
 0, 0 - boot sector - 128 bytes that is a boot loader for the bDOS system
 0, 1-?? - bdos itelf - that would give 1920 bytes for the system, it might not be enough
-1, 0-15 - bdos cs, another 2048 bytes
-2, 0 - disk catalog table
-3, 0 - disk catalog table 2
-4, 0 - data
+1-5, 0-15 - bdos cs, another 2048 bytes * 5
+6, 0 - disk catalog table
+7, 0 - disk catalog table 2
+8, 0 - data
 
 ## disk catalog table
 max length = 16 sectors of 2 track
@@ -83,8 +83,8 @@ bdio_call() - allows to call every bdio subroutine from user program
   0x0081..0x0090 - os_vartab
 0x0e46..0x0e79 - unused buffer for bcos
 0x0e80..0x0eff - bdos boot sector
-0x0f00..0x???? - bdos 1.0 shell
-0x????..0x2eff - bdos stack
-0x2f00..0x2fff - bdos heap
-0x3000..[ST]   - user mem
+0x0f00..0x3aff - bdos 1.0 shell
+0x3b00..0x3eff - bdos stack
+0x3f00..0x4000 - bdos heap
+0x4000..[ST]   - user mem
 [ST]..0x7fff   - cpu stack

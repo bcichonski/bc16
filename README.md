@@ -23,8 +23,8 @@ bdos v1
  - disk operation system
    - micromode (the os itself just knows how to load and run executables)
  - bfs file system
-   - directories and files
-   - 
+   - only files
+   - but with some attributes
 
 ### CPU
 microprocessor: bc8182 (very small fixes regarding f register)
