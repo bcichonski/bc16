@@ -47,26 +47,34 @@ key assumptions
   - is able to locate the executive program file of given name, load it to memory and execute it
   - it can also pass command line arguments to that program
   - to make shell as simple as possible all system command including: FORMAT, PWD, LS, CP, MV and others are executives
+- files have attributes:
+  - R=0x01 if allowed to be read
+  - W=0x02 if allowed to be modified
+  - X=0x04 if allowed to be executed
+  - S=0x80 if system(system files attributes cannot be changed)
 
 # bdio
 ## low level unbuffered disk io
-0x00: bdio_readsec(track, sector, memaddr) - read sector and write it to memory
-0x01: bdio_writesec(track, sector, memaddr) - write sector from memory
+0x00: bdio_readsec(track, sector, Pmembuf) - read sector and write it to memory
+0x01: bdio_writesec(track, sector, Pmembuf) - write sector from memory
 0x02: bdio_setdrive(drive) - selects active drive
 ## medium level io
 0x03: bdio_getdrive() - return number of active drive
-0x04: bdio_ffindfile(cnameext, memaddr) - find a sector in which catalog entry for given name and extension is located, leave it in memory
+0x04: bdio_ffindfile(Pfnameext) - find a sector in which catalog entry for given name and extension is located
 0x05: bdio_getfreesect() - returns next free sector to allocate
 ## high level unbuffered file io
-0x10: bdio_fbinopenr(fnameext) - opens a file handle associated with given cnameext for read
-0x11: bdio_fbinopenw(fnameext) - opens a file handle for write (this is append only)
-0x12: bdio_fbinread(fhandle, memaddr, sectors) - reads given sectors of file to memaddr
-0x13: bdio_fbinwrite(fhandle, memaddr, sectors) - writes given memory to sectors
-0x14: bdio_fcreate(fnameext) - creates or truncates an existing file
-0x15: bdio_fclose(fhandle) - close open file handle
-0x16: bdio_fdelete(fnameext) - removes file from disk
+0x10: bdio_fbinopenr(Pfnameext) - opens a file handle associated with given cnameext for read
+0x11: bdio_fbinopenw(Pfnameext) - opens a file handle for write (this is append only)
+0x12: bdio_fbinread(fhandle, Pmembuf, sectors) - reads given sectors of file to Pmembuf
+0x13: bdio_fbinwrite(fhandle, Pmembuf, sectors) - writes given memory to sectors
+0x14: bdio_fcreate(Pfnameext) - creates or truncates an existing file
+0x15: bdio_fclose(fhandle) - closes opened file handle
+0x16: bdio_fdelete(Pfnameext) - removes file from disk
+0x17: bdio_fsetattrib(Pfnameext, attrib) - sets file attributes
 ## high level shell api
-0x20: bdos_execute(cnameext) - loads and executes given executable file
+0x20: bdio_execute(Pfnameext) - loads and executes given executable file
+0x21: bdio_freemem() - returns how much free memory we have
+bdio_call() - allows to call every bdio subroutine from user program
 
 # memory map
 0x0000..0x0e45 - bcos 1.1 (real)

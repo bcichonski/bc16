@@ -24,7 +24,8 @@
 #define BDIO_FCAT_ENTRYOFF_STARTTRACK 0x01
 #define BDIO_FCAT_ENTRYOFF_STARTSECTOR 0x02
 #define BDIO_FCAT_ENTRYOFF_SECTLEN 0x03
-#define BDIO_FCAT_ENTRYOFF_FNAME 0x04
+#define BDIO_FCAT_ENTRYOFF_ATTRIBS 0x04
+#define BDIO_FCAT_ENTRYOFF_FNAME 0x05
 #define BDIO_FCAT_ENTRY_LENGTH 0x10
 #define BDIO_FCAT_ENTRY_NAMELEN 11
 #define BDIO_FCAT_FREEENTRY_FULL 0xff
@@ -46,8 +47,22 @@
 #define BDIO_FDESCRIPTOR_NUMBERWRITE 0x10
 #define BDIO_FDESCRIPTOR_NUMBERREAD 0x20
 #define BDIO_FDESCRIPTOR_NUMBERFULL 0xff
+
 #define BDIO_FOPEN_FNAME_NOTFOUND 0xe0
 #define BDIO_FOPEN_FDD_NOT_READY 0xe1
+#define BDIO_FOPEN_ATTR_NOREAD 0xe3
+
+#define BDIO_FCLOSE_FDESC_NOTFOUND 0xe2
+
+#define BDIO_FEXEC_ATTR_NOEXEC 0xe4
+#define BDIO_FEXEC_FDESCFCAT_ERR 0xe5
+#define BDIO_FEXEC_OUTOFMEM 0xe6
+#define BDIO_FEXEC_SECTFAIL 0xe7
+
+#define BDIO_FILE_ATTRIB_READ 0x01
+#define BDIO_FILE_ATTRIB_WRITE 0x02
+#define BDIO_FILE_ATTRIB_EXEC 0x04
+#define BDIO_FILE_ATTRIB_SYSTEM 0x80
 
 #define BDIO_VAR_LASTERROR 0x2f00
 #define BDIO_VAR_ACTIVEDRV 0x2f01
@@ -56,12 +71,16 @@
 #define BDIO_VAR_FCAT_FREEENTRY 0x2f04
 #define BDIO_VAR_FCAT_FREETRACK 0x2f05
 #define BDIO_VAR_FCAT_FREESECT 0x2f06
-#define BDIO_VAR_FCAT_NEWENTRYADDR 0x2f08
-#define BDIO_VAR_FDESCTAB_WRITE 0x2f10
-#define BDIO_VAR_FDESCTAB_READ 0x2f18
-#define BDIO_TAB_SCANSECTBUF 0x2f80
+#define BDIO_VAR_FCAT_PLASTFOUND 0x2f08
+#define BDIO_VAR_FCAT_NEWENTRYADDR 0x2f10
+#define BDIO_VAR_FDESCTAB_WRITE 0x2f12
+#define BDIO_VAR_FDESCTAB_READ 0x2f1a
+#define BDIO_TAB_SCANSECTBUF 0x2f40
 #define BDIO_TMP_SECTBUF 0x0e80
 #define BDIO_SECTBUF_LEN 0x80
+
+#define BDIO_USERMEM 0x3000
+#define BDIO_NULL 0x0000
 
 byte bdio_getstate()
 {
@@ -244,7 +263,7 @@ word bdio_tracksector_add(byte track, byte sector, byte sectorlen)
     word sectors;
 
     sectors <- (track << 3) | sector;
-    sectors <- sectors + sectorlen - 1;
+    sectors <- sectors + sectorlen;
     
     result <- (sectors >> 3) << 8;
     result <- result | (sectors & 0x0f);
@@ -407,10 +426,12 @@ word bdio_ffindfile(word Pfnameext)
         fddres <- bdio_fcat_scannext(BDIO_TAB_SCANSECTBUF);
     }
 
+    poke16(BDIO_VAR_FCAT_PLASTFOUND, result);
+
     return result;
 }
 
-byte bdio_fcat_new()
+byte bdio_new_fcat(byte attribs)
 {
     //creates a new entry in fcat table
     //and reads the proper sector of fcat table to BDIO_TMP_SECTBUF
@@ -445,6 +466,7 @@ byte bdio_fcat_new()
 
             poke8(Pentry, entryNo);
             mzero(Pentry + 1, BDIO_FCAT_ENTRY_LENGTH - 1);
+            poke8(Pentry + BDIO_FCAT_ENTRYOFF_ATTRIBS, attribs);
             poke16(BDIO_VAR_FCAT_NEWENTRYADDR, Pentry);
         }
     }
@@ -526,25 +548,26 @@ byte bdio_getfree_readfdesc(word PfcatEntry)
 {
     word Pfdesc;
     byte fdescNo;
-    byte fcatEntryNo;
+    byte fdescNumber;
 
     Pfdesc <- BDIO_VAR_FDESCTAB_READ;
-    fcatEntryNo <- #(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER);
+    fdescNumber <- #(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER);
     fdescNo <- 0;
 
-    while((fdescNo < BDIO_FDESCRIPTOR_READ_MAX) && (fcatEntryNo != BDIO_FDESCRIPTOR_NUMBERFREE))
+    while((fdescNo < BDIO_FDESCRIPTOR_READ_MAX) && (fdescNumber != BDIO_FDESCRIPTOR_NUMBERFREE))
     {
         Pfdesc <- Pfdesc + BDIO_FDESCRIPTOR_LEN;
-        fcatEntryNo <- #(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER);
+        fdescNumber <- #(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER);
         
         fdescNo <- fdescNo + 1;
     }
 
-    if(fcatEntryNo = BDIO_FDESCRIPTOR_NUMBERFREE)
+    if(fdescNumber = BDIO_FDESCRIPTOR_NUMBERFREE)
     {
         byte track;
         byte sector;
         byte sectlen;
+        byte fcatEntryNo;
         byte fcattrack;
         byte fcatsector;
 
@@ -575,13 +598,23 @@ byte bdio_getfree_readfdesc(word PfcatEntry)
     return fdescNo;
 }
 
+byte bdio_fcat_checkattribs(word PfcatEntry, byte attribs)
+{
+    byte fcatattribs;
+
+    fcatattribs <- #(PfcatEntry + BDIO_FCAT_ENTRYOFF_ATTRIBS);
+
+    return ((fcatattribs & attribs) = attribs);
+}
+
 byte bdio_fbinopenr(word Pfnameext)
 {
     //allocates file descriptor for the given file name
     //and prepares it to be read sequentially
-    byte result;
+    byte fhandle;
     byte fddres;
-    result <- BDIO_FOPEN_FDD_NOT_READY;
+
+    fhandle <- BDIO_FOPEN_FDD_NOT_READY;
     //1. check drive state
     fddres <- bdio_checkstate();
 
@@ -593,12 +626,194 @@ byte bdio_fbinopenr(word Pfnameext)
 
         if(PfcatEntry != BDIO_FNAME_NOTFOUND)
         {
-
+            fhandle <- BDIO_FOPEN_ATTR_NOREAD;
+            if(bdio_fcat_checkattribs(PfcatEntry, BDIO_FILE_ATTRIB_READ))
+            {
+                fhandle <- bdio_getfree_readfdesc(PfcatEntry);
+            }
         }
         else
         {
-            result <- BDIO_FOPEN_FNAME_NOTFOUND;
+            fhandle <- BDIO_FOPEN_FNAME_NOTFOUND;
         }
+    }
+
+    return fhandle;
+}
+
+word bdio_getfdesc_addr(byte fhandle)
+{
+    word Pfdesc;
+    Pfdesc <- BDIO_NULL;
+
+    if((fhandle & BDIO_FDESCRIPTOR_NUMBERWRITE) = BDIO_FDESCRIPTOR_NUMBERWRITE)
+    {
+        Pfdesc <- BDIO_VAR_FDESCTAB_WRITE;
+    }
+
+    if((fhandle & BDIO_FDESCRIPTOR_NUMBERREAD) = BDIO_FDESCRIPTOR_NUMBERREAD)
+    {
+        Pfdesc <- BDIO_VAR_FDESCTAB_READ + ((fhandle & 0x0f) * BDIO_FDESCRIPTOR_LEN);
+    }
+    
+    return Pfdesc;
+}
+
+byte bdio_fbinread(byte fhandle, word Pmembuf, byte sectors)
+{
+    //reads at most specified number of sectors for open fhandle into given Pmembuf
+    //returns number of actually read sectors (EOF may be reached first)
+    byte result;
+    result <- 0;
+
+    if((fhandle & BDIO_FDESCRIPTOR_NUMBERREAD) = BDIO_FDESCRIPTOR_NUMBERREAD)
+    {
+        word Pfdesc;
+        byte sectorsread;
+        byte currSeq;
+        byte seqLen;
+        byte track;
+        byte sector;
+        word tracksector;
+
+        Pfdesc <- bdio_getfdesc_addr(fhandle);
+        sectorsread <- 0;
+        currSeq <- #(Pfdesc + BDIO_FDESCRIPTOROFF_CURRSEQ);
+        seqLen <- #(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN);
+        track <- #(Pfdesc + BDIO_FDESCRIPTOROFF_CURRTRACK);
+        sector <- #(Pfdesc + BDIO_FDESCRIPTOROFF_CURRSECT);
+        
+        while((sectorsread < sectors) && (currSeq < seqLen))
+        {
+            bdio_readsec(track, sector, Pmembuf);
+
+            Pmembuf <- Pmembuf + BDIO_SECTBUF_LEN;
+            sectorsread <- sectorsread + 1;
+            currSeq <- currSeq + 1;
+            tracksector <- bdio_tracksector_add(track, sector, 1);
+            track <- tracksector >> 8;
+            sector <- tracksector & 0xff;
+        }
+
+        poke8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRSEQ, currSeq);
+        poke8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRTRACK, track);
+        poke8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRSECT, sector);
+        result <- sectorsread;
+    }
+
+     return result;
+}
+
+byte bdio_fclose(byte fhandle)
+{
+    word Pfdesc;
+    byte result;
+    byte fdescNo;
+
+    result <- BDIO_FCLOSE_FDESC_NOTFOUND;
+    Pfdesc <- bdio_getfdesc_addr(fhandle);
+    fdescNo <- #(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER);
+
+    if(fdescNo != BDIO_FDESCRIPTOR_NUMBERFREE)
+    {
+        poke8(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER, BDIO_FDESCRIPTOR_NUMBERFREE);
+        poke8(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN, 0x00);
+        result <- fdescNo;
+    }
+}
+
+word bdio_get_procstackhead()
+{
+    asm "mov cs, ss";
+    asm "mov ci, si";
+}
+
+word bdio_get_sysstackhead()
+{
+    asm ".mv dsdi, :sys_stackhead";
+    asm "cal :peek16";
+}
+
+word bdio_freemem()
+{
+    //returns how much free memory we are leaving for the user
+    //this is estimated value based on the difference
+    //between the BDIO_USERMEM and tip of the system stack
+
+    word Pprocstackhead;
+
+    Pprocstackhead <- bdio_get_procstackhead();
+    return (Pprocstackhead - BDIO_USERMEM);
+}
+
+word bdio_freememsect()
+{
+    //returns how many full fdd sectors we can fit in usermem
+    return bdio_freemem() / BDIO_SECTBUF_LEN;
+}
+
+byte bdio_execute(word Pfnameext)
+{
+    //looks for file of given name on disk
+    //if exists check if it has exec attribute
+    //if so loads the file into memory (it has to be sufficient!)
+    //end executes it
+
+    byte result;
+    byte fhandle;
+
+    fhandle <- bdio_fbinopenr(Pfnameext);
+
+    if((fhandle & 0xef) = 0)
+    {
+        word Pfdesc;
+        byte fdescfcatEntryNo;
+        byte fcatEntryNo;
+        byte PfcatEntry;
+
+        Pfdesc <- bdio_getfdesc_addr(fhandle);
+        if(Pfdesc != BDIO_NULL)
+        {
+            fdescfcatEntryNo <- #(Pfdesc + BDIO_FDESCRIPTOROFF_FCATENTRYNO);
+            PfcatEntry <- #(BDIO_VAR_FCAT_PLASTFOUND);
+            fcatEntryNo <- #(PfcatEntry + BDIO_FCAT_ENTRYOFF_NUMBER);
+            result <- BDIO_FEXEC_FDESCFCAT_ERR;
+
+            if(fdescfcatEntryNo = fcatEntryNo)
+            {
+                result <- BDIO_FEXEC_ATTR_NOEXEC;
+                if(bdio_fcat_checkattribs(PfcatEntry, BDIO_FILE_ATTRIB_EXEC))
+                {
+                    word userspace;
+                    byte filesectlen;
+                    byte filesectread;
+
+                    userspace <- bdio_freememsect();
+                    filesectlen <- #(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN);
+                    result <- BDIO_FEXEC_OUTOFMEM;
+
+                    if(filesectlen < userspace)
+                    {
+                        filesectread <- bdio_fbinread(fhandle, BDIO_USERMEM, filesectlen);
+                        result <- BDIO_FEXEC_SECTFAIL;
+
+                        if(filesectread = filesectlen)
+                        {
+                            //finally! program loaded we can run it!
+                            //load usermem to csci
+                            BDIO_USERMEM;
+                            asm "cal csci";
+                        }
+                    }
+                }
+            }
+        }
+
+        bdio_fclose(fhandle);
+    }
+    else
+    {
+        result <- fhandle;
     }
 
     return result;

@@ -7,5 +7,6 @@
 byte main()
 {
     puts("bDOS 1.0 shell");
+
     asm "kil";
 }
