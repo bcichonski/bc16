@@ -74,6 +74,7 @@ byte strncmp(word Pstring1, word Pstring2, word maxlen)
 
         char1 <- #(Pstring1);
         char2 <- #(Pstring2);
+        
         loop <- (result = 0) && (char1 != 0) && (char2 != 0) && (i < maxlen);
     }
 
