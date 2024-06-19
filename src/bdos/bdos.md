@@ -58,15 +58,13 @@ key assumptions
 0x04: bdio_ffindfile(cnameext, memaddr) - find a sector in which catalog entry for given name and extension is located, leave it in memory
 0x05: bdio_getfreesect() - returns next free sector to allocate
 ## high level unbuffered file io
-0x10: bdio_fbinopenr(cparent, cnameext) - opens a file handle associated with given cnameext for read
-0x11: bdio_fbinopenw(cparent, cnameext) - opens a file handle for write (this is append only)
+0x10: bdio_fbinopenr(fnameext) - opens a file handle associated with given cnameext for read
+0x11: bdio_fbinopenw(fnameext) - opens a file handle for write (this is append only)
 0x12: bdio_fbinread(fhandle, memaddr, sectors) - reads given sectors of file to memaddr
 0x13: bdio_fbinwrite(fhandle, memaddr, sectors) - writes given memory to sectors
-0x14: bdio_fcreate(cparent, cnameext) - creates or truncates an existing file
+0x14: bdio_fcreate(fnameext) - creates or truncates an existing file
 0x15: bdio_fclose(fhandle) - close open file handle
-0x16: bdio_fdelete(cparent, cnameext) - removes file from disk
-0x19: bdio_fstat(cparent, cnameext) - return statistics on file
-0x1b: bdio_dstat() - return statistics on active drive
+0x16: bdio_fdelete(fnameext) - removes file from disk
 ## high level shell api
 0x20: bdos_execute(cnameext) - loads and executes given executable file
 
