@@ -1,0 +1,52 @@
+#!/bin/bash
+echo building bootloader...
+winpty python ./bc81asmc/bc81asmc.py --verbose ./bdos/boot.basm
+retVal=$?
+if [ $retVal -ne 0 ]; then
+    echo "Error"
+    exit $retVal
+fi
+echo building bdos...
+./bcc ./bdos/bdos
+retVal=$?
+if [ $retVal -ne 0 ]; then
+    echo "Error"
+    exit $retVal
+fi
+echo creating os disk...
+echo converting bootloader to sectors...
+./ftool btap2bin bdos/boot.btap bdos/boot.sector
+retVal=$?
+if [ $retVal -ne 0 ]; then
+    echo "Error"
+    exit $retVal
+fi
+echo converting bdos to sectors...
+./ftool btap2bin bdos/bdos.btap bdos/bdos.sector
+retVal=$?
+if [ $retVal -ne 0 ]; then
+    echo "Error"
+    exit $retVal
+fi
+echo creating empty floppy disk
+./ftool createbdd bdos/bdos.bdd
+retVal=$?
+if [ $retVal -ne 0 ]; then
+    echo "Error"
+    exit $retVal
+fi
+echo burning boot loader to track 0 sector 0
+./ftool importsector bdos/boot.sector bdos/bdos.bdd 0 0
+retVal=$?
+if [ $retVal -ne 0 ]; then
+    echo "Error"
+    exit $retVal
+fi
+echo burning bdos shell to tracks 0-5
+./ftool importsector bdos/bdos.sector bdos/bdos.bdd 0 1
+retVal=$?
+if [ $retVal -ne 0 ]; then
+    echo "Error"
+    exit $retVal
+fi
+echo done!

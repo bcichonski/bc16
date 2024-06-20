@@ -1,3 +1,5 @@
+#define TRUE 0x01
+#define FALSE 0x00
 
 byte peek8(word Paddr)
 {

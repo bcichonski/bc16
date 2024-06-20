@@ -1,6 +1,8 @@
 ; bDOS Disk Operation System Boot Loader version 1.0.20240421
 ;
 ; assuming bcos bootstrap did fdd initial configuration
+; reads sectors starting from 1 (sector 0 is this booloader)
+; can read up to 255 sectors
                    .org 0x0e80
                    .def bd_shell, 0x0f00
                    .def bd_sectsize, 0x0080
@@ -31,9 +33,8 @@ bd_readsect:       mov a, 0xf2
                    and 0xe0
                    jmr nz, :bd_boot_error
                    psh ci
-;bd_dend 0x0003
-                   mov ci, 0x0a
-                   mov a, ci
+;bd_dend here is the number of sectors to read
+                   mov a, 0x60
                    pop ci
                    sub ci
                    jmr z, :bd_boot_run
@@ -67,4 +68,4 @@ bd_boot_error:     mov a, 0x02
                    pop f
                    cal :os_metacall
                    kil
-bd_diskver:        .db 0xbc, 0x05, 0x01, 0x00
+bd_diskver:        .db 0xbd, 0x05, 0x01, 0x00
