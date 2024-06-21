@@ -256,7 +256,11 @@ byte bdio_fcat_scannext(word PsectorBuf)
 
 word bdio_tracksector_get(byte track, byte sector)
 {
-    return (track << 3) | sector;
+    word result;
+    putsnl("bdio_tracksector_get");
+    result <- (track << 3) | sector;
+    putwnl(result);
+    return result;
 }
 
 word bdio_tracksector_add(byte track, byte sector, byte sectorlen)
@@ -293,6 +297,7 @@ byte bdio_fcat_scanmem(word PsectorBuf)
     freetrack <- #(BDIO_VAR_FCAT_FREETRACK);
     freesector <- #(BDIO_VAR_FCAT_FREESECT);
 
+    puts("bdio_fcat_scanmem ");putb(freetrack);puts(" ");putb(freesector);putnl();
     freetracksector <- bdio_tracksector_get(freetrack, freesector);
 
     Pentry <- PsectorBuf;
@@ -494,9 +499,9 @@ byte bdio_setdrive(byte drive)
     FDD_PORT;
     asm "psh ci";
     fdddrivecmd;
-    asm "pop di";
+    asm "pop cs";
     asm "mov a, ci";
-    asm "out #ci, a";
+    asm "out #cs, a";
 
     byte result;
 

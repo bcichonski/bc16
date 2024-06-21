@@ -340,6 +340,8 @@ class FloppyDriveV1(IODevice):
         
         if name is None:
             name = self.env.get_string('Disk {} name:'.format(self.active_drive))
+            if not name.endswith('.bdd'):
+                name += '.bdd'
 
         if handle is None:
             if not self.env.file_exists(name):

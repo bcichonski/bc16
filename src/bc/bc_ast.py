@@ -490,32 +490,63 @@ class EXPRESSION_BINARY(Instruction):
                 mov ci, a""")
             return True
         if oper == '<<':
+            label1 = context.get_next_label()
+            label2 = context.get_next_label()
             context.emit("""
+                mov a, di
+                sub 0x08
+                jmr nz, :{0} 
+                mov a, 0x08
+                sub di
+                mov ds, a
                 mov a, ci
-                shl di
-                psh f
-                mov ci, a
+                shr ds
+                mov ds, a
                 mov a, cs
                 shl di
+                or  ds
                 mov cs, a
-                pop a
-                shr 0x01
-                or cs
-                mov cs, a""")
+                mov a, ci
+                shl di
+                mov ci, a
+                xor a
+                jmr z, :{1}
+{0}:            mov ds, a
+                mov a, ci
+                shl ds
+                mov cs, a
+                mov ci, 0x00 
+{1}:            nop""".format(label1, label2))
             return True
         if oper == '>>':
+            label1 = context.get_next_label()
+            label2 = context.get_next_label()
             context.emit("""
+                mov a, di
+                sub 0x08
+                jmr nz, :{0} 
+                mov a, 0x08
+                sub di
+                mov ds, a
+                mov a, cs
+                shl ds
+                shr ds
+                mov ds, a
+                mov a, cs
+                shr di
+                mov cs, a
                 mov a, ci
                 shr di
+                or  ds
                 mov ci, a
+                xor a
+                jmr z, :{1}
+{0}:            mov ds, a
                 mov a, cs
-                and 0x01
-                shl 0x08
-                or ci
+                shr a
                 mov ci, a
-                mov a, cs
-                shr 0x01
-                mov cs, a""")
+                mov cs, 0x00 
+{1}:            nop""".format(label1,label2))
             return True
         return False
 

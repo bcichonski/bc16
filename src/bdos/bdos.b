@@ -74,22 +74,30 @@ byte main()
     byte drive;
     byte hardkill;
 
+    bdio_tracksector_get(0,0);
+
     putsnl("bDOS 1.0 shell");
     putw(bdio_freemem());
     putsnl(" bytes free");
 
     res <- bdio_setdrive(BDIO_DRIVEA);
+    putsnl("A");
 
     if(res != FDD_RESULT_OK)
     {
+        putsnl("B");
         showerror(res);
     }
+
+    putsnl("C");
 
     loop <- TRUE;
     hardkill <- TRUE;
 
     while(loop)
     {
+        putsnl("D");
+        
         byte promptlen;
 
         drive <- bdio_getdrive();
