@@ -1,3 +1,4 @@
+# 8182 cpu version 1.1 (20240622)
 def hi(b):
     return (b >> 4) & 0xf
 
