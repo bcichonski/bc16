@@ -144,13 +144,21 @@ div16:          mov a, 0x20
 ; OUT:  dsdi - preserved
 ;         ci - preserved
 ;         cs - how many chars can we could still add
-            .def readstr, 0x03f6
+readstr:        mov a, 0x0d
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; NEXTWORD(dsdi) - moves to the end of current word
 ; IN:     dsdi - char buffer address
 ; OUT:    dsdi - address of the next word or end of buffer
 ;            a - >0 if next word exist
-            .def nextword, 0x04b4
+nextword:        mov a, 0x12
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; NEXTVAL8(dsdi) - moves until expected value
 ; IN:     dsdi - char buffer address
@@ -160,39 +168,63 @@ div16:          mov a, 0x20
 ;           cs - how much was left to end of buffer
 ;           ci - unchanged
 ;            a - >0 if value was found
-            .def nextval8, 0x04d1
+nextval8:       mov a, 0x13
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; STR_CPY(csci,dsdi)  - copy string from dsdi to csci
 ; IN: dsdi - source  
 ;     csci - desc
 ; OUT: dsdi = source + length + 1
-            .def str_cpy, 0x0562
+str_cpy:        mov a, 0x17
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; STR_LEN8(dsdi)  - length of the string ending with 0x00
 ; IN: dsdi - source  
 ;     cs   - max length
 ; OUT: dsdi - preserved, cs = rubbish, ci = actual length
-            .def str_len8, 0x0581
+str_len8:       mov a, 0x18
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; PARSEHEX4(#dsdi) - parses single char to hex number chars 0-9 and a-z and A-Z are supported
 ; IN:   dsdi - buffer address for char-hex
 ; OUT:     a - 0 if ok, 0xff if parse error
 ;         ci - hexval of a char
-            .def parsehex4, 0x0448
+parsehex4:      mov a, 0x0e
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; PARSEHEX8(#dsdi) - parses two char to hex number
 ; IN:   dsdi - buffer address for char
 ; OUT:    a - success = 0 or >0 error
 ;        ci - hex value for byte
 ;      dsdi - moved + 2 if ok
-            .def parsehex8, 0x0476
+parsehex8:      mov a, 0x0f
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; PARSEHEX16(#dsdi) - parses four char to hex number
 ; IN:   dsdi - buffer address for char
 ; OUT:  csci - hex value for value
 ;          a - success = 0 or error code
 ;       dsdi - moved + 4 if ok
-            .def parsehex16, 0x0497
+parsehex16:     mov a, 0x10
+                psh a
+                pop f
+                cal :os_metacall
+                ret
 ;=============
 ; PRINT_NEWLINE - prints new line
 ; IN:

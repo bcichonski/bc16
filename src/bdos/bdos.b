@@ -67,6 +67,14 @@ byte printhelp()
     putsnl("anything else - execute program from disk");
 }
 
+byte eject()
+{
+    asm "mov a, 0x2d";
+    asm "psh a";
+    asm "pop f";
+    asm "cal :os_metacall";
+}
+
 byte main()
 {
     byte res;
@@ -77,25 +85,21 @@ byte main()
     putsnl("bDOS 1.0 shell");
     putw(bdio_freemem());
     putsnl(" bytes free");
+    puts("Loading disc catalog...");
 
     res <- bdio_setdrive(BDIO_DRIVEA);
-    putsnl("A");
 
     if(res != FDD_RESULT_OK)
     {
-        putsnl("B");
         showerror(res);
     }
 
-    putsnl("C");
-
     loop <- TRUE;
     hardkill <- TRUE;
+    putnl();
 
     while(loop)
     {
-        putsnl("D");
-        
         byte promptlen;
 
         drive <- bdio_getdrive();
@@ -112,6 +116,7 @@ byte main()
             {
                 loop <- FALSE;
                 handled <- TRUE;
+                hardkill <- TRUE;
             }
             
             res <- strncmp(BDIO_CMDPROMPTADDR, "help", 4);
@@ -124,6 +129,7 @@ byte main()
             res <- strncmp(BDIO_CMDPROMPTADDR, "eject", 5);
             if(res = STRCMP_EQ)
             {
+                loop <- FALSE;
                 hardkill <- FALSE;
                 handled <- TRUE;
             }
@@ -140,10 +146,12 @@ byte main()
         }
     }
 
-    puts("bye!");
+    putsnl("bye!");
 
     if(hardkill)
     {
         asm "kil";
     }
+    
+    eject();
 }

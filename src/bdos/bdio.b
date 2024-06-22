@@ -241,14 +241,8 @@ byte bdio_fcat_scanfirst(word PsectorBuf)
 
     if (result = FDD_RESULT_OK) 
     {
-        putsnl("bdio_fcat_scanfirst");
-        putb(track);
-        putb(sector);
-        putnl();
         poke8(BDIO_VAR_FCAT_SCAN_TRACK, track);
         poke8(BDIO_VAR_FCAT_SCAN_SECT, sector);
-        putw(#(BDIO_VAR_FCAT_SCAN_TRACK));
-        putnl();
     }
 
     return result;
@@ -273,10 +267,6 @@ byte bdio_fcat_scannext(word PsectorBuf)
     tracksector <- bdio_tracksector_add(track, sector, 1);
     track <- tracksector >> 8;
     sector <- tracksector & 0xff;
-    
-    putb(track);
-    putb(sector);
-    putnl();
 
     if(track > BDIO_FCAT_ENDTRACK)
     {
@@ -310,8 +300,6 @@ byte bdio_fcat_scanmem(word PsectorBuf)
     byte currsector;
     byte currsectlen;
     word currfreetracksector;
-
-    putsnl("bdio_fcat_scanmem");
 
     freeentry <- peek8(BDIO_VAR_FCAT_FREEENTRY);
     freetrack <- peek8(BDIO_VAR_FCAT_FREETRACK);
@@ -429,8 +417,6 @@ byte bdio_fcat_read()
     {
         result <- BDIO_RESULT_ENDOFCAT;
     }
-
-    puts("bdio_fcat_read done");
 
     return result;
 }
