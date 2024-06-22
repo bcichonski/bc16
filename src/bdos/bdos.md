@@ -10,11 +10,11 @@
 ## disk format
 track, sector - kind - description
 0, 0 - boot sector - 128 bytes that is a boot loader for the bDOS system
-0, 1-?? - bdos itelf - that would give 1920 bytes for the system, it might not be enough
-1-5, 0-15 - bdos cs, another 2048 bytes * 5
-6, 0 - disk catalog table
-7, 0 - disk catalog table 2
-8, 0 - data
+0, 1 - bdos itself - that would give 1848 bytes for the system, it might not be enough
+1-7, 0-15 - bdos cs, another 2048 bytes * 5
+8, 0 - disk catalog table
+9, 0 - disk catalog table 2
+10, 0 - data
 
 ## disk catalog table
 max length = 16 sectors of 2 track
@@ -88,3 +88,7 @@ bdio_call() - allows to call every bdio subroutine from user program
 0x3f00..0x4000 - bdos heap
 0x4000..[ST]   - user mem
 [ST]..0x7fff   - cpu stack
+
+# problems
+bdos uses too much memory, its 0f00..4000 already and growing
+this means file catalog is moved too 

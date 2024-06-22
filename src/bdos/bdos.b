@@ -1,5 +1,5 @@
 #code 0x0f00
-#heap 0x2f00
+#heap 0x3f00
 
 #include stdio.b
 #include bdio.b
@@ -73,8 +73,6 @@ byte main()
     byte loop;
     byte drive;
     byte hardkill;
-
-    bdio_tracksector_get(0,0);
 
     putsnl("bDOS 1.0 shell");
     putw(bdio_freemem());

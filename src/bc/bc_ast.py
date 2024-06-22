@@ -511,7 +511,8 @@ class EXPRESSION_BINARY(Instruction):
                 mov ci, a
                 xor a
                 jmr z, :{1}
-{0}:            mov ds, a
+{0}:            dec a
+                mov ds, a
                 mov a, ci
                 shl ds
                 mov cs, a
@@ -541,9 +542,10 @@ class EXPRESSION_BINARY(Instruction):
                 mov ci, a
                 xor a
                 jmr z, :{1}
-{0}:            mov ds, a
+{0}:            dec a
+                mov ds, a
                 mov a, cs
-                shr a
+                shr ds
                 mov ci, a
                 mov cs, 0x00 
 {1}:            nop""".format(label1,label2))

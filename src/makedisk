@@ -35,7 +35,7 @@ echo burning boot loader to track 0 sector 0
 ./ftool importsector bdos/boot.sector os.bdd 0 0
 check_exit_code $?
 
-echo burning bdos shell to tracks 0-5
+echo burning bdos shell to tracks 0-10
 ./ftool importsector bdos/bdos.sector os.bdd 0 1
 check_exit_code $?
 
