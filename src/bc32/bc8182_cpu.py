@@ -163,12 +163,18 @@ class Bc8182:
         subcode = lo(self.nextbyte)
         self.inc_pc(1)
         arg2 = None
-        if subcode == Bc8182.CLC_INC or \
+        if subcode == Bc8182.CLC_OP_RNO:
+            regno = hi(self.nextbyte)
+            subcode = lo(self.nextbyte)
+            arg2 = self.regs[regno].get()
+            self.inc_pc(1)
+        elif subcode == Bc8182.CLC_INC or \
                 subcode == Bc8182.CLC_DEC or \
                 subcode == Bc8182.CLC_NOT or \
                 subcode == Bc8182.CLC_ZER:
             pass
         else:
+            # this is bug, there is conflict between CLC_OP_RNO and register with INC, DEC, ZER
             if subcode & Bc8182.CLC_OP_RNO == \
                     Bc8182.CLC_OP_RNO:
                 regno = hi(self.nextbyte)

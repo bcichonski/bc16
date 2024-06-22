@@ -333,10 +333,10 @@ class CLC_A_R(Instruction):
         return "{0: <3} {1}".format(self.oper.upper(), self.reg)
     def emit(self, context):
         super().emit(context)
-        context.emit_4bit(ASMCODES.CLC);
-        context.emit_4bit(ASMCODES.OPER2OPCODE(self.oper) | ASMCODES.CLC_OP_RNO)
+        context.emit_4bit(ASMCODES.CLC)
+        context.emit_4bit(ASMCODES.CLC_OP_RNO)
         context.emit_4bit(ASMCODES.REG2BIN(self.reg))
-        context.emit_4bit(0)
+        context.emit_4bit(ASMCODES.OPER2OPCODE(self.oper))
 
 @dataclass
 class JMP(Instruction):

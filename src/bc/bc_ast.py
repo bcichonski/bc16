@@ -494,8 +494,8 @@ class EXPRESSION_BINARY(Instruction):
             label2 = context.get_next_label()
             context.emit("""
                 mov a, di
-                sub 0x08
-                jmr nz, :{0} 
+                sub 0x07
+                jmr nn, :{0}
                 mov a, 0x08
                 sub di
                 mov ds, a
@@ -523,8 +523,8 @@ class EXPRESSION_BINARY(Instruction):
             label2 = context.get_next_label()
             context.emit("""
                 mov a, di
-                sub 0x08
-                jmr nz, :{0} 
+                sub 0x07
+                jmr nn, :{0} 
                 mov a, 0x08
                 sub di
                 mov ds, a
