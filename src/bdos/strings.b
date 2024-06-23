@@ -68,8 +68,6 @@ byte strncmp(word Pstring1, word Pstring2, word maxlen)
     byte loop;
     word i;
 
-    puts("strncmp ");puts(Pstring1);puts(" ");putsnl(Pstring2);
-
     result <- STRCMP_EQ;
     i <- 0;
     char1 <- #(Pstring1);
@@ -115,8 +113,6 @@ byte strncmp(word Pstring1, word Pstring2, word maxlen)
         }
     }
 
-    putwnl(result);
-    
     return result;
 }
 

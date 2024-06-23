@@ -307,7 +307,7 @@ byte bdio_fcat_scanmem(word PsectorBuf)
 
     Pentry <- PsectorBuf;
     PlastAddr <- PsectorBuf + BDIO_SECTBUF_LEN;
-    
+
     while(Pentry < PlastAddr)
     {
         currsectlen <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_SECTLEN);
@@ -358,16 +358,20 @@ word bdio_fcat_ffindmem(word Pfnameext, word PsectorBuf)
     
     Pentry <- PsectorBuf;
     PlastAddr <- PsectorBuf + BDIO_SECTBUF_LEN;
-    found <- 0;
+    found <- FALSE;
 
-    while(Pentry < PlastAddr && !found)
+    while((Pentry < PlastAddr) && !found)
     {
         currsectlen <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_SECTLEN);
         currentry <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_NUMBER);
 
+        putwnl(currsectlen);
+
         if(currsectlen > 0)
         {
             Pcurrfnameext <- Pentry + BDIO_FCAT_ENTRYOFF_FNAME;
+            putsnl(Pcurrfnameext);
+
             strcmp <- strncmp(Pfnameext, Pcurrfnameext, BDIO_FCAT_ENTRY_NAMELEN);
 
             found <- (strcmp = STRCMP_EQ);
@@ -624,6 +628,8 @@ byte bdio_fcat_checkattribs(word PfcatEntry, byte attribs)
 
     fcatattribs <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_ATTRIBS);
 
+    puts("bdio_fcat_checkattribs ");putb(fcatattribs);putb(attribs);putnl();
+
     return ((fcatattribs & attribs) = attribs);
 }
 
@@ -633,6 +639,8 @@ byte bdio_fbinopenr(word Pfnameext)
     //and prepares it to be read sequentially
     byte fhandle;
     byte fddres;
+
+    puts("bdio_fbinopenr ");
 
     fhandle <- BDIO_FOPEN_FDD_NOT_READY;
     //1. check drive state
@@ -644,9 +652,11 @@ byte bdio_fbinopenr(word Pfnameext)
         word PfcatEntry;
         PfcatEntry <- bdio_ffindfile(Pfnameext);
 
+        putwnl(PfcatEntry);
         if(PfcatEntry != BDIO_FNAME_NOTFOUND)
         {
             fhandle <- BDIO_FOPEN_ATTR_NOREAD;
+
             if(bdio_fcat_checkattribs(PfcatEntry, BDIO_FILE_ATTRIB_READ))
             {
                 fhandle <- bdio_getfree_readfdesc(PfcatEntry);

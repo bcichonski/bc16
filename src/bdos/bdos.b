@@ -84,13 +84,14 @@ byte execute(word Pfnameext)
     word dotpos;
 
     upstring(Pfnameext);
-    dotpos <- strnposc(Pfnameext, 0x2e, BDIO_CMDPROMPTLEN);
+    len <- strnlen8(Pfnameext);
 
-    if(dotpos = STRPOS_NOTFOUND)
+    while(len < 8)
     {
-        len <- strnlen8(Pfnameext);
-        strcpy(".PRG", Pfnameext + len);
+        poke8(Pfnameext + len, 0x20);
+        len <- len + 1;
     }
+    strcpy("PRG", Pfnameext + len);
 
     result <- bdio_execute(Pfnameext);
 
