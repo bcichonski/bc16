@@ -156,9 +156,9 @@ byte bdio_iosec(byte fddcmd, byte track, byte sector, word Pmembuf)
 
     if (result = FDD_RESULT_OK)
     {
-        track;
-        asm "psh ci";
         sector;
+        asm "psh ci";
+        track;
         asm "psh ci";
         FDD_PORT;
         asm "psh ci";
@@ -182,8 +182,9 @@ byte bdio_readsec(byte track, byte sector, word Pmembuf)
 {
     // reads sector to given mem address
     // returns fdd state
-
-    return bdio_iosec(FDD_CMD_READ, track, sector, Pmembuf);
+    byte result;
+    result <- bdio_iosec(FDD_CMD_READ, track, sector, Pmembuf);
+    return result;
 }
 
 byte bdio_writesec(byte track, byte sector, word Pmembuf) 
@@ -417,6 +418,12 @@ byte bdio_fcat_read()
     {
         result <- BDIO_RESULT_ENDOFCAT;
     }
+
+    puts("catalog: ");
+    putb(peek8(BDIO_VAR_FCAT_FREETRACK));
+    putb(peek8(BDIO_VAR_FCAT_FREESECT));
+    putb(peek8(BDIO_VAR_FCAT_FREEENTRY));
+    putnl();
 
     return result;
 }

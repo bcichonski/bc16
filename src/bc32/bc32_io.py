@@ -355,6 +355,7 @@ class FloppyDriveV1(IODevice):
         if state != FloppyDriveV1.STATE_READY:
             return (handle, name, state)
 
+        # self.env.log("FDD({0:02x},{1:02x})>[{0:04x}]".format(self.track, self.sector, self.dmaaddr));
         position = self.track * FloppyDriveV1.SECTORS * FloppyDriveV1.SECTOR_SIZE + self.sector * FloppyDriveV1.SECTOR_SIZE
         self.env.move_file_handle(handle, position)
         bytes = self.env.read_bytes(handle, FloppyDriveV1.SECTOR_SIZE)
@@ -397,10 +398,12 @@ class FloppyDriveV1(IODevice):
         elif (self.state == FloppyDriveV1.STATE_CFG1):
             self.state = FloppyDriveV1.STATE_CFG2
             self.dmaaddr = byte
+            # self.env.log("FDD<[{0:02x}".format(self.dmaaddr));
             return
         elif (self.state == FloppyDriveV1.STATE_CFG2):
             self.state = FloppyDriveV1.STATE_READY
             self.dmaaddr = self.dmaaddr * 256 + byte
+            # self.env.log("FDD<[{0:04x}]".format(self.dmaaddr));
             return
         elif (byte == FloppyDriveV1.CMD_SETDRVA):
             self.active_drive = 'A'

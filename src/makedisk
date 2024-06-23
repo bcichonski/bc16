@@ -39,4 +39,11 @@ echo burning bdos shell to tracks 0-10
 ./ftool importsector bdos/bdos.sector os.bdd 0 1
 check_exit_code $?
 
+echo burning os disc file catalog
+./ftool importsector fcat0800.sector os.bdd 8 0
+check_exit_code $?
+
+echo burning hello world program
+./ftool importsector bdos/helloworld.sectors 10 0
+
 echo done!
