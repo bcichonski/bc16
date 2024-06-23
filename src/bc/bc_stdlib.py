@@ -174,6 +174,18 @@ nextval8:       mov a, 0x13
                 cal :os_metacall
                 ret
 ;=============
+; #11: UPCHAR(a) - if a is an a-z char returns A-Z
+; IN:     a - char code
+; OUT:    a - char code A-Z or same
+;         ci - old a val
+upchar:         psh a
+                mov a, 0x11
+                psh a
+                pop f
+                pop a
+                cal :os_metacall
+                ret                
+;=============
 ; STR_CPY(csci,dsdi)  - copy string from dsdi to csci
 ; IN: dsdi - source  
 ;     csci - desc

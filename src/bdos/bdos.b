@@ -1,7 +1,9 @@
 #code 0x0f00
 #heap 0x3f00
 
+#include std.b
 #include stdio.b
+#include strings.b
 #include bdio.b
 
 byte showerror(byte code)
@@ -75,6 +77,26 @@ byte eject()
     asm "cal :os_metacall";
 }
 
+byte execute(word Pfnameext)
+{
+    byte result;
+    byte len;
+    word dotpos;
+
+    upstring(Pfnameext);
+    dotpos <- strnposc(Pfnameext, 0x2e, BDIO_CMDPROMPTLEN);
+
+    if(dotpos = STRPOS_NOTFOUND)
+    {
+        len <- strnlen8(Pfnameext);
+        strcpy(".PRG", Pfnameext + len);
+    }
+
+    result <- bdio_execute(Pfnameext);
+
+    return result;
+}
+
 byte main()
 {
     byte res;
@@ -85,7 +107,7 @@ byte main()
     putsnl("bDOS 1.0 shell");
     putw(bdio_freemem());
     putsnl(" bytes free");
-    puts("Loading disc catalog...");
+    puts("scanning disc...");
 
     res <- bdio_setdrive(BDIO_DRIVEA);
 
@@ -136,7 +158,7 @@ byte main()
 
             if(!handled)
             {
-                res <- bdio_execute(BDIO_CMDPROMPTADDR);
+                res <- execute(BDIO_CMDPROMPTADDR);
                 
                 if(res != BDIO_FEXEC_OK)
                 {

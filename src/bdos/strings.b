@@ -1,6 +1,26 @@
+#define NULLCHAR 0x00
 #define STRCMP_GT 0xf0
 #define STRCMP_LT 0x0f
 #define STRCMP_EQ 0x00
+#define STRPOS_NOTFOUND 0xffff
+
+byte strpeek8(word Paddr)
+{
+    Paddr;
+    asm "mov a, #csci";
+    asm "mov cs, 0x00";
+    asm "mov ci, a";
+}
+
+byte strpoke8(word Paddr, byte value) 
+{
+    value;
+    asm "mov a, ci";
+    asm "psh a";
+    Paddr;
+    asm "pop a";
+    asm "mov #csci, a";
+}
 
 word strnextword(word Pstring) 
 {
@@ -48,11 +68,13 @@ byte strncmp(word Pstring1, word Pstring2, word maxlen)
     byte loop;
     word i;
 
+    puts("strncmp ");puts(Pstring1);puts(" ");putsnl(Pstring2);
+
     result <- STRCMP_EQ;
     i <- 0;
     char1 <- #(Pstring1);
     char2 <- #(Pstring2);
-    loop <- (char1 != 0) && (char2 != 0) && (maxlen > 0);
+    loop <- (char1 != NULLCHAR) && (char2 != NULLCHAR) && (maxlen > 0);
 
     while(loop)
     {
@@ -75,23 +97,98 @@ byte strncmp(word Pstring1, word Pstring2, word maxlen)
         char1 <- #(Pstring1);
         char2 <- #(Pstring2);
         
-        loop <- (result = 0) && (char1 != 0) && (char2 != 0) && (i < maxlen);
+        loop <- (result = 0) && (char1 != NULLCHAR) && (char2 != NULLCHAR) && (i < maxlen);
     }
 
     if((result = 0) && (i < maxlen))
     {
-        if(char1 != 0)
+        if(char1 != NULLCHAR)
         {
             result <- STRCMP_GT;
         }
         else 
         {
-            if(char2 != 0)
+            if(char2 != NULLCHAR)
             {
                 result <- STRCMP_LT;
             }
         }
     }
 
+    putwnl(result);
+    
     return result;
+}
+
+word strnposc(word Pstring, byte char, word maxlen)
+{
+    word i;
+    byte loop;
+    byte strchar;
+    byte found;
+
+    i <- 0;
+    loop <- TRUE;
+    found <- FALSE;
+
+    while(loop && (i < maxlen))
+    {
+        strchar <- strpeek8(Pstring);
+
+        if(strchar = char) 
+        {
+            loop <- FALSE;
+            found <- TRUE;
+        }
+        else
+        {
+            if(strchar = NULLCHAR)
+            {
+                loop <- FALSE;
+                found <- FALSE;
+            }
+        }
+
+        i <- i + 1;
+        Pstring <- Pstring + 1;
+    }
+
+    if (found)
+    {
+        i <- i - 1;
+    }
+    else
+    {
+        i <- STRPOS_NOTFOUND;
+    }
+
+    return i;
+}
+
+byte upchar(byte char)
+{
+    char;
+    asm "mov a, ci";
+    asm "cal :upchar";
+    asm "mov cs, 0x00";
+    asm "mov ci, a";
+}
+
+byte upstring(word Pstring)
+{
+    byte strchar;
+    byte reschar;
+    
+    strchar <- strpeek8(Pstring);
+    while (strchar != NULLCHAR)
+    {
+        reschar <- upchar(strchar);
+        if(reschar != strchar)
+        {
+            strpoke8(Pstring, reschar);
+        }
+
+        Pstring <- Pstring + 1;
+        strchar <- strpeek8(Pstring);
+    }
 }

@@ -44,6 +44,6 @@ echo burning os disc file catalog
 check_exit_code $?
 
 echo burning hello world program
-./ftool importsector bdos/helloworld.sectors 10 0
+./ftool importsector bdos/helloworld.sectors os.bdd 10 0
 
 echo done!

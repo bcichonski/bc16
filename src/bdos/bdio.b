@@ -1,6 +1,3 @@
-#include std.b
-#include strings.b
-
 #define FDD_PORT 0x08
 #define FDD_TRACKS 0x40
 #define FDD_SECTORS 0x10
@@ -310,6 +307,7 @@ byte bdio_fcat_scanmem(word PsectorBuf)
 
     Pentry <- PsectorBuf;
     PlastAddr <- PsectorBuf + BDIO_SECTBUF_LEN;
+    
     while(Pentry < PlastAddr)
     {
         currsectlen <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_SECTLEN);
@@ -321,12 +319,13 @@ byte bdio_fcat_scanmem(word PsectorBuf)
             currsector <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_STARTSECTOR);
 
             currfreetracksector <- bdio_tracksector_add(currtrack, currsector, currsectlen + 1);
-            currtrack <- freetracksector >> 8;
-            currsector <- freetracksector & 0x0f;
-
+            
             if (freetracksector < currfreetracksector)
             {
                 freetracksector <- currfreetracksector;
+                currtrack <- freetracksector >> 8;
+                currsector <- freetracksector & 0x0f;     
+
                 poke8(BDIO_VAR_FCAT_FREETRACK, currtrack);
                 poke8(BDIO_VAR_FCAT_FREESECT, currsector);
             }
@@ -419,7 +418,6 @@ byte bdio_fcat_read()
         result <- BDIO_RESULT_ENDOFCAT;
     }
 
-    puts("catalog: ");
     putb(peek8(BDIO_VAR_FCAT_FREETRACK));
     putb(peek8(BDIO_VAR_FCAT_FREESECT));
     putb(peek8(BDIO_VAR_FCAT_FREEENTRY));
