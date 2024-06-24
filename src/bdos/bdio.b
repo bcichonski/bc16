@@ -365,12 +365,9 @@ word bdio_fcat_ffindmem(word Pfnameext, word PsectorBuf)
         currsectlen <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_SECTLEN);
         currentry <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_NUMBER);
 
-        putwnl(currsectlen);
-
         if(currsectlen > 0)
         {
             Pcurrfnameext <- Pentry + BDIO_FCAT_ENTRYOFF_FNAME;
-            putsnl(Pcurrfnameext);
 
             strcmp <- strncmp(Pfnameext, Pcurrfnameext, BDIO_FCAT_ENTRY_NAMELEN);
 
@@ -447,7 +444,10 @@ word bdio_ffindfile(word Pfnameext)
     {
         result <- bdio_fcat_ffindmem(Pfnameext, BDIO_TAB_SCANSECTBUF);
 
-        fddres <- bdio_fcat_scannext(BDIO_TAB_SCANSECTBUF);
+        if(result = BDIO_FNAME_NOTFOUND)
+        {
+            fddres <- bdio_fcat_scannext(BDIO_TAB_SCANSECTBUF);
+        }
     }
 
     poke16(BDIO_VAR_FCAT_PLASTFOUND, result);
@@ -628,8 +628,6 @@ byte bdio_fcat_checkattribs(word PfcatEntry, byte attribs)
 
     fcatattribs <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_ATTRIBS);
 
-    puts("bdio_fcat_checkattribs ");putb(fcatattribs);putb(attribs);putnl();
-
     return ((fcatattribs & attribs) = attribs);
 }
 
@@ -639,8 +637,6 @@ byte bdio_fbinopenr(word Pfnameext)
     //and prepares it to be read sequentially
     byte fhandle;
     byte fddres;
-
-    puts("bdio_fbinopenr ");
 
     fhandle <- BDIO_FOPEN_FDD_NOT_READY;
     //1. check drive state
@@ -652,7 +648,6 @@ byte bdio_fbinopenr(word Pfnameext)
         word PfcatEntry;
         PfcatEntry <- bdio_ffindfile(Pfnameext);
 
-        putwnl(PfcatEntry);
         if(PfcatEntry != BDIO_FNAME_NOTFOUND)
         {
             fhandle <- BDIO_FOPEN_ATTR_NOREAD;
@@ -782,14 +777,15 @@ byte bdio_execute(word Pfnameext)
 
     fhandle <- bdio_fbinopenr(Pfnameext);
 
-    if((fhandle & 0xef) = 0)
+    if(fhandle < 0xef)
     {
         word Pfdesc;
         byte fdescfcatEntryNo;
         byte fcatEntryNo;
-        byte PfcatEntry;
+        word PfcatEntry;
 
         Pfdesc <- bdio_getfdesc_addr(fhandle);
+
         if(Pfdesc != BDIO_NULL)
         {
             fdescfcatEntryNo <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATENTRYNO);
