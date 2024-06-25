@@ -105,6 +105,8 @@ byte main()
     byte drive;
     byte hardkill;
 
+    printf("test %d %x %w %s %% %n", 123, 0x89, 0xabcd, "string");
+
     putsnl("bDOS 1.0 shell");
     putw(bdio_freemem());
     putsnl(" bytes free");

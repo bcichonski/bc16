@@ -24,11 +24,11 @@ class Scope:
         self.declaredOnly = False
         self.depth = 0 if prev_scope is None else prev_scope.depth + 1
 
-    def add_variable(self, vartype, varname, funcparam = False):
+    def add_variable(self, vartype, varname, funcparam = False, calltrace = ''):
         if funcparam:
             if self.funcparams.get(varname) is not None:
                 self.context.add_error(
-                    'Function parameter {0} was already defined in this scope'.format(varname))
+                    'Function parameter {0} was already defined in this scope {1}'.format(varname, calltrace))
 
             self.funcparams[varname] = {
                 'name': varname,
@@ -140,8 +140,8 @@ class Context:
         print('ERROR: {0}'.format(message))
         self.errors.append(message)
 
-    def add_variable(self, vartype, varname, funcparam = False):
-        self.scope.add_variable(vartype, varname, funcparam)
+    def add_variable(self, vartype, varname, funcparam = False, calltrace = ''):
+        self.scope.add_variable(vartype, varname, funcparam, calltrace)
 
     def get_variable(self, varname):
         return self.scope.get_variable(varname)
@@ -562,7 +562,7 @@ class VARIABLE_DECLARATION(Instruction):
 
     def emit(self, context):
         print('{0} {1};'.format(self.vartype, self.varname))
-        context.add_variable(self.vartype, self.varname)
+        context.add_variable(self.vartype, self.varname, 'VAR DECL')
 
 @dataclass
 class VARIABLE_ASSIGNEMENT(Instruction):
@@ -735,20 +735,26 @@ class EXPRESSION_CALL(Instruction):
             return
 
         context.push_scope('CALL')
-
+        print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+        print(function_data)
         paramdata = function_data['params']
         paramstar = function_data['paramstar']
         funcname = function_data['name']
         paramno = 0
         for param in self.params:
-            param_data = paramdata[paramno]
-            param_name = param_data['name']
-            paramtype = param_data['type']
-            if(param_data is None):
+            try:
+                param_data = paramdata[paramno]
+                param_name = param_data['name']
+                paramtype = param_data['type']
+            except:
                 if not paramstar:
                     context.add_error('Unrecognized function {0} parameter {1}'.format(self.function_name, param_name))
+                paramtype = 'word';
+                param_name = 'P{0}'.format(paramno);
+            
+            print(">>VARIABLE {0}:{1}".format(param_name, paramtype))
 
-            context.add_variable(paramtype, param_name, True)
+            context.add_variable(paramtype, param_name, True, 'FCALL PARAM')
             varassignement = VARIABLE_ASSIGNEMENT(param_name, param)
             varassignement.emit(context, True)
             paramno += 1
@@ -757,11 +763,11 @@ class EXPRESSION_CALL(Instruction):
             paramname = funcname
             if len(paramname) > 10: 
                 paramname = paramname[:10]
-            paramname = "__SLN{0}".format(paramname)
-            paramtype = 'byte'
-            context.add_variable('byte', paramname, True)
-            varassignement = VARIABLE_ASSIGNEMENT(paramname, EXPRESSION_CONSTANT(paramno - 1))
-            varassignement.emit(context)
+            paramname = "{0}PLEN".format(paramname)
+            print("===================>PARAMSTAR: ".format(paramname))
+            context.add_variable('word', paramname, True, 'FCALL PARAMSTAR')
+            varassignement = VARIABLE_ASSIGNEMENT(paramname, EXPRESSION_CONSTANT(paramno))
+            varassignement.emit(context, True)
 
         context.emit("""
                 cal :{0}""".format(function_data['label']))
@@ -823,15 +829,20 @@ class FUNCTION_DECLARATION(Instruction):
 
     def add_func_params(self, context, function_data):
         for param in function_data['params']:
-            context.add_variable(param['type'], param['name'], True)
+            context.add_variable(param['type'], param['name'], True, 'FUNC DEF')
+        if function_data['paramstar']:
+            paramname = function_data['name']
+            if len(paramname) > 10: 
+                paramname = paramname[:10]
+            paramname = "{0}PLEN".format(paramname)
+            context.add_variable('word', paramname, True, 'FUNC DEF PARAMSTAR')
 
     def add_code(self, function_data, context):
         context.emit("""
 ;FUNCTION {0}
 {1:<16}nop""".format(function_data['name'], function_data['label'] + ":"))
         context.push_scope('FUNC')
-        if not function_data['paramstar']:
-            self.add_func_params(context, function_data)
+        self.add_func_params(context, function_data)
 
         self.code.emit(context)
         context.pop_scope('FUNC')
