@@ -135,6 +135,7 @@ byte printf(word PformatStr)***
         currChar <- iopeek8(PformatStr);
         handled <- FALSE;
 
+        putw(PformatStr);puts(" ");putw(PdynParam);puts(" ");
         putb(currChar);putnl();
 
         if(currChar != 0)

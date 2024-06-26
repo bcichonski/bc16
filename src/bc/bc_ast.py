@@ -740,6 +740,17 @@ class EXPRESSION_CALL(Instruction):
         paramdata = function_data['params']
         paramstar = function_data['paramstar']
         funcname = function_data['name']
+
+        if paramstar:
+            paramname = funcname
+            if len(paramname) > 10: 
+                paramname = paramname[:10]
+            paramname = "{0}PLEN".format(paramname)
+            print("===================>PARAMSTAR: ".format(paramname))
+            context.add_variable('word', paramname, True, 'FCALL PARAMSTAR')
+            varassignement = VARIABLE_ASSIGNEMENT(paramname, EXPRESSION_CONSTANT(len(self.params)))
+            varassignement.emit(context, True)
+
         paramno = 0
         for param in self.params:
             try:
@@ -758,16 +769,6 @@ class EXPRESSION_CALL(Instruction):
             varassignement = VARIABLE_ASSIGNEMENT(param_name, param)
             varassignement.emit(context, True)
             paramno += 1
-
-        if paramstar:
-            paramname = funcname
-            if len(paramname) > 10: 
-                paramname = paramname[:10]
-            paramname = "{0}PLEN".format(paramname)
-            print("===================>PARAMSTAR: ".format(paramname))
-            context.add_variable('word', paramname, True, 'FCALL PARAMSTAR')
-            varassignement = VARIABLE_ASSIGNEMENT(paramname, EXPRESSION_CONSTANT(paramno))
-            varassignement.emit(context, True)
 
         context.emit("""
                 cal :{0}""".format(function_data['label']))
@@ -828,14 +829,15 @@ class FUNCTION_DECLARATION(Instruction):
         return function_data
 
     def add_func_params(self, context, function_data):
-        for param in function_data['params']:
-            context.add_variable(param['type'], param['name'], True, 'FUNC DEF')
         if function_data['paramstar']:
             paramname = function_data['name']
             if len(paramname) > 10: 
                 paramname = paramname[:10]
             paramname = "{0}PLEN".format(paramname)
             context.add_variable('word', paramname, True, 'FUNC DEF PARAMSTAR')
+
+        for param in function_data['params']:
+            context.add_variable(param['type'], param['name'], True, 'FUNC DEF')
 
     def add_code(self, function_data, context):
         context.emit("""
