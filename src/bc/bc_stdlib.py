@@ -589,6 +589,7 @@ mfill_ret:  pop a
 ;SYS DATA
             .def var_promptbuf, 0x0bcf
             .def var_user_mem, 0x0bcb
+sys_stdprntf:.db 0x00, 0x00
 sys_seektmp: .db 0x00, 0x00 
 {1}:  .db 0x{2:02x}, 0x{3:02x}
 {0}: nop

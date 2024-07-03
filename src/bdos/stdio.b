@@ -1,4 +1,4 @@
-#define PRINTF_FORMATCHAR '%'
+#define PRINTF_FORMATCHAR 0x25
 #define PRINTF_STATE_NORMAL 0x01
 #define PRINTF_STATE_FORMAT 0x02
 #define PRINTF_STATE_END 0x00
@@ -8,7 +8,7 @@ byte putdigit(byte digit)
     digit;
     asm "mov a, ci";
     asm "cal :printhex4";
-}
+} 
 
 byte putb(byte value)
 {
@@ -106,108 +106,178 @@ byte iopeek8(word Paddr)
     asm "mov ci, a";
 }
 
+byte iopoke8(word Paddr, byte value) 
+{
+    value;
+    asm "mov a, ci";
+    asm "psh a";
+    Paddr;
+    asm "pop a";
+    asm "mov #csci, a";
+}
+
+byte iopoke16(word Paddr, word value) 
+{
+    Paddr;
+    asm "psh cs";
+    asm "psh ci";
+    value;
+    asm "pop di";
+    asm "pop ds";
+    asm "cal :poke16";
+}
+
 byte printf(word PformatStr)***
 {
-    word PdynParam;
-    byte currChar;
-    byte state;
-    byte params;
-    word currParamVal;
-    byte handled;
-
-    puts("printf: ");putw(PformatStr);puts(" ");putw(printfPLEN);putnl();
-
     PformatStr;
     asm "cal :inc16";
-    asm "psh ds";
-    asm "psh di";
-    PdynParam;
-    asm "cal :dec16";
-    asm "pop ci";
-    asm "pop cs";
+    asm "mov cs, ds";
+    asm "mov ci, di";
+    asm ".mv dsdi, :sys_stdprntf";
     asm "cal :poke16";
-
-    state <- PRINTF_STATE_NORMAL;
-    params <- 0;
-
-    while(state && (params < printfPLEN))
+    
+    while((printfPLEN > 0) && PformatStr)
     {
-        currChar <- iopeek8(PformatStr);
-        handled <- FALSE;
+        PformatStr;
+        asm "mov a, #csci";
+        asm "psh a";
+        asm ".mv csci, :stdprntf_end";
+        asm "jmp z, csci";
 
-        putw(PformatStr);puts(" ");putw(PdynParam);puts(" ");
-        putb(currChar);putnl();
+        asm "mov ci, PRINTF_FORMATCHAR";
+        asm "sub ci";
+        asm "jmr z, :stdprntf_frmt";
+        asm "pop a";
+        asm "mov cs, 0x01";
+        asm "out #cs, a";
+        asm ".mv csci, :stdprntf_next";
+        asm "xor a";
+        asm "jmp z, csci";
 
-        if(currChar != 0)
-        {
-            if(state = PRINTF_STATE_NORMAL)
-            {
-                if(currChar = PRINTF_FORMATCHAR)
-                {
-                    state <- PRINTF_STATE_FORMAT;
-                    putsnl("format");
-                }
-                else
-                {
-                    currChar;
-                    asm "mov ds, 0x01";
-                    asm "mov a, ci";
-                    asm "out #ds, a";
-                }
-                handled <- TRUE;
-            }
-
-            if(!handled) 
-            {
-                if(currChar = PRINTF_FORMATCHAR)
-                {
-                    putsnl("fchar");
-                    asm "mov ds, 0x01";
-                    asm "mov a, 0x25";
-                    asm "out #ds, a";
-                    handled <- TRUE;
-                }
-                if(!handled && (currChar = 'n'))
-                {
-                    putsnl("nl");
-                    puts(currParamVal);
-                    handled <- TRUE;
-                } 
-                if(!handled)
-                {
-                    currParamVal <- #(PdynParam);
-                    PdynParam <- PdynParam + 2;
-                    params <- params + 1;
-                    
-                    puts("dyn: ");
-                    putwnl(currParamVal);
-
-                    if(currChar = 'd')
-                    {
-                        putdecw(currParamVal);
-                    }
-                    if(currChar = 'x')
-                    {
-                        putb(currParamVal);
-                    }
-                    if(currChar = 'w')
-                    {
-                        putw(currParamVal);
-                    }
-                    if(currChar = 's')
-                    {
-                        puts(currParamVal);
-                    }
-                }
-                state <- PRINTF_STATE_NORMAL;
-            }
-        }
-        else
-        {
-            state <- PRINTF_STATE_END;
-        }
-
+        asm "stdprntf_frmt: nop";
         PformatStr <- PformatStr + 1;
+        asm "pop a";
+        asm "mov a, #csci";
+        asm "psh a";
+        asm "mov ci, PRINTF_FORMATCHAR";
+
+        asm "mov ci, PRINTF_FORMATCHAR";
+        asm "sub ci";
+        asm "jmr nz, :stdprntf_nprc";
+        asm "pop a";
+        asm "mov cs, 0x01";
+        asm "out #cs, a";
+        asm ".mv csci, :stdprntf_next";
+        asm "xor a";
+        asm "jmp z, csci";
+
+        asm "stdprntf_nprc: nop";
+        'n';
+        asm "pop a";
+        asm "psh a";
+        asm "sub ci";
+        asm "jmr nz, :stdprntf_nnwl";
+        asm "pop a";
+        asm "cal :print_newline";
+        asm ".mv csci, :stdprntf_nxtf";
+        asm "xor a";
+        asm "jmp z, csci";
+
+        asm "stdprntf_nnwl: nop";
+        'x';
+        asm "pop a";
+        asm "psh a";
+        asm "sub ci";
+        asm "jmr nz, :stdprntf_nh8";
+        asm "pop a";
+        
+        asm ".mv dsdi, :sys_stdprntf";
+        asm "cal :peek16";
+        asm "mov ds, cs";
+        asm "mov di, ci";
+        asm "cal :peek16";
+        asm "psh ci";
+        
+        asm "cal :inc16";
+        asm "mov cs, ds";
+        asm "mov ci, di";
+        asm ".mv dsdi, :sys_stdprntf";
+        asm "cal :poke16";
+
+        asm "pop a";
+        asm "cal :printhex8";
+        asm ".mv csci, :stdprntf_nxtf";
+        asm "xor a";
+        asm "jmp z, csci";
+
+        asm "stdprntf_nh8: nop";
+        'w';
+        asm "pop a";
+        asm "psh a";
+        asm "sub ci";
+        asm "jmr nz, :stdprntf_nh16";
+        asm "pop a";
+       
+        asm ".mv dsdi, :sys_stdprntf";
+        asm "cal :peek16";
+        asm "mov ds, cs";
+        asm "mov di, ci";
+        asm "cal :peek16";
+        asm "psh ci";
+        asm "psh cs";
+        
+        asm "cal :inc16";
+        asm "mov cs, ds";
+        asm "mov ci, di";
+        asm ".mv dsdi, :sys_stdprntf";
+        asm "cal :poke16";
+
+        asm "pop cs";
+        asm "pop ci";
+        asm "cal :printhex16";
+        asm ".mv csci, :stdprntf_nxtf";
+        asm "xor a";
+        asm "jmp z, csci";
+
+        asm "stdprntf_nh16: nop";
+        's';
+        asm "pop a";
+        asm "psh a";
+        asm "sub ci";
+        asm "jmr nz, :stdprntf_nxtf";
+        asm "pop a";
+        asm ".mv dsdi, :sys_stdprntf";
+        asm "cal :peek16";
+        asm "mov ds, cs";
+        asm "mov di, ci";
+        asm "cal :peek16";
+        asm "psh ci";
+        asm "psh cs";
+
+        asm "cal :inc16";
+        asm "mov cs, ds";
+        asm "mov ci, di";
+        asm ".mv dsdi, :sys_stdprntf";
+        asm "cal :poke16";
+
+        asm "pop ds";
+        asm "pop di";
+        asm "cal :printstr";
+
+        asm "stdprntf_nxtf: pop a";
+        printfPLEN <- printfPLEN - 1;
+        asm "xor a";
+        asm "jmr z, :stdprntf_next";
+
+        asm "stdprntf_end: pop a";
+        PformatStr <- 0;
+        asm "xor a";
+        asm "jmr z, :stdprntf_cont";
+
+        asm "stdprntf_next: nop";
+        PformatStr <- PformatStr + 1;
+
+        asm "stdprntf_cont: nop";
     }
 
     return 0;

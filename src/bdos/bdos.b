@@ -105,7 +105,7 @@ byte main()
     byte drive;
     byte hardkill;
 
-    printf("test %d %x %w %s %% %n", 123, 0x89, 0xabcd, "string");
+    printf("test %w %x %s %n", 0xabcd, 0x12, "aaaaaaaa");
 
     putsnl("bDOS 1.0 shell");
     putw(bdio_freemem());
