@@ -1,7 +1,8 @@
 #define PRINTF_FORMATCHAR 0x25
-#define PRINTF_STATE_NORMAL 0x01
-#define PRINTF_STATE_FORMAT 0x02
-#define PRINTF_STATE_END 0x00
+#define PRINTF_NEWLINECHAR 'n'
+#define PRINTF_HEX8 'x'
+#define PRINTF_HEX16 'w'
+#define PRINTF_STRING 's'
 
 byte putdigit(byte digit)
 {
@@ -98,35 +99,6 @@ byte putdecwnl(word value)
     asm "cal :print_newline";
 }
 
-byte iopeek8(word Paddr)
-{
-    Paddr;
-    asm "mov a, #csci";
-    asm "mov cs, 0x00";
-    asm "mov ci, a";
-}
-
-byte iopoke8(word Paddr, byte value) 
-{
-    value;
-    asm "mov a, ci";
-    asm "psh a";
-    Paddr;
-    asm "pop a";
-    asm "mov #csci, a";
-}
-
-byte iopoke16(word Paddr, word value) 
-{
-    Paddr;
-    asm "psh cs";
-    asm "psh ci";
-    value;
-    asm "pop di";
-    asm "pop ds";
-    asm "cal :poke16";
-}
-
 byte printf(word PformatStr)***
 {
     PformatStr;
@@ -158,7 +130,6 @@ byte printf(word PformatStr)***
         PformatStr <- PformatStr + 1;
         asm "mov a, #csci";
         asm "psh a";
-        asm "mov ci, PRINTF_FORMATCHAR";
 
         asm "mov ci, PRINTF_FORMATCHAR";
         asm "sub ci";
@@ -171,7 +142,7 @@ byte printf(word PformatStr)***
         asm "jmp z, csci";
 
         asm "stdprntf_nprc: nop";
-        'n';
+        PRINTF_NEWLINECHAR;
         asm "pop a";
         asm "psh a";
         asm "sub ci";
@@ -183,10 +154,10 @@ byte printf(word PformatStr)***
         asm "jmp z, csci";
 
         asm "stdprntf_nnwl: nop";
-        'x';
+        PRINTF_HEX8;
         asm "pop a";
         asm "psh a";
-        asm "sub ci";
+                asm "sub ci";
         asm "jmr nz, :stdprntf_nh8";
         asm "pop a";
         
@@ -209,8 +180,8 @@ byte printf(word PformatStr)***
         asm "xor a";
         asm "jmp z, csci";
 
-        asm "stdprntf_nh8: nop";
-        'w';
+        asm "stdprntf_nh8: pop a";
+        PRINTF_HEX16;
         asm "pop a";
         asm "psh a";
         asm "sub ci";
@@ -239,7 +210,7 @@ byte printf(word PformatStr)***
         asm "jmp z, csci";
 
         asm "stdprntf_nh16: nop";
-        's';
+        PRINTF_STRING;
         asm "pop a";
         asm "psh a";
         asm "sub ci";

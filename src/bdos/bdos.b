@@ -6,59 +6,60 @@
 #include strings.b
 #include bdio.b
 
-byte showerror(byte code)
-{
-    puts("error: 0x");
-    putb(code);
-    putnl();
-}
-
 byte printdrive(byte drive)
 {
+    word driveLetter;
+    driveLetter <- "?";
     if(drive = BDIO_DRIVEA)
     {
-        puts("A>");
+        driveLetter <- "A";
     }
     else
     {
-        puts("B>");
+        if(drive = BDIO_DRIVEB) 
+        {
+            driveLetter <- "B";
+        }
     }
+
+    printf("%s>", driveLetter);
 }
 
 byte printexecres(byte execres)
 {
-    puts("error: ");
+    word errorMessage;
+    errorMessage <- "unknown error";
+    
     if(execres = BDIO_FOPEN_FDD_NOT_READY)
     {
-        puts("fdd not ready");
+        errorMessage <- "fdd not ready";
     }
     if(execres = BDIO_FOPEN_ATTR_NOREAD)
     {
-        puts("reading not allowed");
+        errorMessage <- "reading not allowed";
     }
     if(execres = BDIO_FOPEN_FNAME_NOTFOUND)
     {
-        puts("file not found");
+        errorMessage <- "file not found";
     }
     if(execres = BDIO_FEXEC_ATTR_NOEXEC)
     {
-        puts("execution not allowed");
+        errorMessage <- "execution not allowed";
     }
     if(execres = BDIO_FEXEC_FDESCFCAT_ERR)
     {
-        puts("catalogue and file handle mismatch");
+        errorMessage <- "catalogue and file handle mismatch";
     }
     if(execres = BDIO_FEXEC_OUTOFMEM)
     {
-        puts("not enough user memory");
+        errorMessage <- "not enough user memory";
     }
     if(execres = BDIO_FEXEC_SECTFAIL)
     {
-        puts("not all sectors loaded");
+        errorMessage <- "not all sectors loaded";
     }
-    puts(" 0x");
-    putb(execres);
-    putnl();
+
+    printf("error: %s (0x%x)%n", errorMessage, execres);
 }
 
 byte printhelp()
@@ -105,18 +106,13 @@ byte main()
     byte drive;
     byte hardkill;
 
-    printf("test %w %x %s %n", 0xabcd, 0x12, "aaaaaaaa");
-
-    putsnl("bDOS 1.0 shell");
-    putw(bdio_freemem());
-    putsnl(" bytes free");
-    puts("scanning disc...");
+    printf("bDOS 1.0 shell%n%w bytes free%nreading disc...", bdio_freemem());
 
     res <- bdio_setdrive(BDIO_DRIVEA);
 
     if(res != FDD_RESULT_OK)
     {
-        showerror(res);
+        printf("error: 0x%x%n", res);
     }
 
     loop <- TRUE;
