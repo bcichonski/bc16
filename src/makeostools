@@ -10,14 +10,6 @@ check_exit_code()
     fi
 }
 
-echo building bootloader...
-winpty python ./bc81asmc/bc81asmc.py --verbose ./bdos/boot.basm
-check_exit_code $?
-
-echo building bdos...
-./bcc ./bdos/bdos
-check_exit_code $?
-
 echo creating os disk...
 echo converting bootloader to sectors...
 ./ftool btap2bin bdos/boot.btap bdos/boot.sector
@@ -35,7 +27,7 @@ echo burning boot loader to track 0 sector 0
 ./ftool importsector bdos/boot.sector os.bdd 0 0
 check_exit_code $?
 
-echo burning bdos shell to tracks 0-10
+echo burning bdos shell to tracks 0-7
 ./ftool importsector bdos/bdos.sector os.bdd 0 1
 check_exit_code $?
 
@@ -44,6 +36,6 @@ echo burning os disc file catalog
 check_exit_code $?
 
 echo burning hello world program
-./ftool importsector bdos/helloworld.sectors os.bdd 10 0
+./ftool importsector bdos/helloworld.sectors os.bdd 11 0
 
 echo done!

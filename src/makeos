@@ -1,0 +1,49 @@
+#!/bin/bash
+trap "exit 1" TERM
+export TOP_PID=$$
+
+check_exit_code()
+{
+    if [ $1 -ne 0 ]; then
+        echo "Error"
+        kill -s TERM $TOP_PID
+    fi
+}
+
+echo building bootloader...
+winpty python ./bc81asmc/bc81asmc.py --verbose ./bdos/boot.basm
+check_exit_code $?
+
+echo building bdos...
+./bcc ./bdos/bdos
+check_exit_code $?
+
+echo creating os disk...
+echo converting bootloader to sectors...
+./ftool btap2bin bdos/boot.btap bdos/boot.sector
+check_exit_code $?
+
+echo converting bdos to sectors...
+./ftool btap2bin bdos/bdos.btap bdos/bdos.sector
+check_exit_code $?
+
+echo creating empty floppy disk
+./ftool createbdd os.bdd
+check_exit_code $?
+
+echo burning boot loader to track 0 sector 0
+./ftool importsector bdos/boot.sector os.bdd 0 0
+check_exit_code $?
+
+echo burning bdos shell to tracks 0-7
+./ftool importsector bdos/bdos.sector os.bdd 0 1
+check_exit_code $?
+
+echo burning os disc file catalog
+./ftool importsector fcat0800.sector os.bdd 8 0
+check_exit_code $?
+
+echo burning hello world program
+./ftool importsector bdos/helloworld.sectors os.bdd 11 0
+
+echo done!
