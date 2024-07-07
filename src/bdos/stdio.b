@@ -108,7 +108,7 @@ byte printf(word PformatStr)***
     asm ".mv dsdi, :sys_stdprntf";
     asm "cal :poke16";
     
-    while((printfPLEN > 0) && PformatStr)
+    while(PformatStr)
     {
         PformatStr;
         asm "mov a, #csci";
@@ -126,7 +126,7 @@ byte printf(word PformatStr)***
         asm "xor a";
         asm "jmp z, csci";
 
-        asm "stdprntf_frmt: nop";
+        asm "stdprntf_frmt: pop a";
         PformatStr <- PformatStr + 1;
         asm "mov a, #csci";
         asm "psh a";
@@ -147,7 +147,6 @@ byte printf(word PformatStr)***
         asm "psh a";
         asm "sub ci";
         asm "jmr nz, :stdprntf_nnwl";
-        asm "pop a";
         asm "cal :print_newline";
         asm ".mv csci, :stdprntf_nxtf";
         asm "xor a";
@@ -157,15 +156,15 @@ byte printf(word PformatStr)***
         PRINTF_HEX8;
         asm "pop a";
         asm "psh a";
-                asm "sub ci";
+        asm "sub ci";
         asm "jmr nz, :stdprntf_nh8";
-        asm "pop a";
         
         asm ".mv dsdi, :sys_stdprntf";
         asm "cal :peek16";
         asm "mov ds, cs";
         asm "mov di, ci";
         asm "cal :peek16";
+        asm "pop a";
         asm "psh ci";
         
         asm "cal :inc16";
@@ -180,13 +179,12 @@ byte printf(word PformatStr)***
         asm "xor a";
         asm "jmp z, csci";
 
-        asm "stdprntf_nh8: pop a";
+        asm "stdprntf_nh8: nop";
         PRINTF_HEX16;
         asm "pop a";
         asm "psh a";
         asm "sub ci";
         asm "jmr nz, :stdprntf_nh16";
-        asm "pop a";
        
         asm ".mv dsdi, :sys_stdprntf";
         asm "cal :peek16";
@@ -215,7 +213,6 @@ byte printf(word PformatStr)***
         asm "psh a";
         asm "sub ci";
         asm "jmr nz, :stdprntf_nxtf";
-        asm "pop a";
         asm ".mv dsdi, :sys_stdprntf";
         asm "cal :peek16";
         asm "mov ds, cs";
@@ -235,7 +232,6 @@ byte printf(word PformatStr)***
         asm "cal :printstr";
 
         asm "stdprntf_nxtf: pop a";
-        printfPLEN <- printfPLEN - 1;
         asm "xor a";
         asm "jmr z, :stdprntf_next";
 
