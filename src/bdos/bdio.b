@@ -834,7 +834,7 @@ byte bdio_execute(word Pfnameext)
     return result;
 }
 
-byte bdio_call()
+word bdio_call()
 {
     asm "psh a";
     asm "psh cs";
@@ -862,4 +862,8 @@ byte bdio_call()
     asm "mov cs, 0x00";
     asm "cal :poke16";
     asm "cal :printhex16";
+
+    printf("csci %w dsdi %w a %x", regCSCI, regDSDI, regA);
+    
+    return 0xabba;
 }
