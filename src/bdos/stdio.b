@@ -156,7 +156,6 @@ byte printf(word PformatStr)***
 
         asm "stdprntf_frmt: nop";
         PformatStr <- PformatStr + 1;
-        asm "pop a";
         asm "mov a, #csci";
         asm "psh a";
         asm "mov ci, PRINTF_FORMATCHAR";
