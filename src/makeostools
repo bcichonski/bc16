@@ -36,7 +36,7 @@ echo burning os disc file catalog
 check_exit_code $?
 
 echo burning hello world program
-./ftool importsector bdos/helloworld.sectors os.bdd 11 0
+./ftool importsector bdos/helloworld.sectors os.bdd 10 0
 
 echo building ls...
 ./bcc ./bdos/ls
@@ -47,6 +47,6 @@ echo converting ls to sectors...
 check_exit_code $?
 
 echo burning ls
-./ftool importsector bdos/ls.sectors os.bdd 10 0
+./ftool importsector bdos/ls.sectors os.bdd 11 0
 
 echo done!

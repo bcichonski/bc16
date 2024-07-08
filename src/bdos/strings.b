@@ -24,7 +24,7 @@ byte strpoke8(word Paddr, byte value)
 
 word strnextword(word Pstring) 
 {
-    //returns pointer to the next word in string, or _STRNULL if not found
+    //returns pointer to the next word in string, or NULLCHAR if not found
     Pstring;
     asm "mov ds, cs";
     asm "mov di, ci";

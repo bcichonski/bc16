@@ -2,7 +2,6 @@
 #heap 0x3f00
 
 #include std.b
-#include stdio.b
 #include strings.b
 #include bdio.b
 
@@ -25,43 +24,6 @@ byte printdrive(byte drive)
     }
 
     printf("%s>", driveLetter);
-}
-
-byte printexecres(byte execres)
-{
-    word errorMessage;
-    errorMessage <- "unknown error";
-    
-    if(execres = BDIO_FOPEN_FDD_NOT_READY)
-    {
-        errorMessage <- "fdd not ready";
-    }
-    if(execres = BDIO_FOPEN_ATTR_NOREAD)
-    {
-        errorMessage <- "reading not allowed";
-    }
-    if(execres = BDIO_FOPEN_FNAME_NOTFOUND)
-    {
-        errorMessage <- "file not found";
-    }
-    if(execres = BDIO_FEXEC_ATTR_NOEXEC)
-    {
-        errorMessage <- "execution not allowed";
-    }
-    if(execres = BDIO_FEXEC_FDESCFCAT_ERR)
-    {
-        errorMessage <- "catalogue and file handle mismatch";
-    }
-    if(execres = BDIO_FEXEC_OUTOFMEM)
-    {
-        errorMessage <- "not enough user memory";
-    }
-    if(execres = BDIO_FEXEC_SECTFAIL)
-    {
-        errorMessage <- "not all sectors loaded";
-    }
-
-    printf("error: %s (0x%x)%n", errorMessage, execres);
 }
 
 byte printhelp()
@@ -168,7 +130,7 @@ byte main()
                 
                 if(res != BDIO_FEXEC_OK)
                 {
-                    printexecres(res);
+                    bdio_printexecres(res);
                 }
             }
         }

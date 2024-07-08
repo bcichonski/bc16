@@ -1,90 +1,4 @@
-#define FDD_PORT 0x08
-#define FDD_TRACKS 0x40
-#define FDD_SECTORS 0x10
-
-#define FDD_CMD_CONFIG 0x0f1
-#define FDD_CMD_READ 0xf2
-#define FDD_CMD_WRITE 0xf3
-#define FDD_CMD_SETDRVA 0xfa
-#define FDD_CMD_SETDRVB 0xfb
-
-#define FDD_STATE_READY 0x10
-
-#define FDD_RESULT_OK 0x00
-#define BDIO_RESULT_ENDOFCAT 0xc0
-
-#define BDIO_DRIVEA 0x00
-#define BDIO_DRIVEB 0x01
-#define BDIO_FCAT_STARTTRACK 0x08
-#define BDIO_FCAT_ENDTRACK 0x09
-#define BDIO_FCAT_ENTRYOFF_NUMBER 0x00
-#define BDIO_FCAT_ENTRYOFF_STARTTRACK 0x01
-#define BDIO_FCAT_ENTRYOFF_STARTSECTOR 0x02
-#define BDIO_FCAT_ENTRYOFF_SECTLEN 0x03
-#define BDIO_FCAT_ENTRYOFF_ATTRIBS 0x04
-#define BDIO_FCAT_ENTRYOFF_FNAME 0x05
-#define BDIO_FCAT_ENTRY_LENGTH 0x10
-#define BDIO_FCAT_ENTRY_NAMELEN 11
-#define BDIO_FCAT_FREEENTRY_FULL 0xff
-
-#define BDIO_FREEMAP_FULL 0x0000
-#define BDIO_FNAME_NOTFOUND 0x0000
-
-#define BDIO_FDESCRIPTOROFF_NUMBER 0x00
-#define BDIO_FDESCRIPTOROFF_FCATENTRYNO 0x01
-#define BDIO_FDESCRIPTOROFF_CURRTRACK 0x02
-#define BDIO_FDESCRIPTOROFF_CURRSECT 0x03
-#define BDIO_FDESCRIPTOROFF_CURRSEQ 0x04
-#define BDIO_FDESCRIPTOROFF_SEQLEN 0x05
-#define BDIO_FDESCRIPTOROFF_FCATTRACK 0x06
-#define BDIO_FDESCRIPTOROFF_FCATSECT 0x07
-#define BDIO_FDESCRIPTOR_READ_MAX 0x03
-#define BDIO_FDESCRIPTOR_LEN 0x08
-#define BDIO_FDESCRIPTOR_NUMBERFREE 0x00
-#define BDIO_FDESCRIPTOR_NUMBERWRITE 0x10
-#define BDIO_FDESCRIPTOR_NUMBERREAD 0x20
-#define BDIO_FDESCRIPTOR_NUMBERFULL 0xff
-
-#define BDIO_FOPEN_FNAME_NOTFOUND 0xe0
-#define BDIO_FOPEN_FDD_NOT_READY 0xe1
-#define BDIO_FOPEN_ATTR_NOREAD 0xe3
-
-#define BDIO_FCLOSE_FDESC_NOTFOUND 0xe2
-
-#define BDIO_FEXEC_ATTR_NOEXEC 0xe4
-#define BDIO_FEXEC_FDESCFCAT_ERR 0xe5
-#define BDIO_FEXEC_OUTOFMEM 0xe6
-#define BDIO_FEXEC_SECTFAIL 0xe7
-#define BDIO_FEXEC_OK 0x00
-
-#define BDIO_FILE_ATTRIB_READ 0x01
-#define BDIO_FILE_ATTRIB_WRITE 0x02
-#define BDIO_FILE_ATTRIB_EXEC 0x04
-#define BDIO_FILE_ATTRIB_SYSTEM 0x80
-
-#define BDIO_VAR_LASTERROR 0x4e00
-#define BDIO_VAR_ACTIVEDRV 0x4e01
-#define BDIO_VAR_FCAT_SCAN_TRACK 0x4e02
-#define BDIO_VAR_FCAT_SCAN_SECT 0x4e03
-#define BDIO_VAR_FCAT_FREEENTRY 0x4e04
-#define BDIO_VAR_FCAT_FREETRACK 0x4e05
-#define BDIO_VAR_FCAT_FREESECT 0x4e06
-#define BDIO_VAR_FCAT_PLASTFOUND 0x4e08
-#define BDIO_VAR_FCAT_NEWENTRYADDR 0x4e10
-#define BDIO_VAR_FDESCTAB_WRITE 0x4e12
-#define BDIO_VAR_FDESCTAB_READ 0x4e1a
-
-#define BDIO_CMDPROMPTADDR 0x4ec0
-#define BDIO_CMDPROMPTLEN 0x40
-#define BDIO_TMP_SECTBUF 0x0e80
-#define BDIO_TAB_SCANSECTBUF 0x4e40
-#define BDIO_SECTBUF_LEN 0x80
-
-#define BDIO_USERMEM 0x5000
-#define BDIO_NULL 0x0000
-
-#define BDIO_FBINOPENR 0x10
-#define BDIO_FBINREAD 0x12
+#include bdioh.b
 
 byte bdio_getstate()
 {
@@ -645,7 +559,7 @@ byte bdio_fbinopenr(word Pfnameext)
     //1. check drive state
     fddres <- bdio_checkstate();
 
-    printf("Opening for `%s`...%n", Pfnameext);
+    //printf("Opening for `%s`...%n", Pfnameext);
 
     if(fddres = FDD_RESULT_OK)
     {
@@ -655,12 +569,10 @@ byte bdio_fbinopenr(word Pfnameext)
 
         if(PfcatEntry != BDIO_FNAME_NOTFOUND)
         {
-            putsnl("File found!");
             fhandle <- BDIO_FOPEN_ATTR_NOREAD;
 
             if(bdio_fcat_checkattribs(PfcatEntry, BDIO_FILE_ATTRIB_READ))
             {
-                putsnl("Attribs to read ok.");
                 fhandle <- bdio_getfree_readfdesc(PfcatEntry);
             }
         }
@@ -784,10 +696,8 @@ byte bdio_execute(word Pfnameext)
 
     fhandle <- bdio_fbinopenr(Pfnameext);
 
-    if(fhandle < 0xe0)
+    if(fhandle < BDIO_FOPEN_FNAME_NOTFOUND)
     {
-        printf("fhandle: %x%n", fhandle);
-
         word Pfdesc;
         byte fdescfcatEntryNo;
         byte fcatEntryNo;
@@ -797,8 +707,6 @@ byte bdio_execute(word Pfnameext)
 
         if(Pfdesc != BDIO_NULL)
         {
-            printf("Pfdesc: %w%n", Pfdesc);
-
             fdescfcatEntryNo <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATENTRYNO);
             PfcatEntry <- #(BDIO_VAR_FCAT_PLASTFOUND);
             fcatEntryNo <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_NUMBER);
@@ -806,13 +714,9 @@ byte bdio_execute(word Pfnameext)
 
             if(fdescfcatEntryNo = fcatEntryNo)
             {
-                printf("fcatEntry equal: %x%n", fcatEntryNo);
-
                 result <- BDIO_FEXEC_ATTR_NOEXEC;
                 if(bdio_fcat_checkattribs(PfcatEntry, BDIO_FILE_ATTRIB_EXEC))
                 {
-                    putsnl("attribs ok");
-
                     word userspace;
                     byte filesectlen;
                     byte filesectread;
@@ -829,8 +733,6 @@ byte bdio_execute(word Pfnameext)
 
                         if(filesectread = filesectlen)
                         {
-                            printf("file loaded: %x%n", filesectlen);
-
                             //finally! program loaded we can run it!
                             //load usermem to csci
                             BDIO_USERMEM;
@@ -885,10 +787,15 @@ word bdio_call()
     {
         result <- bdio_fbinopenr(regCSCI);
     }
-    
+
     if(regA = BDIO_FBINREAD)
     {
         result <- bdio_fbinread(regCSCI >> 8, regDSDI, regCSCI & 0x00ff);
+    }
+
+    if(regA = BDIO_FCLOSE)
+    {
+        result <- bdio_fclose(regCSCI);
     }
     
     return result;

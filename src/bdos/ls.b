@@ -1,13 +1,92 @@
 #code 0x5000
 #heap 0x7000
 
-#include stdio.b
+#include std.b
 #include bdosh.b
+#define CATBUFSECT_ADDR 0x7b00
+#define FCATATTRIBSTRING_ADDR 0x7afa
+
+word setAttrib(word Pstring, byte fcatAttribs, byte attrib, byte char)
+{
+    if((fcatAttribs & attrib) = attrib)
+    {
+        poke8(Pstring, char);
+    }
+    Pstring <- Pstring + 1;
+
+    return Pstring;
+}
+
+byte listCatalogItem(word Pitem)
+{
+    byte fcatStartTrack;
+    byte fcatStartSector;
+    byte fcatSectorLen;
+    byte fcatAttribs;
+    word PfcatFileName;
+    word fcatLengthInBytes;
+    word PfcatAttribString;
+
+    fcatSectorLen <- peek8(Pitem + BDIO_FCAT_ENTRYOFF_SECTLEN);
+
+    if(fcatSectorLen > 0)
+    {
+        fcatStartTrack <- peek8(Pitem + BDIO_FCAT_ENTRYOFF_STARTTRACK);
+        fcatStartSector <- peek8(Pitem + BDIO_FCAT_ENTRYOFF_STARTSECTOR);
+        fcatAttribs <- peek8(Pitem + BDIO_FCAT_ENTRYOFF_ATTRIBS);
+        PfcatFileName <- Pitem + BDIO_FCAT_ENTRYOFF_FNAME;
+        poke8(PfcatFileName + BDIO_FCAT_ENTRY_NAMELEN, BNULL);
+
+        fcatLengthInBytes <- fcatSectorLen * BDIO_SECTBUF_LEN;
+
+        PfcatAttribString <- FCATATTRIBSTRING_ADDR;
+        mfill(PfcatAttribString, 4, '-');
+
+        PfcatAttribString <- setAttrib(PfcatAttribString, fcatAttribs, BDIO_FILE_ATTRIB_SYSTEM, 'S');
+        PfcatAttribString <- setAttrib(PfcatAttribString, fcatAttribs, BDIO_FILE_ATTRIB_READ, 'R');
+        PfcatAttribString <- setAttrib(PfcatAttribString, fcatAttribs, BDIO_FILE_ATTRIB_WRITE, 'W');
+        PfcatAttribString <- setAttrib(PfcatAttribString, fcatAttribs, BDIO_FILE_ATTRIB_EXEC, 'X');
+        poke8(PfcatAttribString, BNULL);
+
+        printf("%s %s %w %x %x %x%n", PfcatFileName, PfcatAttribString, fcatLengthInBytes, fcatStartTrack, fcatStartSector, fcatSectorLen);
+    }
+}
+
+byte listCatalog(word PsectorBuf)
+{
+    word Pcurrent;
+
+    Pcurrent <- PsectorBuf;
+
+    while(Pcurrent < PsectorBuf + BDIO_SECTBUF_LEN)
+    {
+        listCatalogItem(Pcurrent);
+
+        Pcurrent <- Pcurrent + BDIO_FCAT_ENTRY_LENGTH;
+    }
+}
 
 byte main()
 {
-    word res;
-    res <- bdio_call(BDIO_FBINOPENR, "", 0x0000);
+    word fHandle;
+    byte sectRead;
 
-    printf("bdos call res: 0x%w%n", res);
+    fHandle <- bdio_fbinopenr("DISC    CAT");
+
+    if(fHandle < BDIO_FOPEN_FNAME_NOTFOUND)
+    {
+        sectRead <- bdio_fbinread(fHandle, CATBUFSECT_ADDR, 1);
+        while(sectRead)
+        {
+            listCatalog(CATBUFSECT_ADDR);
+
+            sectRead <- bdio_fbinread(fHandle, CATBUFSECT_ADDR, 1);
+        }
+
+        bdio_fclose(fHandle);
+    }
+    else
+    {
+        bdio_printexecres(fHandle);
+    }
 }
