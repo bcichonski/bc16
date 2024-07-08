@@ -46,4 +46,15 @@ check_exit_code $?
 echo burning hello world program
 ./ftool importsector bdos/helloworld.sectors os.bdd 11 0
 
+echo building ls...
+./bcc ./bdos/ls
+check_exit_code $?
+
+echo converting ls to sectors...
+./ftool btap2bin bdos/ls.btap bdos/ls.sectors
+check_exit_code $?
+
+echo burning ls
+./ftool importsector bdos/ls.sectors os.bdd 10 0
+
 echo done!

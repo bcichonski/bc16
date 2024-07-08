@@ -70,8 +70,8 @@ byte strncmp(word Pstring1, word Pstring2, word maxlen)
 
     result <- STRCMP_EQ;
     i <- 0;
-    char1 <- #(Pstring1);
-    char2 <- #(Pstring2);
+    char1 <- strpeek8(Pstring1);
+    char2 <- strpeek8(Pstring2);
     loop <- (char1 != NULLCHAR) && (char2 != NULLCHAR) && (maxlen > 0);
 
     while(loop)
@@ -92,8 +92,8 @@ byte strncmp(word Pstring1, word Pstring2, word maxlen)
         Pstring1 <- Pstring1 + 1;
         Pstring2 <- Pstring2 + 1;
 
-        char1 <- #(Pstring1);
-        char2 <- #(Pstring2);
+        char1 <- strpeek8(Pstring1);
+        char2 <- strpeek8(Pstring2);
         
         loop <- (result = 0) && (char1 != NULLCHAR) && (char2 != NULLCHAR) && (i < maxlen);
     }

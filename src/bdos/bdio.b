@@ -371,6 +371,9 @@ word bdio_fcat_ffindmem(word Pfnameext, word PsectorBuf)
 
             strcmp <- strncmp(Pfnameext, Pcurrfnameext, BDIO_FCAT_ENTRY_NAMELEN);
 
+            poke8(Pcurrfnameext + 11, 0x00);
+            printf("Comparing `%s` to `%s`: %x%n", Pcurrfnameext, Pfnameext, strcmp);
+
             found <- (strcmp = STRCMP_EQ);
         }
 
@@ -642,6 +645,8 @@ byte bdio_fbinopenr(word Pfnameext)
     //1. check drive state
     fddres <- bdio_checkstate();
 
+    printf("Opening for `%s`...%n", Pfnameext);
+
     if(fddres = FDD_RESULT_OK)
     {
         //find file first
@@ -650,10 +655,12 @@ byte bdio_fbinopenr(word Pfnameext)
 
         if(PfcatEntry != BDIO_FNAME_NOTFOUND)
         {
+            putsnl("File found!");
             fhandle <- BDIO_FOPEN_ATTR_NOREAD;
 
             if(bdio_fcat_checkattribs(PfcatEntry, BDIO_FILE_ATTRIB_READ))
             {
+                putsnl("Attribs to read ok.");
                 fhandle <- bdio_getfree_readfdesc(PfcatEntry);
             }
         }
@@ -777,8 +784,10 @@ byte bdio_execute(word Pfnameext)
 
     fhandle <- bdio_fbinopenr(Pfnameext);
 
-    if(fhandle < 0xef)
+    if(fhandle < 0xe0)
     {
+        printf("fhandle: %x%n", fhandle);
+
         word Pfdesc;
         byte fdescfcatEntryNo;
         byte fcatEntryNo;
@@ -788,6 +797,8 @@ byte bdio_execute(word Pfnameext)
 
         if(Pfdesc != BDIO_NULL)
         {
+            printf("Pfdesc: %w%n", Pfdesc);
+
             fdescfcatEntryNo <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATENTRYNO);
             PfcatEntry <- #(BDIO_VAR_FCAT_PLASTFOUND);
             fcatEntryNo <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_NUMBER);
@@ -795,9 +806,13 @@ byte bdio_execute(word Pfnameext)
 
             if(fdescfcatEntryNo = fcatEntryNo)
             {
+                printf("fcatEntry equal: %x%n", fcatEntryNo);
+
                 result <- BDIO_FEXEC_ATTR_NOEXEC;
                 if(bdio_fcat_checkattribs(PfcatEntry, BDIO_FILE_ATTRIB_EXEC))
                 {
+                    putsnl("attribs ok");
+
                     word userspace;
                     byte filesectlen;
                     byte filesectread;
@@ -809,10 +824,13 @@ byte bdio_execute(word Pfnameext)
                     if(filesectlen < userspace)
                     {
                         filesectread <- bdio_fbinread(fhandle, BDIO_USERMEM, filesectlen);
+
                         result <- BDIO_FEXEC_SECTFAIL;
 
                         if(filesectread = filesectlen)
                         {
+                            printf("file loaded: %x%n", filesectlen);
+
                             //finally! program loaded we can run it!
                             //load usermem to csci
                             BDIO_USERMEM;
@@ -864,6 +882,6 @@ word bdio_call()
     asm "cal :printhex16";
 
     printf("csci %w dsdi %w a %x", regCSCI, regDSDI, regA);
-    
+
     return 0xabba;
 }

@@ -164,7 +164,6 @@ byte printf(word PformatStr)***
         asm "mov ds, cs";
         asm "mov di, ci";
         asm "cal :peek16";
-        asm "pop a";
         asm "psh ci";
         
         asm "cal :inc16";
