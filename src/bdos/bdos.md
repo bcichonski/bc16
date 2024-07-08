@@ -65,7 +65,7 @@ key assumptions
 ## high level unbuffered file io
 0x10: bdio_fbinopenr(Pfnameext) - opens a file handle associated with given cnameext for read
 0x11: bdio_fbinopenw(Pfnameext) - opens a file handle for write (this is append only)
-0x12: bdio_fbinread(fhandle, Pmembuf, sectors) - reads given sectors of file to Pmembuf
+0x12: bdio_fbinread(fhandle, Pmembuf, sectors) - reads given sectors of file to Pmembuf CS=fhandle, CI=sectors, DSDI = Pmembuf
 0x13: bdio_fbinwrite(fhandle, Pmembuf, sectors) - writes given memory to sectors
 0x14: bdio_fcreate(Pfnameext) - creates or truncates an existing file
 0x15: bdio_fclose(fhandle) - closes opened file handle
@@ -74,7 +74,7 @@ key assumptions
 ## high level shell api
 0x20: bdio_execute(Pfnameext) - loads and executes given executable file
 0x21: bdio_freemem() - returns how much free memory we have
-bdio_call() - allows to call every bdio subroutine from user program
+bcos 0x57: bdio_call() - allows to call every bdio subroutine from user program - injected into os_call bcos mechanism
 
 # memory map
 0x0000..0x0e45 - bcos 1.1 (real)

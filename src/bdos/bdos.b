@@ -6,6 +6,8 @@
 #include strings.b
 #include bdio.b
 
+#define BCOSMETA_BDOSCALLADDR 0x007e
+
 byte printdrive(byte drive)
 {
     word driveLetter;
@@ -105,6 +107,11 @@ byte main()
     byte loop;
     byte drive;
     byte hardkill;
+
+    asm ".mv csci, :bdio_call";
+    asm ".def bdiocalladdr, BCOSMETA_BDOSCALLADDR";
+    asm ".mv dsdi, :bdiocalladdr";
+    asm "cal :poke16";
 
     printf("bDOS 1.0 shell%n%w bytes free%nreading disc...", bdio_freemem());
 

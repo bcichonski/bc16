@@ -1,9 +1,13 @@
-#define BDIO_CALL_ADDRESS 0x388f
 #define BDIO_FBINOPENR 0x10
+#define BDIO_FBINREAD 0x12
+
+#define BCOSMETA_BDOSCALLADDR 0x007e
+#define BCOSMETA_BDOSCALLNO 57
 
 word bdio_call(byte subCode, word param1, word param2)
 {
-    asm ".def bdio_call, BDIO_CALL_ADDRESS";
+    BCOSMETA_BDOSCALLNO;
+    asm "psh ci";
     subCode;
     asm "psh ci";
     param2;
@@ -13,5 +17,6 @@ word bdio_call(byte subCode, word param1, word param2)
     asm "pop ds";
     asm "pop di";
     asm "pop a";
-    asm "cal :bdio_call";
+    asm "pop f";
+    asm "cal :os_metacall";
 }

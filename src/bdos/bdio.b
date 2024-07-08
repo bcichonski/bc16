@@ -83,6 +83,9 @@
 #define BDIO_USERMEM 0x5000
 #define BDIO_NULL 0x0000
 
+#define BDIO_FBINOPENR 0x10
+#define BDIO_FBINREAD 0x12
+
 byte bdio_getstate()
 {
     //reads the fdd state
@@ -370,9 +373,6 @@ word bdio_fcat_ffindmem(word Pfnameext, word PsectorBuf)
             Pcurrfnameext <- Pentry + BDIO_FCAT_ENTRYOFF_FNAME;
 
             strcmp <- strncmp(Pfnameext, Pcurrfnameext, BDIO_FCAT_ENTRY_NAMELEN);
-
-            poke8(Pcurrfnameext + 11, 0x00);
-            printf("Comparing `%s` to `%s`: %x%n", Pcurrfnameext, Pfnameext, strcmp);
 
             found <- (strcmp = STRCMP_EQ);
         }
@@ -854,7 +854,7 @@ byte bdio_execute(word Pfnameext)
 
 word bdio_call()
 {
-    asm "psh a";
+    asm "bdio_call: psh a";
     asm "psh cs";
     asm "psh ci";
     asm "psh ds";
@@ -867,21 +867,29 @@ word bdio_call()
     asm "pop ci";
     asm "pop cs";
     asm "cal :poke16";
-    asm "cal :printhex16";
     regCSCI;
     asm "cal :dec16";
     asm "pop ci";
     asm "pop cs";
     asm "cal :poke16";
-    asm "cal :printhex16";
     regA;
     asm "cal :dec16";
     asm "pop ci";
     asm "mov cs, 0x00";
     asm "cal :poke16";
-    asm "cal :printhex16";
 
-    printf("csci %w dsdi %w a %x", regCSCI, regDSDI, regA);
+    word result;
+    result <- BDIO_NULL;
 
-    return 0xabba;
+    if(regA = BDIO_FBINOPENR)
+    {
+        result <- bdio_fbinopenr(regCSCI);
+    }
+    
+    if(regA = BDIO_FBINREAD)
+    {
+        result <- bdio_fbinread(regCSCI >> 8, regDSDI, regCSCI & 0x00ff);
+    }
+    
+    return result;
 }
