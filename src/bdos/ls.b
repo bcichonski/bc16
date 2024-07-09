@@ -6,15 +6,12 @@
 #define CATBUFSECT_ADDR 0x7b00
 #define FCATATTRIBSTRING_ADDR 0x7afa
 
-word setAttrib(word Pstring, byte fcatAttribs, byte attrib, byte char)
+byte setAttrib(word Pstring, byte fcatAttribs, byte attrib, byte char)
 {
     if((fcatAttribs & attrib) = attrib)
     {
         poke8(Pstring, char);
     }
-    Pstring <- Pstring + 1;
-
-    return Pstring;
 }
 
 byte listCatalogItem(word Pitem)
@@ -42,11 +39,12 @@ byte listCatalogItem(word Pitem)
         PfcatAttribString <- FCATATTRIBSTRING_ADDR;
         mfill(PfcatAttribString, 4, '-');
 
-        PfcatAttribString <- setAttrib(PfcatAttribString, fcatAttribs, BDIO_FILE_ATTRIB_SYSTEM, 'S');
-        PfcatAttribString <- setAttrib(PfcatAttribString, fcatAttribs, BDIO_FILE_ATTRIB_READ, 'R');
-        PfcatAttribString <- setAttrib(PfcatAttribString, fcatAttribs, BDIO_FILE_ATTRIB_WRITE, 'W');
-        PfcatAttribString <- setAttrib(PfcatAttribString, fcatAttribs, BDIO_FILE_ATTRIB_EXEC, 'X');
-        poke8(PfcatAttribString, BNULL);
+        setAttrib(PfcatAttribString, fcatAttribs, BDIO_FILE_ATTRIB_SYSTEM, 'S');
+        setAttrib(PfcatAttribString + 1, fcatAttribs, BDIO_FILE_ATTRIB_READ, 'R');
+        setAttrib(PfcatAttribString + 2, fcatAttribs, BDIO_FILE_ATTRIB_WRITE, 'W');
+        setAttrib(PfcatAttribString + 3, fcatAttribs, BDIO_FILE_ATTRIB_EXEC, 'X');
+
+        poke8(PfcatAttribString + 4, BNULL);
 
         printf("%s %s %w %x %x %x%n", PfcatFileName, PfcatAttribString, fcatLengthInBytes, fcatStartTrack, fcatStartSector, fcatSectorLen);
     }
