@@ -3,8 +3,13 @@
 
 #include std.b
 #include bdosh.b
+#include strings.b
+
 #define CATBUFSECT_ADDR 0x7b00
 #define FCATATTRIBSTRING_ADDR 0x7afa
+#define FNAMESTRING_ADDR 0x7ad0
+#define FEXT_LEN 0x03
+#define FNAME_LEN 0x08
 
 byte setAttrib(word Pstring, byte fcatAttribs, byte attrib, byte char)
 {
@@ -32,7 +37,12 @@ byte listCatalogItem(word Pitem)
         fcatStartSector <- peek8(Pitem + BDIO_FCAT_ENTRYOFF_STARTSECTOR);
         fcatAttribs <- peek8(Pitem + BDIO_FCAT_ENTRYOFF_ATTRIBS);
         PfcatFileName <- Pitem + BDIO_FCAT_ENTRYOFF_FNAME;
-        poke8(PfcatFileName + BDIO_FCAT_ENTRY_NAMELEN, BNULL);
+
+        strncpy(PfcatFileName + FNAME_LEN, FNAMESTRING_ADDR + FNAME_LEN + 1, BDIO_FCAT_ENTRY_NAMELEN);
+        strncpy(PfcatFileName, FNAMESTRING_ADDR, FNAME_LEN);
+
+        poke8(FNAMESTRING_ADDR + FNAME_LEN, '.');
+        poke8(FNAMESTRING_ADDR + BDIO_FCAT_ENTRY_NAMELEN + 1, BNULL);
 
         fcatLengthInBytes <- fcatSectorLen * BDIO_SECTBUF_LEN;
 
@@ -46,7 +56,7 @@ byte listCatalogItem(word Pitem)
 
         poke8(PfcatAttribString + 4, BNULL);
 
-        printf("%s %s %w %x %x %x%n", PfcatFileName, PfcatAttribString, fcatLengthInBytes, fcatStartTrack, fcatStartSector, fcatSectorLen);
+        printf("%s %s %w %x %x %x%n", FNAMESTRING_ADDR, PfcatAttribString, fcatLengthInBytes, fcatStartTrack, fcatStartSector, fcatSectorLen);
     }
 }
 
