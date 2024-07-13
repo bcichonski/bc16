@@ -586,6 +586,89 @@ mfill_ret:  pop a
 ; OUT:csci - address after which free memory begins
 ;     dsdi - address of the block after which is enough free memory
 ;=============
+; MEM_CPY(csci,dsdi, af)  - copy block of memory from csci to dsdi for at most af bytes
+; IN: dsdi - source  
+;     csci - desc
+;       af - length
+; OUT: dsdi = destroyed
+;      csci = desc + length + 1
+mem_cpy:    psh f
+            psh a
+mem_cpy_lop:psh cs
+            psh ci
+            mov a, cs
+            or ci
+            jmr z, :mem_cpy_end
+            mov a, #dsdi
+            psh a
+            cal :inc16
+            pop a
+            mov cs, ds
+            mov ci, di
+            pop di
+            pop ds
+            psh cs
+            psh ci
+            mov #dsdi, a
+            cal :inc16
+            mov cs, ds
+            mov ci, di
+            pop di
+            pop ds
+            pop a
+            pop f
+            psh ds
+            psh di
+            psh f
+            psh a
+            pop ds
+            pop di
+            cal :dec16
+            psh ds
+            psh di
+            pop f
+            pop a
+            psh f
+            psh a
+            xor a
+            jmr z, :mem_cpy_lop
+mem_cpy_end:pop ci
+            pop cs
+            pop a
+            pop f
+            ret
+;=============
+; strncpy(csci,dsdi, a)  - copy string from dsdi to csci for at most a bytes, or end of string
+; IN: dsdi - source  
+;     csci - desc
+;        a - length
+; OUT: dsdi = desc + length + 1
+;      csci = source + length
+strncpy:    and a
+            jmr z, :strncpy_ret
+strncpy_lop:psh a
+            mov a, #dsdi
+            jmr z, :strncpy_end
+            psh a
+            cal :inc16
+            pop a
+            psh ds
+            psh di
+            mov #csci, a
+            mov ds, cs
+            mov di, ci
+            cal :inc16
+            mov cs, ds
+            mov ci, di
+            pop di
+            pop ds
+            pop a
+            dec a
+            jmr nz, :strncpy_lop
+            jmr z, :strncpy_ret
+strncpy_end:pop a
+strncpy_ret:ret
+;=============
 ;SYS DATA
             .def var_promptbuf, 0x0bcf
             .def var_user_mem, 0x0bcb

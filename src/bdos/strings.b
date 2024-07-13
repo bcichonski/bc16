@@ -60,6 +60,20 @@ byte strcpy(word Pstring, word Ptarget)
     asm "cal :str_cpy";
 }
 
+byte strncpy(word Pstring, word Ptarget, byte len)
+{
+    Pstring;
+    asm "psh cs";
+    asm "psh ci";
+    len;
+    asm "psh ci";
+    Ptarget;
+    asm "pop a";
+    asm "pop di";
+    asm "pop ds";
+    asm "cal :strncpy";
+}
+
 byte strncmp(word Pstring1, word Pstring2, word maxlen)
 {
     byte result;

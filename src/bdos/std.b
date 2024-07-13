@@ -83,3 +83,19 @@ word mzero(word Paddr, word length)
 {
     mfill(Paddr, length, 0);
 }
+
+word memcpy(word Psource, word Pdesc, word len)
+{
+    len;
+    asm "psh cs";
+    asm "psh ci";
+    Psource;
+    asm "psh cs";
+    asm "psh ci";
+    Pdesc;
+    asm "pop di";
+    asm "pop ds";
+    asm "pop f";
+    asm "pop a";
+    asm "cal :mem_cpy";
+}
