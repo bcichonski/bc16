@@ -202,3 +202,13 @@ byte upstring(word Pstring)
         strchar <- strpeek8(Pstring);
     }
 }
+
+word strnextword(word Pstring)
+{
+    Pstring;
+    asm "mov ds, cs";
+    asm "mov di, ci";
+    asm "cal :nextword";
+    asm "mov cs, ds";
+    asm "mov ci, di";
+}
