@@ -154,7 +154,7 @@ readstr:        mov a, 0x0d
 ; IN:     dsdi - char buffer address
 ; OUT:    dsdi - address of the next word or end of buffer
 ;            a - >0 if next word exist
-nextword:        mov a, 0x12
+nextword:       mov a, 0x12
                 psh a
                 pop f
                 cal :os_metacall

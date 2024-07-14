@@ -5,11 +5,14 @@
 #include bdosh.b
 #include strings.b
 
-#define CATBUFSECT_ADDR 0x7b00
-#define FCATATTRIBSTRING_ADDR 0x7afa
-#define FNAMESTRING_ADDR 0x7ad0
+#define CATBUFSECT_ADDR 0x7d80
+#define FCATATTRIBSTRING_ADDR 0x7d50
+#define FNAMESTRING_ADDR 0x7d60
 #define FEXT_LEN 0x03
 #define FNAME_LEN 0x08
+#define MODE_SWITCH_SHOWALL 0x01
+#define MODE_HELP 0x10
+#define MODE_LS 0x20
 
 byte setAttrib(word Pstring, byte fcatAttribs, byte attrib, byte char)
 {
@@ -19,7 +22,7 @@ byte setAttrib(word Pstring, byte fcatAttribs, byte attrib, byte char)
     }
 }
 
-byte listCatalogItem(word Pitem)
+byte listCatalogItem(word Pitem, byte showall)
 {
     byte fcatStartTrack;
     byte fcatStartSector;
@@ -33,51 +36,49 @@ byte listCatalogItem(word Pitem)
 
     if(fcatSectorLen > 0)
     {
-        fcatStartTrack <- peek8(Pitem + BDIO_FCAT_ENTRYOFF_STARTTRACK);
-        fcatStartSector <- peek8(Pitem + BDIO_FCAT_ENTRYOFF_STARTSECTOR);
         fcatAttribs <- peek8(Pitem + BDIO_FCAT_ENTRYOFF_ATTRIBS);
-        PfcatFileName <- Pitem + BDIO_FCAT_ENTRYOFF_FNAME;
 
-        strncpy(PfcatFileName + FNAME_LEN, FNAMESTRING_ADDR + FNAME_LEN + 1, BDIO_FCAT_ENTRY_NAMELEN);
-        strncpy(PfcatFileName, FNAMESTRING_ADDR, FNAME_LEN);
+        if(showall || ((fcatAttribs & BDIO_FILE_ATTRIB_SYSTEM) != BDIO_FILE_ATTRIB_SYSTEM))
+        {
+            fcatStartTrack <- peek8(Pitem + BDIO_FCAT_ENTRYOFF_STARTTRACK);
+            fcatStartSector <- peek8(Pitem + BDIO_FCAT_ENTRYOFF_STARTSECTOR);
 
-        poke8(FNAMESTRING_ADDR + FNAME_LEN, '.');
-        poke8(FNAMESTRING_ADDR + BDIO_FCAT_ENTRY_NAMELEN + 1, BNULL);
+            PfcatFileName <- Pitem + BDIO_FCAT_ENTRYOFF_FNAME;
 
-        fcatLengthInBytes <- fcatSectorLen * BDIO_SECTBUF_LEN;
+            strncpy(PfcatFileName, FNAMESTRING_ADDR, FNAME_LEN);
+            strncpy(PfcatFileName + FNAME_LEN, FNAMESTRING_ADDR + FNAME_LEN + 1, 3);
 
-        PfcatAttribString <- FCATATTRIBSTRING_ADDR;
-        mfill(PfcatAttribString, 4, '-');
+            poke8(FNAMESTRING_ADDR + FNAME_LEN, '.');
+            poke8(FNAMESTRING_ADDR + BDIO_FCAT_ENTRY_NAMELEN + 2, BNULL);
 
-        setAttrib(PfcatAttribString, fcatAttribs, BDIO_FILE_ATTRIB_SYSTEM, 'S');
-        setAttrib(PfcatAttribString + 1, fcatAttribs, BDIO_FILE_ATTRIB_READ, 'R');
-        setAttrib(PfcatAttribString + 2, fcatAttribs, BDIO_FILE_ATTRIB_WRITE, 'W');
-        setAttrib(PfcatAttribString + 3, fcatAttribs, BDIO_FILE_ATTRIB_EXEC, 'X');
+            fcatLengthInBytes <- fcatSectorLen * BDIO_SECTBUF_LEN;
 
-        poke8(PfcatAttribString + 4, BNULL);
+            PfcatAttribString <- FCATATTRIBSTRING_ADDR;
+            mfill(PfcatAttribString, 4, '-');
 
-        printf("%s %s %w %x %x %x%n", FNAMESTRING_ADDR, PfcatAttribString, fcatLengthInBytes, fcatStartTrack, fcatStartSector, fcatSectorLen);
+            setAttrib(PfcatAttribString, fcatAttribs, BDIO_FILE_ATTRIB_SYSTEM, 'S');
+            setAttrib(PfcatAttribString + 1, fcatAttribs, BDIO_FILE_ATTRIB_READ, 'R');
+            setAttrib(PfcatAttribString + 2, fcatAttribs, BDIO_FILE_ATTRIB_WRITE, 'W');
+            setAttrib(PfcatAttribString + 3, fcatAttribs, BDIO_FILE_ATTRIB_EXEC, 'X');
+
+            poke8(PfcatAttribString + 4, BNULL);
+
+            printf("%s %s %w %x %x %x%n", 
+                FNAMESTRING_ADDR, 
+                PfcatAttribString, 
+                fcatLengthInBytes, 
+                fcatStartTrack, 
+                fcatStartSector, 
+                fcatSectorLen);
+        }
     }
 }
 
-byte listCatalog(word PsectorBuf)
-{
-    word Pcurrent;
-
-    Pcurrent <- PsectorBuf;
-
-    while(Pcurrent < PsectorBuf + BDIO_SECTBUF_LEN)
-    {
-        listCatalogItem(Pcurrent);
-
-        Pcurrent <- Pcurrent + BDIO_FCAT_ENTRY_LENGTH;
-    }
-}
-
-byte main()
+byte listCatalog(byte showall)
 {
     word fHandle;
     byte sectRead;
+    word Pcurrent;
 
     fHandle <- bdio_fbinopenr("DISC    CAT");
 
@@ -86,7 +87,14 @@ byte main()
         sectRead <- bdio_fbinread(fHandle, CATBUFSECT_ADDR, 1);
         while(sectRead)
         {
-            listCatalog(CATBUFSECT_ADDR);
+            Pcurrent <- CATBUFSECT_ADDR;
+
+            while(Pcurrent < CATBUFSECT_ADDR + BDIO_SECTBUF_LEN)
+            {
+                listCatalogItem(Pcurrent, showall);
+
+                Pcurrent <- Pcurrent + BDIO_FCAT_ENTRY_LENGTH;
+            }
 
             sectRead <- bdio_fbinread(fHandle, CATBUFSECT_ADDR, 1);
         }
@@ -96,5 +104,32 @@ byte main()
     else
     {
         bdio_printexecres(fHandle);
+    }
+}
+
+byte main()
+{
+    word Pargs;
+    byte showall;
+
+    showall <- FALSE;
+    upstring(BDIO_CMDPROMPTADDR);
+    Pargs <- strnextword(BDIO_CMDPROMPTADDR);
+
+    if(strncmp(Pargs, "-H", 3) = STRCMP_EQ)
+    {
+        printf("%s%n%s%n%s%n",
+            "lists files",
+            "-a show all files", 
+            "-h print help");
+    }
+    else
+    {
+        if(strncmp(Pargs, "-A", 3) = STRCMP_EQ)
+        {
+            showall <- TRUE;
+        }
+
+        listCatalog(showall);
     }
 }

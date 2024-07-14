@@ -1,12 +1,12 @@
 #code 0x0f00
-#heap 0x4f00
+#heap 0x4f40
 
 #include std.b
 #include strings.b
 #include bdio.b
 
 #define BCOSMETA_BDOSCALLADDR 0x007e
-#define FNAMETEMP_ADDR 0x4f00
+#define FNAMETEMP_ADDR 0x4f40
 #define FNAMETEMP_SIZE 0x0b
 
 byte printdrive(byte drive)

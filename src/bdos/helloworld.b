@@ -15,7 +15,7 @@ byte main()
 
     putsnl("fill");
     
-    memcpy(0x7700, 0x7900, 0xff);
+    //memcpy(0x7700, 0x7900, 0xff);
 
     putsnl("memcopy");
 }
