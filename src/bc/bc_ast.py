@@ -2,7 +2,6 @@ from bc_stdlib import stdlib_template
 from array import array
 from dataclasses import dataclass
 from msilib.schema import Error
-from pickle import TRUE
 
 STACKHEAD = "sys_stackhead"
 HEAPHEAD = "sys_heaphead"
@@ -364,13 +363,31 @@ oper2lib = {
     '<=': None,
     '>': None,
     '<': None,
-    '<=': None,
     '&&': None,
     '||': None,
     '&' : None,
     '|' : None,
     '<<': None,
     '>>': None
+}
+
+opercommutative = {
+    '+': True,
+    '-': False,
+    '*': True,
+    '/': False,
+    '=': True,
+    '>=': False,
+    '!=': True,
+    '<=': False,
+    '>': False,
+    '<': False,
+    '&&': True,
+    '||': True,
+    '&' : True,
+    '|' : True,
+    '<<': False,
+    '>>': False
 }
 
 @dataclass
@@ -390,15 +407,24 @@ class EXPRESSION_BINARY(Instruction):
     def emit(self, context):
         self.operand1.emit(context)
         for elem in self.arguments:
-            context.emit("""
-                psh cs
-                psh ci""")
-            elem[1].emit(context)
-            context.emit("""
-                mov ds, cs
-                mov di, ci
-                pop ci
-                pop cs""")
+            if opercommutative[elem[0]]:
+                context.emit("""
+                    psh cs
+                    psh ci""")
+                elem[1].emit(context)
+                context.emit("""
+                    pop di
+                    pop ds""")
+            else:
+                context.emit("""
+                    psh cs
+                    psh ci""")
+                elem[1].emit(context)
+                context.emit("""
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs""")
             lib = oper2lib[elem[0]]
             if not lib:
                 if not self.logic(context, elem[0]):
@@ -735,7 +761,6 @@ class EXPRESSION_CALL(Instruction):
             return
 
         context.push_scope('CALL')
-        print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
         print(function_data)
         paramdata = function_data['params']
         paramstar = function_data['paramstar']
@@ -746,7 +771,6 @@ class EXPRESSION_CALL(Instruction):
             if len(paramname) > 10: 
                 paramname = paramname[:10]
             paramname = "{0}PLEN".format(paramname)
-            print("===================>PARAMSTAR: ".format(paramname))
             context.add_variable('word', paramname, True, 'FCALL PARAMSTAR')
             varassignement = VARIABLE_ASSIGNEMENT(paramname, EXPRESSION_CONSTANT(len(self.params)))
             varassignement.emit(context, True)
@@ -762,8 +786,6 @@ class EXPRESSION_CALL(Instruction):
                     context.add_error('Unrecognized function {0} parameter {1}'.format(self.function_name, param_name))
                 paramtype = 'word';
                 param_name = 'P{0}'.format(paramno);
-            
-            print(">>VARIABLE {0}:{1}".format(param_name, paramtype))
 
             context.add_variable(paramtype, param_name, True, 'FCALL PARAM')
             varassignement = VARIABLE_ASSIGNEMENT(param_name, param)
