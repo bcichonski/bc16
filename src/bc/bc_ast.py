@@ -410,6 +410,15 @@ def isTermWithConst(obj):
         return True
     return False
 
+def isTermWithConstNumber(obj, value):
+    if hasattr(obj, 'operand1'):
+        return len(obj.arguments)==0 and isTermWithConstNumber(obj.operand1, value)
+    elif hasattr(obj, 'term'):
+        return isTermWithConstNumber(obj.term, value)
+    elif hasattr(obj, 'i16'):
+        return obj.i16 == value
+    return False
+
 @dataclass
 class EXPRESSION_BINARY(Instruction):
     operand1: object
@@ -452,14 +461,14 @@ class EXPRESSION_BINARY(Instruction):
                     pop cs""")
             lib = oper2lib[elem[0]]
             if not lib:
-                if not self.logic(context, elem[0]):
+                if not self.logic(context, elem[0], elem[1]):
                     context.add_error(
                         "Unknown binary operator '{0}'".format(self.operator))
                 continue
             context.emit("""
                 cal :{0}""".format(lib))
 
-    def logic(self, context, oper):
+    def logic(self, context, oper, arg):
         if oper == '=':
             context.emit("""
                 cal :eq16
@@ -467,17 +476,23 @@ class EXPRESSION_BINARY(Instruction):
                 mov ci, a""")
             return True
         if oper == '>=':
-            context.emit("""
-                cal :gteq16
-                mov cs, 0x00
-                mov ci, a""")
+            if isTermWithConstNumber(arg, 0):
+                context.emit("""
+                    mov cs, 0x00
+                    mov ci, 0x01""")
+            else:
+                context.emit("""
+                    cal :gteq16
+                    mov cs, 0x00
+                    mov ci, a""")
             return True
         if oper == '!=':
-            context.emit("""
-                cal :eq16
-                mov cs, 0x00
-                dec a
-                mov ci, a""")
+            if not isTermWithConstNumber(arg, 0):
+                context.emit("""
+                    cal :eq16
+                    mov cs, 0x00
+                    dec a
+                    mov ci, a""")
             return True
         if oper == '<': # a < b    = !(a >= b)
             context.emit("""
@@ -487,10 +502,11 @@ class EXPRESSION_BINARY(Instruction):
                 mov ci, a""")
             return True
         if oper == '>': 
-            context.emit("""
-                cal :gt16
-                mov cs, 0x00
-                mov ci, a""")
+            if not isTermWithConstNumber(arg, 0):
+                context.emit("""
+                    cal :gt16
+                    mov cs, 0x00
+                    mov ci, a""")
             return True
         if oper == '<=': # a <= b    = !(a > b)
             context.emit("""
