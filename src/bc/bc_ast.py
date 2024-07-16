@@ -111,6 +111,7 @@ class Context:
         self.nextident = 0
         self.function_dict = { }
         self.hardkill = hardkill
+        self.hint_loaddsdi = False
 
     def emit(self, code):
         self.basm += code
@@ -254,7 +255,11 @@ class EXPRESSION_CONSTANT(Instruction):
         return "CONST(0x{0:04x})".format(self.i16)
 
     def emit(self, context):
-        context.emit("""
+        if context.hint_loaddsdi:
+            context.emit("""
+                {0}""".format(context.load_dsdi(self.i16)))
+        else:
+            context.emit("""
                 {0}""".format(context.load_csci(self.i16)))
 
 @dataclass
@@ -266,9 +271,13 @@ class EXPRESSION_CONST_STR(Instruction):
 
     def emit(self, context):
         label = context.emit_data(self.value)
-        context.emit("""
+        if context.hint_loaddsdi:
+            context.emit("""
+                .mv dsdi, :{0}""".format(label))
+        else:
+            context.emit("""
                 .mv csci, :{0}""".format(label))
-
+        
 @dataclass
 class EXPRESSION_TERM(Instruction):
     term : object
@@ -390,6 +399,17 @@ opercommutative = {
     '>>': False
 }
 
+def isTermWithConst(obj):
+    if hasattr(obj, 'operand1'):
+        return len(obj.arguments)==0 and isTermWithConst(obj.operand1)
+    elif hasattr(obj, 'term'):
+        return isTermWithConst(obj.term)
+    elif hasattr(obj, 'i16'):
+        return True
+    elif hasattr(obj, 'value') and obj.__str__().startswith('CONST("'):
+        return True
+    return False
+
 @dataclass
 class EXPRESSION_BINARY(Instruction):
     operand1: object
@@ -408,13 +428,18 @@ class EXPRESSION_BINARY(Instruction):
         self.operand1.emit(context)
         for elem in self.arguments:
             if opercommutative[elem[0]]:
-                context.emit("""
-                    psh cs
-                    psh ci""")
-                elem[1].emit(context)
-                context.emit("""
-                    pop di
-                    pop ds""")
+                if(isTermWithConst(elem[1])):
+                    context.hint_loaddsdi = True
+                    elem[1].emit(context)
+                    context.hint_loaddsdi = False
+                else:
+                    context.emit("""
+                        psh cs
+                        psh ci""")
+                    elem[1].emit(context)
+                    context.emit("""
+                        pop di
+                        pop ds""")
             else:
                 context.emit("""
                     psh cs
