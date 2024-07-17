@@ -131,7 +131,7 @@ word bdio_tracksector_add(byte track, byte sector, byte sectorlen)
 
     sectors <- (track << 4) | sector;
     sectors <- sectors + sectorlen;
-    
+
     result <- (sectors >> 4) << 8;
     result <- result | (sectors & 0x0f);
 
@@ -215,6 +215,7 @@ byte bdio_fcat_scanmem(word PsectorBuf)
     byte currsector;
     byte currsectlen;
     word currfreetracksector;
+    byte firstempty;
 
     freeentry <- peek8(BDIO_VAR_FCAT_FREEENTRY);
     freetrack <- peek8(BDIO_VAR_FCAT_FREETRACK);
@@ -224,8 +225,9 @@ byte bdio_fcat_scanmem(word PsectorBuf)
 
     Pentry <- PsectorBuf;
     PlastAddr <- PsectorBuf + BDIO_SECTBUF_LEN;
+    firstempty <- FALSE;
 
-    while(Pentry < PlastAddr)
+    while((Pentry < PlastAddr) && !firstempty)
     {
         currsectlen <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_SECTLEN);
         currentry <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_NUMBER);
@@ -236,7 +238,7 @@ byte bdio_fcat_scanmem(word PsectorBuf)
             currsector <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_STARTSECTOR);
 
             currfreetracksector <- bdio_tracksector_add(currtrack, currsector, currsectlen + 1);
-            
+
             if (freetracksector < currfreetracksector)
             {
                 freetracksector <- currfreetracksector;
@@ -254,10 +256,13 @@ byte bdio_fcat_scanmem(word PsectorBuf)
                 freeentry <- currentry;
                 poke8(BDIO_VAR_FCAT_FREEENTRY, freeentry);
             }
+            firstempty <- TRUE;
         }
 
         Pentry <- Pentry + BDIO_FCAT_ENTRY_LENGTH;
     }
+
+    return !firstempty;
 }
 
 word bdio_fcat_ffindmem(word Pfnameext, word PsectorBuf)
@@ -321,9 +326,14 @@ byte bdio_fcat_read()
 
     while(result = FDD_RESULT_OK)
     {
-        bdio_fcat_scanmem(BDIO_TMP_SECTBUF);
-
-        result <- bdio_fcat_scannext(BDIO_TMP_SECTBUF);
+        if(bdio_fcat_scanmem(BDIO_TMP_SECTBUF))
+        {
+            result <- bdio_fcat_scannext(BDIO_TMP_SECTBUF);
+        }
+        else
+        {
+            result <- BDIO_RESULT_ENDOFCAT;
+        }
     }
 
     if(result = BDIO_RESULT_ENDOFCAT)
