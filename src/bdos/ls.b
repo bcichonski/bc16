@@ -24,6 +24,7 @@ byte setAttrib(word Pstring, byte fcatAttribs, byte attrib, byte char)
 
 byte listCatalogItem(word Pitem, byte showall)
 {
+    byte res;
     byte fcatStartTrack;
     byte fcatStartSector;
     byte fcatSectorLen;
@@ -33,6 +34,7 @@ byte listCatalogItem(word Pitem, byte showall)
     word PfcatAttribString;
 
     fcatSectorLen <- peek8(Pitem + BDIO_FCAT_ENTRYOFF_SECTLEN);
+    res <- FALSE;
 
     if(fcatSectorLen > 0)
     {
@@ -71,7 +73,11 @@ byte listCatalogItem(word Pitem, byte showall)
                 fcatStartSector, 
                 fcatSectorLen);
         }
+
+        res <- TRUE;
     }
+
+    return res;
 }
 
 byte listCatalog(byte showall)
@@ -79,24 +85,27 @@ byte listCatalog(byte showall)
     word fHandle;
     byte sectRead;
     word Pcurrent;
+    byte res;
 
     fHandle <- bdio_fbinopenr("DISC    CAT");
-
+    res <- TRUE;
     if(fHandle < BDIO_FOPEN_FNAME_NOTFOUND)
     {
         sectRead <- bdio_fbinread(fHandle, CATBUFSECT_ADDR, 1);
-        while(sectRead)
+        while(sectRead && res)
         {
             Pcurrent <- CATBUFSECT_ADDR;
 
-            while(Pcurrent < CATBUFSECT_ADDR + BDIO_SECTBUF_LEN)
+            while(res && (Pcurrent < CATBUFSECT_ADDR + BDIO_SECTBUF_LEN))
             {
-                listCatalogItem(Pcurrent, showall);
+                res <- listCatalogItem(Pcurrent, showall);
 
                 Pcurrent <- Pcurrent + BDIO_FCAT_ENTRY_LENGTH;
             }
 
-            sectRead <- bdio_fbinread(fHandle, CATBUFSECT_ADDR, 1);
+            if(res) {
+                sectRead <- bdio_fbinread(fHandle, CATBUFSECT_ADDR, 1);
+            }
         }
 
         bdio_fclose(fHandle);

@@ -272,7 +272,6 @@ word bdio_fcat_ffindmem(word Pfnameext, word PsectorBuf)
     //returns BDIO_FNAME_NOTFOUND or address of the matching entry
     word Pentry;
     word PlastAddr;
-    byte currentry;
     byte currsectlen;
     word Pcurrfnameext;
     byte strcmp;
@@ -285,7 +284,6 @@ word bdio_fcat_ffindmem(word Pfnameext, word PsectorBuf)
     while((Pentry < PlastAddr) && !found)
     {
         currsectlen <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_SECTLEN);
-        currentry <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_NUMBER);
 
         if(currsectlen > 0)
         {
@@ -295,13 +293,24 @@ word bdio_fcat_ffindmem(word Pfnameext, word PsectorBuf)
 
             found <- (strcmp = STRCMP_EQ);
         }
+        else
+        {
+            found <- BDIO_FNAME_EOC;
+        }
 
         Pentry <- Pentry + BDIO_FCAT_ENTRY_LENGTH;
     }
 
     if(found)
     {
-        Pentry <- Pentry - BDIO_FCAT_ENTRY_LENGTH;
+        if(found = TRUE)
+        {
+            Pentry <- Pentry - BDIO_FCAT_ENTRY_LENGTH;
+        }
+        else
+        {
+            Pentry <- BDIO_FNAME_ENDOFCAT;
+        }
     }
     else
     {
@@ -375,6 +384,11 @@ word bdio_ffindfile(word Pfnameext)
         {
             fddres <- bdio_fcat_scannext(BDIO_TAB_SCANSECTBUF);
         }
+    }
+
+    if(result = BDIO_FNAME_ENDOFCAT)
+    {
+        result <- BDIO_FNAME_NOTFOUND;
     }
 
     poke16(BDIO_VAR_FCAT_PLASTFOUND, result);
