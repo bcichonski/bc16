@@ -688,6 +688,8 @@ byte bdio_fclose(byte fhandle)
         poke8(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN, 0x00);
         result <- fdescNo;
     }
+
+    return result;
 }
 
 word bdio_freemem()
@@ -726,7 +728,9 @@ byte bdio_execute(word Pfnameext)
         byte fdescfcatEntryNo;
         byte fcatEntryNo;
         word PfcatEntry;
+        byte fclosed;
 
+        fclosed <- FALSE;
         Pfdesc <- bdio_getfdesc_addr(fhandle);
 
         if(Pfdesc != BDIO_NULL)
@@ -757,6 +761,9 @@ byte bdio_execute(word Pfnameext)
 
                         if(filesectread = filesectlen)
                         {
+                            bdio_fclose(fhandle);
+                            fclosed <- TRUE;
+
                             //finally! program loaded we can run it!
                             //load usermem to csci
                             BDIO_USERMEM;
@@ -768,7 +775,10 @@ byte bdio_execute(word Pfnameext)
             }
         }
 
-        bdio_fclose(fhandle);
+        if(!fclosed)
+        {
+            bdio_fclose(fhandle);
+        }
     }
     else
     {
