@@ -67,7 +67,7 @@ key assumptions
 0x11: bdio_fbinopenw(Pfnameext) - opens a file handle for write (this is append only)
 0x12: bdio_fbinread(fhandle, Pmembuf, sectors) - reads given sectors of file to Pmembuf CS=fhandle, CI=sectors, DSDI = Pmembuf
 0x13: bdio_fbinwrite(fhandle, Pmembuf, sectors) - writes given memory to sectors
-0x14: bdio_fcreate(Pfnameext) - creates or truncates an existing file
+0x14: bdio_fcreate(Pfnameext, attrib) - creates new file with given attribs
 0x15: bdio_fclose(fhandle) - closes opened file handle
 0x16: bdio_fdelete(Pfnameext) - removes file from disk
 0x17: bdio_fsetattrib(Pfnameext, attrib) - sets file attributes

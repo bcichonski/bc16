@@ -26,12 +26,37 @@ byte bdio_fbinopenr(word Pfnameext)
     return bdio_call(BDIO_FBINOPENR, Pfnameext, 0x0000);
 }
 
+byte bdio_fbinopenw(word Pfnameext)
+{
+    return bdio_call(BDIO_FBINOPENW, Pfnameext, 0x0000);
+}
+
 byte bdio_fbinread(byte fhandle, word Pmembuf, byte sectors)
 {
     return bdio_call(BDIO_FBINREAD, (fhandle << 8) | sectors, Pmembuf);
 }
 
+byte bdio_fbinwrite(byte fhandle, word Pmembuf, byte sectors)
+{
+    return bdio_call(BDIO_FBINWRITE, (fhandle << 8) | sectors, Pmembuf);
+}
+
 byte bdio_fclose(byte fhandle)
 {
     return bdio_call(BDIO_FCLOSE, fhandle, 0x0000);
+}
+
+byte bdio_fcreate(word Pfnameext, byte attribs)
+{
+    return bdio_call(BDIO_FCREATE, Pfnameext, attribs);
+}
+
+byte bdio_fdelete(word Pfnameext)
+{
+    return bdio_call(BDIO_FDELETE, Pfnameext, 0x0000);
+}
+
+byte bdio_fsetattr(word Pfnameext, byte attribs)
+{
+    return bdio_call(BDIO_FDELETE, Pfnameext, attribs);
 }

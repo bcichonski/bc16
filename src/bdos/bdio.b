@@ -166,7 +166,7 @@ byte bdio_fcat_scanfirst(word PsectorBuf)
 byte bdio_fcat_scannext(word PsectorBuf)
 {
     // method continues catalog read
-    // reads next sector to BDIO_TMP_SECTBUF
+    // reads next sector to PsectorBuf
     // stores current track and sector in BDIO_VAR_FCAT_SCAN_TRACK and BDIO_VAR_FCAT_SCAN_SECT
     // returns fdd state or BDIO_RESULT_ENDOFCAT
 
@@ -396,7 +396,28 @@ word bdio_ffindfile(word Pfnameext)
     return result;
 }
 
-byte bdio_new_fcat(byte attribs)
+word bdio_getfreesect()
+{
+    byte freetrack;
+    byte freesector;
+    word freetracksector;
+    word nextfreetracksector;
+
+    freetrack <- peek8(BDIO_VAR_FCAT_FREETRACK);
+    freesector <- peek8(BDIO_VAR_FCAT_FREESECT);
+
+    freetracksector <- (freetrack << 8) | freesector;
+    nextfreetracksector <- bdio_tracksector_add(freetrack, freesector, 1);
+    freetrack <- nextfreetracksector >> 8;
+    freesector <- nextfreetracksector & 0x0f;
+    
+    poke8(BDIO_VAR_FCAT_FREETRACK, freetrack);
+    poke8(BDIO_VAR_FCAT_FREESECT, freesector);
+
+    return freetracksector;
+}
+
+byte bdio_new_fcat(word Pfnameext, byte attribs)
 {
     //creates a new entry in fcat table
     //and reads the proper sector of fcat table to BDIO_TMP_SECTBUF
@@ -409,10 +430,12 @@ byte bdio_new_fcat(byte attribs)
     byte entryNo;
     byte track;
     byte sector;
+    byte ftrack;
+    byte fsector;
     word tracksector;
     word Pentry;
 
-    result <- FDD_RESULT_OK;
+    result <- BDIO_RESULT_ENDOFCAT;
     entryNo <- peek8(BDIO_VAR_FCAT_FREEENTRY);
 
     if(entryNo != BDIO_FCAT_FREEENTRY_FULL)
@@ -426,18 +449,27 @@ byte bdio_new_fcat(byte attribs)
 
         if(result = FDD_RESULT_OK)
         {
+            tracksector <- bdio_getfreesect();
+            ftrack <- tracksector >> 8;
+            fsector <- tracksector & 0xff; 
+
             Pentry <- (entryNo & 0x08) << 4;
             Pentry <- BDIO_TMP_SECTBUF + Pentry;
 
-            poke8(Pentry, entryNo);
-            mzero(Pentry + 1, BDIO_FCAT_ENTRY_LENGTH - 1);
+            mzero(Pentry, BDIO_FCAT_ENTRY_LENGTH);
+
+            poke8(Pentry + BDIO_FCAT_ENTRYOFF_NUMBER, entryNo);
+            poke8(Pentry + BDIO_FCAT_ENTRYOFF_STARTTRACK, ftrack);
+            poke8(Pentry + BDIO_FCAT_ENTRYOFF_STARTSECTOR, fsector);
+            poke8(Pentry + BDIO_FCAT_ENTRYOFF_SECTLEN, 0x01);
             poke8(Pentry + BDIO_FCAT_ENTRYOFF_ATTRIBS, attribs);
+            strncpy(Pentry + BDIO_FCAT_ENTRYOFF_FNAME, Pfnameext, BDIO_FCAT_ENTRY_NAMELEN);
+
             poke16(BDIO_VAR_FCAT_NEWENTRYADDR, Pentry);
+            poke8(BDIO_VAR_FCAT_FREEENTRY, entryNo + 1);
+            poke8(BDIO_VAR_FCAT_SCAN_TRACK, track);
+            poke8(BDIO_VAR_FCAT_SCAN_SECT, sector);
         }
-    }
-    else
-    {
-        result <- BDIO_RESULT_ENDOFCAT;
     }
 
     return result;
@@ -472,27 +504,6 @@ byte bdio_setdrive(byte drive)
     return result;
 }
 
-word bdio_getfreesect()
-{
-    byte freetrack;
-    byte freesector;
-    word freetracksector;
-    word nextfreetracksector;
-
-    freetrack <- peek8(BDIO_VAR_FCAT_FREETRACK);
-    freesector <- peek8(BDIO_VAR_FCAT_FREESECT);
-
-    freetracksector <- (freetrack << 8) | freesector;
-    nextfreetracksector <- bdio_tracksector_add(freetrack, freesector, 1);
-    freetrack <- nextfreetracksector >> 8;
-    freesector <- nextfreetracksector & 0x0f;
-    
-    poke8(BDIO_VAR_FCAT_FREETRACK, freetrack);
-    poke8(BDIO_VAR_FCAT_FREESECT, freesector);
-
-    return freetracksector;
-}
-
 byte bdio_new_fdesc(word Pfdesc, byte fdescNo, byte fdescMode, byte fcatNo, byte track, byte sector, byte len, byte fcattrack, byte fcatsector)
 {
     fdescNo <- fdescNo | fdescMode;
@@ -509,17 +520,15 @@ byte bdio_new_fdesc(word Pfdesc, byte fdescNo, byte fdescMode, byte fcatNo, byte
     return fdescNo;
 }
 
-byte bdio_getfree_readfdesc(word PfcatEntry)
+byte bdio_getfree_fdesc_internal(word PfcatEntry, word Pfdesc, byte maxfdesc)
 {
-    word Pfdesc;
     byte fdescNo;
     byte fdescNumber;
 
-    Pfdesc <- BDIO_VAR_FDESCTAB_READ;
     fdescNumber <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER);
     fdescNo <- 0;
 
-    while((fdescNo < BDIO_FDESCRIPTOR_READ_MAX) && (fdescNumber != BDIO_FDESCRIPTOR_NUMBERFREE))
+    while((fdescNo < maxfdesc) && (fdescNumber != BDIO_FDESCRIPTOR_NUMBERFREE))
     {
         Pfdesc <- Pfdesc + BDIO_FDESCRIPTOR_LEN;
         fdescNumber <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER);
@@ -535,18 +544,33 @@ byte bdio_getfree_readfdesc(word PfcatEntry)
         byte fcatEntryNo;
         byte fcattrack;
         byte fcatsector;
+        byte fdescMode;
 
         fcatEntryNo <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_NUMBER);
-        track <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_STARTTRACK);
-        sector <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_STARTSECTOR);
-        sectlen <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_SECTLEN);
         fcattrack <- peek8(BDIO_VAR_FCAT_SCAN_TRACK);
         fcatsector <- peek8(BDIO_VAR_FCAT_SCAN_SECT);
+
+        if(Pfdesc = BDIO_VAR_FDESCTAB_READ)
+        {
+            fdescMode <- BDIO_FDESCRIPTOR_NUMBERREAD;
+
+            track <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_STARTTRACK);
+            sector <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_STARTSECTOR);
+            sectlen <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_SECTLEN);
+        }
+        else
+        {
+            fdescMode <- BDIO_FDESCRIPTOR_NUMBERWRITE;
+
+            track <- peek8(BDIO_VAR_FCAT_FREETRACK);
+            sector <- peek8(BDIO_VAR_FCAT_FREESECT);
+            sectlen <- 0x00;
+        }
 
         fdescNo <- bdio_new_fdesc(
             Pfdesc, 
             fdescNo, 
-            BDIO_FDESCRIPTOR_NUMBERREAD, 
+            fdescMode, 
             fcatEntryNo, 
             track, 
             sector, 
@@ -572,7 +596,7 @@ byte bdio_fcat_checkattribs(word PfcatEntry, byte attribs)
     return ((fcatattribs & attribs) = attribs);
 }
 
-byte bdio_fbinopenr(word Pfnameext)
+byte bdio_fbinopen_internal(word Pfnameext, byte testattrib)
 {
     //allocates file descriptor for the given file name
     //and prepares it to be read sequentially
@@ -589,20 +613,27 @@ byte bdio_fbinopenr(word Pfnameext)
     {
         //find file first
         word PfcatEntry;
+        fhandle <- BDIO_FOPEN_FNAME_NOTFOUND;
         PfcatEntry <- bdio_ffindfile(Pfnameext);
 
         if(PfcatEntry != BDIO_FNAME_NOTFOUND)
         {
-            fhandle <- BDIO_FOPEN_ATTR_NOREAD;
-
-            if(bdio_fcat_checkattribs(PfcatEntry, BDIO_FILE_ATTRIB_READ))
+            fhandle <- testattrib;
+            
+            if(testattrib = BDIO_FOPEN_ATTR_NOREAD)
             {
-                fhandle <- bdio_getfree_readfdesc(PfcatEntry);
+                if(bdio_fcat_checkattribs(PfcatEntry, BDIO_FILE_ATTRIB_READ))
+                {
+                    fhandle <- bdio_getfree_fdesc_internal(PfcatEntry, BDIO_VAR_FDESCTAB_READ, BDIO_FDESCRIPTOR_READ_MAX);
+                }
             }
-        }
-        else
-        {
-            fhandle <- BDIO_FOPEN_FNAME_NOTFOUND;
+            else
+            {
+                if(bdio_fcat_checkattribs(PfcatEntry, BDIO_FILE_ATTRIB_WRITE))
+                {
+                    fhandle <- bdio_getfree_fdesc_internal(PfcatEntry, BDIO_VAR_FDESCTAB_WRITE, BDIO_FDESCRIPTOR_WRITE_MAX);
+                }
+            }
         }
     }
 
@@ -614,12 +645,12 @@ word bdio_getfdesc_addr(byte fhandle)
     word Pfdesc;
     Pfdesc <- BDIO_NULL;
 
-    if((fhandle & BDIO_FDESCRIPTOR_NUMBERWRITE) = BDIO_FDESCRIPTOR_NUMBERWRITE)
+    if(fhandle & BDIO_FDESCRIPTOR_NUMBERWRITE)
     {
         Pfdesc <- BDIO_VAR_FDESCTAB_WRITE;
     }
 
-    if((fhandle & BDIO_FDESCRIPTOR_NUMBERREAD) = BDIO_FDESCRIPTOR_NUMBERREAD)
+    if(fhandle & BDIO_FDESCRIPTOR_NUMBERREAD)
     {
         Pfdesc <- BDIO_VAR_FDESCTAB_READ + ((fhandle & 0x0f) * BDIO_FDESCRIPTOR_LEN);
     }
@@ -627,17 +658,17 @@ word bdio_getfdesc_addr(byte fhandle)
     return Pfdesc;
 }
 
-byte bdio_fbinread(byte fhandle, word Pmembuf, byte sectors)
+byte bdio_fbin_internal(byte fhandle, word Pmembuf, byte sectors, byte descMode)
 {
     //reads at most specified number of sectors for open fhandle into given Pmembuf
     //returns number of actually read sectors (EOF may be reached first)
     byte result;
     result <- 0;
 
-    if((fhandle & BDIO_FDESCRIPTOR_NUMBERREAD) = BDIO_FDESCRIPTOR_NUMBERREAD)
+    if(fhandle & descMode)
     {
         word Pfdesc;
-        byte sectorsread;
+        byte sectorscount;
         byte currSeq;
         byte seqLen;
         byte track;
@@ -645,20 +676,29 @@ byte bdio_fbinread(byte fhandle, word Pmembuf, byte sectors)
         word tracksector;
 
         Pfdesc <- bdio_getfdesc_addr(fhandle);
-        sectorsread <- 0;
+        sectorscount <- 0;
         currSeq <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRSEQ);
         seqLen <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN);
         track <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRTRACK);
         sector <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRSECT);
         
-        while((sectorsread < sectors) && (currSeq < seqLen))
+        while((sectorscount < sectors) && ((descMode = BDIO_FDESCRIPTOR_NUMBERWRITE) || (currSeq < seqLen)))
         {
-            bdio_readsec(track, sector, Pmembuf);
+            if(descMode = BDIO_FDESCRIPTOR_NUMBERREAD)
+            {
+                bdio_readsec(track, sector, Pmembuf);
+                tracksector <- bdio_tracksector_add(track, sector, 1);
+            }
+            else
+            {
+                bdio_writesec(track, sector, Pmembuf);   
+                tracksector <- bdio_getfreesect();             
+            }
 
             Pmembuf <- Pmembuf + BDIO_SECTBUF_LEN;
-            sectorsread <- sectorsread + 1;
+            sectorscount <- sectorscount + 1;
             currSeq <- currSeq + 1;
-            tracksector <- bdio_tracksector_add(track, sector, 1);
+            
             track <- tracksector >> 8;
             sector <- tracksector & 0xff;
         }
@@ -666,7 +706,12 @@ byte bdio_fbinread(byte fhandle, word Pmembuf, byte sectors)
         poke8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRSEQ, currSeq);
         poke8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRTRACK, track);
         poke8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRSECT, sector);
-        result <- sectorsread;
+        if(descMode != BDIO_FDESCRIPTOR_NUMBERREAD)
+        {
+            poke8(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN, currSeq);   
+        }
+        
+        result <- sectorscount;
     }
 
      return result;
@@ -684,9 +729,60 @@ byte bdio_fclose(byte fhandle)
 
     if(fdescNo != BDIO_FDESCRIPTOR_NUMBERFREE)
     {
-        poke8(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER, BDIO_FDESCRIPTOR_NUMBERFREE);
-        poke8(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN, 0x00);
-        result <- fdescNo;
+        if(fhandle & BDIO_FDESCRIPTOR_NUMBERREAD)
+        {
+            //closing read handle is easy
+            poke8(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER, BDIO_FDESCRIPTOR_NUMBERFREE);
+            poke8(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN, 0x00);
+            result <- fdescNo;
+        }
+        else
+        {
+            //we need to update fcat entry based on fdesc
+            byte fcatNo;
+            byte fcattrack;
+            byte fcatsector;
+            byte fcatseclen;
+            byte ftrack;
+            byte fsector;
+            word PfcatEntry;
+
+            fcatNo <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATENTRYNO);
+            ftrack <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRTRACK);
+            fsector <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRSECT);
+            fcattrack <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATTRACK);
+            fcatsector <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATSECT);
+            fcatseclen <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN);
+            
+            poke8(BDIO_VAR_FCAT_SCAN_TRACK, fcattrack);
+            poke8(BDIO_VAR_FCAT_SCAN_SECT, fcatsector);
+
+            result <- bdio_fcat_scannext(BDIO_TMP_SECTBUF);
+
+            if(result = FDD_RESULT_OK)
+            {
+                PfcatEntry <- (fcatNo & 0x08) << 4;
+                PfcatEntry <- BDIO_TMP_SECTBUF + PfcatEntry;
+
+                poke8(PfcatEntry + BDIO_FCAT_ENTRYOFF_STARTTRACK, ftrack);
+                poke8(PfcatEntry + BDIO_FCAT_ENTRYOFF_STARTSECTOR, fsector);
+                poke8(PfcatEntry + BDIO_FCAT_ENTRYOFF_SECTLEN, fcatseclen);
+
+                result <- bdio_writesec(fcattrack, fcatsector, BDIO_TMP_SECTBUF);
+                if(result = FDD_RESULT_OK)
+                {
+                    result <- fdescNo;
+                }
+                else
+                {
+                    result <- BDIO_FCLOSE_FCAT_SAVEERR;
+                }
+            }
+            else
+            {
+                result <- BDIO_FCLOSE_FCAT_READERR;
+            }
+        }
     }
 
     return result;
@@ -720,7 +816,7 @@ byte bdio_execute(word Pfnameext)
     byte result;
     byte fhandle;
 
-    fhandle <- bdio_fbinopenr(Pfnameext);
+    fhandle <- bdio_fbinopen_internal(Pfnameext, BDIO_FOPEN_ATTR_NOREAD);
 
     if(fhandle < BDIO_FOPEN_FNAME_NOTFOUND)
     {
@@ -755,8 +851,7 @@ byte bdio_execute(word Pfnameext)
 
                     if(filesectlen < userspace)
                     {
-                        filesectread <- bdio_fbinread(fhandle, BDIO_USERMEM, filesectlen);
-
+                        filesectread <- bdio_fbin_internal(fhandle, BDIO_USERMEM, filesectlen, BDIO_FDESCRIPTOR_NUMBERREAD);
                         result <- BDIO_FEXEC_SECTFAIL;
 
                         if(filesectread = filesectlen)
@@ -786,6 +881,96 @@ byte bdio_execute(word Pfnameext)
     }
 
     return result;
+}
+
+byte bdio_finternal(word Pfnameext, byte mode, byte attribs)
+{
+    word PfcatEntry;
+    byte fhandle;
+    byte fddres;
+    byte fcattrack;
+    byte fcatsector;
+
+    fhandle <- BDIO_FILE_FDD_NOT_READY;
+    //1. check drive state
+    fddres <- bdio_checkstate();
+    printf("Doing %x to `%s`...%n", mode, Pfnameext);
+
+    if(fddres = FDD_RESULT_OK)
+    {
+        //find file first
+        PfcatEntry <- bdio_ffindfile(Pfnameext);
+        fhandle <- BDIO_FILE_FNAME_NOTFOUND;
+
+        if(PfcatEntry != BDIO_FNAME_NOTFOUND)
+        {
+            fhandle <- BDIO_FILE_SAVEERR;
+
+            if(mode = BDIO_FILE_INTERNALMODE_DELETE)
+            {
+                poke8(PfcatEntry + BDIO_FCAT_ENTRYOFF_SECTLEN, 0x00);
+            }
+            else
+            {
+                if(mode = BDIO_FILE_INTERNALMODE_SETATTR)
+                {
+                    poke8(PfcatEntry + BDIO_FCAT_ENTRYOFF_ATTRIBS, attribs);
+                }
+            }
+
+            fddres <- bdio_writesec(fcattrack, fcatsector, BDIO_TMP_SECTBUF);
+
+            if(fddres = FDD_RESULT_OK)
+            {
+                fhandle <- BDIO_FILE_OK;
+            }
+        }
+    }
+
+    return fhandle;
+}
+
+byte bdio_fcreate(word Pfnameext, byte attribs)
+{
+    word PfcatEntry;
+    byte fhandle;
+    byte fddres;
+    byte fcattrack;
+    byte fcatsector;
+
+    fhandle <- BDIO_FCREATE_FDD_NOT_READY;
+    //1. check drive state
+    fddres <- bdio_checkstate();
+    printf("Creating `%s`...%n", Pfnameext);
+
+    if(fddres = FDD_RESULT_OK)
+    {
+        //find file first
+        PfcatEntry <- bdio_ffindfile(Pfnameext);
+        fhandle <- BDIO_FCREATE_FNAME_NOTFOUND;
+
+        if(PfcatEntry = BDIO_FNAME_NOTFOUND)
+        {
+            fddres <- bdio_new_fcat(Pfnameext, attribs);
+            fhandle <- BDIO_FCREATE_READERR;
+
+            if(fddres = FDD_RESULT_OK)
+            {
+                fcattrack <- peek8(BDIO_VAR_FCAT_SCAN_TRACK);
+                fcatsector <- peek8(BDIO_VAR_FCAT_SCAN_SECT);
+
+                fhandle <- BDIO_FCREATE_SAVEERR;
+                fddres <- bdio_writesec(fcattrack, fcatsector, BDIO_TMP_SECTBUF);
+
+                if(fddres = FDD_RESULT_OK)
+                {
+                    fhandle <- BDIO_FCREATE_OK;
+                }
+            }
+        }
+    }
+
+    return fhandle;
 }
 
 word bdio_call()
@@ -819,17 +1004,50 @@ word bdio_call()
 
     if(regA = BDIO_FBINOPENR)
     {
-        result <- bdio_fbinopenr(regCSCI);
+        result <- bdio_fbinopen_internal(regCSCI, BDIO_FOPEN_ATTR_NOREAD);
+    }
+
+    if(regA = BDIO_FBINOPENW)
+    {
+        result <- bdio_fbinopen_internal(regCSCI, BDIO_FOPEN_ATTR_NOWRITE);
     }
 
     if(regA = BDIO_FBINREAD)
     {
-        result <- bdio_fbinread(regCSCI >> 8, regDSDI, regCSCI & 0x00ff);
+        result <- bdio_fbin_internal(regCSCI >> 8, regDSDI, regCSCI & 0x00ff, BDIO_FDESCRIPTOR_NUMBERREAD);
     }
 
-    if(regA = BDIO_FCLOSE)
+    if(regA = BDIO_FBINWRITE)
     {
-        result <- bdio_fclose(regCSCI);
+        result <- bdio_fbin_internal(regCSCI >> 8, regDSDI, regCSCI & 0x00ff, BDIO_FDESCRIPTOR_NUMBERWRITE);
+    }
+    else 
+    {
+        if(regA = BDIO_FCLOSE)
+        {
+            result <- bdio_fclose(regCSCI);
+        }
+        else
+        {
+            if(regA = BDIO_FCREATE)
+            {
+                result <- bdio_fcreate(regCSCI, regDSDI);
+            }
+            else
+            {
+                if(regA = BDIO_FDELETE)
+                {
+                    result <- bdio_finternal(regCSCI, BDIO_FILE_INTERNALMODE_DELETE, 0x00);
+                }
+                else
+                {
+                    if(regA = BDIO_FSETATTR)
+                    {
+                        result <- bdio_finternal(regCSCI, BDIO_FILE_INTERNALMODE_SETATTR, regDSDI);
+                    }
+                }
+            }
+        }
     }
     
     return result;
