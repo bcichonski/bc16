@@ -678,6 +678,11 @@ byte bdio_fbin_internal(byte fhandle, word Pmembuf, byte sectors, byte descMode)
             
             track <- tracksector >> 8;
             sector <- tracksector & 0xff;
+
+            if(sectorscount & 0x04)
+            {
+                puts(".");
+            }
         }
 
         poke8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRSEQ, currSeq);

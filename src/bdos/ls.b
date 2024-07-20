@@ -5,9 +5,9 @@
 #include bdosh.b
 #include strings.b
 
-#define CATBUFSECT_ADDR 0x7d80
-#define FCATATTRIBSTRING_ADDR 0x7d50
-#define FNAMESTRING_ADDR 0x7d60
+#define CATBUFSECT_ADDR 0x7880
+#define FCATATTRIBSTRING_ADDR 0x7850
+#define FNAMESTRING_ADDR 0x7860
 #define FEXT_LEN 0x03
 #define FNAME_LEN 0x08
 #define MODE_SWITCH_SHOWALL 0x01
@@ -92,6 +92,7 @@ byte listCatalog(byte showall)
     if(fHandle < BDIO_FOPEN_FNAME_NOTFOUND)
     {
         sectRead <- bdio_fbinread(fHandle, CATBUFSECT_ADDR, 1);
+
         while(sectRead && res)
         {
             Pcurrent <- CATBUFSECT_ADDR;
