@@ -816,6 +816,7 @@ class EXPRESSION_CALL(Instruction):
         paramno = 0
         for param in self.params:
             try:
+                param_name = "?"
                 param_data = paramdata[paramno]
                 param_name = param_data['name']
                 paramtype = param_data['type']
