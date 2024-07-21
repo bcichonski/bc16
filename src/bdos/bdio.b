@@ -696,7 +696,9 @@ byte bdio_fbin_internal(byte fhandle, word Pmembuf, byte sectors, byte descMode)
         result <- sectorscount;
     }
 
-     return result;
+    putnl();
+
+    return result;
 }
 
 byte bdio_fclose(byte fhandle)
@@ -994,34 +996,34 @@ word bdio_call()
     {
         result <- bdio_fbin_internal(regCSCI >> 8, regDSDI, regCSCI & 0x00ff, BDIO_FDESCRIPTOR_NUMBERWRITE);
     }
-    else 
+    
+    if(regA = BDIO_FCLOSE)
     {
-        if(regA = BDIO_FCLOSE)
-        {
-            result <- bdio_fclose(regCSCI);
-        }
-        else
-        {
-            if(regA = BDIO_FCREATE)
-            {
-                result <- bdio_fcreate(regCSCI, regDSDI);
-            }
-            else
-            {
-                if(regA = BDIO_FDELETE)
-                {
-                    result <- bdio_finternal(regCSCI, BDIO_FILE_INTERNALMODE_DELETE, 0x00);
-                }
-                else
-                {
-                    if(regA = BDIO_FSETATTR)
-                    {
-                        result <- bdio_finternal(regCSCI, BDIO_FILE_INTERNALMODE_SETATTR, regDSDI);
-                    }
-                }
-            }
-        }
+        result <- bdio_fclose(regCSCI);
+    }
+    if(regA = BDIO_FCREATE)
+    {
+        result <- bdio_fcreate(regCSCI, regDSDI);
+    }
+    if(regA = BDIO_FDELETE)
+    {
+        result <- bdio_finternal(regCSCI, BDIO_FILE_INTERNALMODE_DELETE, 0x00);
     }
     
+    if(regA = BDIO_FSETATTR)
+    {
+        result <- bdio_finternal(regCSCI, BDIO_FILE_INTERNALMODE_SETATTR, regDSDI);
+    }
+
+    if(regA = BDIO_SETDRIVE)
+    {
+        result <- bdio_setdrive(regCSCI);
+    }
+
+    if(regA = BDIO_GETDRIVE)
+    {
+        result <- bdio_getdrive();
+    }
+
     return result;
 }

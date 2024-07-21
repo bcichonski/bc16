@@ -21,6 +21,16 @@ word bdio_call(byte subCode, word param1, word param2)
     asm "cal :os_metacall";
 }
 
+byte bdio_setdrive(byte drive)
+{
+    return bdio_call(BDIO_SETDRIVE, drive, 0x0000);
+}
+
+byte bdio_getdrive()
+{
+    return bdio_call(BDIO_GETDRIVE, 0x0000, 0x0000);
+}
+
 byte bdio_fbinopenr(word Pfnameext)
 {
     return bdio_call(BDIO_FBINOPENR, Pfnameext, 0x0000);
