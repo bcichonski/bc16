@@ -47,13 +47,13 @@ echo converting cp to sectors...
 check_exit_code $?
 
 echo burning cp
-./ftool importsector bdos/cp.sectors os.bdd 13 0
+./ftool importsector bdos/cp.sectors os.bdd 18 0
 
 echo converting hello world to sectors...
 ./ftool btap2bin bdos/helloworld.btap bdos/helloworld.sectors
 check_exit_code $?
 
 echo burning hello world program
-./ftool importsector bdos/helloworld.sectors os.bdd 60 0
+./ftool importsector bdos/helloworld.sectors os.bdd 14 0
 
 echo done!

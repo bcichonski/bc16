@@ -21,9 +21,9 @@ word bdio_call(byte subCode, word param1, word param2)
     asm "cal :os_metacall";
 }
 
-byte bdio_setdrive(byte drive)
+byte bdio_setdrive(byte drive, byte silent)
 {
-    return bdio_call(BDIO_SETDRIVE, drive, 0x0000);
+    return bdio_call(BDIO_SETDRIVE, drive << 8, silent << 8);
 }
 
 byte bdio_getdrive()
@@ -58,7 +58,7 @@ byte bdio_fclose(byte fhandle)
 
 byte bdio_fcreate(word Pfnameext, byte attribs)
 {
-    return bdio_call(BDIO_FCREATE, Pfnameext, attribs);
+    return bdio_call(BDIO_FCREATE, Pfnameext, attribs << 8);
 }
 
 byte bdio_fdelete(word Pfnameext)
@@ -68,5 +68,6 @@ byte bdio_fdelete(word Pfnameext)
 
 byte bdio_fsetattr(word Pfnameext, byte attribs)
 {
-    return bdio_call(BDIO_FDELETE, Pfnameext, attribs);
+    return bdio_call(BDIO_FDELETE, Pfnameext, attribs << 8);
 }
+

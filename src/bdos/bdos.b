@@ -50,6 +50,7 @@ byte changedrive(byte drivechar)
 {
     byte currentDrive;
     byte wantedDrive;
+    byte result;
 
     currentDrive <- bdio_getdrive();
     if(drivechar = 'A')
@@ -61,10 +62,13 @@ byte changedrive(byte drivechar)
         wantedDrive <- BDIO_DRIVEB;
     }
 
+    result <- FDD_RESULT_OK;
     if(currentDrive != wantedDrive)
     {
-        bdio_setdrive(wantedDrive);
+        result <- bdio_setdrive(wantedDrive, FALSE);
     }
+
+    return result;
 }
 
 byte execute(word Pfnameext)
@@ -115,7 +119,8 @@ byte main()
 
     printf("bDOS 1.0 shell%n%w bytes free%nreading disc...", bdio_freemem());
 
-    res <- bdio_setdrive(BDIO_DRIVEA);
+    poke8(BDIO_VAR_ACTIVEDRV, 0xff);
+    res <- bdio_setdrive(BDIO_DRIVEA, FALSE);
 
     if(res != FDD_RESULT_OK)
     {

@@ -309,7 +309,6 @@ byte bdio_fcat_read()
     poke8(BDIO_VAR_FCAT_FREESECT, 0x00);
 
     result <- bdio_fcat_scanfirst(BDIO_TMP_SECTBUF);
-
     while(result = FDD_RESULT_OK)
     {
         result <- BDIO_RESULT_ENDOFCAT;
@@ -328,11 +327,6 @@ byte bdio_fcat_read()
     {
         result <- BDIO_RESULT_ENDOFCAT;
     }
-
-    putb(peek8(BDIO_VAR_FCAT_FREETRACK));
-    putb(peek8(BDIO_VAR_FCAT_FREESECT));
-    putb(peek8(BDIO_VAR_FCAT_FREEENTRY));
-    putnl();
 
     return result;
 }
@@ -433,15 +427,18 @@ byte bdio_new_fcat(word Pfnameext, byte attribs)
             ftrack <- tracksector >> 8;
             fsector <- tracksector & 0xff; 
 
-            Pentry <- (entryNo & 0x08) << 4;
+            Pentry <- (entryNo & 0x07) << 4;
             Pentry <- BDIO_TMP_SECTBUF + Pentry;
 
             mzero(Pentry, BDIO_FCAT_ENTRY_LENGTH);
 
             poke8(Pentry + BDIO_FCAT_ENTRYOFF_NUMBER, entryNo);
             bdio_fcat_set(Pentry, ftrack, fsector, 0x01);
+
+            attribs <- attribs | BDIO_FILE_ATTRIB_WRITE;
+            printf("fattr: %x%n", attribs);
             poke8(Pentry + BDIO_FCAT_ENTRYOFF_ATTRIBS, attribs);
-            strncpy(Pentry + BDIO_FCAT_ENTRYOFF_FNAME, Pfnameext, BDIO_FCAT_ENTRY_NAMELEN);
+            strncpy(Pfnameext, Pentry + BDIO_FCAT_ENTRYOFF_FNAME, BDIO_FCAT_ENTRY_NAMELEN);
 
             poke16(BDIO_VAR_FCAT_NEWENTRYADDR, Pentry);
             poke8(BDIO_VAR_FCAT_FREEENTRY, entryNo + 1);
@@ -452,7 +449,7 @@ byte bdio_new_fcat(word Pfnameext, byte attribs)
     return result;
 }
 
-byte bdio_setdrive(byte drive)
+byte bdio_setdrive(byte drive, byte silent)
 {
     // sets active drive
     // stores current active drive to BDIO_VAR_ACTIVEDRV
@@ -472,7 +469,7 @@ byte bdio_setdrive(byte drive)
 
     result <- bdio_checkstate();
 
-    if(result = FDD_RESULT_OK)
+    if(!silent && (result = FDD_RESULT_OK))
     {
         result <- bdio_fcat_read();
         poke8(BDIO_VAR_ACTIVEDRV, drive);
@@ -584,8 +581,6 @@ byte bdio_fbinopen_internal(word Pfnameext, byte testattrib)
     //1. check drive state
     fddres <- bdio_checkstate();
 
-    //printf("Opening for `%s`...%n", Pfnameext);
-
     if(fddres = FDD_RESULT_OK)
     {
         //find file first
@@ -688,6 +683,7 @@ byte bdio_fbin_internal(byte fhandle, word Pmembuf, byte sectors, byte descMode)
         poke8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRSEQ, currSeq);
         poke8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRTRACK, track);
         poke8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRSECT, sector);
+
         if(descMode != BDIO_FDESCRIPTOR_NUMBERREAD)
         {
             poke8(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN, currSeq);   
@@ -738,17 +734,15 @@ byte bdio_fclose(byte fhandle)
             fcatsector <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATSECT);
             fcatseclen <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN);
             
-            bdio_fcat_var(fcattrack, fcatsector);
-
-            result <- bdio_fcat_scannext(BDIO_TMP_SECTBUF);
+            result <- bdio_iosec(FDD_CMD_READ, fcattrack, fcatsector, BDIO_TMP_SECTBUF);
 
             if(result = FDD_RESULT_OK)
             {
-                PfcatEntry <- (fcatNo & 0x08) << 4;
+                bdio_fcat_var(fcattrack, fcatsector);
+                PfcatEntry <- (fcatNo & 0x07) << 4;
                 PfcatEntry <- BDIO_TMP_SECTBUF + PfcatEntry;
 
                 bdio_fcat_set(PfcatEntry, ftrack, fsector, fcatseclen);
-
                 result <- bdio_iosec(FDD_CMD_WRITE, fcattrack, fcatsector, BDIO_TMP_SECTBUF);
                 if(result = FDD_RESULT_OK)
                 {
@@ -869,7 +863,6 @@ byte bdio_finternal(word Pfnameext, byte mode, byte attribs)
     fhandle <- BDIO_FILE_FDD_NOT_READY;
     //1. check drive state
     fddres <- bdio_checkstate();
-    //printf("Doing %x to `%s`...%n", mode, Pfnameext);
 
     if(fddres = FDD_RESULT_OK)
     {
@@ -913,10 +906,11 @@ byte bdio_fcreate(word Pfnameext, byte attribs)
     byte fcattrack;
     byte fcatsector;
 
+    printf("fat: %x%n", attribs);
+
     fhandle <- BDIO_FCREATE_FDD_NOT_READY;
     //1. check drive state
     fddres <- bdio_checkstate();
-    //printf("Creating `%s`...%n", Pfnameext);
 
     if(fddres = FDD_RESULT_OK)
     {
@@ -1003,7 +997,7 @@ word bdio_call()
     }
     if(regA = BDIO_FCREATE)
     {
-        result <- bdio_fcreate(regCSCI, regDSDI);
+        result <- bdio_fcreate(regCSCI, regDSDI >> 8);
     }
     if(regA = BDIO_FDELETE)
     {
@@ -1017,7 +1011,7 @@ word bdio_call()
 
     if(regA = BDIO_SETDRIVE)
     {
-        result <- bdio_setdrive(regCSCI);
+        result <- bdio_setdrive(regCSCI, regDSDI);
     }
 
     if(regA = BDIO_GETDRIVE)

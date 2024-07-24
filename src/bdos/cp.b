@@ -5,9 +5,10 @@
 #include bdosh.b
 #include strings.b
 
-#define CATBUFSECT_ADDR 0x7880
-#define FCATATTRIBSTRING_ADDR 0x7850
-#define FNAMESTRING_ADDR 0x7860
+#define FILEBUFSECT_ADDR 0x7500
+#define FILEBUFSECT_LEN 0x10
+#define INFILEBDIONAME_ADDR 0x74f0
+#define OUTFILEBDIONAME_ADDR 0x74e0
 #define DRIVEPRESENT 0x0100
 
 word getdrive(word Pargs)
@@ -32,11 +33,104 @@ word getdrive(word Pargs)
     return result;
 }
 
-byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetfileext)
+byte changeDriveIfNeededSilently(byte currentDrive, byte targetDrive)
 {
-
+    if(currentDrive != targetDrive)
+    {
+        bdio_setdrive(targetDrive, TRUE);
+        currentDrive <- targetDrive;
+    }
+    return currentDrive;
 }
 
+byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetfileext)
+{
+    byte currentDrive;
+    byte fHandleIn;
+    byte fHandleOut;
+    byte sectorsread;
+    byte fAttribsIn;
+    byte result;
+
+    currentDrive <- bdio_getdrive();
+    if(currentDrive != sourcedrive)
+    {
+        bdio_setdrive(sourcedrive, FALSE);
+        currentDrive <- sourcedrive;
+    }
+
+    fHandleIn <- bdio_fbinopenr(Psourcefileext);
+    if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
+    {
+        fAttribsIn <- peek8(BDIO_VAR_FCAT_PLASTFOUND + BDIO_FCAT_ENTRYOFF_ATTRIBS);
+        printf("fatri: %x%n", fAttribsIn);
+
+        if(currentDrive != targetdrive)
+        {
+            bdio_setdrive(targetdrive, FALSE);
+            currentDrive <- targetdrive;
+        }
+
+        result <- bdio_fcreate(Ptargetfileext, fAttribsIn);
+        if(!result)
+        {
+            fHandleOut <- bdio_fbinopenw(Ptargetfileext);
+
+            if(fHandleOut < BDIO_FOPEN_FNAME_NOTFOUND)
+            {
+                sectorsread <- bdio_fbinread(fHandleIn, FILEBUFSECT_ADDR, FILEBUFSECT_LEN);
+                result <- 1;
+
+                while(sectorsread && result)
+                {
+                    currentDrive <- changeDriveIfNeededSilently(currentDrive, targetdrive);
+
+                    result <- bdio_fbinwrite(fHandleOut, FILEBUFSECT_ADDR, sectorsread);
+
+                    if(result)
+                    {
+                        currentDrive <- changeDriveIfNeededSilently(currentDrive, targetdrive);
+                        sectorsread <- bdio_fbinread(fHandleIn, FILEBUFSECT_ADDR, FILEBUFSECT_LEN);
+                    }
+                    else
+                    {
+                        printf("error writing sectors%n");
+                    }
+                }
+
+                bdio_fclose(fHandleOut);
+            }
+            else
+            {
+                bdio_printexecres(fHandleOut);
+            }
+        }
+        else
+        {
+            bdio_printexecres(result);
+        }
+
+        bdio_fclose(fHandleIn);
+    }
+    else
+    {
+        bdio_printexecres(fHandleIn);
+    }
+}
+
+byte fnormalize(word Pfilenameext, word Pbdiofilename)
+{
+    byte length;
+
+    mfill(Pbdiofilename, BDIO_FCAT_ENTRY_NAMELEN, 0x20);
+    poke8(Pbdiofilename + BDIO_FCAT_ENTRY_NAMELEN, NULLCHAR);
+
+    length <- strnlen8(Pfilenameext, BDIO_FCAT_ENTRY_NAMELEN + 1);
+    strncpy(Pfilenameext + length - 3, Pbdiofilename + BDIO_FCAT_ENTRY_NAMELEN - 3, 3);
+
+    length <- strnposc(Pfilenameext, '.', BDIO_FCAT_ENTRY_NAMELEN);
+    strncpy(Pfilenameext, Pbdiofilename, length);
+}
 
 byte main()
 {
@@ -46,6 +140,7 @@ byte main()
     word PtgtFileNameExt;
     byte sourcedrv;
     byte targetdrv;
+    byte len;
 
     upstring(BDIO_CMDPROMPTADDR);
     Pargs <- strnextword(BDIO_CMDPROMPTADDR);
@@ -80,6 +175,9 @@ byte main()
         PtgtFileNameExt <- Pargs;
         targetdrv <- result;
 
-        printf("Copying %x:%s to %x:%s.%n", sourcedrv, PsrcFileNameExt, targetdrv, PtgtFileNameExt);
+        fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
+        fnormalize(PtgtFileNameExt, OUTFILEBDIONAME_ADDR);
+
+        copy(sourcedrv, INFILEBDIONAME_ADDR, targetdrv, OUTFILEBDIONAME_ADDR);
     }
 }
