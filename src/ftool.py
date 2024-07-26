@@ -51,12 +51,12 @@ def createbdd(fname):
 
     env.close_file(fhandle)
 
-def dumpsector(fname, track, sector):
+def dumpsector(fname, track, sector, length):
     env.log('dump sector file {} track {} sector {}'.format(fname, track, sector))
     fhandle = env.open_file_to_read(fname)
     position = (track*sectors + sector)*sectorSize
     env.move_file_handle(fhandle, position)
-    buf = env.read_bytes(fhandle, sectorSize)
+    buf = env.read_bytes(fhandle, sectorSize * length)
     env.close_file(fhandle)
 
     i = 0
@@ -118,7 +118,7 @@ def main():
         createbdd(argv[2])
     elif command=='dumpsector':
         checkargs(4)
-        dumpsector(argv[2], int(argv[3]), int(argv[4]))
+        dumpsector(argv[2], int(argv[3]), int(argv[4]), int(argv[5]))
     elif command=='exportsector':
         checkargs(4)
         exportsector(argv[2], argv[3], int(argv[4]), int(argv[5]))

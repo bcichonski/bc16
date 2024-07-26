@@ -90,5 +90,23 @@ bcos 0x57: bdio_call() - allows to call every bdio subroutine from user program 
 [ST]..0x7fff   - cpu stack
 
 # problems
-bdos uses too much memory, its 0f00..4000 already and growing
-this means file catalog is moved too 
+bdos uses too much memory, its 0f00..4000 already and growing this means file catalog is moved too 
+
+# roadmap
+- finish cp single drive
+- make cp work over two drives
+- replace bdos.sys with disc.cat, so disc catalog is first (will have one sector less entries)
+- add rm
+- add chmod
+- add format
+- add cat
+- release os disc with files realigned by cp
+- release bc32
+- start working on a new model bc64 with increased ram
+- bcos 1.2 (move from bcc stdlib)
+- bdos 1.1 (fcat with dates! and load addresses)
+- texted and game new versions
+- new discs (increase number of tracks and sectors 80 tracks by 32 sectors)
+- basm on bc64
+- bcc on bc64
+- networking?

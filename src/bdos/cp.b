@@ -51,6 +51,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
     byte sectorsread;
     byte fAttribsIn;
     byte result;
+    word Pfcatentry;
 
     currentDrive <- bdio_getdrive();
     if(currentDrive != sourcedrive)
@@ -62,9 +63,9 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
     fHandleIn <- bdio_fbinopenr(Psourcefileext);
     if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
     {
-        fAttribsIn <- peek8(BDIO_VAR_FCAT_PLASTFOUND + BDIO_FCAT_ENTRYOFF_ATTRIBS);
-        printf("fatri: %x%n", fAttribsIn);
-
+        Pfcatentry <- #(BDIO_VAR_FCAT_PLASTFOUND);
+        fAttribsIn <- peek8(Pfcatentry + BDIO_FCAT_ENTRYOFF_ATTRIBS);
+       
         if(currentDrive != targetdrive)
         {
             bdio_setdrive(targetdrive, FALSE);
