@@ -15,8 +15,9 @@
 
 #define BDIO_DRIVEA 0x00
 #define BDIO_DRIVEB 0x01
-#define BDIO_FCAT_STARTTRACK 0x08
-#define BDIO_FCAT_ENDTRACK 0x09
+#define BDIO_FCAT_STARTTRACK 0x00
+#define BDIO_FCAT_STARTSECTOR 0x01
+#define BDIO_FCAT_ENDTRACK 0x01
 #define BDIO_FCAT_ENTRYOFF_NUMBER 0x00
 #define BDIO_FCAT_ENTRYOFF_STARTTRACK 0x01
 #define BDIO_FCAT_ENTRYOFF_STARTSECTOR 0x02
@@ -41,7 +42,7 @@
 #define BDIO_FDESCRIPTOROFF_FCATTRACK 0x06
 #define BDIO_FDESCRIPTOROFF_FCATSECT 0x07
 #define BDIO_FDESCRIPTOR_READ_MAX 0x03
-#define BDIO_FDESCRIPTOR_WRITE_MAX 0x01
+#define BDIO_FDESCRIPTOR_WRITE_MAX 0x00
 #define BDIO_FDESCRIPTOR_LEN 0x08
 #define BDIO_FDESCRIPTOR_NUMBERFREE 0x00
 #define BDIO_FDESCRIPTOR_NUMBERWRITE 0x10
@@ -141,7 +142,7 @@ byte bdio_printexecres(byte execres)
     }
     if(execres = BDIO_FEXEC_FDESCFCAT_ERR)
     {
-        errorMessage <- "catalogue and file handle mismatch";
+        errorMessage <- "cat and file handle mismatch";
     }
     if(execres = BDIO_FEXEC_OUTOFMEM)
     {

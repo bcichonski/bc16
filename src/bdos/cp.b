@@ -103,11 +103,13 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
             }
             else
             {
+                putsnl("a");
                 bdio_printexecres(fHandleOut);
             }
         }
         else
         {
+            putsnl("b");
             bdio_printexecres(result);
         }
 
@@ -115,6 +117,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
     }
     else
     {
+        putsnl("a");
         bdio_printexecres(fHandleIn);
     }
 }

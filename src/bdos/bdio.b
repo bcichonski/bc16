@@ -132,7 +132,7 @@ byte bdio_fcat_scanfirst(word PsectorBuf)
     byte result;
 
     track <- BDIO_FCAT_STARTTRACK;
-    sector <- 0;
+    sector <- BDIO_FCAT_STARTSECTOR;
 
     result <- bdio_iosec(FDD_CMD_READ, track, sector, PsectorBuf);
 
@@ -408,7 +408,7 @@ byte bdio_new_fcat(word Pfnameext, byte attribs)
     if(entryNo != BDIO_FCAT_FREEENTRY_FULL)
     {
         sector <- entryNo >> 3;
-        tracksector <- bdio_tracksector_add(BDIO_FCAT_STARTTRACK, 0x00, sector);
+        tracksector <- bdio_tracksector_add(BDIO_FCAT_STARTTRACK, BDIO_FCAT_STARTSECTOR, sector);
         track <- tracksector >> 8;
         sector <- tracksector & 0xff;
 
@@ -521,18 +521,18 @@ byte bdio_getfree_fdesc_internal(word PfcatEntry, word Pfdesc, byte maxfdesc)
         track <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_STARTTRACK);
         sector <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_STARTSECTOR);
 
-        if(Pfdesc = BDIO_VAR_FDESCTAB_READ)
-        {
-            fdescMode <- BDIO_FDESCRIPTOR_NUMBERREAD;
-            sectlen <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_SECTLEN);
-        }
-        else
+        if(Pfdesc = BDIO_VAR_FDESCTAB_WRITE)
         {
             fdescMode <- BDIO_FDESCRIPTOR_NUMBERWRITE;
             sectlen <- 0x00;
         }
+        else
+        {
+            fdescMode <- BDIO_FDESCRIPTOR_NUMBERREAD;
+            sectlen <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_SECTLEN);
+        }
 
-        fdescNo <- bdio_new_fdesc(
+        fdescNumber <- bdio_new_fdesc(
             Pfdesc, 
             fdescNo, 
             fdescMode, 
@@ -543,6 +543,7 @@ byte bdio_getfree_fdesc_internal(word PfcatEntry, word Pfdesc, byte maxfdesc)
             fcattrack, 
             fcatsector
         );
+        fdescNo <- fdescNumber;
     }
     else
     {
@@ -555,10 +556,9 @@ byte bdio_getfree_fdesc_internal(word PfcatEntry, word Pfdesc, byte maxfdesc)
 byte bdio_fcat_checkattribs(word PfcatEntry, byte attribs)
 {
     byte fcatattribs;
-
     fcatattribs <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_ATTRIBS);
 
-    return ((fcatattribs & attribs) = attribs);
+    return (fcatattribs & attribs);
 }
 
 byte bdio_fbinopen_internal(word Pfnameext, byte testattrib)
@@ -582,7 +582,6 @@ byte bdio_fbinopen_internal(word Pfnameext, byte testattrib)
         if(PfcatEntry != BDIO_FNAME_NOTFOUND)
         {
             fhandle <- testattrib;
-            
             if(testattrib = BDIO_FOPEN_ATTR_NOREAD)
             {
                 if(bdio_fcat_checkattribs(PfcatEntry, BDIO_FILE_ATTRIB_READ))
@@ -700,14 +699,9 @@ byte bdio_fclose(byte fhandle)
 
     if(fdescNo != BDIO_FDESCRIPTOR_NUMBERFREE)
     {
-        if(fhandle & BDIO_FDESCRIPTOR_NUMBERREAD)
-        {
-            //closing read handle is easy
-            poke8(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER, BDIO_FDESCRIPTOR_NUMBERFREE);
-            poke8(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN, 0x00);
-            result <- fdescNo;
-        }
-        else
+        result <- fdescNo;
+
+        if(fhandle & BDIO_FDESCRIPTOR_NUMBERWRITE)
         {
             //we need to update fcat entry based on fdesc
             byte fcatNo;
@@ -746,6 +740,9 @@ byte bdio_fclose(byte fhandle)
                 result <- BDIO_FCLOSE_FCAT_READERR;
             }
         }
+
+        poke8(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER, BDIO_FDESCRIPTOR_NUMBERFREE);
+        poke8(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN, 0x00);
     }
 
     return result;
@@ -785,14 +782,14 @@ byte bdio_execute(word Pfnameext)
 
         fclosed <- FALSE;
         Pfdesc <- bdio_getfdesc_addr(fhandle);
-
+        
         if(Pfdesc != BDIO_NULL)
         {
             fdescfcatEntryNo <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATENTRYNO);
             PfcatEntry <- #(BDIO_VAR_FCAT_PLASTFOUND);
             fcatEntryNo <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_NUMBER);
             result <- BDIO_FEXEC_FDESCFCAT_ERR;
-
+            
             if(fdescfcatEntryNo = fcatEntryNo)
             {
                 result <- BDIO_FEXEC_ATTR_NOEXEC;
