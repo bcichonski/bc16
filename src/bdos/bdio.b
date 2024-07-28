@@ -898,16 +898,19 @@ byte bdio_fcreate(word Pfnameext, byte attribs)
     if(fddres = FDD_RESULT_OK)
     {
         //find file first
+        putsnl("1");
         PfcatEntry <- bdio_ffindfile(Pfnameext);
-        fhandle <- BDIO_FCREATE_FNAME_NOTFOUND;
+        fhandle <- BDIO_FCREATE_FNAME_FOUND;
 
         if(PfcatEntry = BDIO_FNAME_NOTFOUND)
         {
+            putsnl("2");
             fddres <- bdio_new_fcat(Pfnameext, attribs);
             fhandle <- BDIO_FCREATE_READERR;
 
             if(fddres = FDD_RESULT_OK)
             {
+                putsnl("3");
                 fcattrack <- peek8(BDIO_VAR_FCAT_SCAN_TRACK);
                 fcatsector <- peek8(BDIO_VAR_FCAT_SCAN_SECT);
 
@@ -953,6 +956,8 @@ word bdio_call()
 
     word result;
     result <- BDIO_NULL;
+    byte regCS;
+    byte regDS;
 
     if(regA = BDIO_FBINOPENR)
     {
@@ -964,24 +969,13 @@ word bdio_call()
         result <- bdio_fbinopen_internal(regCSCI, BDIO_FOPEN_ATTR_NOWRITE);
     }
 
-    if(regA = BDIO_FBINREAD)
-    {
-        result <- bdio_fbin_internal(regCSCI >> 8, regDSDI, regCSCI & 0x00ff, BDIO_FDESCRIPTOR_NUMBERREAD);
-    }
+    regDS <- regDSDI >> 8;
 
-    if(regA = BDIO_FBINWRITE)
-    {
-        result <- bdio_fbin_internal(regCSCI >> 8, regDSDI, regCSCI & 0x00ff, BDIO_FDESCRIPTOR_NUMBERWRITE);
-    }
-    
-    if(regA = BDIO_FCLOSE)
-    {
-        result <- bdio_fclose(regCSCI);
-    }
     if(regA = BDIO_FCREATE)
     {
-        result <- bdio_fcreate(regCSCI, regDSDI >> 8);
+        result <- bdio_fcreate(regCSCI, regDS);
     }
+
     if(regA = BDIO_FDELETE)
     {
         result <- bdio_finternal(regCSCI, BDIO_FILE_INTERNALMODE_DELETE, 0x00);
@@ -989,12 +983,29 @@ word bdio_call()
     
     if(regA = BDIO_FSETATTR)
     {
-        result <- bdio_finternal(regCSCI, BDIO_FILE_INTERNALMODE_SETATTR, regDSDI);
+        result <- bdio_finternal(regCSCI, BDIO_FILE_INTERNALMODE_SETATTR, regDS);
     }
 
+    regCS <- regCSCI >> 8;
+
+    if(regA = BDIO_FBINREAD)
+    {
+        result <- bdio_fbin_internal(regCS, regDSDI, regCSCI & 0x00ff, BDIO_FDESCRIPTOR_NUMBERREAD);
+    }
+
+    if(regA = BDIO_FBINWRITE)
+    {
+        result <- bdio_fbin_internal(regCS, regDSDI, regCSCI & 0x00ff, BDIO_FDESCRIPTOR_NUMBERWRITE);
+    }
+    
+    if(regA = BDIO_FCLOSE)
+    {
+        result <- bdio_fclose(regCS);
+    }
+    
     if(regA = BDIO_SETDRIVE)
     {
-        result <- bdio_setdrive(regCSCI, regDSDI);
+        result <- bdio_setdrive(regCS, regDS);
     }
 
     if(regA = BDIO_GETDRIVE)
