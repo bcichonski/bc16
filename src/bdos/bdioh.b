@@ -106,6 +106,8 @@
 #define BDIO_USERMEM 0x5000
 #define BDIO_NULL 0x0000
 
+#define BDIO_READSECTOR 0x00
+#define BDIO_WRITESECTOR 0x01
 #define BDIO_SETDRIVE 0x02
 #define BDIO_GETDRIVE 0x03
 #define BDIO_FBINOPENR 0x10
@@ -118,6 +120,22 @@
 #define BDIO_FSETATTR 0x17
 
 #include stdio.b
+
+word bdio_tracksector_add(byte track, byte sector, byte sectorlen)
+{
+    //calculates track sector that is a result of adding sectorlen sectors to given track/sector
+    //returns word value in which first byte is track, second is sector
+    word result;
+    word sectors;
+
+    sectors <- (track << 4) | sector;
+    sectors <- sectors + sectorlen;
+
+    result <- (sectors >> 4) << 8;
+    result <- result | (sectors & 0x0f);
+
+    return result;
+}
 
 byte bdio_printexecres(byte execres)
 {

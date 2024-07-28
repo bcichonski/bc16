@@ -37,7 +37,6 @@ byte changeDriveIfNeeded(byte currentDrive, byte targetDrive, byte silent)
 {
     if(currentDrive != targetDrive)
     {
-        printf("change drive to %x mode %x%n", targetDrive, silent);
         bdio_setdrive(targetDrive, silent);
         currentDrive <- targetDrive;
     }
@@ -60,7 +59,6 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
     fHandleIn <- bdio_fbinopenr(Psourcefileext);
     if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
     {
-        putsnl("a");
         Pfcatentry <- #(BDIO_VAR_FCAT_PLASTFOUND);
         fAttribsIn <- peek8(Pfcatentry + BDIO_FCAT_ENTRYOFF_ATTRIBS);
        
@@ -69,18 +67,15 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
         result <- bdio_fcreate(Ptargetfileext, fAttribsIn);
         if(!result)
         {
-            putsnl("b");
             fHandleOut <- bdio_fbinopenw(Ptargetfileext);
 
             if(fHandleOut < BDIO_FOPEN_FNAME_NOTFOUND)
             {
-                putsnl("c");
                 sectorsread <- bdio_fbinread(fHandleIn, FILEBUFSECT_ADDR, FILEBUFSECT_LEN);
                 result <- 1;
 
                 while(sectorsread && result)
                 {
-                    putsnl("d");
                     currentDrive <- changeDriveIfNeeded(currentDrive, targetdrive, TRUE);
 
                     result <- bdio_fbinwrite(fHandleOut, FILEBUFSECT_ADDR, sectorsread);

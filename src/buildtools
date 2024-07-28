@@ -22,4 +22,8 @@ echo building cp...
 ./bcc ./bdos/cp
 check_exit_code $?
 
+echo building format...
+./bcc ./bdos/format
+check_exit_code $?
+
 echo done!
