@@ -5,11 +5,11 @@
 #include bdosh.b
 #include strings.b
 
-#define FILEBUFSECT_ADDR 0x7b00
+#define FILEBUFSECT_ADDR 0x7c00
 #define FILEBUFSECT_LEN 0x02
 #define DRIVEPRESENT 0x0100
 #define FORMATMODE_QUICK 0x10
-#define FORMATMODE_BARE 0x20
+#define FORMATMODE_HELP 0x20
 
 #define CHECK_BDOS_SIG_OFFSET 0x0079
 #define CHECK_BDOS_SIG_PATTERN 0xbd05
@@ -103,6 +103,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
 
             if(fHandleOut < BDIO_FOPEN_FNAME_NOTFOUND)
             {
+                currentDrive <- changeDriveIfNeeded(currentDrive, sourcedrive, TRUE);
                 sectorsread <- bdio_fbinread(fHandleIn, FILEBUFSECT_ADDR, FILEBUFSECT_LEN);
                 result <- 1;
 
@@ -114,7 +115,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
 
                     if(result)
                     {
-                        currentDrive <- changeDriveIfNeeded(currentDrive, targetdrive, TRUE);
+                        currentDrive <- changeDriveIfNeeded(currentDrive, sourcedrive, TRUE);
                         sectorsread <- bdio_fbinread(fHandleIn, FILEBUFSECT_ADDR, FILEBUFSECT_LEN);
                     }
                     else
@@ -123,7 +124,9 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
                     }
                 }
 
+                currentDrive <- changeDriveIfNeeded(currentDrive, targetdrive, TRUE);
                 bdio_fclose(fHandleOut);
+                result <- FALSE;
             }
             else
             {
@@ -135,6 +138,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
             bdio_printexecres(result);
         }
 
+        currentDrive <- changeDriveIfNeeded(currentDrive, sourcedrive, FALSE);
         bdio_fclose(fHandleIn);
     }
     else
@@ -150,14 +154,14 @@ byte getoptions(word Poptions)
     byte result;
     result <- 0;
 
-    if(strncmp(Poptions, "-Q", 3) = STRCMP_EQ)
+    if(strncmp(Poptions, "-Q", 2) = STRCMP_EQ)
     {
         result <- result | FORMATMODE_QUICK;
     }
 
-    if(strncmp(Poptions, "-B", 3) = STRCMP_EQ)
+    if(strncmp(Poptions, "-H", 2) = STRCMP_EQ)
     {
-        result <- result | FORMATMODE_BARE;
+        result <- FORMATMODE_HELP;
     }
 
     return result;
@@ -280,7 +284,7 @@ byte createcatalog()
                         result <- bdio_writesect(track, sector, FILEBUFSECT_ADDR);
                         if(result = FDD_RESULT_OK)
                         {
-                            if(sector & 0x04)
+                            if((sector & 0x0008) = 0x0008)
                             {
                                 puts(".");
                             }
@@ -312,75 +316,72 @@ byte format(byte sourcedrive, byte targetdrive, byte options)
     
     if(options & FORMATMODE_QUICK)
     {
-        putsnl("quick mode");
-        //in quick mode just clear the disc catalog DISC.CAT must be present
-        //if exists, files like BOOT.BIN and BDOS.SYS will be preserved if present
-    }
-    else
-    {
-        if(options & FORMATMODE_BARE)
+        currentDrive <- changeDriveIfNeeded(currentDrive, targetdrive, FALSE);
+        result <- checksourcedrive();
+        if(result = CHECK_ALLOK)
         {
-            putsnl("bare mode");
-            //in bare mode there will be no system included
-            //special boot sector is added that only display a message that the drive is not bootable
-            //but it saves 16kb of BDOS.SYS and other system files like ls, cp etc.
+            //we need to create empty DISC.CAT
+            result <- createcatalog();
+            currentDrive <- changeDriveIfNeeded(currentDrive, sourcedrive, FALSE);
         }
         else
         {
-            //normal wipe mode
-            //sourcedrive must be a system disk
-            currentDrive <- changeDriveIfNeeded(currentDrive, sourcedrive, FALSE);
-            result <- checksourcedrive();
-            if(result = CHECK_ALLOK)
-            {
-                //copy bootsector
-                putsnl("copying bootsector...");
-
-                result <- bdio_readsect(0x00, 0x00, FILEBUFSECT_ADDR);
-                currentDrive <- changeDriveIfNeeded(currentDrive, targetdrive, TRUE);
-
-                if(result = FDD_RESULT_OK)
-                {
-                    result <- bdio_writesect(0x00, 0x00, FILEBUFSECT_ADDR);
-                }
-
-                //we need to create empty DISC.CAT
-                result <- createcatalog();
-                currentDrive <- changeDriveIfNeeded(currentDrive, sourcedrive, TRUE);
-                currentDrive <- changeDriveIfNeeded(currentDrive, targetdrive, FALSE);
-
-                if(result = FDD_RESULT_OK)
-                {
-                    //now that we have the catalog we can start copying files
-                    Pfname <- "BDOS    SYS";
-                    result <- copy(sourcedrive, Pfname, targetdrive, Pfname);
-                    if(result)
-                    {
-                        Pfname <- "LS      PRG";
-                        result <- copy(sourcedrive, Pfname, targetdrive, Pfname);
-                    }
-                    if(result)
-                    {
-                        Pfname <- "CP      PRG";
-                        result <- copy(sourcedrive, Pfname, targetdrive, Pfname);
-                    }
-                    if(result)
-                    {
-                        Pfname <- "FORMAT  PRG";
-                        result <- copy(sourcedrive, Pfname, targetdrive, Pfname);
-                    }
-                    if(result)
-                    {
-                        result <- FALSE;
-                    }
-                }
-            }
-            else
-            {
-                printf("error %x: source drive is not a system disc%n", result);
-            }
+            putsnl("drive is not a system disc%n");
         }
     }
+    else
+    {
+        //normal wipe mode
+        //sourcedrive must be a system disk
+        currentDrive <- changeDriveIfNeeded(currentDrive, sourcedrive, FALSE);
+        result <- checksourcedrive();
+        if(result = CHECK_ALLOK)
+        {
+            //copy bootsector
+            printf("%ncopying bootsector...%n");
+
+            result <- bdio_readsect(0x00, 0x00, FILEBUFSECT_ADDR);
+            currentDrive <- changeDriveIfNeeded(currentDrive, targetdrive, TRUE);
+
+            if(result = FDD_RESULT_OK)
+            {
+                result <- bdio_writesect(0x00, 0x00, FILEBUFSECT_ADDR);
+            }
+
+            //we need to create empty DISC.CAT
+            result <- createcatalog();
+            currentDrive <- changeDriveIfNeeded(currentDrive, sourcedrive, FALSE);
+
+            if(result = FDD_RESULT_OK)
+            {
+                //now that we have the catalog we can start copying files
+                Pfname <- "BDOS    SYS";
+                result <- copy(sourcedrive, Pfname, targetdrive, Pfname);
+                if(!result)
+                {
+                    Pfname <- "LS      PRG";
+                    result <- copy(sourcedrive, Pfname, targetdrive, Pfname);
+                }
+                if(!result)
+                {
+                    Pfname <- "CP      PRG";
+                    result <- copy(sourcedrive, Pfname, targetdrive, Pfname);
+                }
+                if(!result)
+                {
+                    Pfname <- "FORMAT  PRG";
+                    result <- copy(sourcedrive, Pfname, targetdrive, Pfname);
+                }
+                result <- !result;
+            }
+        }
+        else
+        {
+            printf("error %x: source drive is not a system disc%n", result);
+        }
+    }
+
+    return result;
 }
 
 byte main()
@@ -394,30 +395,31 @@ byte main()
 
     upstring(BDIO_CMDPROMPTADDR);
     Pargs <- strnextword(BDIO_CMDPROMPTADDR);
+    poke8(Pargs - 1, NULLCHAR);
 
-    if(strncmp(Pargs, "-H", 3) = STRCMP_EQ)
+    Poptions <- Pargs;
+    options <- getoptions(Poptions);
+
+    if(options = FORMATMODE_HELP)
     {
-        printf("%s%n%s%n%s%n%s%n",
+        printf("%s%n%s%n%s%n",
             "format disc",
             "d: drive", 
-            "-q quick",
-            "-b bare");
+            "-q quick");
     }
     else
     {
-        result <- getdrive(Pargs);
-        poke8(Pargs - 1, NULLCHAR);
-        if(result & DRIVEPRESENT)
+        if(options & FORMATMODE_QUICK)
         {
-            Pargs <- Pargs + 2;  
+            Pargs <- Pargs + 3;
         }
 
-        Poptions <- Pargs;
+        result <- getdrive(Pargs);
+        
         targetdrv <- result;
         sourcedrv <- BDIO_DRIVEB - targetdrv;
         
-        options <- getoptions(Poptions);
-
+        printf("formatting disc %s...%n", getdriveletter(targetdrv));
         result <- format(sourcedrv, targetdrv, options);
         if(result > 0)
         {

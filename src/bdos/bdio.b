@@ -316,7 +316,7 @@ byte bdio_fcat_read()
         result <- BDIO_RESULT_ENDOFCAT;
     }
 
-    printf("free %x%x %x%n", peek8(BDIO_VAR_FCAT_FREETRACK), peek8(BDIO_VAR_FCAT_FREESECT), peek8(BDIO_VAR_FCAT_FREEENTRY));
+    //printf("free %x%x %x%n", peek8(BDIO_VAR_FCAT_FREETRACK), peek8(BDIO_VAR_FCAT_FREESECT), peek8(BDIO_VAR_FCAT_FREEENTRY));
 
     return result;
 }
@@ -370,7 +370,7 @@ word bdio_getfreesect()
     
     poke8(BDIO_VAR_FCAT_FREETRACK, freetrack);
     poke8(BDIO_VAR_FCAT_FREESECT, freesector);
-
+ 
     return freetracksector;
 }
 
@@ -654,7 +654,7 @@ byte bdio_fbin_internal(byte fhandle, word Pmembuf, byte sectors, byte descMode)
             track <- tracksector >> 8;
             sector <- tracksector & 0xff;
 
-            if(sectorscount & 0x04)
+            if(currSeq & 0x0008)
             {
                 puts(".");
             }
@@ -672,8 +672,6 @@ byte bdio_fbin_internal(byte fhandle, word Pmembuf, byte sectors, byte descMode)
         result <- sectorscount;
     }
 
-    putnl();
-
     return result;
 }
 
@@ -686,6 +684,8 @@ byte bdio_fclose(byte fhandle)
     result <- BDIO_FCLOSE_FDESC_NOTFOUND;
     Pfdesc <- bdio_getfdesc_addr(fhandle);
     fdescNo <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER);
+
+    //printf("fclose: %x%n", fhandle);
 
     if(fdescNo != BDIO_FDESCRIPTOR_NUMBERFREE)
     {
@@ -704,7 +704,7 @@ byte bdio_fclose(byte fhandle)
             fcattrack <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATTRACK);
             fcatsector <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATSECT);
             fcatseclen <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN);
-            
+
             result <- bdio_iosec(FDD_CMD_READ, fcattrack, fcatsector, BDIO_TMP_SECTBUF);
 
             if(result = FDD_RESULT_OK)
@@ -802,6 +802,7 @@ byte bdio_execute(word Pfnameext)
                         {
                             bdio_fclose(fhandle);
                             fclosed <- TRUE;
+                            putnl();
 
                             //finally! program loaded we can run it!
                             //load usermem to csci
@@ -989,7 +990,7 @@ word bdio_call()
     
     if(regA = BDIO_FCLOSE)
     {
-        result <- bdio_fclose(regCS);
+        result <- bdio_fclose(regCI);
     }
     
     if(regA = BDIO_SETDRIVE)

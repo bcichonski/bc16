@@ -51,7 +51,7 @@ byte listCatalogItem(word Pitem, byte showall)
             strncpy(PfcatFileName + FNAME_LEN, FNAMESTRING_ADDR + FNAME_LEN + 1, 3);
 
             poke8(FNAMESTRING_ADDR + FNAME_LEN, '.');
-            poke8(FNAMESTRING_ADDR + BDIO_FCAT_ENTRY_NAMELEN + 2, BNULL);
+            poke8(FNAMESTRING_ADDR + BDIO_FCAT_ENTRY_NAMELEN + 1, BNULL);
 
             fcatLengthInBytes <- fcatSectorLen * BDIO_SECTBUF_LEN;
 
