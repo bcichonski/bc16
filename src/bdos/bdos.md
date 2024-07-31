@@ -93,12 +93,9 @@ bcos 0x57: bdio_call() - allows to call every bdio subroutine from user program 
 bdos uses too much memory, its 0f00..4000 already and growing this means file catalog is moved too 
 
 # roadmap
-- finish cp single drive
 - make cp work over two drives
-- replace bdos.sys with disc.cat, so disc catalog is first (will have one sector less entries)
 - add rm
 - add chmod
-- add format
 - add cat
 - release os disc with files realigned by cp
 - release bc32

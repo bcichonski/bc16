@@ -81,12 +81,14 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
     byte fAttribsIn;
     byte result;
     word Pfcatentry;
+    byte nowritemask;
 
-    printf("copying %s:%s to %s:%s%n", getdriveletter(sourcedrive), Psourcefileext, getdriveletter(targetdrive), Ptargetfileext);
+    printf("%ncopying %s:%s to %s:%s%n", getdriveletter(sourcedrive), Psourcefileext, getdriveletter(targetdrive), Ptargetfileext);
 
     currentDrive <- bdio_getdrive();
     currentDrive <- changeDriveIfNeeded(currentDrive, sourcedrive, FALSE);
     result <- FALSE;
+    nowritemask <- BDIO_FILE_ATTRIB_EXEC | BDIO_FILE_ATTRIB_SYSTEM | BDIO_FILE_ATTRIB_READ;
 
     fHandleIn <- bdio_fbinopenr(Psourcefileext);
     if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
@@ -126,6 +128,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
 
                 currentDrive <- changeDriveIfNeeded(currentDrive, targetdrive, TRUE);
                 bdio_fclose(fHandleOut);
+                bdio_fsetattr(Psourcefileext, fAttribsIn & nowritemask);
                 result <- FALSE;
             }
             else
@@ -284,7 +287,7 @@ byte createcatalog()
                         result <- bdio_writesect(track, sector, FILEBUFSECT_ADDR);
                         if(result = FDD_RESULT_OK)
                         {
-                            if((sector & 0x0008) = 0x0008)
+                            if((sector & 0x07) = 0x07)
                             {
                                 puts(".");
                             }
@@ -296,8 +299,6 @@ byte createcatalog()
                         }
                     }
                 }
-
-                putnl();
             }
         }
     }
@@ -338,7 +339,7 @@ byte format(byte sourcedrive, byte targetdrive, byte options)
         if(result = CHECK_ALLOK)
         {
             //copy bootsector
-            printf("%ncopying bootsector...%n");
+            printf("copying bootsector...%n");
 
             result <- bdio_readsect(0x00, 0x00, FILEBUFSECT_ADDR);
             currentDrive <- changeDriveIfNeeded(currentDrive, targetdrive, TRUE);
@@ -372,7 +373,6 @@ byte format(byte sourcedrive, byte targetdrive, byte options)
                     Pfname <- "FORMAT  PRG";
                     result <- copy(sourcedrive, Pfname, targetdrive, Pfname);
                 }
-                result <- !result;
             }
         }
         else
@@ -423,7 +423,8 @@ byte main()
         result <- format(sourcedrv, targetdrv, options);
         if(result > 0)
         {
-            printf("format error: %x%n", result);
+            printf("format error: %x", result);
         }
+        putnl();
     }
 }

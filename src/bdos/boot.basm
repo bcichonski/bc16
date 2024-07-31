@@ -8,7 +8,7 @@
                    .def bd_sectsize, 0x0080
                    .def os_metacall, 0x0008
 ;bd_dstart 0x0001
-bd_bootstrap:      mov ci, 0x01
+bd_bootstrap:      mov ci, 0x20
                    .mv dsdi, :bd_shell
 bd_loop:           mov cs, 0x08
 bd_dmaconfig:      mov a, 0xf1
@@ -34,7 +34,7 @@ bd_readsect:       mov a, 0xf2
                    jmr nz, :bd_boot_error
                    psh ci
 ;bd_dend here is the number of sectors to read
-                   mov a, 0x7f
+                   mov a, 0x9f
                    pop ci
                    sub ci
                    jmr z, :bd_boot_run

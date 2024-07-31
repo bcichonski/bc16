@@ -68,7 +68,7 @@ byte bdio_fdelete(word Pfnameext)
 
 byte bdio_fsetattr(word Pfnameext, byte attribs)
 {
-    return bdio_call(BDIO_FDELETE, Pfnameext, attribs << 8);
+    return bdio_call(BDIO_FSETATTR, Pfnameext, attribs << 8);
 }
 
 byte bdio_readsect(byte track, byte sector, word Pmembuf)

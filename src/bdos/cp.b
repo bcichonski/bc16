@@ -71,6 +71,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
 
             if(fHandleOut < BDIO_FOPEN_FNAME_NOTFOUND)
             {
+                currentDrive <- changeDriveIfNeeded(currentDrive, sourcedrive, TRUE);
                 sectorsread <- bdio_fbinread(fHandleIn, FILEBUFSECT_ADDR, FILEBUFSECT_LEN);
                 result <- 1;
 
@@ -82,7 +83,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
 
                     if(result)
                     {
-                        currentDrive <- changeDriveIfNeeded(currentDrive, targetdrive, TRUE);
+                        currentDrive <- changeDriveIfNeeded(currentDrive, sourcedrive, TRUE);
                         sectorsread <- bdio_fbinread(fHandleIn, FILEBUFSECT_ADDR, FILEBUFSECT_LEN);
                     }
                     else
@@ -91,6 +92,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
                     }
                 }
 
+                currentDrive <- changeDriveIfNeeded(currentDrive, targetdrive, TRUE);
                 bdio_fclose(fHandleOut);
             }
             else
@@ -103,6 +105,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
             bdio_printexecres(result);
         }
 
+        currentDrive <- changeDriveIfNeeded(currentDrive, sourcedrive, FALSE);
         bdio_fclose(fHandleIn);
     }
     else
