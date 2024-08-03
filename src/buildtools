@@ -26,4 +26,8 @@ echo building format...
 ./bcc ./bdos/format
 check_exit_code $?
 
+echo building rm...
+./bcc ./bdos/rm
+check_exit_code $?
+
 echo done!

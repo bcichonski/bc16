@@ -19,6 +19,26 @@ echo converting bdos to sectors...
 ./ftool btap2bin bdos/bdos.btap bdos/bdos.sector
 check_exit_code $?
 
+echo converting ls to sectors...
+./ftool btap2bin bdos/ls.btap bdos/ls.sectors
+check_exit_code $?
+
+echo converting cp to sectors...
+./ftool btap2bin bdos/cp.btap bdos/cp.sectors
+check_exit_code $?
+
+echo converting hello world to sectors...
+./ftool btap2bin bdos/helloworld.btap bdos/helloworld.sectors
+check_exit_code $?
+
+echo converting format to sectors...
+./ftool btap2bin bdos/format.btap bdos/format.sectors
+check_exit_code $?
+
+echo converting rm to sectors...
+./ftool btap2bin bdos/rm.btap bdos/rm.sectors
+check_exit_code $?
+
 echo creating empty floppy disk
 ./ftool createbdd os.bdd
 check_exit_code $?
@@ -35,32 +55,19 @@ echo burning bdos shell to tracks 2-9
 ./ftool importsector bdos/bdos.sector os.bdd 2 0
 check_exit_code $?
 
-echo converting ls to sectors...
-./ftool btap2bin bdos/ls.btap bdos/ls.sectors
-check_exit_code $?
-
 echo burning ls
 ./ftool importsector bdos/ls.sectors os.bdd 10 0
-
-echo converting cp to sectors...
-./ftool btap2bin bdos/cp.btap bdos/cp.sectors
-check_exit_code $?
 
 echo burning cp
 ./ftool importsector bdos/cp.sectors os.bdd 18 0
 
-echo converting hello world to sectors...
-./ftool btap2bin bdos/helloworld.btap bdos/helloworld.sectors
-check_exit_code $?
-
 echo burning hello world program
 ./ftool importsector bdos/helloworld.sectors os.bdd 14 0
 
-echo converting format to sectors...
-./ftool btap2bin bdos/format.btap bdos/format.sectors
-check_exit_code $?
-
 echo burning format program
 ./ftool importsector bdos/format.sectors os.bdd 22 0
+
+echo burning rm program
+./ftool importsector bdos/rm.sectors os.bdd 28 0
 
 echo done!

@@ -450,6 +450,21 @@ class Bc8182:
     def get_reg(self, regno):
         reg = self.registers[regno]
         return reg.get()
+    
+    def print_cpu_stack(self):
+        cpustackstart = self.membus.size - 1;
+        cpuframe = self.membus.read_byte(cpustackstart - 1) * 256 + self.membus.read_byte(cpustackstart)
+        cpuframelimit = 64
+        framecount = 0
+        print("CPU stack:")
+        self.print_debug("CPU stack:")
+        while(cpuframe > 0 and framecount < cpuframelimit):
+            msg = "{0:04x} {1:04x}".format(cpustackstart, cpuframe)
+            print(msg)
+            self.print_debug(msg)
+            cpustackstart -= 2
+            framecount += 1
+            cpuframe = self.membus.read_byte(cpustackstart - 1) * 256 + self.membus.read_byte(cpustackstart) 
 
     def run_next_opcode(self):
         opcode = hi(self.nextbyte)
@@ -460,6 +475,7 @@ class Bc8182:
             mesg = 'exception at {0:04x}'.format(self.pc.get())
             print(mesg)
             self.print_debug(mesg)
+            self.print_cpu_stack()
             raise
         self.print_context()
 

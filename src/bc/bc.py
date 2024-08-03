@@ -6,6 +6,8 @@ from bc_ast import *
 from bc_grammar import program
 from parsy import ParseError, line_info_at
 
+sys.setrecursionlimit(2000)
+
 codeSegment = 0x1000
 heapSegment = 0x3000
 

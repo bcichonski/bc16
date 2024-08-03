@@ -548,7 +548,7 @@ byte bdio_fcat_checkattribs(word PfcatEntry, byte attribs)
     byte fcatattribs;
     fcatattribs <- peek8(PfcatEntry + BDIO_FCAT_ENTRYOFF_ATTRIBS);
 
-    return (fcatattribs & attribs);
+    return ((fcatattribs & attribs) = attribs);
 }
 
 byte bdio_fbinopen_internal(word Pfnameext, byte testattrib)
@@ -654,7 +654,7 @@ byte bdio_fbin_internal(byte fhandle, word Pmembuf, byte sectors, byte descMode)
             track <- tracksector >> 8;
             sector <- tracksector & 0xff;
 
-            if(currSeq & 0x0008)
+            if((currSeq & 0x07) = 0x07)
             {
                 puts(".");
             }

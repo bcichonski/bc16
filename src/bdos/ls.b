@@ -14,6 +14,47 @@
 #define MODE_HELP 0x10
 #define MODE_LS 0x20
 
+word getdriveletter(byte drive)
+{
+    word driveLetter;
+    driveLetter <- "?";
+    if(drive = BDIO_DRIVEA)
+    {
+        driveLetter <- "A";
+    }
+    else
+    {
+        if(drive = BDIO_DRIVEB) 
+        {
+            driveLetter <- "B";
+        }
+    }
+
+    return driveLetter;
+}
+
+word getdrive(word Pargs)
+{
+    word result;
+
+    if(strncmp(Pargs, "A:", 2) = STRCMP_EQ)
+    {
+        result <- BDIO_DRIVEA;
+    }
+    else
+    {
+        if(strncmp(Pargs, "B:", 2) = STRCMP_EQ)
+        {
+            result <- BDIO_DRIVEB;
+        }
+        else
+        {
+            result <- bdio_getdrive();
+        }
+    }
+    return result;
+}
+
 byte setAttrib(word Pstring, byte fcatAttribs, byte attrib, byte char)
 {
     if((fcatAttribs & attrib) = attrib)
@@ -80,12 +121,28 @@ byte listCatalogItem(word Pitem, byte showall)
     return res;
 }
 
-byte listCatalog(byte showall)
+byte changeDriveIfNeeded(byte currentDrive, byte targetDrive, byte silent)
+{
+    if(currentDrive != targetDrive)
+    {
+        bdio_setdrive(targetDrive, silent);
+        currentDrive <- targetDrive;
+    }
+    return currentDrive;
+}
+
+byte listCatalog(byte showall, byte targetdrive)
 {
     word fHandle;
     byte sectRead;
     word Pcurrent;
     byte res;
+    byte currentdrive;
+    byte activedrive;
+
+    printf("listing files of drive %s:%n", getdriveletter(targetdrive));
+    activedrive <- bdio_getdrive();
+    currentdrive <- changeDriveIfNeeded(activedrive, targetdrive, FALSE);
 
     fHandle <- bdio_fbinopenr("DISC    CAT");
     res <- TRUE;
@@ -115,6 +172,23 @@ byte listCatalog(byte showall)
     {
         bdio_printexecres(fHandle);
     }
+
+    byte freeTrack;
+    byte freeSector;
+    byte freeEntry;
+    word freeSectors;
+    byte freeEntries;
+
+    freeTrack <- peek8(BDIO_VAR_FCAT_FREETRACK);
+    freeSector <- peek8(BDIO_VAR_FCAT_FREESECT);
+    freeEntry <- peek8(BDIO_VAR_FCAT_FREEENTRY);
+
+    freeSectors <- (FDD_TRACKS - freeTrack) * FDD_SECTORS + freeSector;
+    freeEntries <- BDIO_FCAT_LASTENTRY - freeEntry;
+
+    printf("%x catalog entries free; %w sectors free...%n", freeEntries, freeSectors);
+
+    changeDriveIfNeeded(currentdrive, activedrive, FALSE);
 }
 
 byte main()
@@ -126,7 +200,7 @@ byte main()
     upstring(BDIO_CMDPROMPTADDR);
     Pargs <- strnextword(BDIO_CMDPROMPTADDR);
 
-    if(strncmp(Pargs, "-H", 3) = STRCMP_EQ)
+    if(strncmp(Pargs, "-H", 2) = STRCMP_EQ)
     {
         printf("%s%n%s%n%s%n",
             "lists files",
@@ -135,11 +209,15 @@ byte main()
     }
     else
     {
-        if(strncmp(Pargs, "-A", 3) = STRCMP_EQ)
+        if(strncmp(Pargs, "-A", 2) = STRCMP_EQ)
         {
             showall <- TRUE;
+            Pargs <- Pargs + 3;
         }
 
-        listCatalog(showall);
+        byte targetdrive;
+        targetdrive <- getdrive(Pargs);
+
+        listCatalog(showall, targetdrive);
     }
 }

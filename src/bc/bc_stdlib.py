@@ -594,17 +594,24 @@ mfill_ret:  pop a
 ;      csci = desc + length + 1
 mem_cpy:    psh f
             psh a
-mem_cpy_lop:psh cs
-            psh ci
-            mov a, cs
-            or ci
+mem_cpy_lop:pop a
+            pop f
+            psh f
+            psh a
+            or f
             jmr z, :mem_cpy_end
+            psh cs
+            psh ci
             mov a, #dsdi
             psh a
             cal :inc16
             pop a
             mov cs, ds
             mov ci, di
+            psh a
+            cal :printhex16
+            cal :print_newline
+            pop a
             pop di
             pop ds
             psh cs
@@ -613,6 +620,10 @@ mem_cpy_lop:psh cs
             cal :inc16
             mov cs, ds
             mov ci, di
+            psh a
+            cal :printhex16
+            cal :print_newline
+            pop a
             pop di
             pop ds
             pop a
@@ -624,17 +635,26 @@ mem_cpy_lop:psh cs
             pop ds
             pop di
             cal :dec16
+            psh cs
+            psh ci
+            mov cs, ds
+            mov ci, di
+            cal :printhex16
+            cal :print_newline
+            cal :print_newline
             psh ds
             psh di
             pop f
             pop a
+            pop ci
+            pop cs
+            pop di
+            pop ds
             psh f
             psh a
             xor a
             jmr z, :mem_cpy_lop
-mem_cpy_end:pop ci
-            pop cs
-            pop a
+mem_cpy_end:pop a
             pop f
             ret
 ;=============
