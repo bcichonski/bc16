@@ -600,56 +600,29 @@ mem_cpy_lop:pop a
             psh a
             or f
             jmr z, :mem_cpy_end
-            psh cs
-            psh ci
             mov a, #dsdi
             psh a
             cal :inc16
             pop a
-            mov cs, ds
-            mov ci, di
-            psh a
-            cal :printhex16
-            cal :print_newline
-            pop a
-            pop di
-            pop ds
-            psh cs
-            psh ci
+            psh ds
+            psh di
+            mov ds, cs
+            mov di, ci
             mov #dsdi, a
             cal :inc16
             mov cs, ds
             mov ci, di
-            psh a
-            cal :printhex16
-            cal :print_newline
-            pop a
-            pop di
-            pop ds
-            pop a
             pop f
-            psh ds
-            psh di
+            pop a
+            pop ds
+            pop di
             psh f
             psh a
-            pop ds
-            pop di
             cal :dec16
-            psh cs
-            psh ci
-            mov cs, ds
-            mov ci, di
-            cal :printhex16
-            cal :print_newline
-            cal :print_newline
-            psh ds
-            psh di
-            pop f
-            pop a
-            pop ci
-            pop cs
-            pop di
+            mov a, ds
+            mov f, di
             pop ds
+            pop di
             psh f
             psh a
             xor a

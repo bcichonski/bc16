@@ -13,6 +13,7 @@ byte main()
     //word a;
     putsnl("fill");
     mfill(0x7700, 0xff, 0xab);
+    mfill(0x7900, 0xff, 0xcd);
 
     putsnl("memcopy");
     memcpy(0x7700, 0x7900, 0x000f);
