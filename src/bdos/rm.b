@@ -178,7 +178,7 @@ byte remove(byte sourcedrive, word Psourcefileext, byte options)
     }
 
     poke8(BDIO_VAR_ACTIVEDRV, 0xff);//force cat refresh
-    bdio_setdrive(BDIO_DRIVEA, FALSE);
+    bdio_setdrive(activeDrive, FALSE);
 }
 
 byte fnormalize(word Pfilenameext, word Pbdiofilename)
