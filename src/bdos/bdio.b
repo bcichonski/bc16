@@ -205,7 +205,7 @@ byte bdio_fcat_scanmem(word PsectorBuf)
             currtrack <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_STARTTRACK);
             currsector <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_STARTSECTOR);
 
-            currfreetracksector <- bdio_tracksector_add(currtrack, currsector, currsectlen + 1);
+            currfreetracksector <- bdio_tracksector_add(currtrack, currsector, currsectlen);
 
             if (freetracksector < currfreetracksector)
             {

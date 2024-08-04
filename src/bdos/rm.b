@@ -77,35 +77,37 @@ byte remove(byte sourcedrive, word Psourcefileext, byte options)
     byte fcatsector;
     byte fcatLastEntryNo;
     byte fcatsectors;
+    byte fcattrack2;
+    byte fcatsector2;
 
-    printf("removing %s:%s with options %x...%n", getdriveletter(sourcedrive), Psourcefileext, options);
-
+    //printf("removing %s:%s with options %x...%n", getdriveletter(sourcedrive), Psourcefileext, options);
     activeDrive <- bdio_getdrive();
     currentDrive <- changeDriveIfNeeded(activeDrive, sourcedrive, FALSE);
 
     fHandleIn <- bdio_fbinopenr(Psourcefileext);
     if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
     {
-        putsnl("a");
+        Pfcatentry <- #(BDIO_VAR_FCAT_PLASTFOUND);
         fAttribsIn <- peek8(Pfcatentry + BDIO_FCAT_ENTRYOFF_ATTRIBS);
+        
         if((options != MODE_FORCE) && (fAttribsIn & BDIO_FILE_ATTRIB_SYSTEM))
         {
             putsnl("error: cannot remove system file");
         }
         else
         {
-            putsnl("b");
             fcatLastEntryNo <- peek8(BDIO_VAR_FCAT_FREEENTRY) - 1;
             fcatsector <- fcatLastEntryNo >> 3;
             tracksector <- bdio_tracksector_add(BDIO_FCAT_STARTTRACK, BDIO_FCAT_STARTSECTOR, fcatsector);
             fcattrack <- tracksector >> 8;
             fcatsector <- tracksector & 0xff;
+            fcattrack2 <- peek8(BDIO_VAR_FCAT_SCAN_TRACK);
+            fcatsector2 <- peek8(BDIO_VAR_FCAT_SCAN_SECT);
 
             result <- bdio_readsect(fcattrack, fcatsector, FCATBUF_ADDR);
 
             if(result = FDD_RESULT_OK)
             {
-                putsnl("c");
                 Pfcatentry <- (fcatLastEntryNo & 0x07) << 4;
                 Pfcatentry <- FCATBUF_ADDR + Pfcatentry;
 
@@ -113,22 +115,38 @@ byte remove(byte sourcedrive, word Psourcefileext, byte options)
                 memcpy(Pfcatentry + 1, FCAT_COPY_ADDR, BDIO_FCAT_ENTRY_LENGTH - 1);
                 poke8(Pfcatentry + BDIO_FCAT_ENTRYOFF_SECTLEN, 0x00);
 
-                result <- bdio_writesect(fcattrack, fcatsector, FCATBUF_ADDR);
-
-                Pfcatentry <- #(BDIO_VAR_FCAT_PLASTFOUND);
-                fcattrack <- peek8(BDIO_VAR_FCAT_SCAN_TRACK);
-                fcatsector <- peek8(BDIO_VAR_FCAT_SCAN_SECT);
-            
-                bdio_fclose(fHandleIn);
-
-                if(result = FDD_RESULT_OK)
+                if ((fcatsector = fcatsector2) && (fcattrack = fcattrack2))
                 {
-                    putsnl("d");
-                    memcpy(FCAT_COPY_ADDR, Pfcatentry + 1, BDIO_FCAT_ENTRY_LENGTH - 1);                 
+                    Pfcatentry <- #(BDIO_VAR_FCAT_PLASTFOUND);
+                    result <- peek8(Pfcatentry + BDIO_FCAT_ENTRYOFF_NUMBER);
+                    Pfcatentry <- (result & 0x07) << 4;
+                    Pfcatentry <- FCATBUF_ADDR + Pfcatentry;
 
-                    result <- bdio_writesect(fcattrack, fcatsector, BDIO_TAB_SCANSECTBUF);
+                    memcpy(FCAT_COPY_ADDR, Pfcatentry + 1, BDIO_FCAT_ENTRY_LENGTH - 1);
+
+                    result <- bdio_writesect(fcattrack, fcatsector, FCATBUF_ADDR);
 
                     if(result != FDD_RESULT_OK)
+                    {
+                        printf("error while saving fcat update: %x%n", result);
+                    }
+                }
+                else 
+                {
+                    result <- bdio_writesect(fcattrack, fcatsector, FCATBUF_ADDR);
+                    if(result = FDD_RESULT_OK)
+                    {
+                        Pfcatentry <- #(BDIO_VAR_FCAT_PLASTFOUND);
+                        memcpy(FCAT_COPY_ADDR, Pfcatentry + 1, BDIO_FCAT_ENTRY_LENGTH - 1);
+
+                        result <- bdio_writesect(fcattrack, fcatsector, BDIO_TAB_SCANSECTBUF);
+
+                        if(result != FDD_RESULT_OK)
+                        {
+                            printf("error while saving fcat update: %x%n", result);
+                        }
+                    }
+                    else
                     {
                         printf("error while saving fcat update: %x%n", result);
                     }
@@ -140,13 +158,16 @@ byte remove(byte sourcedrive, word Psourcefileext, byte options)
                 printf("error: %x%n", result);
             }    
         }  
+
+        bdio_fclose(fHandleIn);
     }
     else
     {
         bdio_printexecres(fHandleIn);
     }
 
-    currentDrive <- changeDriveIfNeeded(currentDrive, activeDrive, FALSE);
+    poke8(BDIO_VAR_ACTIVEDRV, 0xff);//force cat refresh
+    bdio_setdrive(BDIO_DRIVEA, FALSE);
 }
 
 byte fnormalize(word Pfilenameext, word Pbdiofilename)

@@ -373,6 +373,11 @@ byte format(byte sourcedrive, byte targetdrive, byte options)
                     Pfname <- "FORMAT  PRG";
                     result <- copy(sourcedrive, Pfname, targetdrive, Pfname);
                 }
+                if(!result)
+                {
+                    Pfname <- "RM      PRG";
+                    result <- copy(sourcedrive, Pfname, targetdrive, Pfname);
+                }
             }
         }
         else
