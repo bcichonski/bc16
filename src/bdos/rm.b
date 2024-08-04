@@ -75,6 +75,7 @@ byte remove(byte sourcedrive, word Psourcefileext, byte options)
     word tracksector;
     byte fcattrack;
     byte fcatsector;
+    byte fcatentryno;
     byte fcatLastEntryNo;
     byte fcatsectors;
     byte fcattrack2;
@@ -88,8 +89,11 @@ byte remove(byte sourcedrive, word Psourcefileext, byte options)
     if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
     {
         Pfcatentry <- #(BDIO_VAR_FCAT_PLASTFOUND);
+        fcatentryno <- peek8(Pfcatentry + BDIO_FCAT_ENTRYOFF_NUMBER);
         fAttribsIn <- peek8(Pfcatentry + BDIO_FCAT_ENTRYOFF_ATTRIBS);
-        
+        fcattrack2 <- peek8(BDIO_VAR_FCAT_SCAN_TRACK);
+        fcatsector2 <- peek8(BDIO_VAR_FCAT_SCAN_SECT);
+
         if((options != MODE_FORCE) && (fAttribsIn & BDIO_FILE_ATTRIB_SYSTEM))
         {
             putsnl("error: cannot remove system file");
@@ -97,61 +101,68 @@ byte remove(byte sourcedrive, word Psourcefileext, byte options)
         else
         {
             fcatLastEntryNo <- peek8(BDIO_VAR_FCAT_FREEENTRY) - 1;
-            fcatsector <- fcatLastEntryNo >> 3;
-            tracksector <- bdio_tracksector_add(BDIO_FCAT_STARTTRACK, BDIO_FCAT_STARTSECTOR, fcatsector);
-            fcattrack <- tracksector >> 8;
-            fcatsector <- tracksector & 0xff;
-            fcattrack2 <- peek8(BDIO_VAR_FCAT_SCAN_TRACK);
-            fcatsector2 <- peek8(BDIO_VAR_FCAT_SCAN_SECT);
-
-            result <- bdio_readsect(fcattrack, fcatsector, FCATBUF_ADDR);
-
-            if(result = FDD_RESULT_OK)
+            if(fcatentryno = fcatLastEntryNo)
             {
-                Pfcatentry <- (fcatLastEntryNo & 0x07) << 4;
-                Pfcatentry <- FCATBUF_ADDR + Pfcatentry;
-
-                //copy fcat record without fno to temp buf
-                memcpy(Pfcatentry + 1, FCAT_COPY_ADDR, BDIO_FCAT_ENTRY_LENGTH - 1);
                 poke8(Pfcatentry + BDIO_FCAT_ENTRYOFF_SECTLEN, 0x00);
+                result <- bdio_writesect(fcattrack2, fcatsector2, BDIO_TAB_SCANSECTBUF);
+            }
+            else 
+            {
+                fcatsector <- fcatLastEntryNo >> 3;
+                tracksector <- bdio_tracksector_add(BDIO_FCAT_STARTTRACK, BDIO_FCAT_STARTSECTOR, fcatsector);
+                fcattrack <- tracksector >> 8;
+                fcatsector <- tracksector & 0xff;
 
-                if ((fcatsector = fcatsector2) && (fcattrack = fcattrack2))
+                result <- bdio_readsect(fcattrack, fcatsector, FCATBUF_ADDR);
+
+                if(result = FDD_RESULT_OK)
                 {
-                    Pfcatentry <- #(BDIO_VAR_FCAT_PLASTFOUND);
-                    result <- peek8(Pfcatentry + BDIO_FCAT_ENTRYOFF_NUMBER);
-                    Pfcatentry <- (result & 0x07) << 4;
+                    Pfcatentry <- (fcatLastEntryNo & 0x07) << 4;
                     Pfcatentry <- FCATBUF_ADDR + Pfcatentry;
 
-                    memcpy(FCAT_COPY_ADDR, Pfcatentry + 1, BDIO_FCAT_ENTRY_LENGTH - 1);
+                    //copy fcat record without fno to temp buf
+                    memcpy(Pfcatentry + 1, FCAT_COPY_ADDR, BDIO_FCAT_ENTRY_LENGTH - 1);
+                    poke8(Pfcatentry + BDIO_FCAT_ENTRYOFF_SECTLEN, 0x00);
 
-                    result <- bdio_writesect(fcattrack, fcatsector, FCATBUF_ADDR);
-
-                    if(result != FDD_RESULT_OK)
-                    {
-                        printf("error while saving fcat update: %x%n", result);
-                    }
-                }
-                else 
-                {
-                    result <- bdio_writesect(fcattrack, fcatsector, FCATBUF_ADDR);
-                    if(result = FDD_RESULT_OK)
+                    if ((fcatsector = fcatsector2) && (fcattrack = fcattrack2))
                     {
                         Pfcatentry <- #(BDIO_VAR_FCAT_PLASTFOUND);
+                        result <- peek8(Pfcatentry + BDIO_FCAT_ENTRYOFF_NUMBER);
+                        Pfcatentry <- (result & 0x07) << 4;
+                        Pfcatentry <- FCATBUF_ADDR + Pfcatentry;
+
                         memcpy(FCAT_COPY_ADDR, Pfcatentry + 1, BDIO_FCAT_ENTRY_LENGTH - 1);
 
-                        result <- bdio_writesect(fcattrack, fcatsector, BDIO_TAB_SCANSECTBUF);
+                        result <- bdio_writesect(fcattrack, fcatsector, FCATBUF_ADDR);
 
                         if(result != FDD_RESULT_OK)
                         {
                             printf("error while saving fcat update: %x%n", result);
                         }
                     }
-                    else
+                    else 
                     {
-                        printf("error while saving fcat update: %x%n", result);
+                        result <- bdio_writesect(fcattrack, fcatsector, FCATBUF_ADDR);
+                        if(result = FDD_RESULT_OK)
+                        {
+                            Pfcatentry <- #(BDIO_VAR_FCAT_PLASTFOUND);
+                            memcpy(FCAT_COPY_ADDR, Pfcatentry + 1, BDIO_FCAT_ENTRY_LENGTH - 1);
+
+                            result <- bdio_writesect(fcattrack2, fcatsector2, BDIO_TAB_SCANSECTBUF);
+
+                            if(result != FDD_RESULT_OK)
+                            {
+                                printf("error while saving fcat update: %x%n", result);
+                            }
+                        }
+                        else
+                        {
+                            printf("error while saving fcat update: %x%n", result);
+                        }
                     }
                 }
             }
+            
 
             if(result != FDD_RESULT_OK)
             {
