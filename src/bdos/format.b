@@ -378,6 +378,16 @@ byte format(byte sourcedrive, byte targetdrive, byte options)
                     Pfname <- "RM      PRG";
                     result <- copy(sourcedrive, Pfname, targetdrive, Pfname);
                 }
+                if(!result)
+                {
+                    Pfname <- "CHA     PRG";
+                    result <- copy(sourcedrive, Pfname, targetdrive, Pfname);
+                }
+                if(!result)
+                {
+                    Pfname <- "CAT     PRG";
+                    result <- copy(sourcedrive, Pfname, targetdrive, Pfname);
+                }
             }
         }
         else
