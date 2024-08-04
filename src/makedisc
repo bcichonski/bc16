@@ -43,6 +43,11 @@ echo converting cha to sectors...
 ./ftool btap2bin bdos/cha.btap bdos/cha.sectors
 check_exit_code $?
 
+echo converting cat to sectors...
+./ftool btap2bin bdos/cat.btap bdos/cat.sectors
+check_exit_code $?
+
+
 echo creating empty floppy disk
 ./ftool createbdd os.bdd
 check_exit_code $?
@@ -76,5 +81,8 @@ echo burning rm program
 
 echo burning cha program
 ./ftool importsector bdos/cha.sectors os.bdd 34 0
+
+echo burning cat program
+./ftool importsector bdos/cat.sectors os.bdd 38 0
 
 echo done!

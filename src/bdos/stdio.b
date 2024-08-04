@@ -18,6 +18,14 @@ byte putb(byte value)
     asm "cal :printhex8";
 }
 
+byte putc(byte char)
+{
+    char;
+    asm "mov cs, 0x01";
+    asm "mov ci, a";
+    asm "out #cs, a";
+}
+
 byte putw(word value)
 {
     value;

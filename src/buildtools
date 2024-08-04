@@ -34,4 +34,8 @@ echo building cha...
 ./bcc ./bdos/cha
 check_exit_code $?
 
+echo building cat...
+./bcc ./bdos/cat
+check_exit_code $?
+
 echo done!

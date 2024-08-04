@@ -93,7 +93,6 @@ bcos 0x57: bdio_call() - allows to call every bdio subroutine from user program 
 bdos uses too much memory, its 0f00..4000 already and growing this means file catalog is moved too 
 
 # roadmap
-- add cat
 - release os disc with files realigned by cp
 - release bc32
 - start working on a new model bc64 with increased ram
