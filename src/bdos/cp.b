@@ -52,7 +52,9 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
     byte fAttribsIn;
     byte result;
     word Pfcatentry;
+    byte nowritemask;
 
+    nowritemask <- BDIO_FILE_ATTRIB_EXEC | BDIO_FILE_ATTRIB_SYSTEM | BDIO_FILE_ATTRIB_READ;
     currentDrive <- bdio_getdrive();
     currentDrive <- changeDriveIfNeeded(currentDrive, sourcedrive, FALSE);
 
@@ -94,6 +96,9 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
 
                 currentDrive <- changeDriveIfNeeded(currentDrive, targetdrive, TRUE);
                 bdio_fclose(fHandleOut);
+
+                fAttribsIn <- fAttribsIn & nowritemask;
+                bdio_fsetattr(Ptargetfileext, fAttribsIn);
             }
             else
             {
@@ -176,4 +181,6 @@ byte main()
 
         copy(sourcedrv, INFILEBDIONAME_ADDR, targetdrv, OUTFILEBDIONAME_ADDR);
     }
+
+    putnl();
 }

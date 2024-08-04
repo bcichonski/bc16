@@ -849,6 +849,8 @@ byte bdio_finternal(word Pfnameext, byte mode, byte attribs)
         if(PfcatEntry != BDIO_FNAME_NOTFOUND)
         {
             fhandle <- BDIO_FILE_SAVEERR;
+            fcattrack <- peek8(BDIO_VAR_FCAT_SCAN_TRACK);
+            fcatsector <- peek8(BDIO_VAR_FCAT_SCAN_SECT);
 
             if(mode = BDIO_FILE_INTERNALMODE_DELETE)
             {
@@ -862,7 +864,7 @@ byte bdio_finternal(word Pfnameext, byte mode, byte attribs)
                 }
             }
 
-            fddres <- bdio_iosec(FDD_CMD_WRITE, fcattrack, fcatsector, BDIO_TMP_SECTBUF);
+            fddres <- bdio_iosec(FDD_CMD_WRITE, fcattrack, fcatsector, BDIO_TAB_SCANSECTBUF);
 
             if(fddres = FDD_RESULT_OK)
             {
