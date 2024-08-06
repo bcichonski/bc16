@@ -1,0 +1,49 @@
+line layout
+
+label: mnemonic param[,params...];comment
+param can be:
+ - number as hex (only!)
+   - 8bit unsigned const
+   - 16bit unsigned const
+ - register
+ - address:
+   - as register pair
+   - as label
+ - string ' '
+
+program ::= line*
+line ::= (label_decl)? instruction
+label_decl ::= ident ':'
+instruction ::= mnemonic | directive
+mnemonic ::= NOP | MOV | CLC | JMP | JMR | PSH | POP | CAL | RET | IN | OUT | KIL
+directive ::= ORG | DB
+
+MOV ::= 'MOV' (mov_imm | mov_reg | mov_reg_mem | mov_mem_reg)
+CLC ::= INC | DEC | ADD | SUB | OR | XOR | SHL | SHR | NOT
+INC ::= 'INC' param_reg
+DEC ::= 'DEC' param_reg
+ADD ::= 'ADD' param_reg_or_imm8
+OR  ::= 'OR' param_reg_or_imm8
+XOR ::= 'XOR' param_reg_or_imm8
+SHL ::= 'SHL' param_imm8
+SHR ::= 'SHR' param_imm8
+NOT ::= 'NOT' param_reg
+
+ORG ::= 'ORG' param_imm16
+DB ::= 'DB' params
+DEF ::= 'DEF' param
+
+param_reg ::= 'PC' | 'SS' | 'SI' | 'F' | 'A' | 'CI' | 'CS' | 'DI' | 'DS'
+param_imm8 ::= '0x' hex hex
+param_imm16 ::= '0x' hex hex hex hex
+param_reg_or_imm8 ::= param_reg | param_imm8
+hex ::= dec | 'A' ... 'F'
+dec ::= '0' ... '9'
+char ::= ascii | '\'\''
+param_string ::= '\'' char* '\''
+param_label ::= ident
+params ::= param*
+param ::= param_imm8 | param_imm16 | param_string | param_label
+ident_start_char ::= 'A' ... 'Z' | '_'
+itent_char ::= ident_start_char | dec
+ident ::= itent_start_char ident_char*

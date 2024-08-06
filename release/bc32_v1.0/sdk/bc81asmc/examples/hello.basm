@@ -1,0 +1,9 @@
+                   .org 0x1000
+hello_start:       .mv dsdi, :hello_message
+;address of system subproc printstr
+                   mov cs, 0x03
+                   mov ci, 0x39
+                   cal csci
+                   ret
+hello_message:     .db 'Hello world!', 0x0a, 0x0d
+                   kil

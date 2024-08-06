@@ -67,7 +67,7 @@ key assumptions
 0x11: bdio_fbinopenw(Pfnameext) - opens a file handle for write (this is append only)
 0x12: bdio_fbinread(fhandle, Pmembuf, sectors) - reads given sectors of file to Pmembuf CS=fhandle, CI=sectors, DSDI = Pmembuf
 0x13: bdio_fbinwrite(fhandle, Pmembuf, sectors) - writes given memory to sectors
-0x14: bdio_fcreate(Pfnameext) - creates or truncates an existing file
+0x14: bdio_fcreate(Pfnameext, attrib) - creates new file with given attribs
 0x15: bdio_fclose(fhandle) - closes opened file handle
 0x16: bdio_fdelete(Pfnameext) - removes file from disk
 0x17: bdio_fsetattrib(Pfnameext, attrib) - sets file attributes
@@ -90,5 +90,14 @@ bcos 0x57: bdio_call() - allows to call every bdio subroutine from user program 
 [ST]..0x7fff   - cpu stack
 
 # problems
-bdos uses too much memory, its 0f00..4000 already and growing
-this means file catalog is moved too 
+bdos uses too much memory, its 0f00..4000 already and growing this means file catalog is moved too 
+
+# roadmap
+- start working on a new model bc64 with increased ram
+- bcos 1.2 (move from bcc stdlib)
+- bdos 1.1 (fcat with dates! and load addresses)
+- texted and game new versions
+- new discs (increase number of tracks and sectors 80 tracks by 32 sectors)
+- basm on bc64
+- bcc on bc64
+- networking?
