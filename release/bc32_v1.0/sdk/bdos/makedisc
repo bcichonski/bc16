@@ -1,0 +1,88 @@
+#!/bin/bash
+trap "exit 1" TERM
+export TOP_PID=$$
+
+check_exit_code()
+{
+    if [ $1 -ne 0 ]; then
+        echo "Error"
+        kill -s TERM $TOP_PID
+    fi
+}
+
+echo creating os disk...
+echo converting bootloader to sectors...
+./ftool btap2bin bdos/boot.btap bdos/boot.sector
+check_exit_code $?
+
+echo converting bdos to sectors...
+./ftool btap2bin bdos/bdos.btap bdos/bdos.sector
+check_exit_code $?
+
+echo converting ls to sectors...
+./ftool btap2bin bdos/ls.btap bdos/ls.sectors
+check_exit_code $?
+
+echo converting cp to sectors...
+./ftool btap2bin bdos/cp.btap bdos/cp.sectors
+check_exit_code $?
+
+echo converting hello world to sectors...
+./ftool btap2bin bdos/helloworld.btap bdos/helloworld.sectors
+check_exit_code $?
+
+echo converting format to sectors...
+./ftool btap2bin bdos/format.btap bdos/format.sectors
+check_exit_code $?
+
+echo converting rm to sectors...
+./ftool btap2bin bdos/rm.btap bdos/rm.sectors
+check_exit_code $?
+
+echo converting cha to sectors...
+./ftool btap2bin bdos/cha.btap bdos/cha.sectors
+check_exit_code $?
+
+echo converting cat to sectors...
+./ftool btap2bin bdos/cat.btap bdos/cat.sectors
+check_exit_code $?
+
+
+echo creating empty floppy disk
+./ftool createbdd os.bdd
+check_exit_code $?
+
+echo burning boot loader to track 0 sector 0
+./ftool importsector bdos/boot.sector os.bdd 0 0
+check_exit_code $?
+
+echo burning os disc file catalog
+./ftool importsector fcat0800.sector os.bdd 0 1
+check_exit_code $?
+
+echo burning bdos shell to tracks 2-9
+./ftool importsector bdos/bdos.sector os.bdd 2 0
+check_exit_code $?
+
+echo burning ls
+./ftool importsector bdos/ls.sectors os.bdd 10 0
+
+echo burning cp
+./ftool importsector bdos/cp.sectors os.bdd 18 0
+
+echo burning hello world program
+./ftool importsector bdos/helloworld.sectors os.bdd 14 0
+
+echo burning format program
+./ftool importsector bdos/format.sectors os.bdd 22 0
+
+echo burning rm program
+./ftool importsector bdos/rm.sectors os.bdd 28 0
+
+echo burning cha program
+./ftool importsector bdos/cha.sectors os.bdd 34 0
+
+echo burning cat program
+./ftool importsector bdos/cat.sectors os.bdd 38 0
+
+echo done!

@@ -1,0 +1,41 @@
+#!/bin/bash
+trap "exit 1" TERM
+export TOP_PID=$$
+
+check_exit_code()
+{
+    if [ $1 -ne 0 ]; then
+        echo "Error"
+        kill -s TERM $TOP_PID
+    fi
+}
+
+echo building hello world program...
+./bcc ./bdos/helloworld
+check_exit_code $?
+
+echo building ls...
+./bcc ./bdos/ls
+check_exit_code $?
+
+echo building cp...
+./bcc ./bdos/cp
+check_exit_code $?
+
+echo building format...
+./bcc ./bdos/format
+check_exit_code $?
+
+echo building rm...
+./bcc ./bdos/rm
+check_exit_code $?
+
+echo building cha...
+./bcc ./bdos/cha
+check_exit_code $?
+
+echo building cat...
+./bcc ./bdos/cat
+check_exit_code $?
+
+echo done!
