@@ -1,4 +1,59 @@
-I have always wanted to build 8bit computer, as i am to lazy to work with hardware, this is the closest thing to that.
+I always wanted to build 8bit computer, as i am to lazy to work with hardware, this is the closest thing to that. Ultimate goal is to have a language compilator working for it.
+
+# BC64
+## roadmap
+0. memory increased to 64kb
+1. cpu 16bit arithmetic and binary operations, long relative jumps? improved cpu stack frames
+2. related changes in basmc
+2. related changes and optimization in bcc (new optimization to drop unused code)
+2. bcos 1.2 (move from bcc stdlib, other improvements)
+3. bdos 1.1 (fcat with dates! and load addresses)
+4. texted and game new versions
+5. new discs (increase number of tracks and sectors 80 tracks by 32 sectors)
+6. basm on bc64
+7. bcc on bc64
+8. networking?
+
+## architectural notes
+### OS
+bcos v1.2
+ - some procedures from b compiler stdlib incorporated
+ - minor fixes
+
+bcos v1.1 
+ - some procedures from b compiler stdlib incorporated
+ - minor fixes
+ - still tape-only suport with for .btap files
+ - new code to recognize presence of floppy disk drive to boot their system
+
+bdos v1
+ - disk operation system
+   - micromode (the os itself just knows how to load and run executables)
+ - bfs file system
+   - only files
+   - but with some attributes
+
+bdos v2.0
+ - support for the clock
+ - fcat 2.0 extended to have file modification dates and program loading adresses and manifest
+   - still no directories
+   - still primitive allocation management
+
+### CPU
+microprocessor: bc8183 (cpu 16bit arithmetic and binary operations, long relative jumps? improved cpu stack frames)
+64kb address space
+16 in/out ports
+no interrupts
+one extension slot (basically allows a device to use memory directly)
+
+## memory
+memory: 64kb
+~6kb rom + 58kb ram but bdos takes additional 10kb leaving about 48kb free
+
+### peripherals
+same as BC32 plus
+  - double drive for single side 3" floppy disks that has 64 tracks of 16 sectors of 128 bytes = 128 KB
+  - planned monitor support later!
 
 # BC32
 ## roadmap
@@ -58,6 +113,7 @@ same as BC16 plus
 
   - uses direct memory access to read entire sector
   - double drive for single side 3" floppy disks that has 64 tracks of 16 sectors of 128 bytes = 128 KB
+
 
 # BC16
 ## architectural notes

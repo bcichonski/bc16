@@ -1,0 +1,5468 @@
+;
+                .org 0x5000
+;MAIN ENTRYPOINT
+;&STACKHEAD <- STACKHEAD + 2
+                .mv dsdi, :sys_stackhead
+                mov cs, 0x00
+                mov ci, 0x02
+                cal :add16
+                .mv dsdi, :sys_stackhead
+                cal :poke16
+;&HEAPHEAD <- 28672
+                .mv dsdi, :sys_heaphead
+                mov cs, 0x70
+                mov ci, 0x00
+                cal :poke16
+                cal :FMAIN00c9
+                ret
+;FUNCTIONS
+;FUNCTION peek8
+FPEEK80001:     nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                mov a, #csci
+                mov cs, 0x00
+                mov ci, a
+                ret
+;END OF FUNCTION peek8
+;FUNCTION peek16
+FPEEK160002:    nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+                ret
+;END OF FUNCTION peek16
+;FUNCTION poke8
+FPOKE80003:     nop
+                mov a, 0x02
+                cal :stackvar8gt8
+                mov a, ci
+                psh a
+                mov a, 0x00
+                cal :stackvar8gt16
+                pop a
+                mov #csci, a
+                ret
+;END OF FUNCTION poke8
+;FUNCTION poke16
+FPOKE160004:    nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                psh cs
+                psh ci
+                mov a, 0x02
+                cal :stackvar8gt16
+                pop di
+                pop ds
+                cal :poke16
+                ret
+;END OF FUNCTION poke16
+;FUNCTION parsedecw
+FPARSEDECW0005: nop
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x03
+            cal :stackvar8st16
+LABEL0006:      nop
+                mov a, 0x02
+                cal :stackvar8gt8
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0007
+                jmp z, csci
+    ;depth 2: STACKHEAD += 6
+                    mov a, 0x06
+                    cal :stackheadrll8
+                mov a, 0x86
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FPEEK80001
+    ;depth 1: STACKHEAD -= 6
+                    mov a, 0x86
+                    cal :stackheadrll8
+            mov a, 0x05
+            cal :stackvar8st8
+                mov a, 0x05
+                cal :stackvar8gt8
+                mov a, cs
+                or  ci
+                mov a, f
+                and 0x01
+                mov cs,0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0008
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x02
+            cal :stackvar8st8
+LABEL0008:      nop
+                mov a, 0x05
+                cal :stackvar8gt8
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0009
+                jmp z, csci
+                mov a, 0x05
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x30
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :sub16
+            mov a, 0x05
+            cal :stackvar8st8
+                mov a, 0x03
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x0a
+                cal :mul16
+                        psh cs
+                        psh ci
+                mov a, 0x05
+                cal :stackvar8gt8
+                        pop di
+                        pop ds
+                cal :add16
+            mov a, 0x03
+            cal :stackvar8st16
+LABEL0009:      nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x01
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x02
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :sub16
+            mov a, 0x02
+            cal :stackvar8st8
+                .mv csci, :LABEL0006
+                xor a
+                jmp z, csci
+LABEL0007:      nop
+                mov a, 0x03
+                cal :stackvar8gt16
+                ret
+                ret
+;END OF FUNCTION parsedecw
+;FUNCTION mfill
+FMFILL000a:     nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                psh cs
+                psh ci
+                mov a, 0x04
+                cal :stackvar8gt8
+                psh a
+                mov a, 0x02
+                cal :stackvar8gt16
+                pop a
+                pop di
+                pop ds
+                cal :mfill
+                ret
+;END OF FUNCTION mfill
+;FUNCTION mzero
+FMZERO000b:     nop
+    ;depth 2: STACKHEAD += 4
+                    mov a, 0x04
+                    cal :stackheadrll8
+                mov a, 0x84
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x02
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x04
+            cal :stackvar8st8
+                cal :FMFILL000a
+    ;depth 1: STACKHEAD -= 4
+                    mov a, 0x84
+                    cal :stackheadrll8
+                ret
+;END OF FUNCTION mzero
+;FUNCTION memcpy
+FMEMCPY000c:    nop
+                mov a, 0x04
+                cal :stackvar8gt16
+                psh cs
+                psh ci
+                mov a, 0x00
+                cal :stackvar8gt16
+                psh cs
+                psh ci
+                mov a, 0x02
+                cal :stackvar8gt16
+                pop di
+                pop ds
+                pop f
+                pop a
+                cal :mem_cpy
+                ret
+;END OF FUNCTION memcpy
+;FUNCTION putdigit
+FPUTDIGIT000d:  nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov a, ci
+                cal :printhex4
+                ret
+;END OF FUNCTION putdigit
+;FUNCTION putb
+FPUTB000e:      nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov a, ci
+                cal :printhex8
+                ret
+;END OF FUNCTION putb
+;FUNCTION putc
+FPUTC000f:      nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov cs, 0x01
+                mov ci, a
+                out #cs, a
+                ret
+;END OF FUNCTION putc
+;FUNCTION putw
+FPUTW0010:      nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                cal :printhex16
+                ret
+;END OF FUNCTION putw
+;FUNCTION putwnl
+FPUTWNL0011:    nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                cal :printhex16
+                cal :print_newline
+                ret
+;END OF FUNCTION putwnl
+;FUNCTION putnl
+FPUTNL0012:     nop
+                cal :print_newline
+                ret
+;END OF FUNCTION putnl
+;FUNCTION puts
+FPUTS0013:      nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                mov ds, cs
+                mov di, ci
+                cal :printstr
+                ret
+;END OF FUNCTION puts
+;FUNCTION putsnl
+FPUTSNL0014:    nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                mov ds, cs
+                mov di, ci
+                cal :printstr
+                cal :print_newline
+                ret
+;END OF FUNCTION putsnl
+;FUNCTION readsn
+FREADSN0015:    nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                psh cs
+                psh ci
+                mov a, 0x02
+                cal :stackvar8gt8
+                pop di
+                pop ds
+                cal :readstr
+                ret
+;END OF FUNCTION readsn
+;FUNCTION putdecw
+FPUTDECW0016:   nop
+                mov cs, 0x27
+                mov ci, 0x10
+            mov a, 0x03
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x05
+            cal :stackvar8st8
+LABEL0017:      nop
+                mov a, 0x03
+                cal :stackvar8gt16
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0018
+                jmp z, csci
+                mov a, 0x00
+                cal :stackvar8gt16
+                    psh cs
+                    psh ci
+                mov a, 0x03
+                cal :stackvar8gt16
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :div16
+            mov a, 0x02
+            cal :stackvar8st8
+                mov a, 0x00
+                cal :stackvar8gt16
+                    psh cs
+                    psh ci
+                mov a, 0x02
+                cal :stackvar8gt8
+                        psh cs
+                        psh ci
+                mov a, 0x03
+                cal :stackvar8gt16
+                        pop di
+                        pop ds
+                cal :mul16
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :sub16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x02
+                cal :stackvar8gt8
+                        psh cs
+                        psh ci
+                mov a, 0x03
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x01
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                        pop di
+                        pop ds
+                mov a, cs
+                and ds
+                mov cs, a
+                mov a, ci
+                and di
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0019
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x05
+            cal :stackvar8st8
+LABEL0019:      nop
+                mov a, 0x05
+                cal :stackvar8gt8
+                mov a, cs
+                or ci
+                .mv csci, :LABEL001a
+                jmp z, csci
+    ;depth 2: STACKHEAD += 6
+                    mov a, 0x06
+                    cal :stackheadrll8
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                cal :FPUTDIGIT000d
+    ;depth 1: STACKHEAD -= 6
+                    mov a, 0x86
+                    cal :stackheadrll8
+LABEL001a:      nop
+                mov a, 0x03
+                cal :stackvar8gt16
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x0a
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :div16
+            mov a, 0x03
+            cal :stackvar8st16
+                .mv csci, :LABEL0017
+                xor a
+                jmp z, csci
+LABEL0018:      nop
+                ret
+;END OF FUNCTION putdecw
+;FUNCTION putdecwnl
+FPUTDECWNL001b: nop
+    ;depth 2: STACKHEAD += 2
+                    mov a, 0x02
+                    cal :stackheadrll8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FPUTDECW0016
+    ;depth 1: STACKHEAD -= 2
+                    mov a, 0x82
+                    cal :stackheadrll8
+                cal :print_newline
+                ret
+;END OF FUNCTION putdecwnl
+;FUNCTION printf
+FPRINTF001c:    nop
+                mov a, 0x02
+                cal :stackvar8gt16
+                cal :inc16
+                mov cs, ds
+                mov ci, di
+                .mv dsdi, :sys_stdprntf
+                cal :poke16
+LABEL001d:      nop
+                mov a, 0x02
+                cal :stackvar8gt16
+                mov a, cs
+                or ci
+                .mv csci, :LABEL001e
+                jmp z, csci
+                mov a, 0x02
+                cal :stackvar8gt16
+                mov a, #csci
+                psh a
+                .mv csci, :stdprntf_end
+                jmp z, csci
+                mov ci, 0x25
+                sub ci
+                jmr z, :stdprntf_frmt
+                pop a
+                mov cs, 0x01
+                out #cs, a
+                .mv csci, :stdprntf_next
+                xor a
+                jmp z, csci
+                stdprntf_frmt: pop a
+                mov a, 0x02
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x01
+                cal :add16
+            mov a, 0x02
+            cal :stackvar8st16
+                mov a, #csci
+                psh a
+                mov ci, 0x25
+                sub ci
+                jmr nz, :stdprntf_nprc
+                pop a
+                mov cs, 0x01
+                out #cs, a
+                .mv csci, :stdprntf_next
+                xor a
+                jmp z, csci
+                stdprntf_nprc: nop
+                mov cs, 0x00
+                mov ci, 0x6e
+                pop a
+                psh a
+                sub ci
+                jmr nz, :stdprntf_nnwl
+                cal :print_newline
+                .mv csci, :stdprntf_nxtf
+                xor a
+                jmp z, csci
+                stdprntf_nnwl: nop
+                mov cs, 0x00
+                mov ci, 0x78
+                pop a
+                psh a
+                sub ci
+                jmr nz, :stdprntf_nh8
+                .mv dsdi, :sys_stdprntf
+                cal :peek16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+                psh ci
+                cal :inc16
+                mov cs, ds
+                mov ci, di
+                .mv dsdi, :sys_stdprntf
+                cal :poke16
+                pop a
+                cal :printhex8
+                .mv csci, :stdprntf_nxtf
+                xor a
+                jmp z, csci
+                stdprntf_nh8: nop
+                mov cs, 0x00
+                mov ci, 0x77
+                pop a
+                psh a
+                sub ci
+                jmr nz, :stdprntf_nh16
+                .mv dsdi, :sys_stdprntf
+                cal :peek16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+                psh ci
+                psh cs
+                cal :inc16
+                mov cs, ds
+                mov ci, di
+                .mv dsdi, :sys_stdprntf
+                cal :poke16
+                pop cs
+                pop ci
+                cal :printhex16
+                .mv csci, :stdprntf_nxtf
+                xor a
+                jmp z, csci
+                stdprntf_nh16: nop
+                mov cs, 0x00
+                mov ci, 0x73
+                pop a
+                psh a
+                sub ci
+                jmr nz, :stdprntf_nxtf
+                .mv dsdi, :sys_stdprntf
+                cal :peek16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+                psh ci
+                psh cs
+                cal :inc16
+                mov cs, ds
+                mov ci, di
+                .mv dsdi, :sys_stdprntf
+                cal :poke16
+                pop ds
+                pop di
+                cal :printstr
+                stdprntf_nxtf: pop a
+                xor a
+                jmr z, :stdprntf_next
+                stdprntf_end: pop a
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st16
+                xor a
+                jmr z, :stdprntf_cont
+                stdprntf_next: nop
+                mov a, 0x02
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x01
+                cal :add16
+            mov a, 0x02
+            cal :stackvar8st16
+                stdprntf_cont: nop
+                .mv csci, :LABEL001d
+                xor a
+                jmp z, csci
+LABEL001e:      nop
+                mov cs, 0x00
+                mov ci, 0x00
+                ret
+                ret
+;END OF FUNCTION printf
+;FUNCTION bdio_tracksector_add
+FBDIO_TRACK001f:nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                mov a, di
+                sub 0x08
+                jmr nn, :LABEL0020
+                mov a, 0x08
+                sub di
+                mov ds, a
+                mov a, ci
+                shr ds
+                mov ds, a
+                mov a, cs
+                shl di
+                or  ds
+                mov cs, a
+                mov a, ci
+                shl di
+                mov ci, a
+                xor a
+                jmr z, :LABEL0021
+LABEL0020:            mov ds, a
+                mov a, ci
+                shl ds
+                mov cs, a
+                mov ci, 0x00 
+LABEL0021:            nop
+                        psh cs
+                        psh ci
+                mov a, 0x01
+                cal :stackvar8gt8
+                        pop di
+                        pop ds
+                mov a, cs
+                or ds
+                mov cs, a
+                mov a, ci
+                or di
+                mov ci, a
+            mov a, 0x05
+            cal :stackvar8st16
+                mov a, 0x05
+                cal :stackvar8gt16
+                        psh cs
+                        psh ci
+                mov a, 0x02
+                cal :stackvar8gt8
+                        pop di
+                        pop ds
+                cal :add16
+            mov a, 0x05
+            cal :stackvar8st16
+                mov a, 0x05
+                cal :stackvar8gt16
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x04
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                mov a, di
+                sub 0x08
+                jmr nn, :LABEL0022 
+                mov a, 0x08
+                sub di
+                mov ds, a
+                mov a, cs
+                shl ds
+                mov ds, a
+                mov a, cs
+                shr di
+                mov cs, a
+                mov a, ci
+                shr di
+                or  ds
+                mov ci, a
+                xor a
+                jmr z, :LABEL0023
+LABEL0022:            mov ds, a
+                mov a, cs
+                shr ds
+                mov ci, a
+                mov cs, 0x00 
+LABEL0023:            nop
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x08
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                mov a, di
+                sub 0x08
+                jmr nn, :LABEL0024
+                mov a, 0x08
+                sub di
+                mov ds, a
+                mov a, ci
+                shr ds
+                mov ds, a
+                mov a, cs
+                shl di
+                or  ds
+                mov cs, a
+                mov a, ci
+                shl di
+                mov ci, a
+                xor a
+                jmr z, :LABEL0025
+LABEL0024:            mov ds, a
+                mov a, ci
+                shl ds
+                mov cs, a
+                mov ci, 0x00 
+LABEL0025:            nop
+            mov a, 0x03
+            cal :stackvar8st16
+                mov a, 0x03
+                cal :stackvar8gt16
+                        psh cs
+                        psh ci
+                mov a, 0x05
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x0f
+                mov a, cs
+                and ds
+                mov cs, a
+                mov a, ci
+                and di
+                mov ci, a
+                        pop di
+                        pop ds
+                mov a, cs
+                or ds
+                mov cs, a
+                mov a, ci
+                or di
+                mov ci, a
+            mov a, 0x03
+            cal :stackvar8st16
+                mov a, 0x03
+                cal :stackvar8gt16
+                ret
+                ret
+;END OF FUNCTION bdio_tracksector_add
+;FUNCTION bdio_printexecres
+FBDIO_PRINT0026:nop
+                .mv csci, :DATA0027
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0xe5
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0028
+                jmp z, csci
+                .mv csci, :DATA0029
+            mov a, 0x01
+            cal :stackvar8st16
+LABEL0028:      nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0xe3
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL002a
+                jmp z, csci
+                .mv csci, :DATA002b
+            mov a, 0x01
+            cal :stackvar8st16
+LABEL002a:      nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0xe0
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL002c
+                jmp z, csci
+                .mv csci, :DATA002d
+            mov a, 0x01
+            cal :stackvar8st16
+LABEL002c:      nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0xe7
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL002e
+                jmp z, csci
+                .mv csci, :DATA002f
+            mov a, 0x01
+            cal :stackvar8st16
+LABEL002e:      nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0xe8
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0030
+                jmp z, csci
+                .mv csci, :DATA0031
+            mov a, 0x01
+            cal :stackvar8st16
+LABEL0030:      nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0xe9
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0032
+                jmp z, csci
+                .mv csci, :DATA0033
+            mov a, 0x01
+            cal :stackvar8st16
+LABEL0032:      nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0xea
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0034
+                jmp z, csci
+                .mv csci, :DATA0035
+            mov a, 0x01
+            cal :stackvar8st16
+LABEL0034:      nop
+    ;depth 2: STACKHEAD += 3
+                    mov a, 0x03
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x03
+            mov a, 0x00
+            cal :stackvar8st16
+                .mv csci, :DATA0036
+            mov a, 0x02
+            cal :stackvar8st16
+                mov a, 0x83
+                cal :stackvar8gt8
+            mov a, 0x04
+            cal :stackvar8st16
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x06
+            cal :stackvar8st16
+                cal :FPRINTF001c
+    ;depth 1: STACKHEAD -= 3
+                    mov a, 0x83
+                    cal :stackheadrll8
+                ret
+;END OF FUNCTION bdio_printexecres
+;FUNCTION bdio_call
+FBDIO_CALL0037: nop
+                mov cs, 0x00
+                mov ci, 0x39
+                psh ci
+                mov a, 0x00
+                cal :stackvar8gt8
+                psh ci
+                mov a, 0x03
+                cal :stackvar8gt16
+                psh ci
+                psh cs
+                mov a, 0x01
+                cal :stackvar8gt16
+                pop ds
+                pop di
+                pop a
+                pop f
+                cal :os_metacall
+                ret
+;END OF FUNCTION bdio_call
+;FUNCTION bdio_setdrive
+FBDIO_SETDR0038:nop
+    ;depth 2: STACKHEAD += 2
+                    mov a, 0x02
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x02
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x08
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                mov a, di
+                sub 0x08
+                jmr nn, :LABEL0039
+                mov a, 0x08
+                sub di
+                mov ds, a
+                mov a, ci
+                shr ds
+                mov ds, a
+                mov a, cs
+                shl di
+                or  ds
+                mov cs, a
+                mov a, ci
+                shl di
+                mov ci, a
+                xor a
+                jmr z, :LABEL003a
+LABEL0039:            mov ds, a
+                mov a, ci
+                shl ds
+                mov cs, a
+                mov ci, 0x00 
+LABEL003a:            nop
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x81
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x08
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                mov a, di
+                sub 0x08
+                jmr nn, :LABEL003b
+                mov a, 0x08
+                sub di
+                mov ds, a
+                mov a, ci
+                shr ds
+                mov ds, a
+                mov a, cs
+                shl di
+                or  ds
+                mov cs, a
+                mov a, ci
+                shl di
+                mov ci, a
+                xor a
+                jmr z, :LABEL003c
+LABEL003b:            mov ds, a
+                mov a, ci
+                shl ds
+                mov cs, a
+                mov ci, 0x00 
+LABEL003c:            nop
+            mov a, 0x03
+            cal :stackvar8st16
+                cal :FBDIO_CALL0037
+    ;depth 1: STACKHEAD -= 2
+                    mov a, 0x82
+                    cal :stackheadrll8
+                ret
+                ret
+;END OF FUNCTION bdio_setdrive
+;FUNCTION bdio_getdrive
+FBDIO_GETDR003d:nop
+                mov cs, 0x00
+                mov ci, 0x03
+            mov a, 0x00
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x01
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x03
+            cal :stackvar8st16
+                cal :FBDIO_CALL0037
+                ret
+                ret
+;END OF FUNCTION bdio_getdrive
+;FUNCTION bdio_fbinopenr
+FBDIO_FBINO003e:nop
+    ;depth 2: STACKHEAD += 2
+                    mov a, 0x02
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x10
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x01
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x03
+            cal :stackvar8st16
+                cal :FBDIO_CALL0037
+    ;depth 1: STACKHEAD -= 2
+                    mov a, 0x82
+                    cal :stackheadrll8
+                ret
+                ret
+;END OF FUNCTION bdio_fbinopenr
+;FUNCTION bdio_fbinopenw
+FBDIO_FBINO003f:nop
+    ;depth 2: STACKHEAD += 2
+                    mov a, 0x02
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x11
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x01
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x03
+            cal :stackvar8st16
+                cal :FBDIO_CALL0037
+    ;depth 1: STACKHEAD -= 2
+                    mov a, 0x82
+                    cal :stackheadrll8
+                ret
+                ret
+;END OF FUNCTION bdio_fbinopenw
+;FUNCTION bdio_fbinread
+FBDIO_FBINR0040:nop
+    ;depth 2: STACKHEAD += 4
+                    mov a, 0x04
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x12
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x84
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x08
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                mov a, di
+                sub 0x08
+                jmr nn, :LABEL0041
+                mov a, 0x08
+                sub di
+                mov ds, a
+                mov a, ci
+                shr ds
+                mov ds, a
+                mov a, cs
+                shl di
+                or  ds
+                mov cs, a
+                mov a, ci
+                shl di
+                mov ci, a
+                xor a
+                jmr z, :LABEL0042
+LABEL0041:            mov ds, a
+                mov a, ci
+                shl ds
+                mov cs, a
+                mov ci, 0x00 
+LABEL0042:            nop
+                        psh cs
+                        psh ci
+                mov a, 0x81
+                cal :stackvar8gt8
+                        pop di
+                        pop ds
+                mov a, cs
+                or ds
+                mov cs, a
+                mov a, ci
+                or di
+                mov ci, a
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x83
+                cal :stackvar8gt16
+            mov a, 0x03
+            cal :stackvar8st16
+                cal :FBDIO_CALL0037
+    ;depth 1: STACKHEAD -= 4
+                    mov a, 0x84
+                    cal :stackheadrll8
+                ret
+                ret
+;END OF FUNCTION bdio_fbinread
+;FUNCTION bdio_fbinwrite
+FBDIO_FBINW0043:nop
+    ;depth 2: STACKHEAD += 4
+                    mov a, 0x04
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x13
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x84
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x08
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                mov a, di
+                sub 0x08
+                jmr nn, :LABEL0044
+                mov a, 0x08
+                sub di
+                mov ds, a
+                mov a, ci
+                shr ds
+                mov ds, a
+                mov a, cs
+                shl di
+                or  ds
+                mov cs, a
+                mov a, ci
+                shl di
+                mov ci, a
+                xor a
+                jmr z, :LABEL0045
+LABEL0044:            mov ds, a
+                mov a, ci
+                shl ds
+                mov cs, a
+                mov ci, 0x00 
+LABEL0045:            nop
+                        psh cs
+                        psh ci
+                mov a, 0x81
+                cal :stackvar8gt8
+                        pop di
+                        pop ds
+                mov a, cs
+                or ds
+                mov cs, a
+                mov a, ci
+                or di
+                mov ci, a
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x83
+                cal :stackvar8gt16
+            mov a, 0x03
+            cal :stackvar8st16
+                cal :FBDIO_CALL0037
+    ;depth 1: STACKHEAD -= 4
+                    mov a, 0x84
+                    cal :stackheadrll8
+                ret
+                ret
+;END OF FUNCTION bdio_fbinwrite
+;FUNCTION bdio_fclose
+FBDIO_FCLOS0046:nop
+    ;depth 2: STACKHEAD += 1
+                    mov a, 0x01
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x15
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x81
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x03
+            cal :stackvar8st16
+                cal :FBDIO_CALL0037
+    ;depth 1: STACKHEAD -= 1
+                    mov a, 0x81
+                    cal :stackheadrll8
+                ret
+                ret
+;END OF FUNCTION bdio_fclose
+;FUNCTION bdio_fcreate
+FBDIO_FCREA0047:nop
+    ;depth 2: STACKHEAD += 3
+                    mov a, 0x03
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x14
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x83
+                cal :stackvar8gt16
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x81
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x08
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                mov a, di
+                sub 0x08
+                jmr nn, :LABEL0048
+                mov a, 0x08
+                sub di
+                mov ds, a
+                mov a, ci
+                shr ds
+                mov ds, a
+                mov a, cs
+                shl di
+                or  ds
+                mov cs, a
+                mov a, ci
+                shl di
+                mov ci, a
+                xor a
+                jmr z, :LABEL0049
+LABEL0048:            mov ds, a
+                mov a, ci
+                shl ds
+                mov cs, a
+                mov ci, 0x00 
+LABEL0049:            nop
+            mov a, 0x03
+            cal :stackvar8st16
+                cal :FBDIO_CALL0037
+    ;depth 1: STACKHEAD -= 3
+                    mov a, 0x83
+                    cal :stackheadrll8
+                ret
+                ret
+;END OF FUNCTION bdio_fcreate
+;FUNCTION bdio_fdelete
+FBDIO_FDELE004a:nop
+    ;depth 2: STACKHEAD += 2
+                    mov a, 0x02
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x16
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x01
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x03
+            cal :stackvar8st16
+                cal :FBDIO_CALL0037
+    ;depth 1: STACKHEAD -= 2
+                    mov a, 0x82
+                    cal :stackheadrll8
+                ret
+                ret
+;END OF FUNCTION bdio_fdelete
+;FUNCTION bdio_fsetattr
+FBDIO_FSETA004b:nop
+    ;depth 2: STACKHEAD += 3
+                    mov a, 0x03
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x17
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x83
+                cal :stackvar8gt16
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x81
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x08
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                mov a, di
+                sub 0x08
+                jmr nn, :LABEL004c
+                mov a, 0x08
+                sub di
+                mov ds, a
+                mov a, ci
+                shr ds
+                mov ds, a
+                mov a, cs
+                shl di
+                or  ds
+                mov cs, a
+                mov a, ci
+                shl di
+                mov ci, a
+                xor a
+                jmr z, :LABEL004d
+LABEL004c:            mov ds, a
+                mov a, ci
+                shl ds
+                mov cs, a
+                mov ci, 0x00 
+LABEL004d:            nop
+            mov a, 0x03
+            cal :stackvar8st16
+                cal :FBDIO_CALL0037
+    ;depth 1: STACKHEAD -= 3
+                    mov a, 0x83
+                    cal :stackheadrll8
+                ret
+                ret
+;END OF FUNCTION bdio_fsetattr
+;FUNCTION bdio_readsect
+FBDIO_READS004e:nop
+    ;depth 2: STACKHEAD += 4
+                    mov a, 0x04
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x84
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x08
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                mov a, di
+                sub 0x08
+                jmr nn, :LABEL004f
+                mov a, 0x08
+                sub di
+                mov ds, a
+                mov a, ci
+                shr ds
+                mov ds, a
+                mov a, cs
+                shl di
+                or  ds
+                mov cs, a
+                mov a, ci
+                shl di
+                mov ci, a
+                xor a
+                jmr z, :LABEL0050
+LABEL004f:            mov ds, a
+                mov a, ci
+                shl ds
+                mov cs, a
+                mov ci, 0x00 
+LABEL0050:            nop
+                        psh cs
+                        psh ci
+                mov a, 0x83
+                cal :stackvar8gt8
+                        pop di
+                        pop ds
+                mov a, cs
+                or ds
+                mov cs, a
+                mov a, ci
+                or di
+                mov ci, a
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x03
+            cal :stackvar8st16
+                cal :FBDIO_CALL0037
+    ;depth 1: STACKHEAD -= 4
+                    mov a, 0x84
+                    cal :stackheadrll8
+                ret
+                ret
+;END OF FUNCTION bdio_readsect
+;FUNCTION bdio_writesect
+FBDIO_WRITE0051:nop
+    ;depth 2: STACKHEAD += 4
+                    mov a, 0x04
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x84
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x08
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                mov a, di
+                sub 0x08
+                jmr nn, :LABEL0052
+                mov a, 0x08
+                sub di
+                mov ds, a
+                mov a, ci
+                shr ds
+                mov ds, a
+                mov a, cs
+                shl di
+                or  ds
+                mov cs, a
+                mov a, ci
+                shl di
+                mov ci, a
+                xor a
+                jmr z, :LABEL0053
+LABEL0052:            mov ds, a
+                mov a, ci
+                shl ds
+                mov cs, a
+                mov ci, 0x00 
+LABEL0053:            nop
+                        psh cs
+                        psh ci
+                mov a, 0x83
+                cal :stackvar8gt8
+                        pop di
+                        pop ds
+                mov a, cs
+                or ds
+                mov cs, a
+                mov a, ci
+                or di
+                mov ci, a
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x03
+            cal :stackvar8st16
+                cal :FBDIO_CALL0037
+    ;depth 1: STACKHEAD -= 4
+                    mov a, 0x84
+                    cal :stackheadrll8
+                ret
+                ret
+;END OF FUNCTION bdio_writesect
+;FUNCTION strpeek8
+FSTRPEEK80054:  nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                mov a, #csci
+                mov cs, 0x00
+                mov ci, a
+                ret
+;END OF FUNCTION strpeek8
+;FUNCTION strpoke8
+FSTRPOKE80055:  nop
+                mov a, 0x02
+                cal :stackvar8gt8
+                mov a, ci
+                psh a
+                mov a, 0x00
+                cal :stackvar8gt16
+                pop a
+                mov #csci, a
+                ret
+;END OF FUNCTION strpoke8
+;FUNCTION strnextword
+FSTRNEXTWOR0056:nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                mov ds, cs
+                mov di, ci
+                cal :nextword
+                jmr nz,:strnnextw
+                mov ds, 0x00
+                mov di, 0x00
+                strnnextw: mov cs, ds
+                mov ci, di
+                ret
+;END OF FUNCTION strnextword
+;FUNCTION strnlen8
+FSTRNLEN80057:  nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                psh cs
+                psh ci
+                mov a, 0x02
+                cal :stackvar8gt8
+                mov cs, ci
+                pop di
+                pop ds
+                cal :str_len8
+                mov cs, 0x00
+                ret
+;END OF FUNCTION strnlen8
+;FUNCTION strcpy
+FSTRCPY0058:    nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                psh cs
+                psh ci
+                mov a, 0x02
+                cal :stackvar8gt16
+                pop di
+                pop ds
+                cal :str_cpy
+                ret
+;END OF FUNCTION strcpy
+;FUNCTION strncpy
+FSTRNCPY0059:   nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                psh cs
+                psh ci
+                mov a, 0x04
+                cal :stackvar8gt8
+                psh ci
+                mov a, 0x02
+                cal :stackvar8gt16
+                pop a
+                pop di
+                pop ds
+                cal :strncpy
+                ret
+;END OF FUNCTION strncpy
+;FUNCTION strncmp
+FSTRNCMP005a:   nop
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x06
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x0a
+            cal :stackvar8st16
+    ;depth 2: STACKHEAD += 12
+                    mov a, 0x0c
+                    cal :stackheadrll8
+                mov a, 0x8c
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FSTRPEEK80054
+    ;depth 1: STACKHEAD -= 12
+                    mov a, 0x8c
+                    cal :stackheadrll8
+            mov a, 0x07
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 12
+                    mov a, 0x0c
+                    cal :stackheadrll8
+                mov a, 0x8a
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FSTRPEEK80054
+    ;depth 1: STACKHEAD -= 12
+                    mov a, 0x8c
+                    cal :stackheadrll8
+            mov a, 0x08
+            cal :stackvar8st8
+                mov a, 0x07
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                        psh cs
+                        psh ci
+                mov a, 0x08
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                        pop di
+                        pop ds
+                mov a, cs
+                or ci
+                mov ci, f
+                mov a, ds
+                or di
+                mov a, f
+                or ci
+                not a
+                and 0x01
+                mov cs, 0x00
+                mov ci, a
+                        psh cs
+                        psh ci
+                mov a, 0x04
+                cal :stackvar8gt16
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x00
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                        pop di
+                        pop ds
+                mov a, cs
+                or ci
+                mov ci, f
+                mov a, ds
+                or di
+                mov a, f
+                or ci
+                not a
+                and 0x01
+                mov cs, 0x00
+                mov ci, a
+            mov a, 0x09
+            cal :stackvar8st8
+LABEL005b:      nop
+                mov a, 0x09
+                cal :stackvar8gt8
+                mov a, cs
+                or ci
+                .mv csci, :LABEL005c
+                jmp z, csci
+                mov a, 0x07
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov a, 0x08
+                cal :stackvar8gt8
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                    cal :gt16
+                    mov cs, 0x00
+                    mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL005d
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0xf0
+            mov a, 0x06
+            cal :stackvar8st8
+                xor a
+                .mv csci, :LABEL005e
+                jmp z, csci
+LABEL005d:      nop
+                mov a, 0x07
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov a, 0x08
+                cal :stackvar8gt8
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :gteq16
+                dec a
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL005f
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0x0f
+            mov a, 0x06
+            cal :stackvar8st8
+LABEL005f:      nop
+LABEL005e:      nop
+                mov a, 0x0a
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x01
+                cal :add16
+            mov a, 0x0a
+            cal :stackvar8st16
+                mov a, 0x00
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x01
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x02
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x01
+                cal :add16
+            mov a, 0x02
+            cal :stackvar8st16
+    ;depth 2: STACKHEAD += 12
+                    mov a, 0x0c
+                    cal :stackheadrll8
+                mov a, 0x8c
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FSTRPEEK80054
+    ;depth 1: STACKHEAD -= 12
+                    mov a, 0x8c
+                    cal :stackheadrll8
+            mov a, 0x07
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 12
+                    mov a, 0x0c
+                    cal :stackheadrll8
+                mov a, 0x8a
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FSTRPEEK80054
+    ;depth 1: STACKHEAD -= 12
+                    mov a, 0x8c
+                    cal :stackheadrll8
+            mov a, 0x08
+            cal :stackvar8st8
+                mov a, 0x06
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                        psh cs
+                        psh ci
+                mov a, 0x07
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                        pop di
+                        pop ds
+                mov a, cs
+                or ci
+                mov ci, f
+                mov a, ds
+                or di
+                mov a, f
+                or ci
+                not a
+                and 0x01
+                mov cs, 0x00
+                mov ci, a
+                        psh cs
+                        psh ci
+                mov a, 0x08
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                        pop di
+                        pop ds
+                mov a, cs
+                or ci
+                mov ci, f
+                mov a, ds
+                or di
+                mov a, f
+                or ci
+                not a
+                and 0x01
+                mov cs, 0x00
+                mov ci, a
+                        psh cs
+                        psh ci
+                mov a, 0x0a
+                cal :stackvar8gt16
+                    psh cs
+                    psh ci
+                mov a, 0x04
+                cal :stackvar8gt16
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :gteq16
+                dec a
+                mov cs, 0x00
+                mov ci, a
+                        pop di
+                        pop ds
+                mov a, cs
+                or ci
+                mov ci, f
+                mov a, ds
+                or di
+                mov a, f
+                or ci
+                not a
+                and 0x01
+                mov cs, 0x00
+                mov ci, a
+            mov a, 0x09
+            cal :stackvar8st8
+                .mv csci, :LABEL005b
+                xor a
+                jmp z, csci
+LABEL005c:      nop
+                mov a, 0x06
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                        psh cs
+                        psh ci
+                mov a, 0x0a
+                cal :stackvar8gt16
+                    psh cs
+                    psh ci
+                mov a, 0x04
+                cal :stackvar8gt16
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :gteq16
+                dec a
+                mov cs, 0x00
+                mov ci, a
+                        pop di
+                        pop ds
+                mov a, cs
+                or ci
+                mov ci, f
+                mov a, ds
+                or di
+                mov a, f
+                or ci
+                not a
+                and 0x01
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0060
+                jmp z, csci
+                mov a, 0x07
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0061
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0xf0
+            mov a, 0x06
+            cal :stackvar8st8
+                xor a
+                .mv csci, :LABEL0062
+                jmp z, csci
+LABEL0061:      nop
+                mov a, 0x08
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0063
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0x0f
+            mov a, 0x06
+            cal :stackvar8st8
+LABEL0063:      nop
+LABEL0062:      nop
+LABEL0060:      nop
+                mov a, 0x06
+                cal :stackvar8gt8
+                ret
+                ret
+;END OF FUNCTION strncmp
+;FUNCTION strnposc
+FSTRNPOSC0064:  nop
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x05
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x07
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x09
+            cal :stackvar8st8
+LABEL0065:      nop
+                mov a, 0x07
+                cal :stackvar8gt8
+                        psh cs
+                        psh ci
+                mov a, 0x05
+                cal :stackvar8gt16
+                    psh cs
+                    psh ci
+                mov a, 0x03
+                cal :stackvar8gt16
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :gteq16
+                dec a
+                mov cs, 0x00
+                mov ci, a
+                        pop di
+                        pop ds
+                mov a, cs
+                or ci
+                mov ci, f
+                mov a, ds
+                or di
+                mov a, f
+                or ci
+                not a
+                and 0x01
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0066
+                jmp z, csci
+    ;depth 2: STACKHEAD += 10
+                    mov a, 0x0a
+                    cal :stackheadrll8
+                mov a, 0x8a
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FSTRPEEK80054
+    ;depth 1: STACKHEAD -= 10
+                    mov a, 0x8a
+                    cal :stackheadrll8
+            mov a, 0x08
+            cal :stackvar8st8
+                mov a, 0x08
+                cal :stackvar8gt8
+                        psh cs
+                        psh ci
+                mov a, 0x02
+                cal :stackvar8gt8
+                        pop di
+                        pop ds
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0067
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x07
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x09
+            cal :stackvar8st8
+                xor a
+                .mv csci, :LABEL0068
+                jmp z, csci
+LABEL0067:      nop
+                mov a, 0x08
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0069
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x07
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x09
+            cal :stackvar8st8
+LABEL0069:      nop
+LABEL0068:      nop
+                mov a, 0x05
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x01
+                cal :add16
+            mov a, 0x05
+            cal :stackvar8st16
+                mov a, 0x00
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x01
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+                .mv csci, :LABEL0065
+                xor a
+                jmp z, csci
+LABEL0066:      nop
+                mov a, 0x09
+                cal :stackvar8gt8
+                mov a, cs
+                or ci
+                .mv csci, :LABEL006a
+                jmp z, csci
+                mov a, 0x05
+                cal :stackvar8gt16
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :sub16
+            mov a, 0x05
+            cal :stackvar8st16
+                xor a
+                .mv csci, :LABEL006b
+                jmp z, csci
+LABEL006a:      nop
+                mov cs, 0xff
+                mov ci, 0xff
+            mov a, 0x05
+            cal :stackvar8st16
+LABEL006b:      nop
+                mov a, 0x05
+                cal :stackvar8gt16
+                ret
+                ret
+;END OF FUNCTION strnposc
+;FUNCTION upchar
+FUPCHAR006c:    nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov a, ci
+                cal :upchar
+                mov cs, 0x00
+                mov ci, a
+                ret
+;END OF FUNCTION upchar
+;FUNCTION upstring
+FUPSTRING006d:  nop
+    ;depth 2: STACKHEAD += 4
+                    mov a, 0x04
+                    cal :stackheadrll8
+                mov a, 0x84
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FSTRPEEK80054
+    ;depth 1: STACKHEAD -= 4
+                    mov a, 0x84
+                    cal :stackheadrll8
+            mov a, 0x02
+            cal :stackvar8st8
+LABEL006e:      nop
+                mov a, 0x02
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                mov a, cs
+                or ci
+                .mv csci, :LABEL006f
+                jmp z, csci
+    ;depth 2: STACKHEAD += 4
+                    mov a, 0x04
+                    cal :stackheadrll8
+                mov a, 0x82
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                cal :FUPCHAR006c
+    ;depth 1: STACKHEAD -= 4
+                    mov a, 0x84
+                    cal :stackheadrll8
+            mov a, 0x03
+            cal :stackvar8st8
+                mov a, 0x03
+                cal :stackvar8gt8
+                        psh cs
+                        psh ci
+                mov a, 0x02
+                cal :stackvar8gt8
+                        pop di
+                        pop ds
+                    cal :eq16
+                    mov cs, 0x00
+                    dec a
+                    mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0070
+                jmp z, csci
+    ;depth 2: STACKHEAD += 4
+                    mov a, 0x04
+                    cal :stackheadrll8
+                mov a, 0x84
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x81
+                cal :stackvar8gt8
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FSTRPOKE80055
+    ;depth 1: STACKHEAD -= 4
+                    mov a, 0x84
+                    cal :stackheadrll8
+LABEL0070:      nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x01
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+    ;depth 2: STACKHEAD += 4
+                    mov a, 0x04
+                    cal :stackheadrll8
+                mov a, 0x84
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FSTRPEEK80054
+    ;depth 1: STACKHEAD -= 4
+                    mov a, 0x84
+                    cal :stackheadrll8
+            mov a, 0x02
+            cal :stackvar8st8
+                .mv csci, :LABEL006e
+                xor a
+                jmp z, csci
+LABEL006f:      nop
+                ret
+;END OF FUNCTION upstring
+;FUNCTION strnextword
+FSTRNEXTWOR0056:nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                mov ds, cs
+                mov di, ci
+                cal :nextword
+                mov cs, ds
+                mov ci, di
+                ret
+;END OF FUNCTION strnextword
+;FUNCTION getdriveletter
+FGETDRIVELE0071:nop
+                .mv csci, :DATA0072
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0073
+                jmp z, csci
+                .mv csci, :DATA0074
+            mov a, 0x01
+            cal :stackvar8st16
+                xor a
+                .mv csci, :LABEL0075
+                jmp z, csci
+LABEL0073:      nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x01
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0076
+                jmp z, csci
+                .mv csci, :DATA0077
+            mov a, 0x01
+            cal :stackvar8st16
+LABEL0076:      nop
+LABEL0075:      nop
+                mov a, 0x01
+                cal :stackvar8gt16
+                ret
+                ret
+;END OF FUNCTION getdriveletter
+;FUNCTION getdrive
+FGETDRIVE0078:  nop
+    ;depth 2: STACKHEAD += 4
+                    mov a, 0x04
+                    cal :stackheadrll8
+                mov a, 0x84
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                .mv csci, :DATA0079
+            mov a, 0x02
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x02
+            mov a, 0x04
+            cal :stackvar8st16
+                cal :FSTRNCMP005a
+    ;depth 1: STACKHEAD -= 4
+                    mov a, 0x84
+                    cal :stackheadrll8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL007a
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0x00
+                mov ds, 0x01
+                mov di, 0x00
+                mov a, cs
+                or ds
+                mov cs, a
+                mov a, ci
+                or di
+                mov ci, a
+            mov a, 0x02
+            cal :stackvar8st16
+                xor a
+                .mv csci, :LABEL007b
+                jmp z, csci
+LABEL007a:      nop
+    ;depth 2: STACKHEAD += 4
+                    mov a, 0x04
+                    cal :stackheadrll8
+                mov a, 0x84
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                .mv csci, :DATA007c
+            mov a, 0x02
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x02
+            mov a, 0x04
+            cal :stackvar8st16
+                cal :FSTRNCMP005a
+    ;depth 1: STACKHEAD -= 4
+                    mov a, 0x84
+                    cal :stackheadrll8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL007d
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0x01
+                mov ds, 0x01
+                mov di, 0x00
+                mov a, cs
+                or ds
+                mov cs, a
+                mov a, ci
+                or di
+                mov ci, a
+            mov a, 0x02
+            cal :stackvar8st16
+                xor a
+                .mv csci, :LABEL007e
+                jmp z, csci
+LABEL007d:      nop
+    ;depth 2: STACKHEAD += 4
+                    mov a, 0x04
+                    cal :stackheadrll8
+                cal :FBDIO_GETDR003d
+    ;depth 1: STACKHEAD -= 4
+                    mov a, 0x84
+                    cal :stackheadrll8
+            mov a, 0x02
+            cal :stackvar8st16
+LABEL007e:      nop
+LABEL007b:      nop
+                mov a, 0x02
+                cal :stackvar8gt16
+                ret
+                ret
+;END OF FUNCTION getdrive
+;FUNCTION changeDriveIfNeeded
+FCHANGEDRIV007f:nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                        psh cs
+                        psh ci
+                mov a, 0x01
+                cal :stackvar8gt8
+                        pop di
+                        pop ds
+                    cal :eq16
+                    mov cs, 0x00
+                    dec a
+                    mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0080
+                jmp z, csci
+    ;depth 2: STACKHEAD += 3
+                    mov a, 0x03
+                    cal :stackheadrll8
+                mov a, 0x82
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x81
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                cal :FBDIO_SETDR0038
+    ;depth 1: STACKHEAD -= 3
+                    mov a, 0x83
+                    cal :stackheadrll8
+                mov a, 0x01
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+LABEL0080:      nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                ret
+                ret
+;END OF FUNCTION changeDriveIfNeeded
+;FUNCTION copy
+FCOPY0081:      nop
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x05
+            mov a, 0x00
+            cal :stackvar8st16
+                .mv csci, :DATA0082
+            mov a, 0x02
+            cal :stackvar8st16
+    ;depth 3: STACKHEAD += 6
+                    mov a, 0x06
+                    cal :stackheadrll8
+                mov a, 0x95
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                cal :FGETDRIVELE0071
+    ;depth 2: STACKHEAD -= 6
+                    mov a, 0x86
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st16
+                mov a, 0x8e
+                cal :stackvar8gt16
+            mov a, 0x06
+            cal :stackvar8st16
+    ;depth 3: STACKHEAD += 10
+                    mov a, 0x0a
+                    cal :stackheadrll8
+                mov a, 0x96
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                cal :FGETDRIVELE0071
+    ;depth 2: STACKHEAD -= 10
+                    mov a, 0x8a
+                    cal :stackheadrll8
+            mov a, 0x08
+            cal :stackvar8st16
+                mov a, 0x8b
+                cal :stackvar8gt16
+            mov a, 0x0a
+            cal :stackvar8st16
+                cal :FPRINTF001c
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                cal :FBDIO_GETDR003d
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x06
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x89
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x8f
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FCHANGEDRIV007f
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x06
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x0b
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x04
+                mov ds, 0x00
+                mov di, 0x80
+                mov a, cs
+                or ds
+                mov cs, a
+                mov a, ci
+                or di
+                mov ci, a
+                mov ds, 0x00
+                mov di, 0x01
+                mov a, cs
+                or ds
+                mov cs, a
+                mov a, ci
+                or di
+                mov ci, a
+            mov a, 0x0e
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x8e
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FBDIO_FBINO003e
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x07
+            cal :stackvar8st8
+                mov a, 0x07
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0xe0
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :gteq16
+                dec a
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0083
+                jmp z, csci
+                mov cs, 0x4f
+                mov ci, 0x08
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+            mov a, 0x0c
+            cal :stackvar8st16
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x83
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x04
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FPEEK80001
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x0a
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x89
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x8c
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FCHANGEDRIV007f
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x06
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x8b
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x85
+                cal :stackvar8gt8
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FBDIO_FCREA0047
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x0b
+            cal :stackvar8st8
+                mov a, 0x0b
+                cal :stackvar8gt8
+                mov a, cs
+                or  ci
+                mov a, f
+                and 0x01
+                mov cs,0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0084
+                jmp z, csci
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x8b
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FBDIO_FBINO003f
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x08
+            cal :stackvar8st8
+                mov a, 0x08
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0xe0
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :gteq16
+                dec a
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0085
+                jmp z, csci
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x89
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x8f
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FCHANGEDRIV007f
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x06
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x88
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov cs, 0x7c
+                mov ci, 0x00
+            mov a, 0x01
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x02
+            mov a, 0x03
+            cal :stackvar8st8
+                cal :FBDIO_FBINR0040
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x09
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x0b
+            cal :stackvar8st8
+LABEL0086:      nop
+                mov a, 0x09
+                cal :stackvar8gt8
+                        psh cs
+                        psh ci
+                mov a, 0x0b
+                cal :stackvar8gt8
+                        pop di
+                        pop ds
+                mov a, cs
+                or ci
+                mov ci, f
+                mov a, ds
+                or di
+                mov a, f
+                or ci
+                not a
+                and 0x01
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0087
+                jmp z, csci
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x89
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x8c
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FCHANGEDRIV007f
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x06
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x87
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov cs, 0x7c
+                mov ci, 0x00
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x86
+                cal :stackvar8gt8
+            mov a, 0x03
+            cal :stackvar8st8
+                cal :FBDIO_FBINW0043
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x0b
+            cal :stackvar8st8
+                mov a, 0x0b
+                cal :stackvar8gt8
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0088
+                jmp z, csci
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x89
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x8f
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FCHANGEDRIV007f
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x06
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x88
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov cs, 0x7c
+                mov ci, 0x00
+            mov a, 0x01
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x02
+            mov a, 0x03
+            cal :stackvar8st8
+                cal :FBDIO_FBINR0040
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x09
+            cal :stackvar8st8
+                xor a
+                .mv csci, :LABEL0089
+                jmp z, csci
+LABEL0088:      nop
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x00
+            cal :stackvar8st16
+                .mv csci, :DATA008a
+            mov a, 0x02
+            cal :stackvar8st16
+                cal :FPRINTF001c
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+LABEL0089:      nop
+                .mv csci, :LABEL0086
+                xor a
+                jmp z, csci
+LABEL0087:      nop
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x89
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x8c
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FCHANGEDRIV007f
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x06
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x87
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                cal :FBDIO_FCLOS0046
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x8e
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x85
+                cal :stackvar8gt8
+                        psh cs
+                        psh ci
+                mov a, 0x81
+                cal :stackvar8gt8
+                        pop di
+                        pop ds
+                mov a, cs
+                and ds
+                mov cs, a
+                mov a, ci
+                and di
+                mov ci, a
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FBDIO_FSETA004b
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x0b
+            cal :stackvar8st8
+                xor a
+                .mv csci, :LABEL008b
+                jmp z, csci
+LABEL0085:      nop
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x87
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                cal :FBDIO_PRINT0026
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+LABEL008b:      nop
+                xor a
+                .mv csci, :LABEL008c
+                jmp z, csci
+LABEL0084:      nop
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                cal :FBDIO_PRINT0026
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+LABEL008c:      nop
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x89
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x8f
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FCHANGEDRIV007f
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+            mov a, 0x06
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x88
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                cal :FBDIO_FCLOS0046
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+                xor a
+                .mv csci, :LABEL008d
+                jmp z, csci
+LABEL0083:      nop
+    ;depth 2: STACKHEAD += 15
+                    mov a, 0x0f
+                    cal :stackheadrll8
+                mov a, 0x88
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                cal :FBDIO_PRINT0026
+    ;depth 1: STACKHEAD -= 15
+                    mov a, 0x8f
+                    cal :stackheadrll8
+LABEL008d:      nop
+                mov a, 0x0b
+                cal :stackvar8gt8
+                ret
+                ret
+;END OF FUNCTION copy
+;FUNCTION getoptions
+FGETOPTIONS008e:nop
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 3
+                    mov a, 0x03
+                    cal :stackheadrll8
+                mov a, 0x83
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                .mv csci, :DATA008f
+            mov a, 0x02
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x02
+            mov a, 0x04
+            cal :stackvar8st16
+                cal :FSTRNCMP005a
+    ;depth 1: STACKHEAD -= 3
+                    mov a, 0x83
+                    cal :stackheadrll8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0090
+                jmp z, csci
+                mov a, 0x02
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x10
+                mov a, cs
+                or ds
+                mov cs, a
+                mov a, ci
+                or di
+                mov ci, a
+            mov a, 0x02
+            cal :stackvar8st8
+LABEL0090:      nop
+    ;depth 2: STACKHEAD += 3
+                    mov a, 0x03
+                    cal :stackheadrll8
+                mov a, 0x83
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                .mv csci, :DATA0091
+            mov a, 0x02
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x02
+            mov a, 0x04
+            cal :stackvar8st16
+                cal :FSTRNCMP005a
+    ;depth 1: STACKHEAD -= 3
+                    mov a, 0x83
+                    cal :stackheadrll8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0092
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0x20
+            mov a, 0x02
+            cal :stackvar8st8
+LABEL0092:      nop
+                mov a, 0x02
+                cal :stackvar8gt8
+                ret
+                ret
+;END OF FUNCTION getoptions
+;FUNCTION checksourcedrive
+FCHECKSOURC0093:nop
+    ;depth 2: STACKHEAD += 5
+                    mov a, 0x05
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x00
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x7c
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st16
+                cal :FBDIO_READS004e
+    ;depth 1: STACKHEAD -= 5
+                    mov a, 0x85
+                    cal :stackheadrll8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0094
+                jmp z, csci
+                mov cs, 0x7c
+                mov ci, 0x00
+                mov ds, 0x00
+                mov di, 0x79
+                cal :add16
+                mov ds, cs
+                mov di, ci
+                cal :peek16
+            mov a, 0x03
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0xe1
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x03
+                cal :stackvar8gt16
+                mov ds, 0xbd
+                mov di, 0x05
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0095
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0xc0
+            mov a, 0x00
+            cal :stackvar8st8
+LABEL0095:      nop
+                xor a
+                .mv csci, :LABEL0096
+                jmp z, csci
+LABEL0094:      nop
+                mov cs, 0x00
+                mov ci, 0xe0
+            mov a, 0x00
+            cal :stackvar8st8
+LABEL0096:      nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0xc0
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0097
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0xe2
+            mov a, 0x00
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 5
+                    mov a, 0x05
+                    cal :stackheadrll8
+                .mv csci, :DATA0098
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FBDIO_FBINO003e
+    ;depth 1: STACKHEAD -= 5
+                    mov a, 0x85
+                    cal :stackheadrll8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov a, 0x01
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0xe0
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :gteq16
+                dec a
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL0099
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0xcf
+            mov a, 0x00
+            cal :stackvar8st8
+LABEL0099:      nop
+    ;depth 2: STACKHEAD += 5
+                    mov a, 0x05
+                    cal :stackheadrll8
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                cal :FBDIO_FCLOS0046
+    ;depth 1: STACKHEAD -= 5
+                    mov a, 0x85
+                    cal :stackheadrll8
+LABEL0097:      nop
+                mov a, 0x00
+                cal :stackvar8gt8
+                ret
+                ret
+;END OF FUNCTION checksourcedrive
+;FUNCTION formatcatmem
+FFORMATCATM009a:nop
+                mov a, 0x02
+                cal :stackvar8gt8
+            mov a, 0x05
+            cal :stackvar8st8
+                mov a, 0x00
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x80
+                cal :add16
+            mov a, 0x03
+            cal :stackvar8st16
+LABEL009b:      nop
+                mov a, 0x00
+                cal :stackvar8gt16
+                    psh cs
+                    psh ci
+                mov a, 0x03
+                cal :stackvar8gt16
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :gteq16
+                dec a
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL009c
+                jmp z, csci
+    ;depth 2: STACKHEAD += 6
+                    mov a, 0x06
+                    cal :stackheadrll8
+                mov a, 0x86
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x00
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x81
+                cal :stackvar8gt8
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FPOKE80003
+    ;depth 1: STACKHEAD -= 6
+                    mov a, 0x86
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 6
+                    mov a, 0x06
+                    cal :stackheadrll8
+                mov a, 0x86
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x03
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FPOKE80003
+    ;depth 1: STACKHEAD -= 6
+                    mov a, 0x86
+                    cal :stackheadrll8
+                mov a, 0x05
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x01
+                cal :add16
+            mov a, 0x05
+            cal :stackvar8st8
+                mov a, 0x00
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x10
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+                .mv csci, :LABEL009b
+                xor a
+                jmp z, csci
+LABEL009c:      nop
+                mov a, 0x05
+                cal :stackvar8gt8
+                ret
+                ret
+;END OF FUNCTION formatcatmem
+;FUNCTION newfcatentry
+FNEWFCATENT009d:nop
+    ;depth 2: STACKHEAD += 8
+                    mov a, 0x08
+                    cal :stackheadrll8
+                mov a, 0x88
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x00
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x86
+                cal :stackvar8gt8
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FPOKE80003
+    ;depth 1: STACKHEAD -= 8
+                    mov a, 0x88
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 8
+                    mov a, 0x08
+                    cal :stackheadrll8
+                mov a, 0x88
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x01
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x85
+                cal :stackvar8gt8
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FPOKE80003
+    ;depth 1: STACKHEAD -= 8
+                    mov a, 0x88
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 8
+                    mov a, 0x08
+                    cal :stackheadrll8
+                mov a, 0x88
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x02
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FPOKE80003
+    ;depth 1: STACKHEAD -= 8
+                    mov a, 0x88
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 8
+                    mov a, 0x08
+                    cal :stackheadrll8
+                mov a, 0x88
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x03
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x83
+                cal :stackvar8gt8
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FPOKE80003
+    ;depth 1: STACKHEAD -= 8
+                    mov a, 0x88
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 8
+                    mov a, 0x08
+                    cal :stackheadrll8
+                mov a, 0x88
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x04
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x80
+                mov ds, 0x00
+                mov di, 0x01
+                mov a, cs
+                or ds
+                mov cs, a
+                mov a, ci
+                or di
+                mov ci, a
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FPOKE80003
+    ;depth 1: STACKHEAD -= 8
+                    mov a, 0x88
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 8
+                    mov a, 0x08
+                    cal :stackheadrll8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x88
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x05
+                cal :add16
+            mov a, 0x02
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x0b
+            mov a, 0x04
+            cal :stackvar8st8
+                cal :FSTRNCPY0059
+    ;depth 1: STACKHEAD -= 8
+                    mov a, 0x88
+                    cal :stackheadrll8
+                ret
+;END OF FUNCTION newfcatentry
+;FUNCTION createcatalog
+FCREATECATA009e:nop
+                mov a, 0x06
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL009f
+                jmp z, csci
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x04
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x05
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x07
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                .mv csci, :DATA00a0
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FPUTS0013
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov a, 0x85
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x7c
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st16
+                cal :FBDIO_READS004e
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+            mov a, 0x06
+            cal :stackvar8st8
+                mov a, 0x06
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00a1
+                jmp z, csci
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov cs, 0x7c
+                mov ci, 0x00
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x82
+                cal :stackvar8gt8
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FFORMATCATM009a
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+            mov a, 0x07
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov cs, 0x7c
+                mov ci, 0x00
+            mov a, 0x00
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x03
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x04
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x05
+            cal :stackvar8st8
+                .mv csci, :DATA00a2
+            mov a, 0x06
+            cal :stackvar8st16
+                cal :FNEWFCATENT009d
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov cs, 0x7c
+                mov ci, 0x00
+                mov ds, 0x00
+                mov di, 0x10
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x02
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x03
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x04
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+                mov ds, 0x00
+                mov di, 0x01
+                cal :add16
+                mov ds, 0x00
+                mov di, 0x10
+                cal :mul16
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :sub16
+            mov a, 0x05
+            cal :stackvar8st8
+                .mv csci, :DATA00a3
+            mov a, 0x06
+            cal :stackvar8st16
+                cal :FNEWFCATENT009d
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov a, 0x85
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x7c
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st16
+                cal :FBDIO_WRITE0051
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+            mov a, 0x06
+            cal :stackvar8st8
+                mov a, 0x06
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00a4
+                jmp z, csci
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                .mv csci, :DATA00a5
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FPUTS0013
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov a, 0x85
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FBDIO_TRACK001f
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+            mov a, 0x02
+            cal :stackvar8st16
+                mov a, 0x02
+                cal :stackvar8gt16
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x08
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                mov a, di
+                sub 0x08
+                jmr nn, :LABEL00a6 
+                mov a, 0x08
+                sub di
+                mov ds, a
+                mov a, cs
+                shl ds
+                mov ds, a
+                mov a, cs
+                shr di
+                mov cs, a
+                mov a, ci
+                shr di
+                or  ds
+                mov ci, a
+                xor a
+                jmr z, :LABEL00a7
+LABEL00a6:            mov ds, a
+                mov a, cs
+                shr ds
+                mov ci, a
+                mov cs, 0x00 
+LABEL00a7:            nop
+            mov a, 0x04
+            cal :stackvar8st8
+                mov a, 0x02
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x0f
+                mov a, cs
+                and ds
+                mov cs, a
+                mov a, ci
+                and di
+                mov ci, a
+            mov a, 0x05
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x08
+            cal :stackvar8st8
+LABEL00a8:      nop
+                mov a, 0x04
+                cal :stackvar8gt8
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :gt16
+                dec a
+                mov cs, 0x00
+                mov ci, a
+                        psh cs
+                        psh ci
+                mov a, 0x08
+                cal :stackvar8gt8
+                mov a, cs
+                or  ci
+                mov a, f
+                and 0x01
+                mov cs,0x00
+                mov ci, a
+                        pop di
+                        pop ds
+                mov a, cs
+                or ci
+                mov ci, f
+                mov a, ds
+                or di
+                mov a, f
+                or ci
+                not a
+                and 0x01
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00a9
+                jmp z, csci
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov a, 0x85
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x7c
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st16
+                cal :FBDIO_READS004e
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+            mov a, 0x06
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x08
+            cal :stackvar8st8
+                mov a, 0x06
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00aa
+                jmp z, csci
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov cs, 0x7c
+                mov ci, 0x00
+            mov a, 0x00
+            cal :stackvar8st16
+                mov a, 0x82
+                cal :stackvar8gt8
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FFORMATCATM009a
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+            mov a, 0x07
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov a, 0x85
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x7c
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st16
+                cal :FBDIO_WRITE0051
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+            mov a, 0x06
+            cal :stackvar8st8
+                mov a, 0x06
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00ab
+                jmp z, csci
+                mov a, 0x05
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x07
+                mov a, cs
+                and ds
+                mov cs, a
+                mov a, ci
+                and di
+                mov ci, a
+                mov ds, 0x00
+                mov di, 0x07
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00ac
+                jmp z, csci
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                .mv csci, :DATA00ad
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FPUTS0013
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+LABEL00ac:      nop
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov a, 0x85
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FBDIO_TRACK001f
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+            mov a, 0x02
+            cal :stackvar8st16
+                mov a, 0x02
+                cal :stackvar8gt16
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x08
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                mov a, di
+                sub 0x08
+                jmr nn, :LABEL00ae 
+                mov a, 0x08
+                sub di
+                mov ds, a
+                mov a, cs
+                shl ds
+                mov ds, a
+                mov a, cs
+                shr di
+                mov cs, a
+                mov a, ci
+                shr di
+                or  ds
+                mov ci, a
+                xor a
+                jmr z, :LABEL00af
+LABEL00ae:            mov ds, a
+                mov a, cs
+                shr ds
+                mov ci, a
+                mov cs, 0x00 
+LABEL00af:            nop
+            mov a, 0x04
+            cal :stackvar8st8
+                mov a, 0x02
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x0f
+                mov a, cs
+                and ds
+                mov cs, a
+                mov a, ci
+                and di
+                mov ci, a
+            mov a, 0x05
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x08
+            cal :stackvar8st8
+LABEL00ab:      nop
+LABEL00aa:      nop
+                .mv csci, :LABEL00a8
+                xor a
+                jmp z, csci
+LABEL00a9:      nop
+LABEL00a4:      nop
+LABEL00a1:      nop
+LABEL009f:      nop
+                mov a, 0x06
+                cal :stackvar8gt8
+                ret
+                ret
+;END OF FUNCTION createcatalog
+;FUNCTION format
+FFORMAT00b0:    nop
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                cal :FBDIO_GETDR003d
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x03
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x04
+            cal :stackvar8st8
+                mov a, 0x02
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x10
+                mov a, cs
+                and ds
+                mov cs, a
+                mov a, ci
+                and di
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00b1
+                jmp z, csci
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x86
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FCHANGEDRIV007f
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x03
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                cal :FCHECKSOURC0093
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st8
+                mov a, 0x04
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0xcf
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00b2
+                jmp z, csci
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                cal :FCREATECATA009e
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x87
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FCHANGEDRIV007f
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x03
+            cal :stackvar8st8
+                xor a
+                .mv csci, :LABEL00b3
+                jmp z, csci
+LABEL00b2:      nop
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                .mv csci, :DATA00b4
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FPUTSNL0014
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+LABEL00b3:      nop
+                xor a
+                .mv csci, :LABEL00b5
+                jmp z, csci
+LABEL00b1:      nop
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x87
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FCHANGEDRIV007f
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x03
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                cal :FCHECKSOURC0093
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st8
+                mov a, 0x04
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0xcf
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00b6
+                jmp z, csci
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x00
+            cal :stackvar8st16
+                .mv csci, :DATA00b7
+            mov a, 0x02
+            cal :stackvar8st16
+                cal :FPRINTF001c
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x00
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x7c
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st16
+                cal :FBDIO_READS004e
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x86
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FCHANGEDRIV007f
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x03
+            cal :stackvar8st8
+                mov a, 0x04
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00b8
+                jmp z, csci
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x00
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x7c
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st16
+                cal :FBDIO_WRITE0051
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st8
+LABEL00b8:      nop
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                cal :FCREATECATA009e
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov a, 0x84
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x87
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FCHANGEDRIV007f
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x03
+            cal :stackvar8st8
+                mov a, 0x04
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x00
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00b9
+                jmp z, csci
+                .mv csci, :DATA00ba
+            mov a, 0x05
+            cal :stackvar8st16
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov a, 0x87
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x86
+                cal :stackvar8gt8
+            mov a, 0x03
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x04
+            cal :stackvar8st16
+                cal :FCOPY0081
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st8
+                mov a, 0x04
+                cal :stackvar8gt8
+                mov a, cs
+                or  ci
+                mov a, f
+                and 0x01
+                mov cs,0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00bb
+                jmp z, csci
+                .mv csci, :DATA00bc
+            mov a, 0x05
+            cal :stackvar8st16
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov a, 0x87
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x86
+                cal :stackvar8gt8
+            mov a, 0x03
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x04
+            cal :stackvar8st16
+                cal :FCOPY0081
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st8
+LABEL00bb:      nop
+                mov a, 0x04
+                cal :stackvar8gt8
+                mov a, cs
+                or  ci
+                mov a, f
+                and 0x01
+                mov cs,0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00bd
+                jmp z, csci
+                .mv csci, :DATA00be
+            mov a, 0x05
+            cal :stackvar8st16
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov a, 0x87
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x86
+                cal :stackvar8gt8
+            mov a, 0x03
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x04
+            cal :stackvar8st16
+                cal :FCOPY0081
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st8
+LABEL00bd:      nop
+                mov a, 0x04
+                cal :stackvar8gt8
+                mov a, cs
+                or  ci
+                mov a, f
+                and 0x01
+                mov cs,0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00bf
+                jmp z, csci
+                .mv csci, :DATA00c0
+            mov a, 0x05
+            cal :stackvar8st16
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov a, 0x87
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x86
+                cal :stackvar8gt8
+            mov a, 0x03
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x04
+            cal :stackvar8st16
+                cal :FCOPY0081
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st8
+LABEL00bf:      nop
+                mov a, 0x04
+                cal :stackvar8gt8
+                mov a, cs
+                or  ci
+                mov a, f
+                and 0x01
+                mov cs,0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00c1
+                jmp z, csci
+                .mv csci, :DATA00c2
+            mov a, 0x05
+            cal :stackvar8st16
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov a, 0x87
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x86
+                cal :stackvar8gt8
+            mov a, 0x03
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x04
+            cal :stackvar8st16
+                cal :FCOPY0081
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st8
+LABEL00c1:      nop
+                mov a, 0x04
+                cal :stackvar8gt8
+                mov a, cs
+                or  ci
+                mov a, f
+                and 0x01
+                mov cs,0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00c3
+                jmp z, csci
+                .mv csci, :DATA00c4
+            mov a, 0x05
+            cal :stackvar8st16
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov a, 0x87
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x86
+                cal :stackvar8gt8
+            mov a, 0x03
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x04
+            cal :stackvar8st16
+                cal :FCOPY0081
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st8
+LABEL00c3:      nop
+                mov a, 0x04
+                cal :stackvar8gt8
+                mov a, cs
+                or  ci
+                mov a, f
+                and 0x01
+                mov cs,0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00c5
+                jmp z, csci
+                .mv csci, :DATA00c6
+            mov a, 0x05
+            cal :stackvar8st16
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov a, 0x87
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x01
+            cal :stackvar8st16
+                mov a, 0x86
+                cal :stackvar8gt8
+            mov a, 0x03
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt16
+            mov a, 0x04
+            cal :stackvar8st16
+                cal :FCOPY0081
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st8
+LABEL00c5:      nop
+LABEL00b9:      nop
+                xor a
+                .mv csci, :LABEL00c7
+                jmp z, csci
+LABEL00b6:      nop
+    ;depth 2: STACKHEAD += 7
+                    mov a, 0x07
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x02
+            mov a, 0x00
+            cal :stackvar8st16
+                .mv csci, :DATA00c8
+            mov a, 0x02
+            cal :stackvar8st16
+                mov a, 0x83
+                cal :stackvar8gt8
+            mov a, 0x04
+            cal :stackvar8st16
+                cal :FPRINTF001c
+    ;depth 1: STACKHEAD -= 7
+                    mov a, 0x87
+                    cal :stackheadrll8
+LABEL00c7:      nop
+LABEL00b5:      nop
+                mov a, 0x04
+                cal :stackvar8gt8
+                ret
+                ret
+;END OF FUNCTION format
+;FUNCTION main
+FMAIN00c9:      nop
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov cs, 0x4f
+                mov ci, 0xc0
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FUPSTRING006d
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov cs, 0x4f
+                mov ci, 0xc0
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FSTRNEXTWOR0056
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+            mov a, 0x00
+            cal :stackvar8st16
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov a, 0x89
+                cal :stackvar8gt16
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x01
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :sub16
+            mov a, 0x00
+            cal :stackvar8st16
+                mov cs, 0x00
+                mov ci, 0x00
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FPOKE80003
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+                mov a, 0x00
+                cal :stackvar8gt16
+            mov a, 0x04
+            cal :stackvar8st16
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov a, 0x85
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FGETOPTIONS008e
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+            mov a, 0x08
+            cal :stackvar8st8
+                mov a, 0x08
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x20
+                cal :eq16
+                mov cs, 0x00
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00ca
+                jmp z, csci
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x04
+            mov a, 0x00
+            cal :stackvar8st16
+                .mv csci, :DATA00cb
+            mov a, 0x02
+            cal :stackvar8st16
+                .mv csci, :DATA00cc
+            mov a, 0x04
+            cal :stackvar8st16
+                .mv csci, :DATA00cd
+            mov a, 0x06
+            cal :stackvar8st16
+                .mv csci, :DATA00ce
+            mov a, 0x08
+            cal :stackvar8st16
+                cal :FPRINTF001c
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+                xor a
+                .mv csci, :LABEL00cf
+                jmp z, csci
+LABEL00ca:      nop
+                mov a, 0x08
+                cal :stackvar8gt8
+                mov ds, 0x00
+                mov di, 0x10
+                mov a, cs
+                and ds
+                mov cs, a
+                mov a, ci
+                and di
+                mov ci, a
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00d0
+                jmp z, csci
+                mov a, 0x00
+                cal :stackvar8gt16
+                mov ds, 0x00
+                mov di, 0x03
+                cal :add16
+            mov a, 0x00
+            cal :stackvar8st16
+LABEL00d0:      nop
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov a, 0x89
+                cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FGETDRIVE0078
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+            mov a, 0x02
+            cal :stackvar8st16
+                mov a, 0x02
+                cal :stackvar8gt16
+            mov a, 0x07
+            cal :stackvar8st8
+                mov cs, 0x00
+                mov ci, 0x01
+                    psh cs
+                    psh ci
+                mov a, 0x07
+                cal :stackvar8gt8
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                cal :sub16
+            mov a, 0x06
+            cal :stackvar8st8
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x02
+            mov a, 0x00
+            cal :stackvar8st16
+                .mv csci, :DATA00d1
+            mov a, 0x02
+            cal :stackvar8st16
+    ;depth 3: STACKHEAD += 6
+                    mov a, 0x06
+                    cal :stackheadrll8
+                mov a, 0x88
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                cal :FGETDRIVELE0071
+    ;depth 2: STACKHEAD -= 6
+                    mov a, 0x86
+                    cal :stackheadrll8
+            mov a, 0x04
+            cal :stackvar8st16
+                cal :FPRINTF001c
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov a, 0x83
+                cal :stackvar8gt8
+            mov a, 0x00
+            cal :stackvar8st8
+                mov a, 0x82
+                cal :stackvar8gt8
+            mov a, 0x01
+            cal :stackvar8st8
+                mov a, 0x81
+                cal :stackvar8gt8
+            mov a, 0x02
+            cal :stackvar8st8
+                cal :FFORMAT00b0
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+            mov a, 0x02
+            cal :stackvar8st16
+                mov a, 0x02
+                cal :stackvar8gt16
+                    psh cs
+                    psh ci
+                mov cs, 0x00
+                mov ci, 0x00
+                    mov ds, cs
+                    mov di, ci
+                    pop ci
+                    pop cs
+                mov a, cs
+                or ci
+                .mv csci, :LABEL00d2
+                jmp z, csci
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                mov cs, 0x00
+                mov ci, 0x02
+            mov a, 0x00
+            cal :stackvar8st16
+                .mv csci, :DATA00d3
+            mov a, 0x02
+            cal :stackvar8st16
+                mov a, 0x87
+                cal :stackvar8gt16
+            mov a, 0x04
+            cal :stackvar8st16
+                cal :FPRINTF001c
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+LABEL00d2:      nop
+    ;depth 2: STACKHEAD += 9
+                    mov a, 0x09
+                    cal :stackheadrll8
+                cal :FPUTNL0012
+    ;depth 1: STACKHEAD -= 9
+                    mov a, 0x89
+                    cal :stackheadrll8
+LABEL00cf:      nop
+                ret
+;END OF FUNCTION main
+;>>>>>>>>>>DATA SEGMENT<<<<<<<<<<<<<
+DATA0027:      .db 'unknown error', 0x00
+DATA0029:      .db 'fdd not ready', 0x00
+DATA002b:      .db 'reading not allowed', 0x00
+DATA002d:      .db 'file not found', 0x00
+DATA002f:      .db 'execution not allowed', 0x00
+DATA0031:      .db 'cat and file handle mismatch', 0x00
+DATA0033:      .db 'not enough user memory', 0x00
+DATA0035:      .db 'not all sectors loaded', 0x00
+DATA0036:      .db 'error: %x %s%n', 0x00
+DATA0072:      .db '?', 0x00
+DATA0074:      .db 'A', 0x00
+DATA0077:      .db 'B', 0x00
+DATA0079:      .db 'A:', 0x00
+DATA007c:      .db 'B:', 0x00
+DATA0082:      .db '%ncopying %s:%s to %s:%s%n', 0x00
+DATA008a:      .db 'error writing sectors%n', 0x00
+DATA008f:      .db '-Q', 0x00
+DATA0091:      .db '-H', 0x00
+DATA0098:      .db 'BDOS    SYS', 0x00
+DATA00a0:      .db 'creating catalogue', 0x00
+DATA00a2:      .db 'BOOT    BIN', 0x00
+DATA00a3:      .db 'DISC    CAT', 0x00
+DATA00a5:      .db '.', 0x00
+DATA00ad:      .db '.', 0x00
+DATA00b4:      .db 'drive is not a system disc%n', 0x00
+DATA00b7:      .db 'copying bootsector...%n', 0x00
+DATA00ba:      .db 'BDOS    SYS', 0x00
+DATA00bc:      .db 'LS      PRG', 0x00
+DATA00be:      .db 'CP      PRG', 0x00
+DATA00c0:      .db 'FORMAT  PRG', 0x00
+DATA00c2:      .db 'RM      PRG', 0x00
+DATA00c4:      .db 'CHA     PRG', 0x00
+DATA00c6:      .db 'CAT     PRG', 0x00
+DATA00c8:      .db 'error %x: source drive is not a system disc%n', 0x00
+DATA00cb:      .db '%s%n%s%n%s%n', 0x00
+DATA00cc:      .db 'format disc', 0x00
+DATA00cd:      .db 'd: drive', 0x00
+DATA00ce:      .db '-q quick', 0x00
+DATA00d1:      .db 'formatting disc %s...%n', 0x00
+DATA00d3:      .db 'format error: %x', 0x00
+;>>>>>>>>>>COMPILER ASM STDLIB for BCOS v1.0 on BC16 v1.0<<<<<<<<<<<<<
+            mov a, 0xff
+            mov a, 0xff
+            mov a, 0xff
+            mov a, 0xff
+;=============
+; OS_METACALL(a) - calls given bcos subroutine indirectly
+;           - other registers as required
+; OUT:      - as returned
+            .def os_metacall, 0x0008
+;=============
+; FATAL(a) - prints error message and stops
+; IN:   a - error code
+;   stack - as error address
+; OUT:  KILL, messed stack
+            .def fatal, 0x04ea
+;=============
+; PRINTHEX4(a) - prints hex number from 0 to f
+; IN:    a - number to print
+; OUT:   a - unchanged      10 -> 0 -> 41
+;       cs - set to 1
+            .def printhex4, 0x0349
+;=============
+; PRINTHEX8(a) - prints hex number 
+; IN:    a - number to print
+; OUT:   a - set to lower half
+;     csci - unchanged
+;     dsdi - unchanged
+printhex8:      psh ci
+                mov ci, 0x04
+                psh ci
+                pop f
+                pop ci
+                cal :os_metacall
+                ret  
+;=============
+; PRINTHEX16(csci) - prints hex number 4 digits
+; IN:    csci - hex number 4 digits
+; OUT:   csci - unchanged
+;           a - ci
+printhex16:     mov a, 0x05
+                psh a
+                pop f
+                cal :os_metacall
+                ret 
+;=============
+; INC16(dsdi) - increase 16bit number correctly
+; IN:    dsdi - number 16bit, break if exceeds 16bit
+; OUT:   dsdi - add 1
+;           a - di + 1 or ds + 1
+inc16:          mov a, 0x06
+                psh a
+                pop f
+                cal :os_metacall
+                ret 
+;=============
+; DEC16(dsdi) - decrease 16bit number correctly
+; IN:    dsdi - number 16bit, break if lower than 0
+; OUT:   dsdi - sub 1
+;           a - di - 1 or ds - 1
+dec16:          mov a, 0x07
+                psh a
+                pop f
+                cal :os_metacall
+                ret  
+;=============
+; POKE16(#dsdi, csci) - stores csci value under #dsdi address (2 bytes)
+; IN:   dsdi - address to store
+;       csci - value to store
+; OUT:  dsdi - address to store + 1
+;       csci - unchanged
+;       a    - rubbish
+poke16:         mov a, 0x09
+                psh a
+                pop f
+                cal :os_metacall
+                ret          
+;=============
+; PEEK16(#dsdi) - returns value under dsdi address (2 bytes)
+; IN:   dsdi - address to read
+; OUT:  dsdi - address to read + 1
+;       csci - value
+;       a    - rubbish
+peek16:         mov a, 0x0a
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; ADD16(csci,dsdi) - returns value
+;                    return os error 0x12 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - sum of csci and dsdi
+;       a    - rubbish
+add16:          mov a, 0x0b
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; SUB16(csci,dsdi) - returns value 
+;                    return os error 0x13 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - substracts dsdi from csci
+;       a    - rubbish
+sub16:          mov a, 0x0c
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; MUL16(csci,dsdi) - returns value 
+;                    return os error 0x12 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - mutiplies csci by dsdi
+;       dsdi - unchanged
+;       a    - rubbish
+mul16:          mov a, 0x1f
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; DIV16(csci,dsdi) - returns value 
+;                    return os error 0x13 in case of overflow                
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  csci - divides csci by dsdi
+;       dsdi - unchanged
+;       a    - rubbish
+div16:          mov a, 0x20
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; READSTR(#dsdi, ci) - reads characters to the buffer
+; IN:   dsdi - buffer address for chars
+;         ci - length of the buffer (since last char has to be 0x00 we can enter one less)
+; OUT:  dsdi - preserved
+;         ci - preserved
+;         cs - how many chars can we could still add
+readstr:        mov a, 0x0d
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; NEXTWORD(dsdi) - moves to the end of current word
+; IN:     dsdi - char buffer address
+; OUT:    dsdi - address of the next word or end of buffer
+;            a - >0 if next word exist
+nextword:       mov a, 0x12
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; NEXTVAL8(dsdi) - moves until expected value
+; IN:     dsdi - char buffer address
+;           ci - expected 8bit value
+;           cs - max length to check
+; OUT:    dsdi - address of the next byte or end of buffer
+;           cs - how much was left to end of buffer
+;           ci - unchanged
+;            a - >0 if value was found
+nextval8:       mov a, 0x13
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; #11: UPCHAR(a) - if a is an a-z char returns A-Z
+; IN:     a - char code
+; OUT:    a - char code A-Z or same
+;         ci - old a val
+upchar:         psh a
+                mov a, 0x11
+                psh a
+                pop f
+                pop a
+                cal :os_metacall
+                ret                
+;=============
+; STR_CPY(csci,dsdi)  - copy string from dsdi to csci
+; IN: dsdi - source  
+;     csci - desc
+; OUT: dsdi = source + length + 1
+str_cpy:        mov a, 0x17
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; STR_LEN8(dsdi)  - length of the string ending with 0x00
+; IN: dsdi - source  
+;     cs   - max length
+; OUT: dsdi - preserved, cs = rubbish, ci = actual length
+str_len8:       mov a, 0x18
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; PARSEHEX4(#dsdi) - parses single char to hex number chars 0-9 and a-z and A-Z are supported
+; IN:   dsdi - buffer address for char-hex
+; OUT:     a - 0 if ok, 0xff if parse error
+;         ci - hexval of a char
+parsehex4:      mov a, 0x0e
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; PARSEHEX8(#dsdi) - parses two char to hex number
+; IN:   dsdi - buffer address for char
+; OUT:    a - success = 0 or >0 error
+;        ci - hex value for byte
+;      dsdi - moved + 2 if ok
+parsehex8:      mov a, 0x0f
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; PARSEHEX16(#dsdi) - parses four char to hex number
+; IN:   dsdi - buffer address for char
+; OUT:  csci - hex value for value
+;          a - success = 0 or error code
+;       dsdi - moved + 4 if ok
+parsehex16:     mov a, 0x10
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; PRINT_NEWLINE - prints new line
+; IN:
+; OUT:   a - rubbish
+print_newline:  mov a, 0x00
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; PRINTSTR(*dsdi) - sends chars to printer
+; IN: dsdi - address of 0-ended char table
+; OUT:   a - set to 0x00
+;       ci - set to 0x01
+;     dsdi - set to end of char table
+printstr:       mov a, 0x02
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; GT16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci > dsdi
+;       a - 0 otherwise
+gt16:           mov a, 0x21
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; GTEQ16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci >= dsdi
+;       a - 0 otherwise
+gteq16:         mov a, 0x22
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; EQ16(csci,dsdi) - compares csci with dsdi            
+; IN:   csci - argument 1
+;       dsdi - argument 2
+; OUT:  a - 1 if csci == dsdi
+;       a - 0 otherwise
+eq16:           mov a, 0x23
+                psh a
+                pop f
+                cal :os_metacall
+                ret
+;=============
+; STACKOFFSCALC(csci,a) - modifies SYS_STACKHEAD by csci and stores new value back in csci
+; IN: csci - value to increase
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:csci - value of SYS_STACKHEAD with offset
+;     dsdi - address of SYS_STACKHEAD
+;        a - rubbish
+stackoffscalc: psh a
+               psh cs
+               psh ci
+               .mv dsdi, :sys_stackhead
+               cal :peek16
+               pop di
+               pop ds
+               pop a
+               and a
+               jmr nz, :stoffclc_sub
+               cal :add16
+               xor a
+               jmr z, :stoffclc_end
+stoffclc_sub:  cal :sub16  
+stoffclc_end:  .mv dsdi, :sys_stackhead
+               ret
+;=============
+; STACKOFFSCLC8(a) - modifies SYS_STACKHEAD by a and stores new value back in csci, if a > 128 then this is to be substracted
+; IN:    a - value to increase
+;        a - 0x00 - add
+;            0x80 - sub
+; OUT:csci - value of SYS_STACKHEAD with offset
+;     dsdi - address of SYS_STACKHEAD
+;        a - rubbish
+stackoffsclc8: psh a
+               psh a
+               .mv dsdi, :sys_stackhead
+               cal :peek16
+               pop a
+               and 0x80
+               jmr nz, :stoffcl8_sub
+               mov ds, 0x00
+               pop di
+               cal :add16
+               xor a
+               jmr z, :stoffcl8_end
+stoffcl8_sub:  pop a
+               and 0x7f
+               mov di, a
+               mov ds, 0x00
+               cal :sub16  
+stoffcl8_end:  .mv dsdi, :sys_stackhead
+               ret
+;=============
+; STACKHEADROLL(csci, a) - modifies SYS_STACKHEAD by csci and saves new value
+; IN: csci - value to increase
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:csci - value of SYS_STACKHEAD
+;     dsdi - address of SYS_STACKHEAD
+;        a - rubbish
+stackheadroll: cal :stackoffscalc
+               cal :poke16
+               .mv dsdi, :sys_stackhead
+               ret
+;=============
+; STACKHEADRLL8(a) - modifies SYS_STACKHEAD by csci and saves new value
+; IN:    a - value to increase
+;        a - 0x00 - add
+;            0x80 - sub
+; OUT:csci - value of SYS_STACKHEAD
+;     dsdi - address of SYS_STACKHEAD
+;        a - rubbish
+stackheadrll8: psh cs
+               psh ci
+               cal :stackoffsclc8
+               cal :poke16
+               .mv dsdi, :sys_stackhead
+               pop ci
+               pop cs
+               ret
+;=============
+; STACKVARGET8(dsdi, a) - loads value of the variable of given offset dsdi from SYS_STACKHEAD to csci
+; IN: dsdi - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:ci - value of variable
+;     cs - set to 0
+;     dsdi - address of SYS_STACKHEAD
+;        a - rubbish
+stackvarget8:  mov cs, ds
+               mov ci, di
+               cal :stackoffscalc   
+               mov a, #csci
+               mov cs, 0x00
+               mov ci, a
+               ret
+;=============
+; STACKVARGET16(dsdi, a) - loads value of the variable of given offset dsdi from SYS_STACKHEAD to csci
+; IN: dsdi - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:csci - value of variable
+;     dsdi - address of variable + 1
+;        a - rubbish
+stackvarget16: mov cs, ds
+               mov ci, di
+               cal :stackoffscalc
+               mov ds, cs
+               mov di, ci   
+               cal :peek16
+               ret
+;=============
+; STACKVARSET8(ci,dsdi, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
+; IN: ci - value
+;     dsdi - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:csci - value of variable
+;     dsdi - address of SYS_STACKHEAD
+;        a - ci
+stackvarset8:  psh ci
+               mov cs, ds
+               mov ci, di
+               cal :stackoffscalc   
+               pop a
+               mov #csci, a
+               ret
+;=============
+; STACKVARSET16(csci,dsdi, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
+; IN: csci - value
+;     dsdi - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x01 - sub
+; OUT:csci - value
+;     dsdi - address of variable + 1
+;        a - ci
+stackvarset16: psh cs
+               psh ci
+               mov cs, ds
+               mov ci, di
+               cal :stackoffscalc   
+               mov ds, cs
+               mov di, ci
+               pop ci
+               pop cs
+               cal :poke16
+               ret
+;=============
+; STACKVAR8GT8(a) - loads value of the variable of given offset a from SYS_STACKHEAD to csci
+; IN:    a - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x80 - sub
+; OUT:  ci - value of variable
+;       cs - set to 0
+;     dsdi - address of SYS_STACKHEAD
+;        a - same as ci
+stackvar8gt8:  cal :stackoffsclc8   
+               mov a, #csci
+               mov cs, 0x00
+               mov ci, a
+               ret
+;=============
+; STACKVAR8GT16(a) - loads value of the variable of given offset a from SYS_STACKHEAD to csci
+; IN:    a - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x80 - sub
+; OUT:csci - value of variable
+;     dsdi - address of variable + 1
+;        a - rubbish
+stackvar8gt16: cal :stackoffsclc8
+               mov ds, cs
+               mov di, ci   
+               cal :peek16
+               ret
+;=============
+; STACKVAR8ST8(ci, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
+; IN: ci - value
+;        a - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x80 - sub
+; OUT:  ci - value of variable
+;     dsdi - address of SYS_STACKHEAD
+;        a - ci
+stackvar8st8:  psh ci
+               cal :stackoffsclc8   
+               pop a
+               mov #csci, a
+               ret
+;=============
+; STACKVAR8ST16(csci,a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
+; IN: csci - value
+;        a - offset from SYS_STACKHEAD
+;        a - 0x00 - add
+;            0x80 - sub
+; OUT:csci - value
+;     dsdi - address of variable + 1
+;        a - rubbish
+stackvar8st16: psh cs
+               psh ci
+               cal :stackoffsclc8   
+               mov ds, cs
+               mov di, ci
+               pop ci
+               pop cs
+               cal :poke16
+               ret
+;=============
+; MSEEK(csci) - finds address of first free block of given size
+; IN: csci - wanted size of the block
+; OUT:csci - address after which free memory begins
+;     dsdi - address of the block after which is enough free memory
+mseek:      .mv dsdi, :sys_seektmp
+            cal :poke16
+            .mv dsdi, :sys_heaphead
+            cal :peek16
+            mov ds, cs
+            mov di, ci
+mseek_loop: psh ds
+            psh di
+            cal :peek16
+            psh cs
+            psh ci
+            cal :inc16
+            cal :peek16
+            pop f
+            pop a
+            psh cs
+            psh ci
+            psh a
+            psh f
+            cal :inc16           
+            mov a, ci
+            or cs
+            jmr z, :mseek_end
+            cal :sub16
+            pop di
+            pop ds
+            cal :sub16
+            psh cs
+            psh ci
+            .mv dsdi, :sys_seektmp
+            cal :peek16
+            mov ds, cs
+            mov di, ci
+            pop ci
+            pop cs
+            cal :gteq16
+            jmr nz, :mseek_ret
+            pop di
+            pop ds
+            pop a
+            pop a
+            xor a
+            jmr z, :mseek_loop
+mseek_end:  pop a
+            pop a
+            pop a
+            pop a
+            pop a
+            pop a
+            mov cs, ds
+            mov ci, di            
+            ret
+mseek_ret:  pop di
+            pop ds
+            pop ci
+            pop cs
+            ret
+;=============
+; MFILL(csci,dsdi, a) - fills memory starting from dsdi for csci bytes of value a
+; IN: csci - length
+;     dsdi - address of memory
+;        a - value to fill
+mfill:      psh a
+mfill_loop: mov a, cs
+            or ci
+            jmr z, :mfill_ret
+            pop a
+            psh a
+            mov #dsdi, a
+            cal :inc16
+            psh ds
+            psh di
+            mov ds, cs
+            mov di, ci
+            cal :dec16
+            mov cs, ds
+            mov ci, di
+            pop di
+            pop ds
+            xor a
+            jmr z, :mfill_loop
+mfill_ret:  pop a
+            ret
+; OUT:csci - address after which free memory begins
+;     dsdi - address of the block after which is enough free memory
+;=============
+; MEM_CPY(csci,dsdi, af)  - copy block of memory from csci to dsdi for at most af bytes
+; IN: dsdi - source  
+;     csci - desc
+;       af - length
+; OUT: dsdi = destroyed
+;      csci = desc + length + 1
+mem_cpy:    psh f
+            psh a
+mem_cpy_lop:pop a
+            pop f
+            psh f
+            psh a
+            or f
+            jmr z, :mem_cpy_end
+            mov a, #dsdi
+            psh a
+            cal :inc16
+            pop a
+            psh ds
+            psh di
+            mov ds, cs
+            mov di, ci
+            mov #dsdi, a
+            cal :inc16
+            mov cs, ds
+            mov ci, di
+            pop f
+            pop a
+            pop ds
+            pop di
+            psh f
+            psh a
+            cal :dec16
+            mov a, ds
+            mov f, di
+            pop ds
+            pop di
+            psh f
+            psh a
+            xor a
+            jmr z, :mem_cpy_lop
+mem_cpy_end:pop a
+            pop f
+            ret
+;=============
+; strncpy(csci,dsdi, a)  - copy string from dsdi to csci for at most a bytes, or end of string
+; IN: dsdi - source  
+;     csci - desc
+;        a - length
+; OUT: dsdi = desc + length + 1
+;      csci = source + length
+strncpy:    and a
+            jmr z, :strncpy_ret
+strncpy_lop:psh a
+            mov a, #dsdi
+            jmr z, :strncpy_end
+            psh a
+            cal :inc16
+            pop a
+            psh ds
+            psh di
+            mov #csci, a
+            mov ds, cs
+            mov di, ci
+            cal :inc16
+            mov cs, ds
+            mov ci, di
+            pop di
+            pop ds
+            pop a
+            dec a
+            jmr nz, :strncpy_lop
+            jmr z, :strncpy_ret
+strncpy_end:pop a
+strncpy_ret:ret
+;=============
+;SYS DATA
+            .def var_promptbuf, 0x0bcf
+            .def var_user_mem, 0x0bcb
+sys_stdprntf:.db 0x00, 0x00
+sys_seektmp: .db 0x00, 0x00 
+sys_heaphead:  .db 0x70, 0x00
+sys_stackhead: nop

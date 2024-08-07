@@ -1,24 +1,24 @@
 #!/usr/bin/python3
 
-from bc32 import bc32_io
-from bc32 import bc8182_cpu
-from bc32 import bc32_mem
-from bc32 import bc32_env
+from bc64 import bc64_io
+from bc64 import bc8182_cpu
+from bc64 import bc64_mem
+from bc64 import bc64_env
 from sys import argv
 
-TOPMEM = 0x8000
+TOPMEM = 0xffff
 
 class Bc32:
     def __init__(self, env, debug):
-        self.mem = bc32_mem.MemBus(env, TOPMEM)
-        self.keyboard = bc32_io.TerminalKeyboard(env)
-        self.printer = bc32_io.TerminalPrinter(env)
-        self.taperecorder = bc32_io.TapeRecorder(env)
-        self.clock = bc32_io.Clock(env)
-        self.randgen = bc32_io.RandomGenerator(env)
-        self.floppydrive = bc32_io.FloppyDriveV1(env, self.mem)
+        self.mem = bc64_mem.MemBus(env, TOPMEM)
+        self.keyboard = bc64_io.TerminalKeyboard(env)
+        self.printer = bc64_io.TerminalPrinter(env)
+        self.taperecorder = bc64_io.TapeRecorder(env)
+        self.clock = bc64_io.Clock(env)
+        self.randgen = bc64_io.RandomGenerator(env)
+        self.floppydrive = bc64_io.FloppyDriveV1(env, self.mem)
         
-        self.io = bc32_io.IOBus()
+        self.io = bc64_io.IOBus()
         self.io.add_device(self.keyboard)
         self.io.add_device(self.printer)
         self.io.add_device(self.taperecorder)
@@ -32,13 +32,13 @@ class Bc32:
         self.cpu.run()
 
 def main(argv):
-    env = bc32_env.Environment()
+    env = bc64_env.Environment()
     computer = Bc32(env, len(argv) >= 3)
     if len(argv) >= 2:
         import_rom(argv[1], env, computer.mem)
     computer.mem.write_byte(TOPMEM-1, 0xff)
     computer.run()
-    dump_mem('bc32.dmp', env, computer.mem)
+    dump_mem('bc64.dmp', env, computer.mem)
 
 def dump_mem(file, env, mem):
     fhandle = env.open_file_to_write(file)
