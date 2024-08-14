@@ -1,2 +1,2 @@
 #!/bin/bash
-winpty python ./bc32.py ./bc81asmc/bcOS/bcos_v1_1_1.b81 $1
+winpty python ./bc64.py ./bc81asmc/bcOS/bcos_v1_1_1.b81 $1

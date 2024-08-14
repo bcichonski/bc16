@@ -1,4 +1,4 @@
-from bc32 import bc8182_cpu
+from bc64 import bc8183_cpu
 import random
 import datetime
 
@@ -40,27 +40,31 @@ class TapeRecorder(IODevice):
     ERROR = 0x08
     DX = 0x1
     TX = 0x2
-    F_READY = bc8182_cpu.FlagsRegister.B4
-    F_TAPE4WRITE = bc8182_cpu.FlagsRegister.B6
-    F_TAPE4READ = bc8182_cpu.FlagsRegister.B7
-    F_MOVE = bc8182_cpu.FlagsRegister.B5
-    F_ERROR = bc8182_cpu.FlagsRegister.B3
-    F_DX = bc8182_cpu.FlagsRegister.B0
-    F_TX = bc8182_cpu.FlagsRegister.B1
+    F_READY = bc8183_cpu.FlagsRegister.B4
+    F_TAPE4WRITE = bc8183_cpu.FlagsRegister.B6
+    F_TAPE4READ = bc8183_cpu.FlagsRegister.B7
+    F_MOVE = bc8183_cpu.FlagsRegister.B5
+    F_ERROR = bc8183_cpu.FlagsRegister.B3
+    F_DX = bc8183_cpu.FlagsRegister.B0
+    F_TX = bc8183_cpu.FlagsRegister.B1
     HALF_BYTE = 0x80
+
     def __init__(self, env):
-        self.state = bc8182_cpu.FlagsRegister(0xff)
+        self.state = bc8183_cpu.FlagsRegister(0xff)
+        self.state.set_flag(TapeRecorder.F_DX, 0x0)
         self.intstate = TapeRecorder.READY
         self.env = env
         self.set_state(TapeRecorder.READY)
         self.io_port = TapeRecorder.DEFAULT_IO_PORT
         random.seed()
+
     def read_byte(self):
         if self.intstate == TapeRecorder.MOVE and self.state.get_flag(TapeRecorder.F_TAPE4READ):
            byte = ord(self.env.read_byte(self.file_handle))
            self.state.set_flag(TapeRecorder.F_TX, True)
            self.state.set_flag(TapeRecorder.F_DX, byte > 0)
         return self.state.get()
+    
     def write_byte(self,byte):
         tx = bool(byte & TapeRecorder.TX == TapeRecorder.TX)
         if(tx):

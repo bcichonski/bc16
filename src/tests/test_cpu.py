@@ -1,21 +1,21 @@
 import unittest
-from bc32 import bc8182_cpu
-from bc32 import bc32_mem
-from bc32 import bc32_env
+from bc64 import bc8183_cpu
+from bc64 import bc64_mem
+from bc64 import bc64_env
 
-debug = False
+debug = True
 
 class CpuTests(unittest.TestCase):
     def create_cpu(self, code):
-        environment = bc32_env.Environment()
-        mem = bc32_mem.MemBus(environment, 0x0100)
+        environment = bc64_env.Environment()
+        mem = bc64_mem.MemBus(environment, 0x0100)
         i = 0
         for b in code:
             mem.write_byte(i, b)
             i += 1
         mem.write_byte(0xff, 0xff) #ultimate KIL
         environment.debug = debug
-        return bc8182_cpu.Bc8182(mem, None, debug)
+        return bc8183_cpu.Bc8183(mem, None, debug)
     def test_MOV_opcodes_internal(self):
         if debug: print("test_MOV_opcodes_internal")
         #given
@@ -51,18 +51,6 @@ class CpuTests(unittest.TestCase):
         cpu.run()
         #then
         self.assertEqual(cpu.a.get(),  0x69)
-    def test_CLC_ZER(self):
-        if debug: print("test_CLC_ZER")
-        #given
-        cpu = self.create_cpu([
-            0x11, 0x69,  # MOV A, 0x69
-            0x5f,        # ZER A
-            0xff         # KIL
-        ])
-        #when
-        cpu.run()
-        #then
-        self.assertEqual(cpu.a.get(),  0x00)
     def test_CLC_opcodes(self):
         if debug: print("test_CLC_opcodes")
         #given
@@ -127,7 +115,7 @@ class CpuTests(unittest.TestCase):
         if debug: print("test_PUSH_POP_opcodes")
         #given
         cpu = self.create_cpu([
-            0x1C, 0xfe,  # 0x0000: MOV SI, 0xfe ; stack at 00fe
+            0x1C, 0xff,  # 0x0000: MOV SI, 0xfe ; stack at 00fe
             0x11, 0xf1,  # 0x0002: MOV A, 0xf1
             0x14, 0xa2,  # 0x0004: MOV CI, 0xa2
             0x81,        # 0x0006: PSH A
@@ -146,7 +134,7 @@ class CpuTests(unittest.TestCase):
         if debug: print("test_CAL_RET_opcodes")
         #given
         cpu = self.create_cpu([
-            0x1C, 0xfe,  # 0x0000: MOV SI, 0xfe ; stack at 00fe
+            0x1C, 0xff,  # 0x0000: MOV SI, 0xfe ; stack at 00fe
             0x14, 0x0A,  # 0x0002: MOV CI, 0x0A
             0x11, 0x00,  # 0x0004: MOV A, 0x00
             0xA0, 0x80,  # 0x0006: CAL #CSCI
@@ -165,7 +153,7 @@ class CpuTests(unittest.TestCase):
         if debug: print("test_CAL_mem_RET_opcodes")
         #given
         cpu = self.create_cpu([
-            0x1C, 0xfe,         # 0x0000: MOV SI, 0xfe ; stack at 00fe
+            0x1C, 0xff,         # 0x0000: MOV SI, 0xfe ; stack at 00fe
             0x14, 0x0A,         # 0x0002: MOV CI, 0x0A
             0x11, 0x00,         # 0x0004: MOV A, 0x00
             0xA8, 0x00, 0x0B,   # 0x0006: CAL #000B
@@ -179,3 +167,24 @@ class CpuTests(unittest.TestCase):
         cpu.run()
         #then
         self.assertEqual(cpu.a.get(),  0x02)
+
+    def test_CLC16_opcodes(self):
+        if debug: print("test_CLC16_opcodes")
+        #given
+        cpu = self.create_cpu([
+            0x18, 0x00,            # 0x0000: MOV CS, 0x00 ; stack at 00fe
+            0x14, 0xff,            # 0x0002: MOV CI, 0xff
+            0x5f, 0xad, 0x80,      # 0x0004: INC CSCI
+            0x5f, 0xae, 0x80,      # 0x0007: DEC CSCI
+            0x5f, 0xb7, 0x80,      # 0x000a: NOT CSCI
+            0x15, 0x03,            # 0x000d: MOV DI, 0x03     
+            0x5f, 0xa8, 0x80,      # 0x000f: ADD CSCI, DSDI
+            0x5f, 0xab, 0x80,      # 0x0011: DIV CSCI, DSDI
+            0x5f, 0xb4, 0x80, 0xab, 0xcd, # 0x0014: XOR CSCI, 0xabcd
+            0xff,                  # 0x000f: KIL
+        ])
+        #when
+        cpu.run()
+        #then
+        self.assertEqual(cpu.cs.get(),  0xfe)
+        self.assertEqual(cpu.ci.get(),  0xcc)

@@ -1,14 +1,14 @@
 #!/usr/bin/python3
 
 from bc64 import bc64_io
-from bc64 import bc8182_cpu
+from bc64 import bc8183_cpu
 from bc64 import bc64_mem
 from bc64 import bc64_env
 from sys import argv
 
 TOPMEM = 0xffff
 
-class Bc32:
+class Bc64:
     def __init__(self, env, debug):
         self.mem = bc64_mem.MemBus(env, TOPMEM)
         self.keyboard = bc64_io.TerminalKeyboard(env)
@@ -26,14 +26,14 @@ class Bc32:
         self.io.add_device(self.randgen)
         self.io.add_device(self.floppydrive)
 
-        self.cpu = bc8182_cpu.Bc8182(self.mem, self.io, debug)
+        self.cpu = bc8183_cpu.Bc8183(self.mem, self.io, debug)
 
     def run(self):
         self.cpu.run()
 
 def main(argv):
     env = bc64_env.Environment()
-    computer = Bc32(env, len(argv) >= 3)
+    computer = Bc64(env, len(argv) >= 3)
     if len(argv) >= 2:
         import_rom(argv[1], env, computer.mem)
     computer.mem.write_byte(TOPMEM-1, 0xff)

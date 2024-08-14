@@ -1,17 +1,17 @@
 import unittest
-from bc32 import bc8182_cpu
+from bc64 import bc8183_cpu
 
 class RegistersTests(unittest.TestCase):
     def test_value_setter_should_wrap(self):
         #given
-        register = bc8182_cpu.Register(0xff)
+        register = bc8183_cpu.Register(0xff)
         #when
         register.set(0xffab)
         #then
         self.assertEqual(register.get(), 0xab)
     def test_value_increas_should_wrap(self):
         #given
-        register = bc8182_cpu.Register(0xff)
+        register = bc8183_cpu.Register(0xff)
         #when
         register.set(0x0)
         register.inc(0xffab)
@@ -19,7 +19,7 @@ class RegistersTests(unittest.TestCase):
         self.assertEqual(register.get(), 0xab)
     def test_negative_values_should_wrap(self):
         #given
-        register = bc8182_cpu.Register(0xff)
+        register = bc8183_cpu.Register(0xff)
         #when
         register.set(-1)
         #then
@@ -28,7 +28,7 @@ class RegistersTests(unittest.TestCase):
 class FlagsRegisterTests(unittest.TestCase):
     def test_set_flags(self):
         #given
-        register = bc8182_cpu.FlagsRegister(0xff)
+        register = bc8183_cpu.FlagsRegister(0xff)
         flags = register.flags
         #when
         for flag in flags:

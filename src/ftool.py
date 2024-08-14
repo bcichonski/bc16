@@ -1,8 +1,8 @@
 from sys import argv
-from bc32 import bc32_env
-from bc32 import bc32_io
+from bc64 import bc64_env
+from bc64 import bc64_io
 
-env = bc32_env.Environment()
+env = bc64_env.Environment()
 
 def btap2bin(finname,foutname):
     finHandle = env.open_file_to_read(finname)
@@ -35,9 +35,9 @@ def checkargs(no):
         env.log("not enough arguments, {} found where it should be at least {}".format(lenargv, no))
         exit(1)
 
-sectorSize = bc32_io.FloppyDriveV1.SECTOR_SIZE
-sectors = bc32_io.FloppyDriveV1.SECTORS
-tracks = bc32_io.FloppyDriveV1.TRACKS
+sectorSize = bc64_io.FloppyDriveV1.SECTOR_SIZE
+sectors = bc64_io.FloppyDriveV1.SECTORS
+tracks = bc64_io.FloppyDriveV1.TRACKS
 
 def createbdd(fname):
     size = sectorSize * sectors * tracks

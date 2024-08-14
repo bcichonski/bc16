@@ -172,7 +172,7 @@ some extentions like 16bit arithmetic? or 8bit div/mod/mul
 ```
 #### instuctions
 ```
-instructions are 1 or 2 bytes long:
+instructions are 1,2 or more bytes long:
 B0(HL)B1(HL)
 bc8181 instruction set B0H:
 0x0 - NOP               ;
@@ -196,7 +196,32 @@ bc8181 instruction set B0H:
   0x7 - not A - only 1 byte
   0xD - inc A - only 1 byte!
   0xE - dec A - only 1 byte!
-  0xF - not used for future extensions
+  0xF - 
+      0xa - 16bit arithmetic
+      - 0x0 add16 rno imm16
+      - 0x8 add16 rno
+      - 0x1 sub16 rno imm16
+      - 0x9 sub16 rno
+      - 0x2 mul16 rno imm16
+      - 0xa mul16 rno
+      - 0x3 div16 rno imm16
+      - 0xb div16 rno
+      - 0x4 mod16 rno imm16
+      - 0xc mod16 rno
+      - 0xd inc16 rno
+      - 0xe dec16 rno
+      0xb - 16bit binary
+      - 0x2 and16 rno imm16
+      - 0xa and16 rno
+      - 0x3 or16 rno imm16
+      - 0xb or16 rno
+      - 0x4 xor16 rno imm16
+      - 0xc xor16 rno
+      - 0x5 shl16 rno imm16
+      - 0xd shl16 rno
+      - 0x6 shr16 rno imm16
+      - 0xe shr16 rno
+      - 0x7 not16 rno
 0x6 - JMP t,(rno1,rno2)
   0x0 - if ZERO
   0x4 - if NOT ZERO
@@ -212,9 +237,10 @@ bc8181 instruction set B0H:
   when t 0x8-0xF is special mode where rno is treated like imm7
 0x8 - PSH rno
 0x9 - POP rno
-0xA - CAL 
+0xA - CAL(R) 
   0x0 (rno1,rno2)
-  0x8 imm16
+  0x8 imm15 - extended relative call
+  0x9 (rno1,rno2) - extended relative call
 0xB - RET
 0xC - IN
  0x0-0x7 - rno, #imm
@@ -222,7 +248,9 @@ bc8181 instruction set B0H:
 0xD - OUT imm,rno
  0x0-0x7 - #rno1, imm
  0x8-0xf - #rno1, rno2
-0xE - NOP not_used
+0xE - EXT - extensions
+    0x01 - JMR t, imm15 - extended relative jump
+    0x02 - JMR t, regno - same
 0xF - KIL
 ```
 ### software
