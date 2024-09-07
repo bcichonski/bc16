@@ -188,3 +188,23 @@ class CpuTests(unittest.TestCase):
         #then
         self.assertEqual(cpu.cs.get(),  0xfe)
         self.assertEqual(cpu.ci.get(),  0xcc)
+
+    def test_CLR_opcodes(self):
+        if debug: print("test_CLR_opcodes")
+        #given
+        cpu = self.create_cpu([
+            0x18, 0x00,            # 0x0000: MOV CS, 0x00 ; stack at 00fe
+            0x14, 0x06,            # 0x0002: MOV CI, 0x06
+            0xA1, 0x84,            # 0x0004: CLR csci
+            0xA9, 0x00, 0x06,      # 0x0006: CLR +0x0006
+            0xff,                  # 0x0009: KIL
+            0x5d,                  # 0x000a: INC a
+            0xb0,                  # 0x000b: RET
+            0xA9, 0x80, 0x02,      # 0x000c: CLR -0x0002
+            0xb0,                  # 0x000f: RET
+            0xff                   # 0x0010: KIL
+        ])
+        #when
+        cpu.run()
+        #then
+        self.assertEqual(cpu.a.get(),  0x02)

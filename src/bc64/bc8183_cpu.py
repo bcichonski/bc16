@@ -350,6 +350,8 @@ class Bc8183:
         self.inc_pc(1)
 
     def op_CAL(self):
+        curraddr = self.pc.get()
+        
         opcode = lo(self.nextbyte)
         directmode = opcode & Bc8183.CLC_OP_RNO == Bc8183.CLC_OP_RNO
         self.inc_pc(1)
@@ -360,18 +362,25 @@ class Bc8183:
         else:
             regno = hi(self.nextbyte)
             addr = self.get_addr(regno)
-        self.inc_pc(1)
-        curr = self.pc.get()
         
+        self.inc_pc(1)
+        
+        curr = self.pc.get()
         stacktop = self.get_addr(Bc8183.SI)
         self.membus.write_byte(stacktop, curr & 0xff)
         self.membus.write_byte(stacktop - 1, (curr >> 8) & 0xff)
         self.membus.write_byte(stacktop - 2, Bc8183.STACKFRAME_TYPE_CALL)
-
         stacktop -= 3
         self.si.set(stacktop & 0xff)
         self.ss.set((stacktop & 0xff00) >> 8)
-       
+
+        relmode = opcode & 0x01 == 0x01
+        if(relmode):
+            if(addr & 0x8000 == 0x8000):
+                addr = curraddr - (addr & 0x7fff)
+            else:
+                addr = curraddr + addr
+
         self.pc.set(addr)
         self.inc_pc(0)
 
@@ -381,11 +390,11 @@ class Bc8183:
         addrhi = self.membus.read_byte(addr + 2)
         if(frametype == Bc8183.STACKFRAME_TYPE_CALL):
             addrlo = self.membus.read_byte(addr + 3)
-            addr += 2
+            addr += 3
         else: #two frames type push
             addrlo = self.membus.read_byte(addr + 4)
-            addr += 3
-
+            addr += 4
+            
         self.si.set(addr & 0xff)
         self.ss.set((addr & 0xff00) >> 8)
     
@@ -663,7 +672,7 @@ class Bc8183:
         return reg.get()
     
     def print_cpu_stack(self):
-        cpustackstart = self.get_addr(Bc8183.SS)
+        cpustackstart = self.get_addr(Bc8183.SS) + 1
         lastcpustackstart = cpustackstart
         cpuframetype = self.membus.read_byte(cpustackstart)
         if cpuframetype == Bc8183.STACKFRAME_TYPE_CALL:
@@ -676,12 +685,11 @@ class Bc8183:
             cpuframetypestr = 'VAL'
         print("CPU stack:")
         self.print_debug("CPU stack:")
-        while(cpuframetype > 0 and cpustackstart < self.membus.size):
-            msg = "{0}: {1:04x} {2:04x}".format(cpuframetypestr, lastcpustackstart, cpuframe)
+        while(cpuframetype > 0 and cpustackstart <= self.membus.size):
+            msg = "{0} {1:04x}: {2:04x}".format(cpuframetypestr, lastcpustackstart, cpuframe)
             print(msg)
             self.print_debug(msg)
             
-            framecount += 1
             lastcpustackstart = cpustackstart
             if cpuframetype == Bc8183.STACKFRAME_TYPE_CALL:
                 cpuframe = (self.membus.read_byte(cpustackstart + 1) << 8) | self.membus.read_byte(cpustackstart + 2)
@@ -691,6 +699,7 @@ class Bc8183:
                 cpuframe = self.membus.read_byte(cpustackstart + 1)
                 cpustackstart += 2
                 cpuframetypestr = 'VAL'
+            
             cpuframetype = self.membus.read_byte(cpustackstart)
 
     def run_next_opcode(self):

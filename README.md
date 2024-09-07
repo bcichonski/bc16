@@ -239,8 +239,9 @@ bc8181 instruction set B0H:
 0x9 - POP rno
 0xA - CAL(R) 
   0x0 (rno1,rno2)
-  0x8 imm15 - extended relative call
-  0x9 (rno1,rno2) - extended relative call
+  0x8 imm16 - call to address
+  0x1 (rno1,rno2) - extended relative call
+  0x9 imm15 - extended relative call
 0xB - RET
 0xC - IN
  0x0-0x7 - rno, #imm

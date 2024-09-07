@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 #from bc16_cpu.py
-class Bc8181:
+class Bc8183:
     A = 0x1
     CI = 0x4
     DI = 0x5
@@ -23,6 +23,10 @@ class Bc8181:
     CLC_OP_RNO = 0x8
     CLC_INC = 0xD
     CLC_DEC = 0xE
+    CLC_EXT = 0xF
+
+    CLC_EXT_AR  = 0x0a
+    CLC_EXT_BIN = 0x0b
 
     NOP     = 0x0
     MOVRI8  = 0x1
@@ -49,50 +53,96 @@ class Bc8181:
     TEST_OF = 0x3
     TEST_NO = 0x7
 
+    CLC_ADD16 = 0x0,
+    CLC_SUN16 = 0x1,
+    CLC_MUL16 = 0x2,
+    CLC_DIV16 = 0x3,
+    CLC_MOD16 = 0x4,
+    CLC_INC16 = 0xd,
+    CLC_DEC16 = 0xe,
+    CLC_AND16 = 0x2,
+    CLC_OR16  = 0x3,
+    CLC_XOR16 = 0x4,
+    CLC_SHL16 = 0x5,
+    CLC_SHR16 = 0x6,
+    CLC_NOT16 = 0x7,
+
     def __init__(self):
         self.registers_bin = {
-          'pc' : Bc8181.PC,
-          'ss' : Bc8181.SS,
-          'si' : Bc8181.SI,
-          'f'  : Bc8181.F,
-          'a'  : Bc8181.A,
-          'ci' : Bc8181.CI,
-          'cs' : Bc8181.CS,
-          'di' : Bc8181.DI,
-          'ds' : Bc8181.DS,
+          'pc' : Bc8183.PC,
+          'ss' : Bc8183.SS,
+          'si' : Bc8183.SI,
+          'f'  : Bc8183.F,
+          'a'  : Bc8183.A,
+          'ci' : Bc8183.CI,
+          'cs' : Bc8183.CS,
+          'di' : Bc8183.DI,
+          'ds' : Bc8183.DS,
         }
 
         self.registers_str = {
-          Bc8181.PC : 'pc',
-          Bc8181.SS : 'ss',
-          Bc8181.SI : 'si',
-          Bc8181.F  : 'f',
-          Bc8181.A  : 'a',
-          Bc8181.CI : 'ci',
-          Bc8181.CS : 'cs',
-          Bc8181.DI : 'di',
-          Bc8181.DS : 'ds',
+          Bc8183.PC : 'pc',
+          Bc8183.SS : 'ss',
+          Bc8183.SI : 'si',
+          Bc8183.F  : 'f',
+          Bc8183.A  : 'a',
+          Bc8183.CI : 'ci',
+          Bc8183.CS : 'cs',
+          Bc8183.DI : 'di',
+          Bc8183.DS : 'ds',
         }
 
         self.oper_opcodes = {
-          'add' : Bc8181.CLC_ADD,
-          'sub' : Bc8181.CLC_SUB,
-          'and' : Bc8181.CLC_AND,
-          'or'  : Bc8181.CLC_OR,
-          'xor' : Bc8181.CLC_XOR,
-          'shl' : Bc8181.CLC_SHL,
-          'shr' : Bc8181.CLC_SHR
+          'add' : Bc8183.CLC_ADD,
+          'sub' : Bc8183.CLC_SUB,
+          'and' : Bc8183.CLC_AND,
+          'or'  : Bc8183.CLC_OR,
+          'xor' : Bc8183.CLC_XOR,
+          'shl' : Bc8183.CLC_SHL,
+          'shr' : Bc8183.CLC_SHR
         }
 
         self.test_opcodes = {
-          'z' : Bc8181.TEST_Z,
-          'nz': Bc8181.TEST_NZ,
-          'c': Bc8181.TEST_CY,
-          'nc': Bc8181.TEST_NC,
-          'n': Bc8181.TEST_NG,
-          'nn': Bc8181.TEST_NN,
-          'o': Bc8181.TEST_OF,
-          'no': Bc8181.TEST_NO
+          'z' : Bc8183.TEST_Z,
+          'nz': Bc8183.TEST_NZ,
+          'c': Bc8183.TEST_CY,
+          'nc': Bc8183.TEST_NC,
+          'n': Bc8183.TEST_NG,
+          'nn': Bc8183.TEST_NN,
+          'o': Bc8183.TEST_OF,
+          'no': Bc8183.TEST_NO
+        }
+
+        self.oper_opcodes = {
+            'add' : Bc8183.CLC_EXT_AR,
+            'sub' : Bc8183.CLC_EXT_AR,
+            'mul' : Bc8183.CLC_EXT_AR,
+            'div' : Bc8183.CLC_EXT_AR,
+            'mod' : Bc8183.CLC_EXT_AR,
+            'inc' : Bc8183.CLC_EXT_AR,
+            'dec' : Bc8183.CLC_EXT_AR,
+            'and' : Bc8183.CLC_EXT_BIN,
+            'or' : Bc8183.CLC_EXT_BIN,
+            'xor' : Bc8183.CLC_EXT_BIN,
+            'shl' : Bc8183.CLC_EXT_BIN,
+            'shr' : Bc8183.CLC_EXT_BIN,
+            'not' : Bc8183.CLC_EXT_BIN,
+        }
+
+        self.oper16opcodes = {
+            'add' : Bc8183.CLC_ADD16,
+            'sub' : Bc8183.CLC_SUN16,
+            'mul' : Bc8183.CLC_MUL16,
+            'div' : Bc8183.CLC_DIV16,
+            'mod' : Bc8183.CLC_MOD16,
+            'inc' : Bc8183.CLC_INC16,
+            'dec' : Bc8183.CLC_DEC16,
+            'and' : Bc8183.CLC_AND16,
+            'or' : Bc8183.CLC_OR16,
+            'xor' : Bc8183.CLC_XOR16,
+            'shl' : Bc8183.CLC_SHL16,
+            'shr' : Bc8183.CLC_SHR16,
+            'not' : Bc8183.CLC_NOT16,
         }
 
     def REG2BIN(self, reg : str):
@@ -102,12 +152,17 @@ class Bc8181:
         return self.registers_str[reg]
 
     def OPER2OPCODE(self, oper):
+        if oper.endswith("16"):
+            return Bc8183.CLC_EXT
         return self.oper_opcodes[oper]
+    
+    def OPER2SUBCODE(self, oper):
+        return (self.opersubcodes[oper], self.oper16codes[oper])
 
     def TEST2OPCODE(self, test):
         return self.test_opcodes[test]
 
-ASMCODES = Bc8181()
+ASMCODES = Bc8183()
 
 class CodeContext:
     def __init__(self):
@@ -155,6 +210,9 @@ class CodeContext:
         self._emit_addr(label, 'lorel')
     def set_const(self, label, value):
         self.defs[label] = value
+    def emit_16bit(self, value):
+        self.emit_byte(value >> 8)
+        self.emit_byte(value & 0xff)
 
 class Token:
     def __str__(self):
@@ -237,6 +295,20 @@ class INC(Instruction):
         context.emit_4bit(ASMCODES.CLC_INC);
 
 @dataclass
+class INC16(Instruction):
+    reg : str
+    def __str__(self):
+        return "INC16 {0}".format(self.reg.upper());
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.CLC)
+        context.emit_4bit(ASMCODES.CLC_EXT)
+        context.emit_4bit(ASMCODES.CLC_EXT_AR)
+        context.emit_4bit(ASMCODES.CLC_INC16)
+        context.emit_4bit(0)
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+
+@dataclass
 class DEC(Instruction):
     _ : str
     def __str__(self):
@@ -245,6 +317,20 @@ class DEC(Instruction):
         super().emit(context)
         context.emit_4bit(ASMCODES.CLC);
         context.emit_4bit(ASMCODES.CLC_DEC);
+
+@dataclass
+class DEC16(Instruction):
+    reg : str
+    def __str__(self):
+        return "DEC16 {0}".format(self.reg.upper());
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.CLC)
+        context.emit_4bit(ASMCODES.CLC_EXT)
+        context.emit_4bit(ASMCODES.CLC_EXT_AR)
+        context.emit_4bit(ASMCODES.CLC_DEC16)
+        context.emit_4bit(0)
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg))
 
 @dataclass
 class MOVRI8(Instruction):
@@ -316,14 +402,23 @@ class MOVMR(Instruction):
 @dataclass
 class CLC_A_IMM(Instruction):
     oper : str
-    imm : int
+    imm : str
     def __str__(self):
         return "{0: <3} 0x{1:04x}".format(self.oper.upper(), self.imm)
     def emit(self, context):
         super().emit(context)
         context.emit_4bit(ASMCODES.CLC)
-        context.emit_4bit(ASMCODES.OPER2OPCODE(self.oper))
-        context.emit_byte(self.imm)
+        opcode = ASMCODES.OPER2OPCODE(self.oper)
+        context.emit_4bit(opcode)
+        if opcode == ASMCODES.CLC_EXT:
+            print("{0} {1} {2}".format(self.oper.upper(), self.imm[0], self.imm[1]))
+            (kind, subcode) = ASMCODES.OPER2SUBCODE(self.oper)
+            context.emit_4bit(kind)
+            context.emit_4bit(subcode)
+            context.emit_4bit(ASMCODES.REG2BIN(self.imm[0]))
+            context.emit_16bit(imm[1])
+        else:
+            context.emit_byte(self.imm)
 
 @dataclass
 class CLC_A_R(Instruction):
@@ -337,6 +432,41 @@ class CLC_A_R(Instruction):
         context.emit_4bit(ASMCODES.CLC_OP_RNO)
         context.emit_4bit(ASMCODES.REG2BIN(self.reg))
         context.emit_4bit(ASMCODES.OPER2OPCODE(self.oper))
+
+@dataclass
+class CLC16_R_IMM(Instruction):
+    oper : str
+    imm : list
+    def __str__(self):
+        return "{0: <3} 0x{1:04x}".format(self.oper.upper(), self.imm)
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.CLC)
+        opcode = ASMCODES.OPER2OPCODE(self.oper)
+        context.emit_4bit(opcode)
+        if opcode == ASMCODES.CLC_EXT:
+            print("{0} {1} {2}".format(self.oper.upper(), self.imm[0], self.imm[1]))
+            (kind, subcode) = ASMCODES.OPER2SUBCODE(self.oper)
+            context.emit_4bit(kind)
+            context.emit_4bit(subcode)
+            context.emit_4bit(ASMCODES.REG2BIN(self.imm[0]))
+            context.emit_16bit(imm[1])
+        else:
+            context.emit_byte(self.imm)
+
+@dataclass
+class CLC16_R_R(Instruction):
+    oper : str
+    reg : str
+    def __str__(self):
+        return "{0: <3} {1}".format(self.oper.upper(), self.reg)
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.CLC)
+        context.emit_4bit(ASMCODES.CLC_OP_RNO)
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+        context.emit_4bit(ASMCODES.OPER2OPCODE(self.oper))
+
 
 @dataclass
 class JMP(Instruction):
@@ -381,8 +511,22 @@ class NOT(Instruction):
         return "NOT A"
     def emit(self, context):
         super().emit(context)
-        context.emit_4bit(ASMCODES.CLC);
+        context.emit_4bit(ASMCODES.CLC)
         context.emit_4bit(ASMCODES.CLC_NOT)
+
+@dataclass
+class NOT16(Instruction):
+    reg : str
+    def __str__(self):
+        return "NOT16 {0}".format(self.reg.upper())
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.CLC)
+        context.emit_4bit(ASMCODES.CLC_EXT)
+        context.emit_4bit(ASMCODES.CLC_EXT_BIN)
+        context.emit_4bit(ASMCODES.CLC_NOT16)
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+        context.emit_4bit(0)
 
 @dataclass
 class PSH(Instruction):
