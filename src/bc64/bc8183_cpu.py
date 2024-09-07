@@ -672,8 +672,14 @@ class Bc8183:
         return reg.get()
     
     def print_cpu_stack(self):
+        print(":::CPU stack:::")
+        self.print_debug(":::CPU stack:::")
         cpustackstart = self.get_addr(Bc8183.SS) + 1
         lastcpustackstart = cpustackstart
+        if(cpustackstart >= self.membus.size):
+            print(":::empty:::")
+            self.print_debug(":::empty:::")
+            return
         cpuframetype = self.membus.read_byte(cpustackstart)
         if cpuframetype == Bc8183.STACKFRAME_TYPE_CALL:
             cpuframe = (self.membus.read_byte(cpustackstart + 1) << 8) | self.membus.read_byte(cpustackstart + 2)
@@ -683,13 +689,11 @@ class Bc8183:
             cpuframe = self.membus.read_byte(cpustackstart + 1)
             cpustackstart += 2
             cpuframetypestr = 'VAL'
-        print("CPU stack:")
-        self.print_debug("CPU stack:")
+        
         while(cpuframetype > 0 and cpustackstart <= self.membus.size):
             msg = "{0} {1:04x}: {2:04x}".format(cpuframetypestr, lastcpustackstart, cpuframe)
             print(msg)
             self.print_debug(msg)
-            
             lastcpustackstart = cpustackstart
             if cpuframetype == Bc8183.STACKFRAME_TYPE_CALL:
                 cpuframe = (self.membus.read_byte(cpustackstart + 1) << 8) | self.membus.read_byte(cpustackstart + 2)
@@ -701,6 +705,9 @@ class Bc8183:
                 cpuframetypestr = 'VAL'
             
             cpuframetype = self.membus.read_byte(cpustackstart)
+
+        print(":::end of stack:::")
+        self.print_debug(":::end of stack:::")
 
     def run_next_opcode(self):
         opcode = hi(self.nextbyte)
