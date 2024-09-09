@@ -206,9 +206,11 @@ class Bc8183:
             arg2 = None
             regno2 = None
             opersubcode = (subcode << 4) | suboper
-            singlearg = (opersubcode & Bc8183.CLC_INC16) == Bc8183.CLC_INC16 \
-              or (opersubcode & Bc8183.CLC_DEC16) == Bc8183.CLC_DEC16 \
-              or (opersubcode & Bc8183.CLC_NOT16) == Bc8183.CLC_NOT16
+
+            singlearg = ((opersubcode & Bc8183.CLC_INC16) == Bc8183.CLC_INC16 and (subcode == Bc8183.CLC_EXT_AR)) \
+              or ((opersubcode & Bc8183.CLC_DEC16) == Bc8183.CLC_DEC16 and (subcode == Bc8183.CLC_EXT_AR)) \
+              or ((opersubcode & Bc8183.CLC_NOT16) == Bc8183.CLC_NOT16 and (subcode == Bc8183.CLC_EXT_BIN))
+            
             if (not singlearg):
                 if(regno == Bc8183.CS):            
                     regno2 = Bc8183.DS
