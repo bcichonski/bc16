@@ -443,24 +443,25 @@ class Bc8183:
             addr = self.nextbyte
             self.inc_pc(1)
             addr = (addr << 8) | self.nextbyte
+            self.inc_pc(1)
         if(opcode == 0x02):
             testcode = hi(self.nextbyte)
             regno = lo(self.nextbyte)
             addr = self.get_addr(regno)
+            self.inc_pc(1)
 
         regno = testcode & 0x3
         neg = opcode & 0x4 == 0x4
         test = self.f.get_flag(regno)
         if neg:
             test = not test
-        
+
         if addr & 0x80 == 0x80:
             addr = - (addr & 0x7f)
+
         if(test):
             self.pc.set(self.pc.get() + addr - 1)
             self.inc_pc(0)
-        else:
-            self.inc_pc(1)
 
     def create_instructions(self):
         self.instructions = {
