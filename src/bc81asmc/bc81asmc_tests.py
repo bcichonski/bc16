@@ -94,6 +94,21 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(
             mnemonic.parse('inc a'),
             INC('a'))
+        
+    def test_inc16(self):
+        self.assertEqual(
+            mnemonic.parse('inc dsdi'),
+            INC16('dsdi'))
+    
+    def test_dec16(self):
+        self.assertEqual(
+            mnemonic.parse('dec csci'),
+            DEC16('csci'))
+        
+    def test_not16(self):
+        self.assertEqual(
+            mnemonic.parse('not af'),
+            NOT16('af'))
 
     def test_dec_a(self):
         self.assertEqual(
@@ -134,6 +149,16 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(
             mADDr.parse('add cs'),
             CLC_A_R('add', 'cs'))
+        
+    def test_add16_i16(self):
+        self.assertEqual(
+            mADD16i16.parse('add csci, 0xadbc'),
+            CLC16_R_IMM('add', 'csci', 0xadbc))
+
+    def test_add16_rr(self):
+        self.assertEqual(
+            mADD16r.parse('add csci, dsdi'),
+            CLC16_R_R('add', 'csci', 'dsdi'))
 
     def test_sub_i8(self):
         self.assertEqual(
@@ -144,6 +169,46 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(
             mSUBr.parse('sub a'),
             CLC_A_R('sub', 'a'))
+        
+    def test_sub16_i16(self):
+        self.assertEqual(
+            mSUB16i16.parse('sub csci, 0xadbc'),
+            CLC16_R_IMM('sub', 'csci', 0xadbc))
+
+    def test_sub16_rr(self):
+        self.assertEqual(
+            mSUB16r.parse('sub csci, dsdi'),
+            CLC16_R_R('sub', 'csci', 'dsdi'))
+        
+    def test_mul16_i16(self):
+        self.assertEqual(
+            mMUL16i16.parse('mul csci, 0xadbc'),
+            CLC16_R_IMM('mul', 'csci', 0xadbc))
+
+    def test_mul16_rr(self):
+        self.assertEqual(
+            mMUL16r.parse('mul csci, dsdi'),
+            CLC16_R_R('mul', 'csci', 'dsdi'))
+        
+    def test_div16_i16(self):
+        self.assertEqual(
+            mDIV16i16.parse('div csci, 0xadbc'),
+            CLC16_R_IMM('div', 'csci', 0xadbc))
+
+    def test_div16_rr(self):
+        self.assertEqual(
+            mDIV16r.parse('div csci, dsdi'),
+            CLC16_R_R('div', 'csci', 'dsdi'))
+        
+    def test_mod16_i16(self):
+        self.assertEqual(
+            mMOD16i16.parse('mod csci, 0xadbc'),
+            CLC16_R_IMM('mod', 'csci', 0xadbc))
+
+    def test_mod16_rr(self):
+        self.assertEqual(
+            mMOD16r.parse('mod csci, dsdi'),
+            CLC16_R_R('mod', 'csci', 'dsdi'))
 
     def test_and_i8(self):
         self.assertEqual(
@@ -234,6 +299,16 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(
             mCAL.parse('cal :label'),
             CAL(':label'))
+        
+    def test_clr_addr(self):
+        self.assertEqual(
+            mCLR.parse('clr :label'),
+            CLR(':label'))
+        
+    def test_clr_reg(self):
+        self.assertEqual(
+            mCLR.parse('clr dsdi'),
+            CLR('dsdi'))
 
     def test_ret(self):
         self.assertEqual(

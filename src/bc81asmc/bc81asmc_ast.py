@@ -81,6 +81,9 @@ class Bc8183:
           'cs' : Bc8183.CS,
           'di' : Bc8183.DI,
           'ds' : Bc8183.DS,
+          'af' : Bc8183.A,
+          'csci' : Bc8183.CS,
+          'dsdi' : Bc8183.DS
         }
 
         self.registers_str = {
@@ -116,7 +119,7 @@ class Bc8183:
           'no': Bc8183.TEST_NO
         }
 
-        self.oper_opcodes = {
+        self.oper_subcodes = {
             'add' : Bc8183.CLC_EXT_AR,
             'sub' : Bc8183.CLC_EXT_AR,
             'mul' : Bc8183.CLC_EXT_AR,
@@ -132,7 +135,7 @@ class Bc8183:
             'not' : Bc8183.CLC_EXT_BIN,
         }
 
-        self.oper16opcodes = {
+        self.oper16_opcodes = {
             'add' : Bc8183.CLC_ADD16,
             'sub' : Bc8183.CLC_SUN16,
             'mul' : Bc8183.CLC_MUL16,
@@ -160,7 +163,7 @@ class Bc8183:
         return self.oper_opcodes[oper]
     
     def OPER2SUBCODE(self, oper):
-        return (self.opersubcodes[oper], self.oper16codes[oper])
+        return (self.oper_subcodes[oper], self.oper16_opcodes[oper])
 
     def TEST2OPCODE(self, test):
         return self.test_opcodes[test]
@@ -443,37 +446,36 @@ class CLC_A_R(Instruction):
 @dataclass
 class CLC16_R_IMM(Instruction):
     oper : str
+    reg : str
     imm : list
     def __str__(self):
-        return "{0: <3} 0x{1:04x}".format(self.oper.upper(), self.imm)
+        return "{0: <3} {2}, 0x{1:04x}".format(self.oper.upper(), self.imm, self.reg)
     def emit(self, context):
         super().emit(context)
-        context.emit_4bit(ASMCODES.CLC)
-        opcode = ASMCODES.OPER2OPCODE(self.oper)
-        context.emit_4bit(opcode)
-        if opcode == ASMCODES.CLC_EXT:
-            print("{0} {1} {2}".format(self.oper.upper(), self.imm[0], self.imm[1]))
-            (kind, subcode) = ASMCODES.OPER2SUBCODE(self.oper)
-            context.emit_4bit(kind)
-            context.emit_4bit(subcode)
-            context.emit_4bit(ASMCODES.REG2BIN(self.imm[0]))
-            context.emit_16bit(imm[1])
-        else:
-            context.emit_byte(self.imm)
+        context.emit_4bit(ASMCODES.CLC)  
+        context.emit_4bit(Bc8183.CLC_EXT)
+        (kind, subcode) = ASMCODES.OPER2SUBCODE(self.oper)
+        context.emit_4bit(kind)
+        context.emit_4bit(subcode)
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+        context.emit_16bit(self.imm)
+
 
 @dataclass
 class CLC16_R_R(Instruction):
     oper : str
     reg : str
+    reg2 : str
     def __str__(self):
-        return "{0: <3} {1}".format(self.oper.upper(), self.reg)
+        return "{0: <3} {1}, {2}".format(self.oper.upper(), self.reg, self.reg2)
     def emit(self, context):
         super().emit(context)
         context.emit_4bit(ASMCODES.CLC)
-        context.emit_4bit(ASMCODES.CLC_OP_RNO)
+        context.emit_4bit(Bc8183.CLC_EXT)
+        (kind, subcode) = ASMCODES.OPER2SUBCODE(self.oper)
+        context.emit_4bit(kind)
+        context.emit_4bit(subcode)
         context.emit_4bit(ASMCODES.REG2BIN(self.reg))
-        context.emit_4bit(ASMCODES.OPER2OPCODE(self.oper))
-
 
 @dataclass
 class JMP(Instruction):

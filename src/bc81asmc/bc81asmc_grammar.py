@@ -185,72 +185,102 @@ mSHRr = \
 
 mADD16i16 = \
     lexeme(string('add') >> sep >> seq(paramreg2, comma >> heximm16))\
-    .map(lambda x: CLC16_R_IMM('add16', x))\
+    .map(lambda x: CLC16_R_IMM('add', x[0], x[1]))\
     .desc('add16 i16 instruction')
 
 mADD16r = \
-    lexeme(string('add') >> sep >> paramreg2)\
-    .map(lambda x: CLC16_R_R('add16', x))\
+    lexeme(string('add') >> sep >> seq(paramreg2, comma >> paramreg2))\
+    .map(lambda x: CLC16_R_R('add', x[0], x[1]))\
     .desc('add16 rr instruction')
 
 mSUB16i16 = \
     lexeme(string('sub') >> sep >> seq(paramreg2, comma >> heximm16))\
-    .map(lambda x: CLC16_R_IMM('sub16', x))\
+    .map(lambda x: CLC16_R_IMM('sub', x[0], x[1]))\
     .desc('sub16 i16 instruction')
 
 mSUB16r = \
-    lexeme(string('sub') >> sep >> paramreg)\
-    .map(lambda x: CLC16_R_R('sub16', x))\
+    lexeme(string('sub') >> sep >> seq(paramreg2, comma >> paramreg2))\
+    .map(lambda x: CLC16_R_R('sub', x[0], x[1]))\
     .desc('sub16 rr instruction')
+
+mMUL16i16 = \
+    lexeme(string('mul') >> sep >> seq(paramreg2, comma >> heximm16))\
+    .map(lambda x: CLC16_R_IMM('mul', x[0], x[1]))\
+    .desc('mul16 i16 instruction')
+
+mMUL16r = \
+    lexeme(string('mul') >> sep >> seq(paramreg2, comma >> paramreg2))\
+    .map(lambda x: CLC16_R_R('mul', x[0], x[1]))\
+    .desc('mul16 rr instruction')
+
+mDIV16i16 = \
+    lexeme(string('div') >> sep >> seq(paramreg2, comma >> heximm16))\
+    .map(lambda x: CLC16_R_IMM('div', x[0], x[1]))\
+    .desc('div16 i16 instruction')
+
+mDIV16r = \
+    lexeme(string('div') >> sep >> seq(paramreg2, comma >> paramreg2))\
+    .map(lambda x: CLC16_R_R('div', x[0], x[1]))\
+    .desc('div16 rr instruction')
+
+mMOD16i16 = \
+    lexeme(string('mod') >> sep >> seq(paramreg2, comma >> heximm16))\
+    .map(lambda x: CLC16_R_IMM('mod', x[0], x[1]))\
+    .desc('mod16 i16 instruction')
+
+mMOD16r = \
+    lexeme(string('mod') >> sep >> seq(paramreg2, comma >> paramreg2))\
+    .map(lambda x: CLC16_R_R('mod', x[0], x[1]))\
+    .desc('mod16 rr instruction')
 
 mAND16i16 = \
     lexeme(string('and') >> sep >> seq(paramreg2, comma >> heximm16))\
-    .map(lambda x: CLC16_R_IMM('and16', x))\
+    .map(lambda x: CLC16_R_IMM('and', x[0], x[1]))\
     .desc('and16 i16 instruction')
 
 mAND16r = \
-    lexeme(string('and') >> sep >> paramreg)\
-    .map(lambda x: CLC16_R_R('and16', x))\
+    lexeme(string('and') >> sep >> seq(paramreg2, comma >> paramreg2))\
+    .map(lambda x: CLC16_R_R('and', x[0], x[1]))\
     .desc('and16 rr instruction')
 
 mOR16i16 = \
     lexeme(string('or') >> sep >> seq(paramreg2, comma >> heximm16))\
-    .map(lambda x: CLC16_R_IMM('or16', x))\
+    .map(lambda x: CLC16_R_IMM('or', x[0], x[1]))\
     .desc('or16 i16 instruction')
 
 mOR16r = \
-    lexeme(string('or') >> sep >> paramreg)\
-    .map(lambda x: CLC16_R_R('or16', x))\
+    lexeme(string('or') >> sep >> seq(paramreg2, comma >> paramreg2))\
+    .map(lambda x: CLC16_R_R('or', x[0], x[1]))\
     .desc('or rr instruction')
 
 mXOR16i16 = \
     lexeme(string('xor') >> sep >> seq(paramreg2, comma >> heximm16))\
-    .map(lambda x: CLC16_R_IMM('xor16', x))\
+    .map(lambda x: CLC16_R_IMM('xor', x[0], x[1]))\
     .desc('xor16 i16 instruction')
 
 mXOR16r = \
-    lexeme(string('xor') >> sep >> paramreg)\
-    .map(lambda x: CLC16_R_R('xor16', x))\
+    lexeme(string('xor') >> sep >> seq(paramreg2, comma >> paramreg2))\
+    .map(lambda x: CLC16_R_R('xor', x[0], x[1]))\
     .desc('xor rr instruction')
 
 mSHL16i8 = \
     lexeme(string('shl') >> sep >> seq(paramreg2, comma >> heximm8))\
-    .map(lambda x: CLC16_R_IMM('shl', x))\
+    .map(lambda x: CLC16_R_IMM('shl', x[0], x[1]))\
     .desc('shl16 i8 instruction')
 
 mSHL16r = \
-    lexeme(string('shl') >> sep >> paramreg2)\
-    .map(lambda x: CLC16_R_R('shl16', x))\
+    lexeme(string('shl') >> sep >> seq(paramreg2, comma >> paramreg2))\
+    .map(lambda x: CLC16_R_R('shl', x[0], x[1]))\
     .desc('shl16 r2 instruction')
 
 mSHR16i8 = \
     lexeme(string('shr') >> sep >> seq(paramreg2, comma >> heximm8))\
-    .map(lambda x: CLC16_R_IMM('shr16', x))\
+    .map(lambda x: CLC16_R_IMM('shr', x[0], x[1]))\
     .desc('shr16 i8 instruction')
 
 mSHR16r = \
-    lexeme(string('shr') >> sep >> paramreg2)\
-    .map(lambda x: CLC16_R_R('shr16', x))\
+    lexeme(string('shr') >> sep >> seq(paramreg2, comma >> paramreg2))\
+    .map(lambda x: CLC16_R_R('shr', x[0], x[1]))\
     .desc('shr16 r instruction')
 
 logictest = lexeme(string('nz') | string('z') | string('nc') | string('c') |  \
@@ -314,10 +344,11 @@ mKIL = lexeme(string('kil'))\
         .map(KIL)\
         .desc('kil instruction')
 
-mCLC = mADDi8 | mADDr | mSUBi8 | mSUBr | mANDi8 | mANDr | mORi8 | mORr | \
-       mXORi8 | mXORr | mSHLi8 | mSHLr | mSHRi8 | mSHRr | \
-       mADD16i16 | mADD16r | mSUB16i16 | mSUB16r | mAND16i16 | mAND16r | mOR16i16 | mOR16r | \
-       mXOR16i16 | mXOR16r | mSHL16i8 | mSHL16r | mSHR16i8 | mSHR16r
+mCLC = mADD16r | mADD16i16 | mSUB16r | mSUB16i16 | mMUL16r | mMUL16i16 | mDIV16r | mDIV16i16 | mMOD16r | mMOD16i16 | \
+       mAND16i16 | mAND16r | mOR16i16 | mOR16r | \
+       mXOR16i16 | mXOR16r | mSHL16i8 | mSHL16r | mSHR16i8 | mSHR16r | \
+       mADDi8 | mADDr | mSUBi8 | mSUBr | mANDi8 | mANDr | mORi8 | mORr | \
+       mXORi8 | mXORr | mSHLi8 | mSHLr | mSHRi8 | mSHRr
 
 dORG = (lexeme(string('.org')) >> heximm16)\
     .map(ORG)\
@@ -335,7 +366,7 @@ dDEF = lexeme(seq(lexeme(string('.def')) >> lexeme(ident) << comma,
             heximm16).combine(DEF))\
         .desc('.def directive')
 
-mnemonic = mNOP | mINC | mDEC | mNOT | mINC16 | mDEC16 | mNOT16 | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | \
+mnemonic = mNOP | mINC | mDEC | mNOT16 | mINC16 | mDEC16 | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | \
            mCLC | mJMP | mJMR | mKIL | mCAL | mCLR | mRET | mIN | mOUT | mPSH | mPOP
 directive = dORG | dDB | dMV | dDEF
 label = lexeme(ident << colon)
