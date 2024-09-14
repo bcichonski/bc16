@@ -304,6 +304,12 @@ mJMR = \
         jmraddrarg).combine(JMR))\
     .desc('jmr instruction')
 
+mJRX = \
+    lexeme(seq(
+        string('jrx') >> sep >> logictest << comma,
+        jmraddrarg).combine(JRX))\
+    .desc('jrx instruction')
+
 mPSH = lexeme(string('psh') >> sep >> paramreg)\
     .map(PSH)\
     .desc('psh instruction')
@@ -367,7 +373,7 @@ dDEF = lexeme(seq(lexeme(string('.def')) >> lexeme(ident) << comma,
         .desc('.def directive')
 
 mnemonic = mNOP | mINC | mDEC | mNOT16 | mINC16 | mDEC16 | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | \
-           mCLC | mJMP | mJMR | mKIL | mCAL | mCLR | mRET | mIN | mOUT | mPSH | mPOP
+           mCLC | mJMP | mJMR | mKIL | mCAL | mCLR | mRET | mIN | mOUT | mPSH | mPOP | mJRX
 directive = dORG | dDB | dMV | dDEF
 label = lexeme(ident << colon)
 instruction = mnemonic | directive

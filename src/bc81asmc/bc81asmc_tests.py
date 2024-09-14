@@ -329,6 +329,16 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(
             mJMR.parse('jmr c, :label'),
             JMR('c', ':label'))
+        
+    def test_jrx_reg(self):
+        self.assertEqual(
+            mJRX.parse('jrx nz, di'),
+            JRX('nz', 'di'))
+
+    def test_jrx_lbl(self):
+        self.assertEqual(
+            mJRX.parse('jrx c, :label'),
+            JRX('c', ':label'))
 
     def test_psh_r(self):
         self.assertEqual(

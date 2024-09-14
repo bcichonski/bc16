@@ -45,7 +45,11 @@ class Bc8183:
     RET     = 0xb
     IN      = 0xc
     OUT     = 0xd
+    EXT     = 0xe
     KIL     = 0xf
+
+    EXT_JRX_ADR = 0x1
+    EXT_JRX_REG = 0x2
 
     TEST_Z  = 0x0
     TEST_NZ = 0x4
@@ -512,6 +516,26 @@ class JMR(Instruction):
             context.emit_4bit(ASMCODES.TEST2OPCODE(self.test) | ASMCODES.CLC_OP_RNO)
             context.emit_4bit(ASMCODES.REG2BIN(self.arg[0:2]))
             context.emit_4bit(0)
+
+@dataclass
+class JRX(Instruction):
+    test : str
+    arg : str
+    def __str__(self):
+        return "JRX {0}, {1}".format(self.test.upper(), self.arg.upper())
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.EXT)
+
+        if(self.arg.startswith(':')):
+            context.emit_4bit(ASMCODES.EXT_JRX_ADR)
+            context.emit_4bit(ASMCODES.TEST2OPCODE(self.test))
+            context.emit_4bit(0)
+            context.emit_rel15addr(self.arg[1:])
+        else:
+            context.emit_4bit(ASMCODES.EXT_JRX_REG)
+            context.emit_4bit(ASMCODES.TEST2OPCODE(self.test) | ASMCODES.CLC_OP_RNO)
+            context.emit_4bit(ASMCODES.REG2BIN(self.arg[0:2]))
 
 @dataclass
 class NOT(Instruction):
