@@ -209,6 +209,56 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(
             mMOD16r.parse('mod csci, dsdi'),
             CLC16_R_R('mod', 'csci', 'dsdi'))
+        
+    def test_and16_i16(self):
+        self.assertEqual(
+            mAND16i16.parse('and csci, 0xadbc'),
+            CLC16_R_IMM('and', 'csci', 0xadbc))
+
+    def test_and16_rr(self):
+        self.assertEqual(
+            mAND16r.parse('and csci, dsdi'),
+            CLC16_R_R('and', 'csci', 'dsdi'))
+        
+    def test_or16_i16(self):
+        self.assertEqual(
+            mOR16i16.parse('or csci, 0xadbc'),
+            CLC16_R_IMM('or', 'csci', 0xadbc))
+
+    def test_or16_rr(self):
+        self.assertEqual(
+            mOR16r.parse('or csci, dsdi'),
+            CLC16_R_R('or', 'csci', 'dsdi'))
+        
+    def test_xor16_i16(self):
+        self.assertEqual(
+            mXOR16i16.parse('xor csci, 0xadbc'),
+            CLC16_R_IMM('xor', 'csci', 0xadbc))
+
+    def test_xor16_rr(self):
+        self.assertEqual(
+            mXOR16r.parse('xor csci, dsdi'),
+            CLC16_R_R('xor', 'csci', 'dsdi'))
+        
+    def test_shl16_i16(self):
+        self.assertEqual(
+            mSHL16i8.parse('shl csci, 0xad'),
+            CLC16_R_IMM('shl', 'csci', 0xad))
+
+    def test_shl16_rr(self):
+        self.assertEqual(
+            mSHL16r.parse('shl csci, dsdi'),
+            CLC16_R_R('shl', 'csci', 'dsdi'))
+        
+    def test_shr16_i16(self):
+        self.assertEqual(
+            mSHR16i8.parse('shr csci, 0xad'),
+            CLC16_R_IMM('shr', 'csci', 0xad))
+
+    def test_shr16_rr(self):
+        self.assertEqual(
+            mSHR16r.parse('shr csci, dsdi'),
+            CLC16_R_R('shr', 'csci', 'dsdi'))
 
     def test_and_i8(self):
         self.assertEqual(
