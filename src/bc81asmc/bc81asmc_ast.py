@@ -24,6 +24,9 @@ class Bc8183:
     CLC_INC = 0xD
     CLC_DEC = 0xE
     CLC_EXT = 0xF
+    
+    CAL_EX_RNO = 0x1
+    CAL_EX_I16 = 0x9
 
     CLC_EXT_AR  = 0x0a
     CLC_EXT_BIN = 0x0b
@@ -202,12 +205,16 @@ class CodeContext:
             raise Exception('cannot calculate label address if byte was halfly emitted')
         self.labels.append(tuple((self.curraddr,label,type)))
         self.emit_byte(0xfa)
+        if(type == 'rel15'):
+            self.emit_byte(0xfa)
     def emit_lo8addr(self, label):
         self._emit_addr(label, 'lo')
     def emit_hi8addr(self, label):
         self._emit_addr(label, 'hi')
     def emit_rel8addr(self, label):
         self._emit_addr(label, 'lorel')
+    def emit_rel15addr(self, label):
+        self._emit_addr(label, 'rel15')
     def set_const(self, label, value):
         self.defs[label] = value
     def emit_16bit(self, value):
@@ -564,6 +571,23 @@ class CAL(Instruction):
             context.emit_4bit(0)
             context.emit_4bit(ASMCODES.REG2BIN(self.arg[0:2]))
             context.emit_4bit(0)
+
+@dataclass
+class CLR(Instruction):
+    arg : str
+    def __str__(self):
+        return 'CLR {0}'.format(self.arg.upper())
+    def emit(self, context):
+        super().emit(context)
+        context.emit_4bit(ASMCODES.CAL)
+        if(self.arg.startswith(':')):
+            context.emit_4bit(ASMCODES.CAL_EX_I16)
+            context.emit_hi8addr(self.arg[1:])
+            context.emit_lo8addr(self.arg[1:])
+        else:
+            context.emit_4bit(ASMCODES.CAL_EX_RNO)
+            context.emit_4bit(ASMCODES.REG2BIN(self.arg[0:2]))
+            context.emit_4bit(ASMCODES.REG2BIN(self.arg[2:4]))
         
 @dataclass
 class RET(Instruction):

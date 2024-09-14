@@ -288,7 +288,7 @@ mCAL = lexeme(string('cal') >> sep >> jmpaddrarg)\
 
 mCLR = lexeme(string('clr') >> sep >> jmpaddrarg)\
     .map(CLR)\
-    .desc('calr instruction')
+    .desc('calr instruction');
 
 mRET = lexeme(string('ret'))\
     .map(RET)\

@@ -43,10 +43,21 @@ def compile(ast, verbose):
             if verbose:
                 print('store rel({0})={1} at 0x{2:04x}'.format(label, addrdiff, addr))
             if(addrdiff < -0x7f or addrdiff > 0x7f):
-                raise Exception('Label {0} too far away for relative jump {1} bytes'.format(label, addrdiff))
+                raise Exception('Label {0} too far away for relative 7bit jump {1} bytes'.format(label, addrdiff))
             if(addrdiff < 0):
                 addrdiff = (-addrdiff) | 0x80 
             context.emit_byte_at(addr, addrdiff)
+        elif ltype == 'rel15':
+            addrdiff = labeladdr - addr + 1
+            if verbose:
+                print('store rel15({0})={1} at 0x{2:04x}'.format(label, addrdiff, addr))
+            if(addrdiff < -0x7fff or addrdiff > 0x7fff):
+                raise Exception('Label {0} too far away for relative 15bit jump {1} bytes'.format(label, addrdiff))
+            if(addrdiff < 0):
+                addrdiff = (-addrdiff) | 0x8000
+            context.emit_byte_at(addr, addrdiff >> 8)
+            context.emit_byte_at(addr + 1, addrdiff & 0xff)     
+
 
     print('Code length: {0} labels: {1}'.format(len(context.bytes), len(labeladdresses)))
     
@@ -93,7 +104,7 @@ def save_output_btap(fname, short_fname, context):
         return file_handle.write(btapify(context.bytes))
 
 def main():
-    parser = argparse.ArgumentParser(description='bc81asmc - an assembler for bc8182 cpu v.1.2 (240622)')
+    parser = argparse.ArgumentParser(description='bc81asmc - an assembler for bc8183 cpu v1.3 (240914)')
     parser.add_argument('infile', type=str,
         help='input file name')
     parser.add_argument('--verbose', action='store_true',
