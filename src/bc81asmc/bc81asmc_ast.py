@@ -60,19 +60,19 @@ class Bc8183:
     TEST_OF = 0x3
     TEST_NO = 0x7
 
-    CLC_ADD16 = 0x0,
-    CLC_SUN16 = 0x1,
-    CLC_MUL16 = 0x2,
-    CLC_DIV16 = 0x3,
-    CLC_MOD16 = 0x4,
-    CLC_INC16 = 0xd,
-    CLC_DEC16 = 0xe,
-    CLC_AND16 = 0x2,
-    CLC_OR16  = 0x3,
-    CLC_XOR16 = 0x4,
-    CLC_SHL16 = 0x5,
-    CLC_SHR16 = 0x6,
-    CLC_NOT16 = 0x7,
+    CLC_ADD16 = 0x0
+    CLC_SUN16 = 0x1
+    CLC_MUL16 = 0x2
+    CLC_DIV16 = 0x3
+    CLC_MOD16 = 0x4
+    CLC_INC16 = 0xd
+    CLC_DEC16 = 0xe
+    CLC_AND16 = 0x2
+    CLC_OR16  = 0x3
+    CLC_XOR16 = 0x4
+    CLC_SHL16 = 0x5
+    CLC_SHR16 = 0x6
+    CLC_NOT16 = 0x7
 
     def __init__(self):
         self.registers_bin = {
@@ -319,8 +319,8 @@ class INC16(Instruction):
         context.emit_4bit(ASMCODES.CLC_EXT)
         context.emit_4bit(ASMCODES.CLC_EXT_AR)
         context.emit_4bit(ASMCODES.CLC_INC16)
-        context.emit_4bit(0)
         context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+        context.emit_4bit(0)
 
 @dataclass
 class DEC(Instruction):
@@ -453,7 +453,7 @@ class CLC16_R_IMM(Instruction):
     reg : str
     imm : list
     def __str__(self):
-        return "{0: <3} {2}, 0x{1:04x}".format(self.oper.upper(), self.imm, self.reg)
+        return "{0: <3}16 {2}, 0x{1:04x}".format(self.oper.upper(), self.imm, self.reg)
     def emit(self, context):
         super().emit(context)
         context.emit_4bit(ASMCODES.CLC)  
@@ -471,7 +471,7 @@ class CLC16_R_R(Instruction):
     reg : str
     reg2 : str
     def __str__(self):
-        return "{0: <3} {1}, {2}".format(self.oper.upper(), self.reg, self.reg2)
+        return "{0: <3}16 {1}, {2}".format(self.oper.upper(), self.reg, self.reg2)
     def emit(self, context):
         super().emit(context)
         context.emit_4bit(ASMCODES.CLC)
@@ -480,6 +480,7 @@ class CLC16_R_R(Instruction):
         context.emit_4bit(kind)
         context.emit_4bit(subcode)
         context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+        context.emit_4bit(ASMCODES.REG2BIN(self.reg2))
 
 @dataclass
 class JMP(Instruction):

@@ -64,6 +64,7 @@ def compile(ast, verbose):
     return context
 
 def save_output_file(fname, code):
+    print('Saving output file {0}...'.format(fname))
     with open(fname, 'wb') as file_handle:
         return file_handle.write(code)
     
@@ -98,6 +99,7 @@ def btapify(bytes):
     return result
     
 def save_output_btap(fname, short_fname, context):
+    print('Saving output file {0}...'.format(fname))
     preamble = get_preamble(short_fname, context)
     with open(fname, 'wb') as file_handle:
         file_handle.write(btapify(preamble))

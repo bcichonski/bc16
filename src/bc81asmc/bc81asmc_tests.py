@@ -99,6 +99,14 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(
             mnemonic.parse('inc dsdi'),
             INC16('dsdi'))
+        
+    def test_inc16_gen(self):
+        context = CodeContext()
+        code = mnemonic.parse('inc csci')
+        code.emit(context)
+        self.assertEqual(
+            list(context.bytes),
+            [0x5f, 0xad, 0x80])
     
     def test_dec16(self):
         self.assertEqual(
