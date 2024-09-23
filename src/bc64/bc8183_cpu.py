@@ -674,6 +674,26 @@ class Bc8183:
         reg = self.registers[regno]
         return reg.get()
     
+    def process_frame(self, cpustackstart, cpuframetype):
+        lastcpustackstart = cpustackstart
+        if cpuframetype == Bc8183.STACKFRAME_TYPE_CALL:
+            if cpustackstart + 2 < self.membus.size:
+                cpuframe = (self.membus.read_byte(cpustackstart + 1) << 8) | self.membus.read_byte(cpustackstart + 2)
+                cpustackstart += 3
+                cpuframetypestr = 'CAL'
+                return cpustackstart, lastcpustackstart, cpuframe, cpuframetypestr    
+        else:
+            if cpustackstart + 1 < self.membus.size:
+                cpuframe = self.membus.read_byte(cpustackstart + 1)
+                cpustackstart += 2
+                cpuframetypestr = 'VAL'
+                return cpustackstart, lastcpustackstart, cpuframe, cpuframetypestr
+
+        cpuframe = None
+        cpuframetypestr = 'ERR'
+
+        return cpustackstart, lastcpustackstart, cpuframe, cpuframetypestr
+    
     def print_cpu_stack(self):
         print(":::CPU stack:::")
         self.print_debug(":::CPU stack:::")
@@ -683,31 +703,20 @@ class Bc8183:
             print(":::empty:::")
             self.print_debug(":::empty:::")
             return
+        
         cpuframetype = self.membus.read_byte(cpustackstart)
-        if cpuframetype == Bc8183.STACKFRAME_TYPE_CALL:
-            cpuframe = (self.membus.read_byte(cpustackstart + 1) << 8) | self.membus.read_byte(cpustackstart + 2)
-            cpustackstart += 3
-            cpuframetypestr = 'CAL'
-        else:
-            cpuframe = self.membus.read_byte(cpustackstart + 1)
-            cpustackstart += 2
-            cpuframetypestr = 'VAL'
+        cpustackstart, lastcpustackstart, cpuframe, cpuframetypestr = self.process_frame(cpustackstart, cpuframetype)
         
         while(cpuframetype > 0 and cpustackstart <= self.membus.size):
             msg = "{0} {1:04x}: {2:04x}".format(cpuframetypestr, lastcpustackstart, cpuframe)
             print(msg)
             self.print_debug(msg)
-            lastcpustackstart = cpustackstart
-            if cpuframetype == Bc8183.STACKFRAME_TYPE_CALL:
-                cpuframe = (self.membus.read_byte(cpustackstart + 1) << 8) | self.membus.read_byte(cpustackstart + 2)
-                cpustackstart += 3
-                cpuframetypestr = 'CAL'
-            else:
-                cpuframe = self.membus.read_byte(cpustackstart + 1)
-                cpustackstart += 2
-                cpuframetypestr = 'VAL'
+
+            cpustackstart, lastcpustackstart, cpuframe, cpuframetypestr = self.process_frame(cpustackstart, cpuframetype)
             
-            cpuframetype = self.membus.read_byte(cpustackstart)
+            if cpuframe != 'ERR' and cpustackstart < self.membus.size:
+                cpuframetype = self.membus.read_byte(cpustackstart)
+            else: cpuframetype = 0
 
         print(":::end of stack:::")
         self.print_debug(":::end of stack:::")
