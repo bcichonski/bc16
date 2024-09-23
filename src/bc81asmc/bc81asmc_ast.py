@@ -343,8 +343,8 @@ class DEC16(Instruction):
         context.emit_4bit(ASMCODES.CLC_EXT)
         context.emit_4bit(ASMCODES.CLC_EXT_AR)
         context.emit_4bit(ASMCODES.CLC_DEC16)
-        context.emit_4bit(0)
         context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+        context.emit_4bit(0)
 
 @dataclass
 class MOVRI8(Instruction):

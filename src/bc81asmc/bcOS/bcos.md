@@ -1,3 +1,7 @@
+# os v1.2 features
+extended library of subroutines
+usage of new bc8183 cpu instruction set
+
 # os v1.1 features
 extended library of subroutines
 additional code at boot to detect floppy drive and load a bootloader for bdos 1.0
