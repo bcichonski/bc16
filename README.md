@@ -1,4 +1,4 @@
-I always wanted to build 8bit computer, as i am to lazy to work with hardware, this is the closest thing to that. Ultimate goal is to have a language compilator working for it.
+I have always wanted to build 8bit computer, as i am to lazy to work with hardware, this is the closest thing to that. Ultimate goal is to have a language compilator working for it.
 
 # BC64
 ## roadmap
@@ -250,7 +250,7 @@ bc8181 instruction set B0H:
  0x0-0x7 - #rno1, imm
  0x8-0xf - #rno1, rno2
 0xE - EXT - extensions
-    0x01 - JMR t, imm15 - extended relative jump
+    0x01 - JMR t, 0 - extended relative jump
     0x02 - JMR t, regno - same
 0xF - KIL
 ```
