@@ -103,7 +103,7 @@ def preprocess(input, verbose, defaultdir):
 """.join(newlines)
 
 def main():
-    parser = argparse.ArgumentParser(description='bc - b language compiler for bc8182 cpu v 1.2.0 (240716)')
+    parser = argparse.ArgumentParser(description='bc - b language compiler for bc8183 cpu v 1.3.0 (240924)')
     parser.add_argument('infile', type=str,
         help='input file name')
     parser.add_argument('--verbose', action='store_true',

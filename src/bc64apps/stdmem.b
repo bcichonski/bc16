@@ -23,12 +23,12 @@ word malloc(word size)
 
     //side effect csci has PlastFree value but dsdi has PlastFree address + 1
     PfirstFree;
-    asm "cal :dec16";
+    asm "dec dsdi";
     asm "pop ci";
     asm "pop cs";
     asm "cal :poke16";
     PlastNode;
-    asm "cal :dec16";
+    asm "dec dsdi";
     asm "pop ci";
     asm "pop cs";
     asm "cal :poke16";
@@ -193,7 +193,7 @@ word mtotal()
     }
 
     Pcurr;
-    asm "cal :dec16";
+    asm "dec dsdi";
     asm "mov cs, ss";
     asm "mov ci, si";
     asm "cal :poke16";

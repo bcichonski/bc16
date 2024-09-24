@@ -343,29 +343,22 @@ class EXPRESSION_UNARY(Instruction):
             context.emit("""
                 mov a, cs
                 or  ci
-                mov a, f
-                and 0x01
-                mov cs,0x00
-                mov ci, a""")
+                mov ci, f
+                and csci, 0x0001""")
         elif self.operator == '~':
             self.operand.emit(context)
             context.emit("""
-                mov a, cs
-                not a
-                mov cs, a
-                mov a, ci
-                not a
-                mov ci, a""")
+                not csci""")
         else:
             context.add_error(
                 "Unknown unary operator '{0}'".format(self.operator))
 
 
 oper2lib = {
-    '+': 'add16',
-    '-': 'sub16',
-    '*': 'mul16',
-    '/': 'div16',
+    '+': 'add',
+    '-': 'sub',
+    '*': 'mul',
+    '/': 'div',
     '=': None,
     '>=': None,
     '!=': None,
@@ -466,7 +459,7 @@ class EXPRESSION_BINARY(Instruction):
                         "Unknown binary operator '{0}'".format(self.operator))
                 continue
             context.emit("""
-                cal :{0}""".format(lib))
+                {0} csci, dsdi""".format(lib))
 
     def logic(self, context, oper, arg):
         if oper == '=':
@@ -531,88 +524,23 @@ class EXPRESSION_BINARY(Instruction):
             return True
         if oper == '||':
             context.emit("""
-                mov a, cs
-                or ds
-                mov cs, a
-                mov a, ci
-                or di
-                mov ci, a""")
+                or csci, dsdi""")
             return True
         if oper == '&':
             context.emit("""
-                mov a, cs
-                and ds
-                mov cs, a
-                mov a, ci
-                and di
-                mov ci, a""")
+                and csci, dsdi""")
             return True
         if oper == '|':
             context.emit("""
-                mov a, cs
-                or ds
-                mov cs, a
-                mov a, ci
-                or di
-                mov ci, a""")
+                or csci, dsdi""")
             return True
         if oper == '<<':
-            label1 = context.get_next_label()
-            label2 = context.get_next_label()
             context.emit("""
-                mov a, di
-                sub 0x08
-                jmr nn, :{0}
-                mov a, 0x08
-                sub di
-                mov ds, a
-                mov a, ci
-                shr ds
-                mov ds, a
-                mov a, cs
-                shl di
-                or  ds
-                mov cs, a
-                mov a, ci
-                shl di
-                mov ci, a
-                xor a
-                jmr z, :{1}
-{0}:            mov ds, a
-                mov a, ci
-                shl ds
-                mov cs, a
-                mov ci, 0x00 
-{1}:            nop""".format(label1, label2))
+                shl csci, dsdi""")
             return True
         if oper == '>>':
-            label1 = context.get_next_label()
-            label2 = context.get_next_label()
             context.emit("""
-                mov a, di
-                sub 0x08
-                jmr nn, :{0} 
-                mov a, 0x08
-                sub di
-                mov ds, a
-                mov a, cs
-                shl ds
-                mov ds, a
-                mov a, cs
-                shr di
-                mov cs, a
-                mov a, ci
-                shr di
-                or  ds
-                mov ci, a
-                xor a
-                jmr z, :{1}
-{0}:            mov ds, a
-                mov a, cs
-                shr ds
-                mov ci, a
-                mov cs, 0x00 
-{1}:            nop""".format(label1,label2))
+                shr csci, dsdi""")
             return True
         return False
 
@@ -942,7 +870,7 @@ class PROGRAM(Instruction):
                 .mv dsdi, :{1}
                 mov cs, 0x00
                 mov ci, 0x02
-                cal :add16
+                add csci, dsdi
                 .mv dsdi, :{1}
                 cal :poke16
 ;&HEAPHEAD <- {5}

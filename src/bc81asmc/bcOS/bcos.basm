@@ -17,7 +17,7 @@ os_metatab:      .db :print_newline, :print_space, :printstr, :printhex4, :print
                  .db :os12_comperror, :os12_comperror, :gt16, :gteq16, :eq16
                  .db :exec_dump, :exec_write, :exec_xwrite, :exec_save, :exec_load, :exec_run, :exec_exe, :os_boot
                  .db :os_init, :os_hello_nxt, :os_prompt, :os_parse, :os_end
-                 .db :mfill, :mem_cpy, :strncpy, 0x00, 0x00, 0x00, 0x00, 0x00 
+                 .db :mfill, :mem_xcpy, :strncpy, 0x00, 0x00, 0x00, 0x00, 0x00 
                  .db 0x00, 0x00, 0x00
 ;                    ^^^^^^^^^^ injected by bdos for address of its bdos_call
 os_vartab:       .db :var_param16, :var_div16tmp, :var_user_mem, :var_top_mem, :var_promptbuf, :var_oscall, :var_oscalladdr
@@ -772,6 +772,29 @@ mfill_loop: mov a, cs
             xor a
             jmr z, :mfill_loop
 mfill_ret:  pop a
+            ret
+;=============
+; MEM_XCPY(csci,dsdi, sysvarparam)  - copy block of memory from csci to dsdi for at most af bytes
+; IN: dsdi - source  
+;     csci - desc
+; SYSVARPARAM - length
+; OUT: dsdi = destroyed
+;      csci = desc + length + 1
+mem_xcpy:   psh ds
+            psh di
+            psh cs
+            psh ci
+            .mv dsdi, :var_param16
+            cal :peek16
+            psh cs
+            psh ci
+            pop f
+            pop a
+            pop ci
+            pop cs
+            pop di
+            pop ds
+            cal :mem_cpy
             ret
 ;=============
 ; MEM_CPY(csci,dsdi, af)  - copy block of memory from csci to dsdi for at most af bytes

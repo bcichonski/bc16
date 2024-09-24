@@ -43,27 +43,7 @@ printhex16:     mov a, 0x05
                 psh a
                 pop f
                 cal :os_metacall
-                ret 
-;=============
-; INC16(dsdi) - increase 16bit number correctly
-; IN:    dsdi - number 16bit, break if exceeds 16bit
-; OUT:   dsdi - add 1
-;           a - di + 1 or ds + 1
-inc16:          mov a, 0x06
-                psh a
-                pop f
-                cal :os_metacall
-                ret 
-;=============
-; DEC16(dsdi) - decrease 16bit number correctly
-; IN:    dsdi - number 16bit, break if lower than 0
-; OUT:   dsdi - sub 1
-;           a - di - 1 or ds - 1
-dec16:          mov a, 0x07
-                psh a
-                pop f
-                cal :os_metacall
-                ret  
+                ret
 ;=============
 ; POKE16(#dsdi, csci) - stores csci value under #dsdi address (2 bytes)
 ; IN:   dsdi - address to store
@@ -83,56 +63,6 @@ poke16:         mov a, 0x09
 ;       csci - value
 ;       a    - rubbish
 peek16:         mov a, 0x0a
-                psh a
-                pop f
-                cal :os_metacall
-                ret
-;=============
-; ADD16(csci,dsdi) - returns value
-;                    return os error 0x12 in case of overflow                
-; IN:   csci - argument 1
-;       dsdi - argument 2
-; OUT:  csci - sum of csci and dsdi
-;       a    - rubbish
-add16:          mov a, 0x0b
-                psh a
-                pop f
-                cal :os_metacall
-                ret
-;=============
-; SUB16(csci,dsdi) - returns value 
-;                    return os error 0x13 in case of overflow                
-; IN:   csci - argument 1
-;       dsdi - argument 2
-; OUT:  csci - substracts dsdi from csci
-;       a    - rubbish
-sub16:          mov a, 0x0c
-                psh a
-                pop f
-                cal :os_metacall
-                ret
-;=============
-; MUL16(csci,dsdi) - returns value 
-;                    return os error 0x12 in case of overflow                
-; IN:   csci - argument 1
-;       dsdi - argument 2
-; OUT:  csci - mutiplies csci by dsdi
-;       dsdi - unchanged
-;       a    - rubbish
-mul16:          mov a, 0x1f
-                psh a
-                pop f
-                cal :os_metacall
-                ret
-;=============
-; DIV16(csci,dsdi) - returns value 
-;                    return os error 0x13 in case of overflow                
-; IN:   csci - argument 1
-;       dsdi - argument 2
-; OUT:  csci - divides csci by dsdi
-;       dsdi - unchanged
-;       a    - rubbish
-div16:          mov a, 0x20
                 psh a
                 pop f
                 cal :os_metacall
@@ -308,10 +238,10 @@ stackoffscalc: psh a
                pop a
                and a
                jmr nz, :stoffclc_sub
-               cal :add16
+               add csci, dsdi
                xor a
                jmr z, :stoffclc_end
-stoffclc_sub:  cal :sub16  
+stoffclc_sub:  sub csci, dsdi  
 stoffclc_end:  .mv dsdi, :{0}
                ret
 ;=============
@@ -331,14 +261,14 @@ stackoffsclc8: psh a
                jmr nz, :stoffcl8_sub
                mov ds, 0x00
                pop di
-               cal :add16
+               add csci, dsdi
                xor a
                jmr z, :stoffcl8_end
 stoffcl8_sub:  pop a
                and 0x7f
                mov di, a
                mov ds, 0x00
-               cal :sub16  
+               sub csci, dsdi 
 stoffcl8_end:  .mv dsdi, :{0}
                ret
 ;=============
@@ -511,7 +441,7 @@ mseek_loop: psh ds
             cal :peek16
             psh cs
             psh ci
-            cal :inc16
+            inc dsdi
             cal :peek16
             pop f
             pop a
@@ -519,14 +449,14 @@ mseek_loop: psh ds
             psh ci
             psh a
             psh f
-            cal :inc16           
+            inc dsdi
             mov a, ci
             or cs
             jmr z, :mseek_end
-            cal :sub16
+            sub csci, dsdi
             pop di
             pop ds
-            cal :sub16
+            sub csci, dsdi
             psh cs
             psh ci
             .mv dsdi, :sys_seektmp
@@ -562,29 +492,15 @@ mseek_ret:  pop di
 ; IN: csci - length
 ;     dsdi - address of memory
 ;        a - value to fill
-mfill:      psh a
-mfill_loop: mov a, cs
-            or ci
-            jmr z, :mfill_ret
-            pop a
-            psh a
-            mov #dsdi, a
-            cal :inc16
-            psh ds
-            psh di
-            mov ds, cs
-            mov di, ci
-            cal :dec16
-            mov cs, ds
-            mov ci, di
-            pop di
-            pop ds
-            xor a
-            jmr z, :mfill_loop
-mfill_ret:  pop a
-            ret
 ; OUT:csci - address after which free memory begins
 ;     dsdi - address of the block after which is enough free memory
+mfill:      psh a
+            mov a, 0x31
+            psh a
+            pop f
+            pop a
+            cal :os_metacall
+            ret
 ;=============
 ; MEM_CPY(csci,dsdi, af)  - copy block of memory from csci to dsdi for at most af bytes
 ; IN: dsdi - source  
@@ -592,43 +508,10 @@ mfill_ret:  pop a
 ;       af - length
 ; OUT: dsdi = destroyed
 ;      csci = desc + length + 1
-mem_cpy:    psh f
+mem_cpy:    mov a, 0x32
             psh a
-mem_cpy_lop:pop a
             pop f
-            psh f
-            psh a
-            or f
-            jmr z, :mem_cpy_end
-            mov a, #dsdi
-            psh a
-            cal :inc16
-            pop a
-            psh ds
-            psh di
-            mov ds, cs
-            mov di, ci
-            mov #dsdi, a
-            cal :inc16
-            mov cs, ds
-            mov ci, di
-            pop f
-            pop a
-            pop ds
-            pop di
-            psh f
-            psh a
-            cal :dec16
-            mov a, ds
-            mov f, di
-            pop ds
-            pop di
-            psh f
-            psh a
-            xor a
-            jmr z, :mem_cpy_lop
-mem_cpy_end:pop a
-            pop f
+            cal :os_metacall
             ret
 ;=============
 ; strncpy(csci,dsdi, a)  - copy string from dsdi to csci for at most a bytes, or end of string
@@ -637,30 +520,13 @@ mem_cpy_end:pop a
 ;        a - length
 ; OUT: dsdi = desc + length + 1
 ;      csci = source + length
-strncpy:    and a
-            jmr z, :strncpy_ret
-strncpy_lop:psh a
-            mov a, #dsdi
-            jmr z, :strncpy_end
+strncpy:    psh a
+            mov a, 0x33
             psh a
-            cal :inc16
+            pop f
             pop a
-            psh ds
-            psh di
-            mov #csci, a
-            mov ds, cs
-            mov di, ci
-            cal :inc16
-            mov cs, ds
-            mov ci, di
-            pop di
-            pop ds
-            pop a
-            dec a
-            jmr nz, :strncpy_lop
-            jmr z, :strncpy_ret
-strncpy_end:pop a
-strncpy_ret:ret
+            cal :os_metacall
+            ret
 ;=============
 ;SYS DATA
             .def var_promptbuf, 0x0bcf
