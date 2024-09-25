@@ -31,6 +31,8 @@ class Bc8183:
     CLC_EXT_AR  = 0x0a
     CLC_EXT_BIN = 0x0b
 
+    CLC_EXT_AR_RNO = 0x8
+
     NOP     = 0x0
     MOVRI8  = 0x1
     MOVRR   = 0x2
@@ -478,7 +480,7 @@ class CLC16_R_R(Instruction):
         context.emit_4bit(Bc8183.CLC_EXT)
         (kind, subcode) = ASMCODES.OPER2SUBCODE(self.oper)
         context.emit_4bit(kind)
-        context.emit_4bit(subcode)
+        context.emit_4bit(subcode | Bc8183.CLC_EXT_AR_RNO)
         context.emit_4bit(ASMCODES.REG2BIN(self.reg))
         context.emit_4bit(ASMCODES.REG2BIN(self.reg2))
 

@@ -170,6 +170,7 @@ class Bc8183:
             self.regs[regno1].set(val)
             self.set_flags(regno1)
         else:
+            self.print_debug(f"====================== MEM ACCESS TROUBLE at {self.pc.get():04x}")
             self.op_KIL()
 
     def op_MOV_mem_reg(self):
@@ -182,6 +183,7 @@ class Bc8183:
             val = self.regs[regno2].get()
             self.membus.write_byte(addr, val)
         else:
+            self.print_debug(f"====================== MEM ACCESS TROUBLE at {self.pc.get():04x}")
             self.op_KIL()
 
     def op_CLC(self):
@@ -768,7 +770,7 @@ class Bc8183:
             self.print_context()
             while not self.kill:
                 self.run_next_opcode()
-            self.print_debug("====================== KILL")
+            self.print_debug(f"====================== KILL at {self.pc.get():04x}")
         finally:
             self.flush_debug()
 
