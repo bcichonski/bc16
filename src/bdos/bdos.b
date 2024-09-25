@@ -117,7 +117,7 @@ byte main()
     asm ".mv dsdi, :bdiocalladdr";
     asm "cal :poke16";
 
-    printf("bDOS 1.0 shell%n%w bytes free%nreading disc...", bdio_freemem());
+    printf("%nbDOS 1.1 shell%n%w bytes free%nreading disc...", bdio_freemem());
 
     poke8(BDIO_VAR_ACTIVEDRV, 0xff);
     res <- bdio_setdrive(BDIO_DRIVEA, FALSE);

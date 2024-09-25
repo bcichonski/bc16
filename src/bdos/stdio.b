@@ -110,7 +110,7 @@ byte putdecwnl(word value)
 byte printf(word PformatStr)***
 {
     PformatStr;
-    asm "cal :inc16";
+    asm "inc dsdi";
     asm "mov cs, ds";
     asm "mov ci, di";
     asm ".mv dsdi, :sys_stdprntf";
@@ -174,7 +174,7 @@ byte printf(word PformatStr)***
         asm "cal :peek16";
         asm "psh ci";
         
-        asm "cal :inc16";
+        asm "inc dsdi";
         asm "mov cs, ds";
         asm "mov ci, di";
         asm ".mv dsdi, :sys_stdprntf";
@@ -201,7 +201,7 @@ byte printf(word PformatStr)***
         asm "psh ci";
         asm "psh cs";
         
-        asm "cal :inc16";
+        asm "inc dsdi";
         asm "mov cs, ds";
         asm "mov ci, di";
         asm ".mv dsdi, :sys_stdprntf";
@@ -228,7 +228,7 @@ byte printf(word PformatStr)***
         asm "psh ci";
         asm "psh cs";
 
-        asm "cal :inc16";
+        asm "inc dsdi";
         asm "mov cs, ds";
         asm "mov ci, di";
         asm ".mv dsdi, :sys_stdprntf";

@@ -464,6 +464,7 @@ class CLC16_R_IMM(Instruction):
         context.emit_4bit(kind)
         context.emit_4bit(subcode)
         context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+        context.emit_4bit(0)
         context.emit_16bit(self.imm)
 
 
