@@ -1,4 +1,4 @@
-; bc16 Operation System version 1.2.20240914
+; bc16 Operation System version 1.2.20240926
 ;
                    .org 0x0000
                    .def bdos_bootaddr, 0x0e80
@@ -444,15 +444,7 @@ str_cpy:       mov a, #dsdi
                or a
                jmr z, :str_cpy_end
                inc dsdi
-               psh ds
-               psh di
-               mov ds, cs
-               mov di, ci
-               inc dsdi
-               mov cs, ds
-               mov ci, di
-               pop di
-               pop ds
+               inc csci
                xor a
                jmr z,:str_cpy
 str_cpy_end:   ret
@@ -760,15 +752,7 @@ mfill_loop: mov a, cs
             psh a
             mov #dsdi, a
             inc dsdi
-            psh ds
-            psh di
-            mov ds, cs
-            mov di, ci
-            dec dsdi
-            mov cs, ds
-            mov ci, di
-            pop di
-            pop ds
+            dec csci
             xor a
             jmr z, :mfill_loop
 mfill_ret:  pop a
@@ -817,12 +801,8 @@ mem_cpy_lop:pop a
             pop a
             psh ds
             psh di
-            mov ds, cs
-            mov di, ci
-            mov #dsdi, a
-            inc dsdi
-            mov cs, ds
-            mov ci, di
+            mov #csci, a
+            inc csci
             pop f
             pop a
             pop ds
@@ -856,16 +836,8 @@ strncpy_lop:psh a
             psh a
             inc dsdi
             pop a
-            psh ds
-            psh di
             mov #csci, a
-            mov ds, cs
-            mov di, ci
-            inc dsdi
-            mov cs, ds
-            mov ci, di
-            pop di
-            pop ds
+            inc csci
             pop a
             dec a
             jmr nz, :strncpy_lop
@@ -909,15 +881,7 @@ exec_dump_prnt:pop a
 exec_dump_loop:mov a, #dsdi
                cal :print_format
                psh a
-               psh ds
-               psh di
-               mov ds, cs
-               mov di, ci
-               dec dsdi
-               mov cs, ds
-               mov ci, di
-               pop di
-               pop ds
+               dec csci
                pop a
                sub 0x0d
                jmr nz,:exec_dmp_loop2
@@ -995,15 +959,7 @@ exec_wrt_loop: mov a, #dsdi
                pop cs
                pop ci
                mov #csci, a
-               psh ds
-               psh di
-               mov ds, cs
-               mov di, ci
-               inc dsdi
-               mov cs, ds
-               mov ci, di
-               pop di
-               pop ds
+               inc csci
                psh ci
                psh cs
                xor a
@@ -1067,15 +1023,7 @@ exec_xwrt_loop:mov a, #dsdi
                pop cs
                pop ci
                mov #csci, a
-               psh ds
-               psh di
-               mov ds, cs
-               mov di, ci
-               inc dsdi
-               mov cs, ds
-               mov ci, di
-               pop di
-               pop ds
+               inc csci
                psh ci
                psh cs
                xor a

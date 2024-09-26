@@ -234,15 +234,6 @@ class Bc8183:
                     self.inc_pc(1)
 
             oper16 = self.alu16[opersubcode]
-            if opersubcode == Bc8183.CLC_DEC16:
-                print(f"dec16 {regno}, {arg2}, {regno2}")
-                print(f"{self.pc.get()-3:04x}: {self.membus.read_byte(self.pc.get()-3):02x}")
-                print(f"{self.pc.get()-2:04x}: {self.membus.read_byte(self.pc.get()-2):02x}")
-                print(f"{self.pc.get()-1:04x}: {self.membus.read_byte(self.pc.get()-1):02x}")
-                print(f"{self.pc.get():04x}: {self.membus.read_byte(self.pc.get()):02x}")
-                print(f"{self.pc.get()+1:04x}: {self.membus.read_byte(self.pc.get()+1):02x}")
-                print(f"{self.pc.get()+2:04x}: {self.membus.read_byte(self.pc.get()+2):02x}")
-
             oper16(regno, arg2, regno2)
             return
         else:
