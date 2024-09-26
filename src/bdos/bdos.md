@@ -1,4 +1,6 @@
-# key assumptions
+# version 1.1 (for bc64 and bc8183 cpu)
+# version 1.0
+## key assumptions
 - is written in b
 - as thin as possible subroutines library for basic operations
 - reuse bcOS subroutines where possible
@@ -7,7 +9,7 @@
   - flat structure
   - files in continous block
 
-## disk format
+### disk format
 track, sector - kind - description
 0, 0 - boot sector - 128 bytes that is a boot loader for the bDOS system
 0, 1 - bdos itself - that would give 1848 bytes for the system, it might not be enough
@@ -16,10 +18,10 @@ track, sector - kind - description
 9, 0 - disk catalog table 2
 10, 0 - data
 
-## disk catalog table
+### disk catalog table
 max length = 16 sectors of 2 track
 
-### single catalog entry
+#### single catalog entry
 max 255 files per disk
 max file size 64kb
 catalog entry size: 16bytes = 8 per sector
@@ -32,7 +34,7 @@ if there is max 255 files/dirs it can take 32 sectors = two full tracks
 05 - 0c file/dir name 8char
 0d - 0f file/dir extension 3char
 
-# bdos io
+## bdos io
 key assumptions
 - file can be a representation of a device that can be read from/writen to or both
 - file can be a physical file on disk
@@ -53,16 +55,16 @@ key assumptions
   - X=0x04 if allowed to be executed
   - S=0x80 if system(system files attributes cannot be changed)
 
-# bdio
-## low level unbuffered disk io
+## bdio
+### low level unbuffered disk io
 0x00: bdio_readsec(track, sector, Pmembuf) - read sector and write it to memory
 0x01: bdio_writesec(track, sector, Pmembuf) - write sector from memory
 0x02: bdio_setdrive(drive) - selects active drive
-## medium level io
+### medium level io
 0x03: bdio_getdrive() - return number of active drive
 0x04: bdio_ffindfile(Pfnameext) - find a sector in which catalog entry for given name and extension is located
 0x05: bdio_getfreesect() - returns next free sector to allocate
-## high level unbuffered file io
+### high level unbuffered file io
 0x10: bdio_fbinopenr(Pfnameext) - opens a file handle associated with given cnameext for read
 0x11: bdio_fbinopenw(Pfnameext) - opens a file handle for write (this is append only)
 0x12: bdio_fbinread(fhandle, Pmembuf, sectors) - reads given sectors of file to Pmembuf CS=fhandle, CI=sectors, DSDI = Pmembuf
@@ -71,12 +73,12 @@ key assumptions
 0x15: bdio_fclose(fhandle) - closes opened file handle
 0x16: bdio_fdelete(Pfnameext) - removes file from disk
 0x17: bdio_fsetattrib(Pfnameext, attrib) - sets file attributes
-## high level shell api
+### high level shell api
 0x20: bdio_execute(Pfnameext) - loads and executes given executable file
 0x21: bdio_freemem() - returns how much free memory we have
 bcos 0x57: bdio_call() - allows to call every bdio subroutine from user program - injected into os_call bcos mechanism
 
-# memory map
+## memory map
 0x0000..0x0e45 - bcos 1.1 (real)
   0x0008         - os_metacall
   0x000c..0x0080 - os_metatab
@@ -89,7 +91,8 @@ bcos 0x57: bdio_call() - allows to call every bdio subroutine from user program 
 0x4000..[ST]   - user mem
 [ST]..0x7fff   - cpu stack
 
-# problems
+## problems
 bdos uses too much memory, its 0f00..4000 already and growing this means file catalog is moved too 
 
-# roadmap
+## roadmap
+1. extending catalog to have file creation dates

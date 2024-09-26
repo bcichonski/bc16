@@ -3,7 +3,7 @@
 ; assuming bcos bootstrap did fdd initial configuration
 ; reads sectors starting from 1 (sector 0 is this booloader)
 ; can read up to 255 sectors
-                   .org 0x0e80
+                   .org 0x0e00
                    .def bd_shell, 0x0f00
                    .def bd_sectsize, 0x0080
                    .def os_metacall, 0x0008
@@ -51,7 +51,7 @@ bd_readsect:       mov a, 0xf2
                    xor a
                    jmr z, :bd_loop
 bd_boot_errmsg:    .db 'err', 0x00
-bd_boot_loadmsg:   .db 'load', 0x00
+bd_boot_loadmsg:   .db '...', 0x00
 bd_boot_oscall:    psh a
                    pop f
                    cal :os_metacall

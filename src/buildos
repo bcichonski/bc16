@@ -10,6 +10,14 @@ check_exit_code()
     fi
 }
 
+echo building bcos...
+python ./bc81asmc/bc81asmc.py --verbose ./bc81asmc/bcOS/bcos.basm
+check_exit_code $?
+
+echo converting bcos to rom...
+./ftool btap2bin bc81asmc/bcOS/bcos.btap bc81asmc/bcOS/bcos_v1_2_0.b81
+check_exit_code $?
+
 echo building bootloader...
 winpty python ./bc81asmc/bc81asmc.py --verbose ./bdos/boot.basm
 check_exit_code $?

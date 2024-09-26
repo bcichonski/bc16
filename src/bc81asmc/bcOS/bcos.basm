@@ -1,7 +1,7 @@
 ; bc16 Operation System version 1.2.20240926
 ;
                    .org 0x0000
-                   .def bdos_bootaddr, 0x0e80
+                   .def bdos_bootaddr, 0x0e00
 os_start:          .mv csci, :os_init
                    xor a
                    jmp z, csci
@@ -53,7 +53,7 @@ data_load_prbad1: .db 'load error bad preamble', 0x0a, 0x0d, 0x00
 data_load_dtbad1: .db 'load error bad data', 0x0a, 0x0d, 0x00
 data_load_prinf1: .db 'load ', 0x00
 data_load_prinf2: .db 'for ', 0x00
-data_bdos_boot:   .db 'booting from FDD', 0x0a, 0x0d, 0x00
+data_bdos_boot:   .db 'booting from FDD', 0x00
 ;
 ; subroutines
 ;=============
