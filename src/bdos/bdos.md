@@ -96,3 +96,6 @@ bdos uses too much memory, its 0f00..4000 already and growing this means file ca
 
 ## roadmap
 1. extending catalog to have file creation dates
+2. relocable executables and memory management
+3. script execution
+4. pipeline io between programs

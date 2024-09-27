@@ -51,7 +51,7 @@ bd_readsect:       mov a, 0xf2
                    xor a
                    jmr z, :bd_loop
 bd_boot_errmsg:    .db 'err', 0x00
-bd_boot_loadmsg:   .db '...', 0x00
+bd_boot_loadmsg:   .db 'lding', 0x00
 bd_boot_oscall:    psh a
                    pop f
                    cal :os_metacall
