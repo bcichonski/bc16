@@ -47,6 +47,7 @@ def preprocess(input, verbose, defaultdir):
 
     newlines = []
     defines = {}
+    deforder = []
     i = 0
     while(i < len(lines)):
         newline = lines[i].strip()
@@ -56,6 +57,7 @@ def preprocess(input, verbose, defaultdir):
             deffrom = newline[8:spacepos]
             defto = newline[spacepos+1:]
             defines[deffrom] = defto
+            deforder = sorted(defines.keys(), reverse=True)
             i += 1
             continue
 
@@ -91,7 +93,7 @@ def preprocess(input, verbose, defaultdir):
             i += 1
             continue
 
-        for key in defines:
+        for key in deforder:
             val = defines[key]
             newline = newline.replace(key, val)
 
@@ -103,7 +105,7 @@ def preprocess(input, verbose, defaultdir):
 """.join(newlines)
 
 def main():
-    parser = argparse.ArgumentParser(description='bc - b language compiler for bc8183 cpu v 1.3.0 (240924)')
+    parser = argparse.ArgumentParser(description='bc - b language compiler for bc8183 cpu v 1.3.1 (240927)')
     parser.add_argument('infile', type=str,
         help='input file name')
     parser.add_argument('--verbose', action='store_true',
@@ -126,7 +128,7 @@ def main():
     except ParseError as ex:
         (line, col) = line_info_at(input, ex.index)
         lines = input.splitlines()
-        errLines = lines[line-2:line+2]
+        errLines = lines[line-2:line+20]
         i = line-2
         for line in errLines:
             print('ERR {0}: {1}'.format(i, line))
