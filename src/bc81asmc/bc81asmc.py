@@ -25,6 +25,7 @@ def compile(ast, verbose):
 
     for labelref in context.labels:
         (addr,label,ltype) = labelref
+        # print(f"{addr:04x} {label} {ltype}")
         defref = context.defs.get(label)
         if defref is not None:
             labeladdr = defref

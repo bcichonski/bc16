@@ -65,14 +65,18 @@ word findPreviousLine(word PtextedVars, word lineNumber)
    
     currLineNumber <- #(PcurrLine + TELINE_NUMBER);
     prevLineNumber <- currLineNumber;
+
+    //printf("PcurrLine: %w PprevLine: %w currLineNumber: %w prevLineNumber: %w%n", PcurrLine, PprevLine, currLineNumber, prevLineNumber);
     
-    while(PcurrLine && currLineNumber < lineNumber) 
+    while(PcurrLine && (currLineNumber < lineNumber)) 
     {
         PprevLine <- PcurrLine;
         prevLineNumber <- currLineNumber;
 
         PcurrLine <- #(PcurrLine + TELINE_PNEXT);
         currLineNumber <- #(PcurrLine + TELINE_NUMBER);
+
+        //printf("PcurrLine: %w PprevLine: %w currLineNumber: %w prevLineNumber: %w%n", PcurrLine, PprevLine, currLineNumber, prevLineNumber);
     }
 
     if(currLineNumber >= lineNumber)
@@ -149,8 +153,7 @@ byte insertLine(word PinputBuf, word PtextedVars, word lineNumber)
         prevLineNumber <- 0;
 
         lineLength <- strnlen8(PinputBuf, MAXLINELENGTH);
-        printf("linelen: %w%n", lineLength);
-        
+
         PnewLine <- malloc(lineLength + TELINE_HEADSIZE);
         poke16(PnewLine + TELINE_NUMBER, lineNumber);
 
@@ -255,7 +258,7 @@ byte printLines(word PinputBuf, word PtextedVars)
         PcurrentLine <- findPreviousLine(PtextedVars, lineNumberStart);
         currentLineNumber <- #(PcurrentLine + TELINE_NUMBER);
 
-        while(PcurrentLine && currentLineNumber <= lineNumberEnd) 
+        while(PcurrentLine && (currentLineNumber <= lineNumberEnd)) 
         {
             putdecw(currentLineNumber);
             puts("| ");
@@ -294,7 +297,7 @@ byte deleteLines(word PinputBuf, word PtextedVars)
         currentLineNumber <- #(PcurrentLine + TELINE_NUMBER);
         startLineNumber <- currentLineNumber;
 
-        if(PcurrentLine && startLineNumber < lineNumberStart) 
+        if(PcurrentLine && (startLineNumber < lineNumberStart)) 
         {
             PcurrentLine <- #(PcurrentLine + TELINE_PNEXT);
             currentLineNumber <- #(PcurrentLine + TELINE_NUMBER);
@@ -302,7 +305,7 @@ byte deleteLines(word PinputBuf, word PtextedVars)
         
         removedCount <- 0;
 
-        while(PcurrentLine && currentLineNumber <= lineNumberEnd) 
+        while(PcurrentLine && (currentLineNumber <= lineNumberEnd)) 
         {
             mfree(PcurrentLine);
             removedCount <- removedCount + 1;
