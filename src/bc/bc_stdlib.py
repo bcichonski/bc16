@@ -14,13 +14,25 @@ stdlib_template = """
 ; IN:   a - error code
 ;   stack - as error address
 ; OUT:  KILL, messed stack
-            .def fatal, 0x04ea
+fatal:          psh ci
+                mov ci, 0x14
+                psh ci
+                pop f
+                pop ci
+                cal :os_metacall
+                ret
 ;=============
 ; PRINTHEX4(a) - prints hex number from 0 to f
 ; IN:    a - number to print
 ; OUT:   a - unchanged      10 -> 0 -> 41
 ;       cs - set to 1
-            .def printhex4, 0x0349
+printhex4:      psh ci
+                mov ci, 0x03
+                psh ci
+                pop f
+                pop ci
+                cal :os_metacall
+                ret
 ;=============
 ; PRINTHEX8(a) - prints hex number 
 ; IN:    a - number to print
