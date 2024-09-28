@@ -86,9 +86,9 @@ byte putdecw(word value)
     while(divisor) 
     {
         digit <- value / divisor;
-        value <- value - digit * divisor;
+        value <- value % divisor;
 
-        if(digit & (divisor = 1)) 
+        if(digit || (divisor = 1)) 
         {
             nonzero <- 1;
         }
