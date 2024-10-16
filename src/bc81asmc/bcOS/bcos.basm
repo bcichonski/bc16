@@ -20,7 +20,7 @@ os_metatab:      .db :print_newline, :print_space, :printstr, :printhex4, :print
                  .db :mfill, :mem_xcpy, :strncpy, 0x00, 0x00, 0x00, 0x00, 0x00 
                  .db 0x00, 0x00, 0x00
 ;                    ^^^^^^^^^^ injected by bdos for address of its bdos_call
-os_vartab:       .db :var_param16, :var_div16tmp, :var_user_mem, :var_top_mem, :var_promptbuf, :var_oscall, :var_oscalladdr
+os_vartab:       .db :var_param16, 0x00, 0x00, :var_user_mem, :var_top_mem, :var_promptbuf, :var_oscall, :var_oscalladdr
                  .db :user_mem
                  .db 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 ;
@@ -1541,8 +1541,6 @@ os_end:        mov a, 0xff
 ;
 ; #00:
 var_param16:   .db 0x00, 0x00
-; #01:
-var_div16tmp:  .db 0x00, 0x00
 ; #02:
 var_user_mem:  .db 0x00, 0x00
 ; #03

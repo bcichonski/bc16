@@ -1,5 +1,5 @@
-#code 0x5000
-#heap 0x8000
+#code 0x5800
+#heap 0xa000
 
 #include std.b
 #include bdosh.b
@@ -17,6 +17,7 @@
 #define TELINE_NUMBER 2
 #define TELINE_TEXT 4
 #define TELINE_HEADSIZE 5
+#define MAXFILENAMELEN 8
 
 byte parse2args(word PinputBuf, word PtextedVars)
 {
@@ -378,6 +379,83 @@ byte memStat(word PinputBuf, word PtextedVars)
     putdecw(memtotal);putsnl(" bytes");
 }
 
+byte saveLines(word PtextedVars, byte fHandleOut)
+{
+    //result <- bdio_fbinwrite(fHandleOut, FILEBUFSECT_ADDR, sectorsread);
+
+    //if(!result)
+    //{
+    //    printf("error writing sectors%n");
+    //}
+
+    putsnl("lines saved");
+}
+
+byte saveFile(word PinputBuf, word PtextedVars)
+{
+    word Pwstart;
+    word Pwend;
+    word Pfnameext;
+    byte error;
+    byte len;
+    error <- 0;
+
+    Pwstart <- strnextword(PinputBuf+1);
+    Pwend <- strnextword(Pwstart);
+
+    if(Pwstart && Pwend)
+    {
+        len <- Pwend - Pwstart + 1;
+        if(len <= MAXFILENAMELEN)
+        {
+            byte fHandleOut;
+            byte result;
+
+            poke16(Pwend, NULLCHAR);
+            upstring(Pwstart);
+            printf("saving %s.TXT...", Pwstart);
+            Pfnameext <- malloc(BDIO_FCAT_ENTRY_NAMELEN + 1);
+            strncpy("        TXT", Pfnameext, 11);
+            strncpy(Pwstart, Pfnameext, len);
+            
+            result <- bdio_fcreate(Pfnameext, BDIO_FILE_ATTRIB_READ | BDIO_FILE_ATTRIB_WRITE);
+            if(!result)
+            {
+                fHandleOut <- bdio_fbinopenw(Pfnameext);
+                mfree(Pfnameext);
+
+                if(fHandleOut < BDIO_FOPEN_FNAME_NOTFOUND)
+                {
+                    saveLines(PtextedVars, fHandleOut);
+                    bdio_fclose(fHandleOut);
+                }
+                else
+                {
+                    result <- fHandleOut;
+                    error <- 1;
+                }
+            } 
+            else
+            {
+                error <- 1;
+            }
+
+            if(error)
+            {
+                bdio_printexecres(result);
+            }
+        }
+        else 
+        {
+            putsnl("Error. <file> too long.");
+        }
+    }
+    else 
+    {
+        putsnl("Error. Expected argument <file>.");
+    }
+}
+
 byte mainLoop(word PinputBuf, word PtextedVars) 
 {
     byte choice;
@@ -415,9 +493,14 @@ byte mainLoop(word PinputBuf, word PtextedVars)
             knownCommand <- 1;
         }
 
+        if(choice = 's') {
+            saveFile(PinputBuf, PtextedVars);
+            knownCommand <- 1;
+        }
+
         if(choice = 'h')
         {
-            printf("i <n> <s> - insert new lines starting from line number <n> with step <s>%np <n> <m> - print lines from <n> to <m>%nd <n> <m> - delete lines from <n> to <m>%nm - memory stats%nh - help%nq - quit%n");
+            printf("i <n> <s> - insert new lines starting from line number <n> with step <s>%np <n> <m> - print lines from <n> to <m>%nd <n> <m> - delete lines from <n> to <m>%nl <fname> - loads file%ns <fname> - saves file%nm - memory stats%nh - help%nq - quit%n");
             knownCommand <- 1;
         }
 

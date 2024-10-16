@@ -1,4 +1,4 @@
-#code 0x5000
+#code 0x5800
 #heap 0x7000
 
 #include std.b
@@ -9,7 +9,7 @@
 #define MODE_UNSET 0x20
 #define MODE_HELP 0x40
 #define DRIVEPRESENT 0x0100
-#define INFILEBDIONAME_ADDR 0x77f0
+#define INFILEBDIONAME_ADDR 0xa7f0
 
 word getdriveletter(byte drive)
 {

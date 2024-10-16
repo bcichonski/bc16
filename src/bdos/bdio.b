@@ -462,7 +462,7 @@ byte bdio_setdrive(byte drive, byte silent)
     return result;
 }
 
-byte bdio_new_fdesc(word Pfdesc, byte fdescNo, byte fdescMode, byte fcatNo, byte track, byte sector, byte len, byte fcattrack, byte fcatsector)
+byte bdio_new_fdesc(word Pfdesc, byte fdescNo, byte fdescMode, byte fcatNo, byte track, byte sector, byte len, byte fcattrack, byte fcatsector, byte mode)
 {
     fdescNo <- fdescNo | fdescMode;
 
@@ -474,11 +474,13 @@ byte bdio_new_fdesc(word Pfdesc, byte fdescNo, byte fdescMode, byte fcatNo, byte
     poke8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATENTRYNO, fcatNo);
     poke8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATTRACK, fcattrack);
     poke8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATSECT, fcatsector);
+    poke8(Pfdesc + BDIO_FDESCRIPTOROFF_ACCESSMODE, mode);
+    poke8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER, 0x00);
 
     return fdescNo;
 }
 
-byte bdio_getfree_fdesc_internal(word PfcatEntry, word Pfdesc, byte maxfdesc)
+byte bdio_getfree_fdesc_internal(word PfcatEntry, word Pfdesc, byte maxfdesc, byte mode)
 {
     byte fdescNo;
     byte fdescNumber;
@@ -531,7 +533,8 @@ byte bdio_getfree_fdesc_internal(word PfcatEntry, word Pfdesc, byte maxfdesc)
             sector, 
             sectlen, 
             fcattrack, 
-            fcatsector
+            fcatsector,
+            mode
         );
         fdescNo <- fdescNumber;
     }
@@ -551,7 +554,24 @@ byte bdio_fcat_checkattribs(word PfcatEntry, byte attribs)
     return ((fcatattribs & attribs) = attribs);
 }
 
-byte bdio_fbinopen_internal(word Pfnameext, byte testattrib)
+word bdio_fbinbuf_getbufaddr(byte fhandle)
+{
+    word bufaddr;
+    if((fhandle & BDIO_FDESCRIPTOR_NUMBERWRITE) = BDIO_FDESCRIPTOR_NUMBERWRITE)
+    {
+        fhandle <- fhandle & 0x0f;
+    }
+    else
+    {
+        fhandle <- (fhandle & 0x0f) + 1;
+    }
+
+    bufaddr <- BDIO_FDESCBUF_ADDR + fhandle * BDIO_SECTBUF_LEN;
+
+    return bufaddr;
+}
+
+byte bdio_fbinopen_internal(word Pfnameext, byte testattrib, byte mode)
 {
     //allocates file descriptor for the given file name
     //and prepares it to be read sequentially
@@ -576,15 +596,22 @@ byte bdio_fbinopen_internal(word Pfnameext, byte testattrib)
             {
                 if(bdio_fcat_checkattribs(PfcatEntry, BDIO_FILE_ATTRIB_READ))
                 {
-                    fhandle <- bdio_getfree_fdesc_internal(PfcatEntry, BDIO_VAR_FDESCTAB_READ, BDIO_FDESCRIPTOR_READ_MAX);
+                    fhandle <- bdio_getfree_fdesc_internal(PfcatEntry, BDIO_VAR_FDESCTAB_READ, BDIO_FDESCRIPTOR_READ_MAX, mode);
                 }
             }
             else
             {
                 if(bdio_fcat_checkattribs(PfcatEntry, BDIO_FILE_ATTRIB_WRITE))
                 {
-                    fhandle <- bdio_getfree_fdesc_internal(PfcatEntry, BDIO_VAR_FDESCTAB_WRITE, BDIO_FDESCRIPTOR_WRITE_MAX);
+                    fhandle <- bdio_getfree_fdesc_internal(PfcatEntry, BDIO_VAR_FDESCTAB_WRITE, BDIO_FDESCRIPTOR_WRITE_MAX, mode);
                 }
+            }
+
+            if(mode = BDIO_FOPEN_MODE_BUFFERED)
+            {
+                word Pbuf;
+                Pbuf <- bdio_fbinbuf_getbufaddr(fhandle);
+                mzero(Pbuf, BDIO_SECTBUF_LEN);
             }
         }
     }
@@ -699,6 +726,24 @@ byte bdio_fclose(byte fhandle)
             byte fcatsector;
             byte fcatseclen;
             word PfcatEntry;
+            byte mode;
+
+            mode <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_ACCESSMODE);  
+            if(mode = BDIO_FOPEN_MODE_BUFFERED)
+            {
+                byte bufcounter;
+                word Pbuf;
+
+                bufcounter <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER);
+
+                if(bufcounter)
+                {
+                    Pbuf <- bdio_fbinbuf_getbufaddr(fhandle);
+                    mzero(Pbuf + bufcounter, BDIO_SECTBUF_LEN - bufcounter);
+
+                    result <- bdio_fbin_internal(fhandle, Pbuf, 1, BDIO_FDESCRIPTOR_NUMBERWRITE);
+                }
+            } 
 
             fcatNo <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATENTRYNO);
             fcattrack <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_FCATTRACK);
@@ -918,6 +963,155 @@ byte bdio_fcreate(word Pfnameext, byte attribs)
     return fhandle;
 }
 
+word bdio_fbinbufread(byte fhandle, word Pmembuf, word length)
+{
+    word Pfdesc;
+    byte mode;
+    byte result;
+
+    Pfdesc <- bdio_getfdesc_addr(fhandle);
+    mode <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_ACCESSMODE);
+    result <- BDIO_FBINBUFREAD_ERROR;
+    
+    if(mode = BDIO_FOPEN_MODE_BUFFERED)
+    {
+        byte bufcounter;
+        byte bufleft;
+        word Pbuf;
+        byte binres;
+
+        result <- 0;
+        binres <- 1;
+        bufcounter <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER);
+        bufleft <- BDIO_SECTBUF_LEN - bufcounter;
+        Pbuf <- bdio_fbinbuf_getbufaddr(fhandle);
+
+        if(length > bufleft)
+        {
+            memcpy(Pbuf, Pmembuf, bufleft);
+
+            length <- length - bufleft;
+            Pmembuf <- Pmembuf + bufleft;
+            result <- bufleft;
+            bufleft <- 0;
+            bufcounter <- 0;
+            binres <- 1;
+                     
+            while((length >= BDIO_SECTBUF_LEN) && binres)
+            {
+                binres <- bdio_fbin_internal(fhandle, Pbuf, 1, BDIO_FDESCRIPTOR_NUMBERREAD);
+                
+                if(binres)
+                {
+                    memcpy(Pbuf, Pmembuf, BDIO_SECTBUF_LEN);
+
+                    result <- result +  BDIO_SECTBUF_LEN;
+                    length <- length - BDIO_SECTBUF_LEN;
+                    Pmembuf <- Pmembuf + BDIO_SECTBUF_LEN;
+                }
+            }
+        }
+
+        if(length && binres)
+        {
+            if(bufleft)
+            {
+                memcpy(Pbuf + bufcounter, Pmembuf, bufleft);
+                bufcounter = BDIO_SECTBUF_LEN;
+            }
+            else
+            {
+                binres <- bdio_fbin_internal(fhandle, Pbuf, 1, BDIO_FDESCRIPTOR_NUMBERREAD);
+                if(binres)
+                {
+                    memcpy(Pbuf + bufcounter, Pmembuf, length);
+                
+                    result <- result + length;
+                    bufcounter <- length;
+                }
+            }
+        }
+
+        poke8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER, bufcounter);
+    }
+
+    return result;
+}
+
+word bdio_fbinbufwrite(byte fhandle, word Pmembuf, word length)
+{
+    word Pfdesc;
+    byte mode;
+    byte result;
+
+    Pfdesc <- bdio_getfdesc_addr(fhandle);
+    mode <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_ACCESSMODE);
+    result <- BDIO_FBINBUFWRITE_ERROR;
+    
+    if(mode = BDIO_FOPEN_MODE_BUFFERED)
+    {
+        byte bufcounter;
+        byte bufleft;
+        word Pbuf;
+        byte binres;
+
+        result <- 0;
+        bufcounter <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER);
+        bufleft <- BDIO_SECTBUF_LEN - bufcounter;
+        Pbuf <- bdio_fbinbuf_getbufaddr(fhandle);
+
+        //1st read what is in the buffer
+        if(length >= bufleft)
+        {
+            bufleft <- BDIO_SECTBUF_LEN - (length % BDIO_SECTBUF_LEN);
+            memcpy(Pmembuf, Pbuf + bufcounter, bufleft);
+
+            result <- bufleft;
+            length <- length - bufleft;
+            Pmembuf <- Pmembuf + bufleft;
+            bufcounter <- 0;
+        }
+
+        //then read more sectors if the buffer is big
+        while((length >= BDIO_SECTBUF_LEN) && binres)
+        {
+            binres <- bdio_fbin_internal(fhandle, Pbuf, 1, BDIO_FDESCRIPTOR_NUMBERWRITE);
+            
+            if(binres)
+            {
+                memcpy(Pmembuf, Pbuf, BDIO_SECTBUF_LEN);
+
+                result <- result + BDIO_SECTBUF_LEN;
+                length <- length - BDIO_SECTBUF_LEN;
+                Pmembuf <- Pmembuf + BDIO_SECTBUF_LEN;
+            }
+
+            bufcounter <- 0;
+        }
+
+        binres <- 1;
+        //then if there is still something to read, do it
+        if(length)
+        {
+            if(!bufcounter)
+            {
+                binres <- bdio_fbin_internal(fhandle, Pbuf, 1, BDIO_FDESCRIPTOR_NUMBERWRITE);
+            }          
+                
+            if(binres)
+            {
+                memcpy(Pmembuf, Pbuf + bufcounter, length);
+
+                result <- result + length;
+                bufcounter <- bufcounter + length;
+                poke8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER, bufcounter);
+            }
+        }
+    }
+
+    return result;
+}
+
 word bdio_call()
 {
     asm "bdio_call: psh a";
@@ -954,24 +1148,24 @@ word bdio_call()
     {
         result <- bdio_fbinopen_internal(regCSCI, BDIO_FOPEN_ATTR_NOREAD);
     }
-
+    else
     if(regA = BDIO_FBINOPENW)
     {
         result <- bdio_fbinopen_internal(regCSCI, BDIO_FOPEN_ATTR_NOWRITE);
     }
-
+    else
     regDS <- regDSDI >> 8;
 
     if(regA = BDIO_FCREATE)
     {
         result <- bdio_fcreate(regCSCI, regDS);
     }
-
+    else
     if(regA = BDIO_FDELETE)
     {
         result <- bdio_finternal(regCSCI, BDIO_FILE_INTERNALMODE_DELETE, 0x00);
     }
-    
+    else
     if(regA = BDIO_FSETATTR)
     {
         result <- bdio_finternal(regCSCI, BDIO_FILE_INTERNALMODE_SETATTR, regDS);
@@ -984,35 +1178,48 @@ word bdio_call()
     {
         result <- bdio_fbin_internal(regCS, regDSDI, regCI, BDIO_FDESCRIPTOR_NUMBERREAD);
     }
-
+    else
     if(regA = BDIO_FBINWRITE)
     {
         result <- bdio_fbin_internal(regCS, regDSDI, regCI, BDIO_FDESCRIPTOR_NUMBERWRITE);
     }
-    
+    else
     if(regA = BDIO_FCLOSE)
     {
         result <- bdio_fclose(regCI);
     }
-    
+    else
     if(regA = BDIO_SETDRIVE)
     {
         result <- bdio_setdrive(regCS, regDS);
     }
-
+    else
     if(regA = BDIO_GETDRIVE)
     {
         result <- bdio_getdrive();
     }
-
+    else
     if(regA = BDIO_READSECTOR)
     {
         result <- bdio_iosec(FDD_CMD_READ, regCS, regCI, regDSDI);
     }
-
+    else
     if(regA = BDIO_WRITESECTOR)
     {
         result <- bdio_iosec(FDD_CMD_WRITE, regCS, regCI, regDSDI);
+    }
+
+    word PmembufLen;
+    PmembufLen <- peek16(BDIO_VAR_PMEMBUF_LEN);
+
+    if(regA = BDIO_FBINBUFREAD)
+    {
+        result <- bdio_fbinbufread(regCS, regDSDI, PmembufLen);
+    }
+    else
+    if(regA = BDIO_FBINBUFWRITE)
+    {
+        result <- bdio_fbinbufwrite(regCS, regDSDI, PmembufLen);
     }
 
     return result;

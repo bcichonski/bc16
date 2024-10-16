@@ -35,9 +35,11 @@ def compile(ast, verbose):
             raise Exception('Label {0} not defined'.format(label))
         if ltype == 'hi':
             hiaddr = context.hi(labeladdr)
+            #print('store hi({0})={1:02x} at 0x{2:04x}'.format(label, hiaddr, addr))
             context.emit_byte_at(addr, hiaddr)
         elif ltype == 'lo':
             loaddr = context.lo(labeladdr)
+            #print('store lo({0})={1:02x} at 0x{2:04x}'.format(label, loaddr, addr))
             context.emit_byte_at(addr, loaddr)
         elif ltype == 'lorel':
             addrdiff = labeladdr - addr + 1

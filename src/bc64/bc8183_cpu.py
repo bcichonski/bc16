@@ -353,6 +353,21 @@ class Bc8183:
         self.regs[regno].set(val)
         self.inc_pc(1)
 
+    def dumpmem(self, addr, expected, offset = 64):
+        if(addr == expected):
+            i = -offset
+            while(i<128):
+                a = self.membus.read_byte(addr + i + 0)
+                b = self.membus.read_byte(addr + i + 1)
+                c = self.membus.read_byte(addr + i + 2)
+                d = self.membus.read_byte(addr + i + 3)
+                aa = chr(a)
+                bb = chr(b)
+                cc = chr(c)
+                dd = chr(d)
+                print('{8:04x}: {0:02x} {1:02x} {2:02x} {3:02x} {4}{5}{6}{7}'.format(a, b, c, d, aa, bb, cc, dd, addr + i))
+                i += 4
+
     def op_CAL(self):
         curraddr = self.pc.get()
         
@@ -385,7 +400,9 @@ class Bc8183:
             else:
                 addr = curraddr + addr
 
+        #print(f'{self.pc.get():04x} call to {addr:04x}')
         self.pc.set(addr)
+        #self.dumpmem(addr, 0x0008, 4)
         self.inc_pc(0)
 
     def op_RET(self):

@@ -131,3 +131,6 @@ src/bdos/ls.sectors
 src/bdos/rm.basm
 src/bdos/rm.btap
 src/bdos/rm.sectors
+src/*.btap
+src/bdos/bdos.basm
+*.sector

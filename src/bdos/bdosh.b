@@ -1,6 +1,6 @@
 #include bdioh.b
 
-#define BCOSMETA_BDOSCALLADDR 0x007e
+#define BCOSMETA_BDOSCALLADDR 0x007a
 #define BCOSMETA_BDOSCALLNO 57
 #define BNULL 0x00
 
@@ -31,14 +31,14 @@ byte bdio_getdrive()
     return bdio_call(BDIO_GETDRIVE, 0x0000, 0x0000);
 }
 
-byte bdio_fbinopenr(word Pfnameext)
+byte bdio_fbinopenr(word Pfnameext, byte mode)
 {
-    return bdio_call(BDIO_FBINOPENR, Pfnameext, 0x0000);
+    return bdio_call(BDIO_FBINOPENR, Pfnameext, mode);
 }
 
-byte bdio_fbinopenw(word Pfnameext)
+byte bdio_fbinopenw(word Pfnameext, byte mode)
 {
-    return bdio_call(BDIO_FBINOPENW, Pfnameext, 0x0000);
+    return bdio_call(BDIO_FBINOPENW, Pfnameext, mode);
 }
 
 byte bdio_fbinread(byte fhandle, word Pmembuf, byte sectors)
@@ -79,4 +79,16 @@ byte bdio_readsect(byte track, byte sector, word Pmembuf)
 byte bdio_writesect(byte track, byte sector, word Pmembuf)
 {
     return bdio_call(BDIO_WRITESECTOR, (track << 8) | sector, Pmembuf);
+}
+
+word bdio_fbinbufread(byte fhandle, word Pmembuf, word bytes)
+{
+    poke16(BDIO_VAR_PMEMBUF_LEN, bytes);
+    return bdio_call(BDIO_FBINBUFREAD, fhandle << 8, Pmembuf);
+}
+
+word bdio_fbinbufwrite(byte fhandle, word Pmembuf, word bytes)
+{
+    poke16(BDIO_VAR_PMEMBUF_LEN, bytes);
+    return bdio_call(BDIO_FBINBUFWRITE, fhandle << 8, Pmembuf);
 }

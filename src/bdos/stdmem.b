@@ -142,8 +142,6 @@ byte mcompact(word Pstart)
         Pnext <- #(Pnext + 2);
         nextLen <- #(Pnext);
 
-        putwnl(Pnext);
-        putwnl(nextLen);
         count <- count + 1;
     }
 

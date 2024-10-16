@@ -37,7 +37,7 @@ bd_readsect:       mov a, 0xf2
                    jmr nz, :bd_boot_error
                    psh ci
 ;bd_dend here is the number of sectors to read + 0x20 for cat!
-                   mov a, 0x95
+                   mov a, 0xb0
                    pop ci
                    sub ci
                    jmr z, :bd_boot_run

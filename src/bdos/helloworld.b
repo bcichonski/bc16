@@ -1,4 +1,4 @@
-#code 0x5000
+#code 0x5800
 #heap 0x7000
 
 #include std.b
@@ -10,11 +10,8 @@ byte main()
 {
     putsnl("Hello world!");
 
-    //word a;
-    putsnl("fill");
-    mfill(0x7700, 0xff, 0xab);
-    mfill(0x7900, 0xff, 0xcd);
+    word a;
+    a <- 10;
 
-    putsnl("memcopy");
-    memcpy(0x7700, 0x7900, 0x000f);
+    putdecwnl(a);
 }

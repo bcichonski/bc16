@@ -1,11 +1,11 @@
-#code 0x5000
+#code 0x5800
 #heap 0x7000
 
 #include std.b
 #include bdosh.b
 #include strings.b
 
-#define FILEBUFSECT_ADDR 0x7c00
+#define FILEBUFSECT_ADDR 0xac00
 #define FILEBUFSECT_LEN 0x40
 #define DRIVEPRESENT 0x0100
 #define FORMATMODE_QUICK 0x10
