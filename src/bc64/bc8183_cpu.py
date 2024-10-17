@@ -475,11 +475,14 @@ class Bc8183:
         if neg:
             test = not test
 
-        if addr & 0x80 == 0x80:
-            addr = - (addr & 0x7f)
+        if (addr & 0x8000) == 0x8000:
+            addr = - (addr & 0x7fff)
 
         if(test):
-            self.pc.set(self.pc.get() + addr - 1)
+            #x = addr
+            addr = self.pc.get() + addr - 1
+            #print(f'{self.pc.get():04x} {x:04x} JUMP to {addr:04x}')
+            self.pc.set(addr)
             self.inc_pc(0)
 
     def create_instructions(self):

@@ -250,8 +250,8 @@ bc8181 instruction set B0H:
  0x0-0x7 - #rno1, imm
  0x8-0xf - #rno1, rno2
 0xE - EXT - extensions
-    0x01 - JMR t, 0 - extended relative jump
-    0x02 - JMR t, regno - same
+    0x01 - JRX t, 0 - extended relative jump
+    0x02 - JRX t, regno - same
 0xF - KIL
 ```
 ### software

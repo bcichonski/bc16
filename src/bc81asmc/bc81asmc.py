@@ -51,7 +51,7 @@ def compile(ast, verbose):
                 addrdiff = (-addrdiff) | 0x80 
             context.emit_byte_at(addr, addrdiff)
         elif ltype == 'rel15':
-            addrdiff = labeladdr - addr + 1
+            addrdiff = labeladdr - addr - 1
             if verbose:
                 print('store rel15({0})={1} at 0x{2:04x}'.format(label, addrdiff, addr))
             if(addrdiff < -0x7fff or addrdiff > 0x7fff):

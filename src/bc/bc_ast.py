@@ -645,8 +645,7 @@ class STATEMENT_IFELSE(Instruction):
         context.emit("""
                 mov a, cs
                 or ci
-                .mv csci, :{0}
-                jmp z, csci""".format(label))
+                jrx z, :{0}""".format(label))
         self.code.emit(context)
 
         if self.last is None:
@@ -656,8 +655,7 @@ class STATEMENT_IFELSE(Instruction):
             label2 = context.get_next_label()
             context.emit("""
                 xor a
-                .mv csci, :{0}
-                jmp z, csci""".format(label2))
+                jrx z, :{0}""".format(label2))
             context.emit("""
 {0}:      nop""".format(label))
             self.last.emit(context)
@@ -681,13 +679,11 @@ class STATEMENT_WHILE(Instruction):
         context.emit("""
                 mov a, cs
                 or ci
-                .mv csci, :{0}
-                jmp z, csci""".format(label2))
+                jrx z, :{0}""".format(label2))
         self.code.emit(context)
         context.emit("""
-                .mv csci, :{0}
                 xor a
-                jmp z, csci
+                jrx z, :{0}
 {1}:      nop""".format(label1, label2))
 
 @dataclass
