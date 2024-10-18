@@ -63,22 +63,20 @@ printhex16:     mov a, 0x05
 ; OUT:  dsdi - address to store + 1
 ;       csci - unchanged
 ;       a    - rubbish
-poke16:         mov a, 0x09
-                psh a
-                pop f
-                cal :os_metacall
-                ret          
+poke16:        mov #dsdi, cs
+               inc dsdi
+               mov #dsdi, ci
+poke16_ok:     ret                    
 ;=============
 ; PEEK16(#dsdi) - returns value under dsdi address (2 bytes)
 ; IN:   dsdi - address to read
 ; OUT:  dsdi - address to read + 1
 ;       csci - value
 ;       a    - rubbish
-peek16:         mov a, 0x0a
-                psh a
-                pop f
-                cal :os_metacall
-                ret
+peek16:        mov cs, #dsdi
+               inc dsdi
+               mov ci, #dsdi
+peek16_ok:     ret
 ;=============
 ; READSTR(#dsdi, ci) - reads characters to the buffer
 ; IN:   dsdi - buffer address for chars
