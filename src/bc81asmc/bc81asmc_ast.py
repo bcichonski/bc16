@@ -612,8 +612,7 @@ class CLR(Instruction):
         context.emit_4bit(ASMCODES.CAL)
         if(self.arg.startswith(':')):
             context.emit_4bit(ASMCODES.CAL_EX_I16)
-            context.emit_hi8addr(self.arg[1:])
-            context.emit_lo8addr(self.arg[1:])
+            context.emit_rel15addr(self.arg[1:])
         else:
             context.emit_4bit(ASMCODES.CAL_EX_RNO)
             context.emit_4bit(ASMCODES.REG2BIN(self.arg[0:2]))

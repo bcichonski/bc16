@@ -244,7 +244,7 @@ stackoffscalc: psh a
                psh cs
                psh ci
                .mv dsdi, :{0}
-               cal :peek16
+               clr :peek16
                pop di
                pop ds
                pop a
@@ -267,7 +267,7 @@ stoffclc_end:  .mv dsdi, :{0}
 stackoffsclc8: psh a
                psh a
                .mv dsdi, :{0}
-               cal :peek16
+               clr :peek16
                pop a
                and 0x80
                jmr nz, :stoffcl8_sub
@@ -291,8 +291,8 @@ stoffcl8_end:  .mv dsdi, :{0}
 ; OUT:csci - value of SYS_STACKHEAD
 ;     dsdi - address of SYS_STACKHEAD
 ;        a - rubbish
-stackheadroll: cal :stackoffscalc
-               cal :poke16
+stackheadroll: clr :stackoffscalc
+               clr :poke16
                .mv dsdi, :{0}
                ret
 ;=============
@@ -305,8 +305,8 @@ stackheadroll: cal :stackoffscalc
 ;        a - rubbish
 stackheadrll8: psh cs
                psh ci
-               cal :stackoffsclc8
-               cal :poke16
+               clr :stackoffsclc8
+               clr :poke16
                .mv dsdi, :{0}
                pop ci
                pop cs
@@ -322,7 +322,7 @@ stackheadrll8: psh cs
 ;        a - rubbish
 stackvarget8:  mov cs, ds
                mov ci, di
-               cal :stackoffscalc   
+               clr :stackoffscalc   
                mov a, #csci
                mov cs, 0x00
                mov ci, a
@@ -337,10 +337,10 @@ stackvarget8:  mov cs, ds
 ;        a - rubbish
 stackvarget16: mov cs, ds
                mov ci, di
-               cal :stackoffscalc
+               clr :stackoffscalc
                mov ds, cs
                mov di, ci   
-               cal :peek16
+               clr :peek16
                ret
 ;=============
 ; STACKVARSET8(ci,dsdi, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
@@ -354,7 +354,7 @@ stackvarget16: mov cs, ds
 stackvarset8:  psh ci
                mov cs, ds
                mov ci, di
-               cal :stackoffscalc   
+               clr :stackoffscalc   
                pop a
                mov #csci, a
                ret
@@ -371,12 +371,12 @@ stackvarset16: psh cs
                psh ci
                mov cs, ds
                mov ci, di
-               cal :stackoffscalc   
+               clr :stackoffscalc   
                mov ds, cs
                mov di, ci
                pop ci
                pop cs
-               cal :poke16
+               clr :poke16
                ret
 ;=============
 ; STACKVAR8GT8(a) - loads value of the variable of given offset a from SYS_STACKHEAD to csci
@@ -387,7 +387,7 @@ stackvarset16: psh cs
 ;       cs - set to 0
 ;     dsdi - address of SYS_STACKHEAD
 ;        a - same as ci
-stackvar8gt8:  cal :stackoffsclc8   
+stackvar8gt8:  clr :stackoffsclc8   
                mov a, #csci
                mov cs, 0x00
                mov ci, a
@@ -400,10 +400,10 @@ stackvar8gt8:  cal :stackoffsclc8
 ; OUT:csci - value of variable
 ;     dsdi - address of variable + 1
 ;        a - rubbish
-stackvar8gt16: cal :stackoffsclc8
+stackvar8gt16: clr :stackoffsclc8
                mov ds, cs
                mov di, ci   
-               cal :peek16
+               clr :peek16
                ret
 ;=============
 ; STACKVAR8ST8(ci, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
@@ -415,7 +415,7 @@ stackvar8gt16: cal :stackoffsclc8
 ;     dsdi - address of SYS_STACKHEAD
 ;        a - ci
 stackvar8st8:  psh ci
-               cal :stackoffsclc8   
+               clr :stackoffsclc8   
                pop a
                mov #csci, a
                ret
@@ -430,12 +430,12 @@ stackvar8st8:  psh ci
 ;        a - rubbish
 stackvar8st16: psh cs
                psh ci
-               cal :stackoffsclc8   
+               clr :stackoffsclc8   
                mov ds, cs
                mov di, ci
                pop ci
                pop cs
-               cal :poke16
+               clr :poke16
                ret
 ;=============
 ; MSEEK(csci) - finds address of first free block of given size
@@ -443,18 +443,18 @@ stackvar8st16: psh cs
 ; OUT:csci - address after which free memory begins
 ;     dsdi - address of the block after which is enough free memory
 mseek:      .mv dsdi, :sys_seektmp
-            cal :poke16
+            clr :poke16
             .mv dsdi, :{1}
-            cal :peek16
+            clr :peek16
             mov ds, cs
             mov di, ci
 mseek_loop: psh ds
             psh di
-            cal :peek16
+            clr :peek16
             psh cs
             psh ci
             inc dsdi
-            cal :peek16
+            clr :peek16
             pop f
             pop a
             psh cs
@@ -472,12 +472,12 @@ mseek_loop: psh ds
             psh cs
             psh ci
             .mv dsdi, :sys_seektmp
-            cal :peek16
+            clr :peek16
             mov ds, cs
             mov di, ci
             pop ci
             pop cs
-            cal :gteq16
+            clr :gteq16
             jmr nz, :mseek_ret
             pop di
             pop ds

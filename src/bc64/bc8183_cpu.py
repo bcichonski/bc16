@@ -399,6 +399,7 @@ class Bc8183:
                 addr = curraddr - (addr & 0x7fff)
             else:
                 addr = curraddr + addr
+            addr = addr + 2
 
         #print(f'{self.pc.get():04x} call to {addr:04x}')
         self.pc.set(addr)
