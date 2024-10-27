@@ -256,7 +256,7 @@ class Value4(ImmediateValue):
     def __str__(self):
         return "imm4({0:1x})".format(self.value)
     def emit(self, context):
-        context.emit_4bit(value)
+        context.emit_4bit(self.value)
 
 @dataclass
 class Value8(ImmediateValue):
@@ -264,7 +264,7 @@ class Value8(ImmediateValue):
     def __str__(self):
         return "imm8({0:2x})".format(self.value)
     def emit(self, context):
-        context.emit_byte(value)
+        context.emit_byte(self.value)
 
 @dataclass
 class Value16(ImmediateValue):
@@ -432,7 +432,7 @@ class CLC_A_IMM(Instruction):
             context.emit_4bit(kind)
             context.emit_4bit(subcode)
             context.emit_4bit(ASMCODES.REG2BIN(self.imm[0]))
-            context.emit_16bit(imm[1])
+            context.emit_16bit(self.imm[1])
         else:
             context.emit_byte(self.imm)
 

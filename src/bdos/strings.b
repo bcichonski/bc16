@@ -212,3 +212,37 @@ word strnextword(word Pstring)
     asm "mov cs, ds";
     asm "mov ci, di";
 }
+
+byte strndecw(word Pbuf, word value, byte maxlen)
+{
+    byte digit;
+    word divisor;
+    byte nonzero;
+    byte i;
+
+    divisor <- 10000;
+    nonzero <- 0;
+    i <- 0;
+
+    while(divisor && (i < maxlen)) 
+    {
+        digit <- value / divisor;
+        value <- value % divisor;
+
+        if(digit || (divisor = 1)) 
+        {
+            nonzero <- 1;
+        }
+
+        if(nonzero) {
+            digit <- '0' + digit;
+            strpoke8(Pbuf, digit);
+            Pbuf <- Pbuf + 1;
+            i <- i + 1;
+        }
+        
+        divisor <- divisor / 10;
+    }
+
+    return i;
+}

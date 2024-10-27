@@ -85,7 +85,7 @@ byte remove(byte sourcedrive, word Psourcefileext, byte options)
     activeDrive <- bdio_getdrive();
     currentDrive <- changeDriveIfNeeded(activeDrive, sourcedrive, FALSE);
 
-    fHandleIn <- bdio_fbinopenr(Psourcefileext);
+    fHandleIn <- bdio_fbinopenr(Psourcefileext, BDIO_FOPEN_MODE_SECTOR);
     if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
     {
         Pfcatentry <- #(BDIO_VAR_FCAT_PLASTFOUND);

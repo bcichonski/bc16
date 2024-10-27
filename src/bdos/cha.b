@@ -77,7 +77,7 @@ byte changeattributes(byte sourcedrive, word Psourcefileext, byte options)
     activeDrive <- bdio_getdrive();
     currentDrive <- changeDriveIfNeeded(activeDrive, sourcedrive, FALSE);
 
-    fHandleIn <- bdio_fbinopenr(Psourcefileext);
+    fHandleIn <- bdio_fbinopenr(Psourcefileext, BDIO_FOPEN_MODE_SECTOR);
     attrmask <- BDIO_FILE_ATTRIB_EXEC | BDIO_FILE_ATTRIB_READ | BDIO_FILE_ATTRIB_SYSTEM | BDIO_FBINWRITE;
 
     if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)

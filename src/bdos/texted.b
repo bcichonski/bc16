@@ -18,6 +18,7 @@
 #define TELINE_TEXT 4
 #define TELINE_HEADSIZE 5
 #define MAXFILENAMELEN 8
+#define CHAR_LF 0x13
 
 byte parse2args(word PinputBuf, word PtextedVars)
 {
@@ -137,7 +138,7 @@ byte insertLine(word PinputBuf, word PtextedVars, word lineNumber)
     
     poke16(PinputBuf, 0);
     putdecw(lineNumber);
-    puts("| ");
+    puts(" ");
     readsn(PinputBuf, MAXLINELENGTH);
 
     if(#PinputBuf)
@@ -262,7 +263,7 @@ byte printLines(word PinputBuf, word PtextedVars)
         while(PcurrentLine && (currentLineNumber <= lineNumberEnd)) 
         {
             putdecw(currentLineNumber);
-            puts("| ");
+            puts(" ");
             PlineText <- PcurrentLine + TELINE_TEXT;
 
             putsnl(PlineText);
@@ -379,23 +380,51 @@ byte memStat(word PinputBuf, word PtextedVars)
     putdecw(memtotal);putsnl(" bytes");
 }
 
-byte saveLines(word PtextedVars, byte fHandleOut)
+byte saveLines(word PtextedVars, byte fHandleOut, word Ptextbuf)
 {
-    //result <- bdio_fbinwrite(fHandleOut, FILEBUFSECT_ADDR, sectorsread);
+    word currentLineNumber;
+    word PcurrentLine;
+    word PlineText;
+    byte result;
+    byte lineLen;
+    word i;
 
-    //if(!result)
-    //{
-    //    printf("error writing sectors%n");
-    //}
+    PcurrentLine <- #(PtextedVars + TEVARS_PFIRSTLINE);
+    currentLineNumber <- #(PcurrentLine + TELINE_NUMBER);
+    result <- 1;
+    i<-0;
 
-    putsnl("lines saved");
+    while(PcurrentLine && result) 
+    {
+        PlineText <- PcurrentLine + TELINE_TEXT;
+        lineLen <- strnlen8(PlineText, MAXLINELENGTH);
+        printf("%s %w%n", PlineText, lineLen);
+        poke8(PlineText + lineLen, CHAR_LF);
+
+        result <- strndecw(currentLineNumber, Ptextbuf, BDIO_FCAT_ENTRY_NAMELEN);
+        poke8(PlineText + result, ' ');
+        
+        result <- bdio_fbinbufwrite(fHandleOut, Ptextbuf, result);
+        if(result)
+        {
+          result <- bdio_fbinbufwrite(fHandleOut, PlineText, lineLen + 1);
+        }
+
+        poke8(PlineText + lineLen, NULLCHAR);
+
+        PcurrentLine <- #(PcurrentLine + TELINE_PNEXT);
+        currentLineNumber <- #(PcurrentLine + TELINE_NUMBER);
+        i <- i + 1;
+    }
+
+    printf("%w lines saved%n", i);
 }
 
 byte saveFile(word PinputBuf, word PtextedVars)
 {
     word Pwstart;
     word Pwend;
-    word Pfnameext;
+    word Ptextbuf;
     byte error;
     byte len;
     error <- 0;
@@ -405,7 +434,8 @@ byte saveFile(word PinputBuf, word PtextedVars)
 
     if(Pwstart && Pwend)
     {
-        len <- Pwend - Pwstart + 1;
+        len <- Pwend - Pwstart;
+        printf("Pwstart: %w Pwend: %w len: %w%n", Pwstart, Pwend, len);
         if(len <= MAXFILENAMELEN)
         {
             byte fHandleOut;
@@ -413,32 +443,29 @@ byte saveFile(word PinputBuf, word PtextedVars)
 
             poke16(Pwend, NULLCHAR);
             upstring(Pwstart);
-            printf("saving %s.TXT...", Pwstart);
-            Pfnameext <- malloc(BDIO_FCAT_ENTRY_NAMELEN + 1);
-            strncpy("        TXT", Pfnameext, 11);
-            strncpy(Pwstart, Pfnameext, len);
-            
-            result <- bdio_fcreate(Pfnameext, BDIO_FILE_ATTRIB_READ | BDIO_FILE_ATTRIB_WRITE);
+            printf("saving %s.TXT...%n", Pwstart);
+            Ptextbuf <- malloc(BDIO_FCAT_ENTRY_NAMELEN + 1);
+            strncpy("        TXT", Ptextbuf, 11);
+            strncpy(Pwstart, Ptextbuf, len);
+            printf("saving %s...%n", Ptextbuf);
+            result <- bdio_fcreate(Ptextbuf, BDIO_FILE_ATTRIB_READ | BDIO_FILE_ATTRIB_WRITE);
+            error <- 1;
+
             if(!result)
             {
-                fHandleOut <- bdio_fbinopenw(Pfnameext);
-                mfree(Pfnameext);
+                fHandleOut <- bdio_fbinopenw(Ptextbuf, BDIO_FOPEN_MODE_BUFFERED);
+                result <- fHandleOut;
+                mfree(Ptextbuf);
 
                 if(fHandleOut < BDIO_FOPEN_FNAME_NOTFOUND)
                 {
-                    saveLines(PtextedVars, fHandleOut);
+                    saveLines(PtextedVars, fHandleOut, Ptextbuf);
                     bdio_fclose(fHandleOut);
+                    error <- 0;
                 }
-                else
-                {
-                    result <- fHandleOut;
-                    error <- 1;
-                }
-            } 
-            else
-            {
-                error <- 1;
             }
+
+            mfree(Ptextbuf);
 
             if(error)
             {

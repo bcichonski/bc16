@@ -144,7 +144,7 @@ byte listCatalog(byte showall, byte targetdrive)
     activedrive <- bdio_getdrive();
     currentdrive <- changeDriveIfNeeded(activedrive, targetdrive, FALSE);
 
-    fHandle <- bdio_fbinopenr("DISC    CAT");
+    fHandle <- bdio_fbinopenr("DISC    CAT", BDIO_FOPEN_MODE_SECTOR);
     res <- TRUE;
     if(fHandle < BDIO_FOPEN_FNAME_NOTFOUND)
     {

@@ -65,8 +65,8 @@ key assumptions
 0x04: bdio_ffindfile(Pfnameext) - find a sector in which catalog entry for given name and extension is located
 0x05: bdio_getfreesect() - returns next free sector to allocate
 ### high level unbuffered file io
-0x10: bdio_fbinopenr(Pfnameext) - opens a file handle associated with given cnameext for read
-0x11: bdio_fbinopenw(Pfnameext) - opens a file handle for write (this is append only)
+0x10: bdio_fbinopenr(Pfnameext, mode) - opens a file handle associated with given cnameext for read, mode can be raw or buffered
+0x11: bdio_fbinopenw(Pfnameext, mode) - opens a file handle for write (this is append only), mode can be raw or buffered
 0x12: bdio_fbinread(fhandle, Pmembuf, sectors) - reads given sectors of file to Pmembuf CS=fhandle, CI=sectors, DSDI = Pmembuf
 0x13: bdio_fbinwrite(fhandle, Pmembuf, sectors) - writes given memory to sectors
 0x14: bdio_fcreate(Pfnameext, attrib) - creates new file with given attribs

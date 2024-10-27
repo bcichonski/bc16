@@ -1,5 +1,5 @@
 #code 0x5800
-#heap 0x7000
+#heap 0xa000
 
 #include std.b
 #include bdosh.b
@@ -9,8 +9,8 @@
 #define MODE_BIN 0x20
 #define MODE_HELP 0x40
 #define DRIVEPRESENT 0x0100
-#define INFILEBDIONAME_ADDR 0x7cf0
-#define INFILEBUF_ADDR 0x7d00
+#define INFILEBDIONAME_ADDR 0xa000
+#define INFILEBUF_ADDR 0xa010
 #define BINPERLINE 0x20
 #define CHARPERLINE 0x40
 #define CHAR_PRINTABLE_MIN 0x20
@@ -160,12 +160,12 @@ byte printfile(byte sourcedrive, word Psourcefileext, byte options)
     byte sectorsread;
     word reladdr;
 
-    //printf("printing %s:%s with options %x...%n", getdriveletter(sourcedrive), Psourcefileext, options);
+    printf("printing %s:%s with options %x...%n", getdriveletter(sourcedrive), Psourcefileext, options);
 
     activeDrive <- bdio_getdrive();
     currentDrive <- changeDriveIfNeeded(activeDrive, sourcedrive, FALSE);
 
-    fHandleIn <- bdio_fbinopenr(Psourcefileext);
+    fHandleIn <- bdio_fbinopenr(Psourcefileext, BDIO_FOPEN_MODE_SECTOR);
     if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
     {
         reladdr <- 0;
@@ -250,6 +250,8 @@ byte main()
     upstring(BDIO_CMDPROMPTADDR);
     Pargs <- strnextword(BDIO_CMDPROMPTADDR);
     options <- getoptions(Pargs);
+
+    putsnl("dupsko");
 
     if(options & MODE_HELP)
     {

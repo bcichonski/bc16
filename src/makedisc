@@ -68,27 +68,27 @@ echo burning bdos shell to tracks 2-11
 check_exit_code $?
 
 echo burning ls
-./ftool importsector bdos/ls.sectors os.bdd 11 0
+./ftool importsector bdos/ls.sectors os.bdd 13 0
 
 echo burning cp
-./ftool importsector bdos/cp.sectors os.bdd 19 0
+./ftool importsector bdos/cp.sectors os.bdd 21 0
 
 echo burning hello world program
-./ftool importsector bdos/helloworld.sectors os.bdd 15 0
+./ftool importsector bdos/helloworld.sectors os.bdd 17 0
 
 echo burning format program
-./ftool importsector bdos/format.sectors os.bdd 23 0
+./ftool importsector bdos/format.sectors os.bdd 25 0
 
 echo burning rm program
-./ftool importsector bdos/rm.sectors os.bdd 29 0
+./ftool importsector bdos/rm.sectors os.bdd 31 0
 
 echo burning cha program
-./ftool importsector bdos/cha.sectors os.bdd 35 0
+./ftool importsector bdos/cha.sectors os.bdd 37 0
 
 echo burning cat program
-./ftool importsector bdos/cat.sectors os.bdd 39 0
+./ftool importsector bdos/cat.sectors os.bdd 41 0
 
 echo burning cat program
-./ftool importsector bdos/texted.sectors os.bdd 42 0
+./ftool importsector bdos/texted.sectors os.bdd 44 0
 
 echo done!

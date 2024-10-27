@@ -90,7 +90,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
     result <- FALSE;
     nowritemask <- BDIO_FILE_ATTRIB_EXEC | BDIO_FILE_ATTRIB_SYSTEM | BDIO_FILE_ATTRIB_READ;
 
-    fHandleIn <- bdio_fbinopenr(Psourcefileext);
+    fHandleIn <- bdio_fbinopenr(Psourcefileext, BDIO_FOPEN_MODE_SECTOR);
     if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
     {
         Pfcatentry <- #(BDIO_VAR_FCAT_PLASTFOUND);
@@ -101,7 +101,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
         result <- bdio_fcreate(Ptargetfileext, fAttribsIn);
         if(!result)
         {
-            fHandleOut <- bdio_fbinopenw(Ptargetfileext);
+            fHandleOut <- bdio_fbinopenw(Ptargetfileext, BDIO_FOPEN_MODE_SECTOR);
 
             if(fHandleOut < BDIO_FOPEN_FNAME_NOTFOUND)
             {
@@ -200,7 +200,7 @@ byte checksourcedrive()
         //2. it must have BDOS.SYS present
         result <- CHECKERROR_NOBDOSSYS;
 
-        fhandle <- bdio_fbinopenr("BDOS    SYS");
+        fhandle <- bdio_fbinopenr("BDOS    SYS", BDIO_FOPEN_MODE_SECTOR);
         if(fhandle < BDIO_FOPEN_FNAME_NOTFOUND)
         {
             result <- CHECK_ALLOK;
