@@ -88,7 +88,7 @@ echo burning cha program
 echo burning cat program
 ./ftool importsector bdos/cat.sectors os.bdd 41 0
 
-echo burning cat program
-./ftool importsector bdos/texted.sectors os.bdd 44 0
+echo burning texted program
+./ftool importsector bdos/texted.sectors os.bdd 45 0
 
 echo done!

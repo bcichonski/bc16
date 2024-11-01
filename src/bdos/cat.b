@@ -9,8 +9,8 @@
 #define MODE_BIN 0x20
 #define MODE_HELP 0x40
 #define DRIVEPRESENT 0x0100
-#define INFILEBDIONAME_ADDR 0xa000
-#define INFILEBUF_ADDR 0xa010
+#define INFILEBDIONAME_ADDR 0xa020
+#define INFILEBUF_ADDR 0xa100
 #define BINPERLINE 0x20
 #define CHARPERLINE 0x40
 #define CHAR_PRINTABLE_MIN 0x20
@@ -177,6 +177,7 @@ byte printfile(byte sourcedrive, word Psourcefileext, byte options)
             reladdr <- reladdr + BDIO_SECTBUF_LEN;
 
             sectorsread <- bdio_fbinread(fHandleIn, INFILEBUF_ADDR, 0x01);
+            putnl();
         }
 
         bdio_fclose(fHandleIn);
@@ -251,8 +252,6 @@ byte main()
     Pargs <- strnextword(BDIO_CMDPROMPTADDR);
     options <- getoptions(Pargs);
 
-    putsnl("dupsko");
-
     if(options & MODE_HELP)
     {
         printf("%s%n%s%n%s%n",
@@ -278,4 +277,6 @@ byte main()
 
         printfile(sourcedrv, INFILEBDIONAME_ADDR, options);
     }
+
+    putnl();
 }
