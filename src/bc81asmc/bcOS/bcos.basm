@@ -1,4 +1,4 @@
-; bc16 Operation System version 1.2.20240926
+; bc16 Operation System version 1.2.20241102
 ;
                    .org 0x0000
                    .def bdos_bootaddr, 0x0e00
@@ -1323,14 +1323,13 @@ os_call:       psh a
                psh ds
                psh di
                psh f
-               pop a
+               pop ci
+               mov cs, 0x00
+               shl csci, 0x01
                .mv dsdi, :os_metatab
-               shl 0x01
-               add di
-               mov di, a
+               add dsdi, csci
                mov cs, #dsdi
-               inc a
-               mov di, a
+               inc dsdi
                mov ci, #dsdi
                .mv dsdi, :var_oscalladdr
                cal :poke16
