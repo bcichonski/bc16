@@ -402,9 +402,10 @@ byte saveLines(word PtextedVars, byte fHandleOut, word Ptextbuf)
         poke8(PlineText + lineLen, CHAR_LF);
 
         result <- strndecw(currentLineNumber, Ptextbuf, BDIO_FCAT_ENTRY_NAMELEN);
-        poke8(PlineText + result, ' ');
+        poke8(Ptextbuf + result, ' ');
+        poke8(Ptextbuf + result + 1, NULLCHAR);
         
-        result <- bdio_fbinbufwrite(fHandleOut, Ptextbuf, result);
+        result <- bdio_fbinbufwrite(fHandleOut, Ptextbuf, result + 1);
         if(result)
         {
           result <- bdio_fbinbufwrite(fHandleOut, PlineText, lineLen + 1);
@@ -435,7 +436,7 @@ byte saveFile(word PinputBuf, word PtextedVars)
     if(Pwstart && Pwend)
     {
         len <- Pwend - Pwstart;
-        printf("Pwstart: %w Pwend: %w len: %w%n", Pwstart, Pwend, len);
+
         if(len <= MAXFILENAMELEN)
         {
             byte fHandleOut;
@@ -447,7 +448,7 @@ byte saveFile(word PinputBuf, word PtextedVars)
             Ptextbuf <- malloc(BDIO_FCAT_ENTRY_NAMELEN + 1);
             strncpy("        TXT", Ptextbuf, 11);
             strncpy(Pwstart, Ptextbuf, len);
-            printf("saving %s...%n", Ptextbuf);
+
             result <- bdio_fcreate(Ptextbuf, BDIO_FILE_ATTRIB_READ | BDIO_FILE_ATTRIB_WRITE);
             error <- 1;
 

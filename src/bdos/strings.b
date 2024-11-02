@@ -213,7 +213,7 @@ word strnextword(word Pstring)
     asm "mov ci, di";
 }
 
-byte strndecw(word Pbuf, word value, byte maxlen)
+byte strndecw(word value, word Pbuf, byte maxlen)
 {
     byte digit;
     word divisor;
