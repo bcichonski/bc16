@@ -1,3 +1,6 @@
+#code 0x6000
+#heap 0xf000
+
 #include std.b
 #include stdio.b
 #include stdmem.b

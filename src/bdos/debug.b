@@ -1,3 +1,6 @@
+#code 0x6000
+#heap 0xf000
+
 byte main()
 {
     word a;

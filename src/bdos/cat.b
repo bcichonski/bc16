@@ -1,4 +1,4 @@
-#code 0x5800
+#code 0x6000
 #heap 0xa000
 
 #include std.b
@@ -15,6 +15,7 @@
 #define CHARPERLINE 0x40
 #define CHAR_PRINTABLE_MIN 0x20
 #define CHAR_PRINTABLE_MAX 0x7e
+#define CHAR_LF 0x13
 
 word getdriveletter(byte drive)
 {
@@ -93,13 +94,21 @@ word printchars(word Pstart, word len)
         }
         else
         {
-            linelen <- linelen + 3;
-            if(linelen > CHARPERLINE)
+            if(char = CHAR_LF)
             {
                 putnl();
                 linelen <- 0;
             }
-            printf("#%x", char);
+            else 
+            {
+                linelen <- linelen + 3;
+                if(linelen > CHARPERLINE)
+                {
+                    putnl();
+                    linelen <- 0;
+                }
+                printf("#%x", char);
+            }
         }
 
         Pstart <- Pstart + 1;

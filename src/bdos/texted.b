@@ -1,4 +1,4 @@
-#code 0x5800
+#code 0x6000
 #heap 0xa000
 
 #include std.b
@@ -418,6 +418,12 @@ byte saveLines(word PtextedVars, byte fHandleOut, word Ptextbuf)
         i <- i + 1;
     }
 
+    if(i && result)
+    {
+        //make sure that the null char will be at the end of file
+        poke8(Ptextbuf, NULLCHAR);
+        result <- bdio_fbinbufwrite(fHandleOut, Ptextbuf, 1);
+    }
     printf("%w lines saved%n", i);
 }
 

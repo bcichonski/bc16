@@ -1,16 +1,16 @@
-#code 0x5800
-#heap 0x7000
+#code 0x6000
+#heap 0xf000
 
 #include std.b
 #include bdosh.b
 #include strings.b
 
-#define FCATBUF_ADDR 0xa800
-#define INFILEBDIONAME_ADDR 0xa7f0
+#define FCATBUF_ADDR 0xf800
+#define INFILEBDIONAME_ADDR 0xf7f0
 #define DRIVEPRESENT 0x0100
 #define MODE_HELP 0x10
 #define MODE_FORCE 0x20
-#define FCAT_COPY_ADDR 0xa7c0
+#define FCAT_COPY_ADDR 0xf7c0
 
 word getdriveletter(byte drive)
 {

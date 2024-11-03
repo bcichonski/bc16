@@ -1,5 +1,5 @@
-#code 0x5800
-#heap 0x7000
+#code 0x6000
+#heap 0xa000
 
 #include std.b
 #include bdosh.b
