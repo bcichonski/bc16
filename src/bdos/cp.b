@@ -4,6 +4,7 @@
 #include std.b
 #include bdosh.b
 #include strings.b
+#include bdostools.b
 
 #define FILEBUFSECT_ADDR 0xa000
 #define FILEBUFSECT_LEN 0x40
@@ -119,20 +120,6 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
     }
 }
 
-byte fnormalize(word Pfilenameext, word Pbdiofilename)
-{
-    byte length;
-
-    mfill(Pbdiofilename, BDIO_FCAT_ENTRY_NAMELEN, 0x20);
-    poke8(Pbdiofilename + BDIO_FCAT_ENTRY_NAMELEN, NULLCHAR);
-
-    length <- strnlen8(Pfilenameext, BDIO_FCAT_ENTRY_NAMELEN + 1);
-    strncpy(Pfilenameext + length - 3, Pbdiofilename + BDIO_FCAT_ENTRY_NAMELEN - 3, 3);
-
-    length <- strnposc(Pfilenameext, '.', BDIO_FCAT_ENTRY_NAMELEN);
-    strncpy(Pfilenameext, Pbdiofilename, length);
-}
-
 byte main()
 {
     word Pargs;
@@ -176,8 +163,8 @@ byte main()
         PtgtFileNameExt <- Pargs;
         targetdrv <- result;
 
-        fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
-        fnormalize(PtgtFileNameExt, OUTFILEBDIONAME_ADDR);
+        bdio_fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
+        bdio_fnormalize(PtgtFileNameExt, OUTFILEBDIONAME_ADDR);
 
         copy(sourcedrv, INFILEBDIONAME_ADDR, targetdrv, OUTFILEBDIONAME_ADDR);
     }

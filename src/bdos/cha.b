@@ -4,6 +4,7 @@
 #include std.b
 #include bdosh.b
 #include strings.b
+#include bdostools.b
 
 #define MODE_SET 0x10
 #define MODE_UNSET 0x20
@@ -105,20 +106,6 @@ byte changeattributes(byte sourcedrive, word Psourcefileext, byte options)
 
     poke8(BDIO_VAR_ACTIVEDRV, 0xff);//force cat refresh
     bdio_setdrive(activeDrive, FALSE);
-}
-
-byte fnormalize(word Pfilenameext, word Pbdiofilename)
-{
-    byte length;
-
-    mfill(Pbdiofilename, BDIO_FCAT_ENTRY_NAMELEN, 0x20);
-    poke8(Pbdiofilename + BDIO_FCAT_ENTRY_NAMELEN, NULLCHAR);
-
-    length <- strnlen8(Pfilenameext, BDIO_FCAT_ENTRY_NAMELEN + 1);
-    strncpy(Pfilenameext + length - 3, Pbdiofilename + BDIO_FCAT_ENTRY_NAMELEN - 3, 3);
-
-    length <- strnposc(Pfilenameext, '.', BDIO_FCAT_ENTRY_NAMELEN);
-    strncpy(Pfilenameext, Pbdiofilename, length);
 }
 
 byte getoptions(word Poptions)
@@ -224,7 +211,7 @@ byte main()
         PsrcFileNameExt <- Pargs;
         sourcedrv <- result;
 
-        fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
+        bdio_fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
 
         changeattributes(sourcedrv, INFILEBDIONAME_ADDR, options);
     }

@@ -5,8 +5,9 @@
 #include bdosh.b
 #include stdmem.b
 #include strings.b
+#include bdostools.b
 
-#define MAXLINELENGTH 64
+#define MAXLINELENGTH 80
 #define MAXLINENUMBER 0xffff
 #define TEVARS_SIZE 8
 #define TEVARS_TOTALLINES 0
@@ -17,7 +18,7 @@
 #define TELINE_NUMBER 2
 #define TELINE_TEXT 4
 #define TELINE_HEADSIZE 5
-#define MAXFILENAMELEN 8
+#define MAXFILENAMELEN 12
 #define CHAR_LF 0x13
 
 byte parse2args(word PinputBuf, word PtextedVars)
@@ -449,11 +450,11 @@ byte saveFile(word PinputBuf, word PtextedVars)
             byte result;
 
             poke16(Pwend, NULLCHAR);
-            upstring(Pwstart);
-            printf("saving %s.TXT...%n", Pwstart);
             Ptextbuf <- malloc(BDIO_FCAT_ENTRY_NAMELEN + 1);
-            strncpy("        TXT", Ptextbuf, 11);
-            strncpy(Pwstart, Ptextbuf, len);
+
+            bdio_fnormalize(Pwstart, Ptextbuf);
+
+            printf("saving %s...%n", Pwstart);
 
             result <- bdio_fcreate(Ptextbuf, BDIO_FILE_ATTRIB_READ | BDIO_FILE_ATTRIB_WRITE);
             error <- 1;
@@ -462,7 +463,6 @@ byte saveFile(word PinputBuf, word PtextedVars)
             {
                 fHandleOut <- bdio_fbinopenw(Ptextbuf, BDIO_FOPEN_MODE_BUFFERED);
                 result <- fHandleOut;
-                mfree(Ptextbuf);
 
                 if(fHandleOut < BDIO_FOPEN_FNAME_NOTFOUND)
                 {
@@ -505,40 +505,41 @@ byte mainLoop(word PinputBuf, word PtextedVars)
         readsn(PinputBuf, MAXLINELENGTH - 1);
 
         choice <- peek8(PinputBuf);
+        choice <- upchar(choice);
         knownCommand <- 0;
 
-        if(choice = 'i') {
+        if(choice = 'I') {
             insertLines(PinputBuf, PtextedVars);
             knownCommand <- 1;
         }
 
-        if(choice = 'p') {
+        if(choice = 'P') {
             printLines(PinputBuf, PtextedVars);
             knownCommand <- 1;
         }
 
-        if(choice = 'd') {
+        if(choice = 'D') {
             deleteLines(PinputBuf, PtextedVars);
             knownCommand <- 1;
         }
 
-        if(choice = 'm') {
+        if(choice = 'M') {
             memStat(PinputBuf, PtextedVars);
             knownCommand <- 1;
         }
 
-        if(choice = 's') {
+        if(choice = 'S') {
             saveFile(PinputBuf, PtextedVars);
             knownCommand <- 1;
         }
 
-        if(choice = 'h')
+        if(choice = 'H')
         {
             printf("i <n> <s> - insert new lines starting from line number <n> with step <s>%np <n> <m> - print lines from <n> to <m>%nd <n> <m> - delete lines from <n> to <m>%nl <fname> - loads file%ns <fname> - saves file%nm - memory stats%nh - help%nq - quit%n");
             knownCommand <- 1;
         }
 
-        if(choice = 'q')
+        if(choice = 'Q')
         {
             continue <- 0;
             knownCommand <- 1;

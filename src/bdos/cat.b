@@ -4,6 +4,7 @@
 #include std.b
 #include bdosh.b
 #include strings.b
+#include bdostools.b
 
 #define MODE_CHAR 0x10
 #define MODE_BIN 0x20
@@ -12,7 +13,7 @@
 #define INFILEBDIONAME_ADDR 0xa020
 #define INFILEBUF_ADDR 0xa100
 #define BINPERLINE 0x20
-#define CHARPERLINE 0x40
+#define CHARPERLINE 0x50
 #define CHAR_PRINTABLE_MIN 0x20
 #define CHAR_PRINTABLE_MAX 0x7e
 #define CHAR_LF 0x13
@@ -86,7 +87,7 @@ word printchars(word Pstart, word len)
             linelen <- linelen + 1;
             if(linelen > CHARPERLINE)
             {
-                putnl();
+                putsnl(" !catln1");
                 linelen <- 0;
             }
 
@@ -96,17 +97,17 @@ word printchars(word Pstart, word len)
         {
             if(char = CHAR_LF)
             {
-                putnl();
+                putsnl(" !ln");
                 linelen <- 0;
             }
             else 
             {
-                linelen <- linelen + 3;
-                if(linelen > CHARPERLINE)
+                if(linelen + 3 > CHARPERLINE)
                 {
-                    putnl();
+                    putsnl(" !catln2");
                     linelen <- 0;
                 }
+                linelen <- linelen + 3;
                 printf("#%x", char);
             }
         }
@@ -200,20 +201,6 @@ byte printfile(byte sourcedrive, word Psourcefileext, byte options)
     bdio_setdrive(activeDrive, FALSE);
 }
 
-byte fnormalize(word Pfilenameext, word Pbdiofilename)
-{
-    byte length;
-
-    mfill(Pbdiofilename, BDIO_FCAT_ENTRY_NAMELEN, 0x20);
-    poke8(Pbdiofilename + BDIO_FCAT_ENTRY_NAMELEN, NULLCHAR);
-
-    length <- strnlen8(Pfilenameext, BDIO_FCAT_ENTRY_NAMELEN + 1);
-    strncpy(Pfilenameext + length - 3, Pbdiofilename + BDIO_FCAT_ENTRY_NAMELEN - 3, 3);
-
-    length <- strnposc(Pfilenameext, '.', BDIO_FCAT_ENTRY_NAMELEN);
-    strncpy(Pfilenameext, Pbdiofilename, length);
-}
-
 byte getoptions(word Poptions)
 {
     byte result;
@@ -282,7 +269,7 @@ byte main()
         PsrcFileNameExt <- Pargs;
         sourcedrv <- result;
 
-        fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
+        bdio_fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
 
         printfile(sourcedrv, INFILEBDIONAME_ADDR, options);
     }
