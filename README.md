@@ -1,23 +1,26 @@
-I have always wanted to build 8bit computer, as i am to lazy to work with hardware, this is the closest thing to that. Ultimate goal is to have a language compilator working for it.
+I have always wanted to build 8bit computer, as i am to lazy to work with hardware, this is the closest thing to that. Ultimate goal is to have a language compiler working for it.
 
 # BC64
 ## roadmap
 0. memory increased to 64kb
 1. cpu 16bit arithmetic and binary operations, long relative jumps? improved cpu stack frames
 2. related changes in basmc
-2. related changes and optimization in bcc (new optimization to drop unused code)
+2. related changes and optimizations in bcc (usage of new arithmetic)
 2. bcos 1.2 (move from bcc stdlib, other improvements)
-3. bdos 1.1 (fcat with dates! and load addresses)
+3. bdos 1.1 (buffered read and buffered writes)
 4. texted and game new versions
-5. new discs (increase number of tracks and sectors 80 tracks by 32 sectors)
-6. basm on bc64
-7. bcc on bc64
-8. networking?
+5. bcc (new optimization to drop unused code and managing stacks inside subroutines)
+6. bdos 1.1b (fcat with dates! and load addresses)
+7. new discs (increase number of tracks and sectors 80 tracks by 32 sectors)
+8. basm on bc64
+9. bcc on bc64
+10. networking?
 
 ## architectural notes
 ### OS
 bcos v1.2
  - some procedures from b compiler stdlib incorporated
+ - usage of new arithmetic for bc8083 cpu
  - minor fixes
 
 bcos v1.1 
@@ -32,6 +35,9 @@ bdos v1
  - bfs file system
    - only files
    - but with some attributes
+
+bdos v1.1
+ - buffered reads and writes
 
 bdos v2.0
  - support for the clock
