@@ -518,9 +518,21 @@ mfill:      psh a
 ;       af - length
 ; OUT: dsdi = destroyed
 ;      csci = desc + length + 1
-mem_cpy:    mov a, 0x32
+mem_cpy:    psh cs
+            psh ci
+            psh a
+            psh f
+            pop ci
+            pop cs
+            mov a, 0x08
             psh a
             pop f
+            cal :os_metacall
+            mov a, 0x32
+            psh a
+            pop f
+            pop ci
+            pop cs
             cal :os_metacall
             ret
 ;=============
