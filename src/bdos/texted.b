@@ -493,6 +493,116 @@ byte saveFile(word PinputBuf, word PtextedVars)
     }
 }
 
+byte readLines(word PtextedVars, byte fHandleIn, word Ptextbuf)
+{
+    word lineNumber;
+    word PcurrentLine;
+    word PlineText;
+    word PnextToken;
+    word maxLen;
+    word Plinebuf;
+    byte result;
+    byte lineLen;
+    byte char;
+    word i;
+    word lines;
+
+    PcurrentLine <- Ptextbuf;
+    result <- 1;
+    
+    maxLen <- MAXLINELENGTH + BDIO_FCAT_ENTRY_NAMELEN;
+    Plinebuf <- malloc(maxLen);
+    lineLen <- 0;
+    lines <- 0;
+
+    while(bdio_fbinbufread(fHandleIn, Ptextbuf, 1)) 
+    {
+        i<-0;
+
+        while(i < BDIO_SECTBUF_LEN) 
+        {
+            char <- peek8(Ptextbuf + i);
+
+            if(lineLen < maxLen) 
+            {
+                poke8(Plinebuf + lineLen, char);
+                lineLen <- lineLen + 1;
+            }
+
+            if(char = NULLCHAR || char = CHAR_LF)
+            {
+                poke8(Plinebuf + lineLen, NULLCHAR);
+
+                putsnl(Plinebuf);
+
+                lineLen <- 0;
+                lines <- lines + 1;
+            }
+
+            i <- i + 1;
+        }
+    }
+
+    printf("%w lines loaded%n", lines);
+}
+
+byte loadFile(word PinputBuf, word PtextedVars)
+{
+    word Pwstart;
+    word Pwend;
+    word Ptextbuf;
+    byte error;
+    byte len;
+    error <- 0;
+
+    Pwstart <- strnextword(PinputBuf+1);
+    Pwend <- strnextword(Pwstart);
+
+    if(Pwstart && Pwend)
+    {
+        len <- Pwend - Pwstart;
+
+        if(len <= MAXFILENAMELEN)
+        {
+            byte fHandleIn;
+            byte result;
+
+            poke16(Pwend, NULLCHAR);
+            Ptextbuf <- malloc(BDIO_SECTBUF_LEN + 1);
+
+            bdio_fnormalize(Pwstart, Ptextbuf);
+
+            printf("loading %s...%n", Pwstart);
+
+            fHandleIn <- bdio_fbinopenr(Ptextbuf, BDIO_FOPEN_MODE_SECTOR);
+            result <- fHandleIn;
+
+            if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
+            {
+                readLines(PtextedVars, fHandleIn, Ptextbuf);
+
+                bdio_fclose(fHandleIn);
+                error <- 0;
+            }
+            
+            mfree(Ptextbuf);
+
+            if(error)
+            {
+                bdio_printexecres(result);
+            }
+        }
+        else 
+        {
+            putsnl("Error. <file> too long.");
+        }
+    }
+    else 
+    {
+        putsnl("Error. Expected argument <file>.");
+    }
+}
+
 byte mainLoop(word PinputBuf, word PtextedVars) 
 {
     byte choice;
@@ -533,6 +643,11 @@ byte mainLoop(word PinputBuf, word PtextedVars)
 
         if(choice = 'S') {
             saveFile(PinputBuf, PtextedVars);
+            knownCommand <- 1;
+        }
+
+        if(choice = 'L') {
+            loadFile(PinputBuf, PtextedVars);
             knownCommand <- 1;
         }
 
