@@ -671,7 +671,7 @@ byte bdio_fbin_internal(byte fhandle, word Pmembuf, byte sectors, byte descMode)
             }
             else
             {
-                printf("iowrite %x %x %w%n", track, sector, Pmembuf);
+                //printf("iowrite %x %x %w%n", track, sector, Pmembuf);
                 bdio_iosec(FDD_CMD_WRITE, track, sector, Pmembuf);
                 tracksector <- bdio_getfreesect();             
             }

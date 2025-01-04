@@ -132,15 +132,10 @@ byte setTotalLines(word PtextedVars, word change, byte inc)
     poke16(PtextedVars + TEVARS_TOTALLINES, totalLines);
 }
 
-byte insertLine(word PinputBuf, word PtextedVars, word lineNumber) 
+byte insertLineBuf(word PinputBuf, word PtextedVars, word lineNumber)
 {
     byte continue;
     continue <- 1;
-    
-    poke16(PinputBuf, 0);
-    putdecw(lineNumber);
-    puts(" ");
-    readsn(PinputBuf, MAXLINELENGTH);
 
     if(#PinputBuf)
     {
@@ -216,6 +211,15 @@ byte insertLine(word PinputBuf, word PtextedVars, word lineNumber)
     return continue;
 }
 
+byte insertLine(word PinputBuf, word PtextedVars, word lineNumber) 
+{
+    poke16(PinputBuf, 0);
+    putdecw(lineNumber);
+    puts(" ");
+    readsn(PinputBuf, MAXLINELENGTH);
+
+    return insertLineBuf(PinputBuf, PtextedVars, lineNumber);   
+}
 
 byte insertLines(word PinputBuf, word PtextedVars)
 {
@@ -399,7 +403,6 @@ byte saveLines(word PtextedVars, byte fHandleOut, word Ptextbuf)
     {
         PlineText <- PcurrentLine + TELINE_TEXT;
         lineLen <- strnlen8(PlineText, MAXLINELENGTH);
-        printf("%s %w%n", PlineText, lineLen);
         poke8(PlineText + lineLen, CHAR_LF);
 
         result <- strndecw(currentLineNumber, Ptextbuf, BDIO_FCAT_ENTRY_NAMELEN);

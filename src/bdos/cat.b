@@ -84,13 +84,13 @@ word printchars(word Pstart, word len)
 
         if((char >= CHAR_PRINTABLE_MIN) && (char <= CHAR_PRINTABLE_MAX))
         {
-            linelen <- linelen + 1;
-            if(linelen > CHARPERLINE)
+            if((linelen + 1) > CHARPERLINE)
             {
                 putsnl(" !catln1");
                 linelen <- 0;
             }
 
+            linelen <- linelen + 1;
             putc(char);
         }
         else
@@ -102,7 +102,7 @@ word printchars(word Pstart, word len)
             }
             else 
             {
-                if(linelen + 3 > CHARPERLINE)
+                if((linelen + 3) > CHARPERLINE)
                 {
                     putsnl(" !catln2");
                     linelen <- 0;
