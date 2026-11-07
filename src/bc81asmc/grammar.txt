@@ -1,4 +1,4 @@
-(early design notes - the real grammar is bc81asmc_grammar.py, reference is doc/02-assembler.md)
+(early design notes - the real grammar is bc81asmc_grammar.py, reference is docs/02-assembler.md)
 
 line layout
 

@@ -1,6 +1,6 @@
 # Compiler (bc, B language)
 
-Reference: `doc/03-compiler.md` covers the language, operators and libraries.
+Reference: `docs/03-compiler.md` covers the language, operators and libraries.
 `history.txt` records the code-size optimisation history and `bugs.txt` the known bugs.
 
 ## Commands

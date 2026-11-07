@@ -1,6 +1,6 @@
 # Emulator (bc64 / bc8183 CPU)
 
-Reference: `doc/01-emulator.md`. The entry point is `src/bc64.py`. It wires the bus, loads
+Reference: `docs/01-emulator.md`. The entry point is `src/bc64.py`. It wires the bus, loads
 the ROM image at `0x0000`, runs the CPU, and dumps memory to `bc64.dmp` on `KIL`. The tests
 are in `src/tests/`.
 
@@ -42,7 +42,7 @@ Current status: 22 of 23 tests pass. `test_CLR_opcodes` fails with an exception 
 ## Rules
 
 - **Opcode or encoding changes must also be made in `src/bc81asmc/bc81asmc_ast.py`** (and in
-  `README.md` / `doc/02-assembler.md`). Add a test in `tests/test_cpu.py` for any new opcode.
+  `README.md` / `docs/02-assembler.md`). Add a test in `tests/test_cpu.py` for any new opcode.
 - Port numbers, FDD commands and status codes are part of bcOS and bdos code
   (`bcos.basm`, `bdioh.b`); changing them breaks booting.
 - Known latent bugs that existing code depends on not hitting:

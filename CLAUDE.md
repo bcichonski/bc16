@@ -9,14 +9,21 @@ holds its whole stack, and each component has its own `CLAUDE.md` with its speci
 
 | Component | Path | Reference doc |
 |---|---|---|
-| emulator: bc8183 CPU + devices | `src/bc64.py`, `src/bc64/`, `src/tests/` | `doc/01-emulator.md` |
-| assembler `bc81asmc` | `src/bc81asmc/` | `doc/02-assembler.md` |
-| compiler `bc` (C-like B language) | `src/bc/` | `doc/03-compiler.md` |
-| bcOS ROM monitor | `src/bc81asmc/bcOS/` | `doc/04-bcos.md` |
-| bdos disk OS, utilities, apps, B libraries | `src/bdos/` | `doc/05-bdos.md` |
+| emulator: bc8183 CPU + devices | `src/bc64.py`, `src/bc64/`, `src/tests/` | `docs/01-emulator.md` |
+| assembler `bc81asmc` | `src/bc81asmc/` | `docs/02-assembler.md` |
+| compiler `bc` (C-like B language) | `src/bc/` | `docs/03-compiler.md` |
+| bcOS ROM monitor | `src/bc81asmc/bcOS/` | `docs/04-bcos.md` |
+| bdos disk OS, utilities, apps, B libraries | `src/bdos/` | `docs/05-bdos.md` |
 
-`doc/` is the detailed reference. Read the relevant page before changing a component, and
-update it in the same change when behaviour changes. Active development is on the `bc64`
+`docs/0X-*.md` are the detailed reference. Read the relevant page before changing a
+component, and update it in the same change when behaviour changes.
+
+**Standing design decisions** (the ABI, memory map, register convention, error codes, and
+per-component conventions) are recorded in `docs/specs/memory/design-decisions.md`. Follow
+them, and record a new decision there when you make one. `docs/specs/plans/` (spec plans)
+and `docs/CHANGELOG.md` belong to the `/grind` workflow.
+
+Active development is on the `bc64`
 branch. `release/bc16_v1.0` and `release/bc32_v1.0` are frozen snapshots of earlier machine
 generations; don't modify them. The top-level `bc/grammar.txt` is an old copy of the
 compiler's grammar notes.

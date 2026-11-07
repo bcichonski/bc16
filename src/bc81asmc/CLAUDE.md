@@ -1,6 +1,6 @@
 # Assembler (bc81asmc)
 
-Reference: `doc/02-assembler.md` has the syntax and full instruction encoding.
+Reference: `docs/02-assembler.md` has the syntax and full instruction encoding.
 `bc81asmc_grammar.py` is the real grammar; `grammar.txt` is an early sketch.
 
 ## Commands

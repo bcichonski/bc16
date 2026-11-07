@@ -1,6 +1,6 @@
 # bcOS (ROM monitor)
 
-Reference: `doc/04-bcos.md` has the boot sequence, commands and the full `os_metatab`
+Reference: `docs/04-bcos.md` has the boot sequence, commands and the full `os_metatab`
 table. `bcos.md` holds the short notes and error codes.
 
 ## Build (from `src/`)

@@ -1,4 +1,4 @@
-(early design notes - current language reference is doc/03-compiler.md)
+(early design notes - current language reference is docs/03-compiler.md)
 
 b data types:
 

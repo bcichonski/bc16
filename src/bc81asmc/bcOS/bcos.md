@@ -24,7 +24,7 @@ which will reset the OS)
 
 # system calls
 programs call bcos subroutines indirectly: function number in F (mov a, NN; psh a; pop f), then cal :os_metacall (0x0008)
-the full table of function numbers is in doc/04-bcos.md
+the full table of function numbers is in docs/04-bcos.md
 entry 0x37 (0x007a) is filled in by bdos with the address of bdio_call
 
 # error codes

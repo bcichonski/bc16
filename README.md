@@ -1,6 +1,6 @@
 I have always wanted to build 8bit computer, as i am to lazy to work with hardware, this is the closest thing to that. Ultimate goal is to have a language compiler working for it.
 
-Detailed documentation of the current BC64 (emulator, assembler, compiler, bcOS, bdos) is in [doc/](doc/README.md).
+Detailed documentation of the current BC64 (emulator, assembler, compiler, bcOS, bdos) is in [docs/](docs/README.md).
 
 # BC64
 ## roadmap
@@ -268,7 +268,7 @@ bc8181 instruction set B0H:
     note: negated conditions (nz, nc, nn, no) are currently evaluated as plain ones by the cpu
 0xF - KIL
 ```
-full and current reference: [doc/02-assembler.md](doc/02-assembler.md)
+full and current reference: [docs/02-assembler.md](docs/02-assembler.md)
 ### software
 external assembler bc81asmc up to 1.1 (240317) - currently v1.3 (240914) for bc8183
 external compiler bc of b language for bc8181-bc8182 cpu v 1.0.0 (240317) - currently v1.3.1 (240927) for bc8183

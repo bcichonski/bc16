@@ -11,6 +11,14 @@ software stack, all in this repository. The pages below describe the current `bc
 | [04-bcos.md](04-bcos.md) | bcOS 1.2 ROM monitor: boot, command line, tape format, `os_metacall` system call table |
 | [05-bdos.md](05-bdos.md) | bdos 1.1: boot loader, memory map, BFS disk format, bdio API, shell, disc utilities, building `os.bdd` |
 
+Project process files:
+
+| Path | Purpose |
+|---|---|
+| [specs/memory/design-decisions.md](specs/memory/design-decisions.md) | standing design decisions and conventions, global and per component |
+| [specs/plans/](specs/plans/) | spec plans for stories (`TEMPLATE.md` is the skeleton) |
+| [CHANGELOG.md](CHANGELOG.md) | completed stories, newest first; the format and tags are in [changelog-entry-template.md](changelog-entry-template.md) |
+
 ## How the pieces fit
 
 ```

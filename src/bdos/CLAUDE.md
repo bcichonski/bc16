@@ -1,6 +1,6 @@
 # bdos (disk OS, utilities, apps, B libraries)
 
-Reference: `doc/05-bdos.md` covers the memory map, the BFS disk format, the bdio API and
+Reference: `docs/05-bdos.md` covers the memory map, the BFS disk format, the bdio API and
 error codes, the shell and the utilities. `bdos.md` holds the short notes.
 
 Everything here is B source except `boot.basm`. Each program's `.genb`, `.basm`, `.btap`
@@ -39,7 +39,7 @@ python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81     # boot; enter "os.bdd" for dis
   1. add the number in `bdioh.b`;
   2. add a branch in `bdio_call` (`bdio.b`);
   3. add a wrapper in `bdosh.b`;
-  4. document it in `doc/05-bdos.md`.
+  4. document it in `docs/05-bdos.md`.
 
   Shell-only functions (`bdio_execute`, `bdio_ffindfile`, …) are deliberately left out of
   the dispatcher.
