@@ -11,6 +11,8 @@ software stack, all in this repository. The pages below describe the current `bc
 | [04-bcos.md](04-bcos.md) | bcOS 1.2 ROM monitor: boot, command line, tape format, `os_metacall` system call table |
 | [05-bdos.md](05-bdos.md) | bdos 1.1: boot loader, memory map, BFS disk format, bdio API, shell, disc utilities, building `os.bdd` |
 
+Analysis of the current state, roadmap, problems and proposals per component: [analysis/](analysis/README.md).
+
 Project process files:
 
 | Path | Purpose |
