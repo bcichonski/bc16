@@ -1,0 +1,59 @@
+# Compiler (bc, B language)
+
+Reference: `doc/03-compiler.md` covers the language, operators and libraries.
+`history.txt` records the code-size optimisation history and `bugs.txt` the known bugs.
+
+## Commands
+
+```bash
+cd src && python3 bc/bc.py --verbose bdos/ls.b    # -> bdos/ls.basm, plus bdos/ls.genb (preprocessed source)
+cd src && ./bcc bdos/ls                           # compile + assemble -> bdos/ls.btap
+cd src/bc && python3 -m unittest bc_tests         # grammar tests
+```
+
+`bc_ast.py` imports `from msilib.schema import Error`, which is Windows-only and was removed
+in Python 3.13. Both the compiler and its tests fail to import on Linux or newer Python until
+it is replaced (the built-in `Exception` works). `bc.py` sets
+`sys.setrecursionlimit(2000)` because the parsy grammar recurses deeply.
+
+## How it works
+
+- `bc.py preprocess()` handles `#include` (resolved relative to the **main** file's
+  directory), `#define` (plain text replace, longer names first, applied inside strings and
+  `asm` too), `#code` / `#heap` (module globals for the code and heap addresses), and drops
+  `//` lines.
+- `bc_grammar.py` (parsy) builds the AST from `bc_ast.py`. Each node's `emit(context)`
+  appends assembly text to `Context.basm`. `PROGRAM.emit` prepends the entry point; then the
+  data segment and `bc_stdlib.py` (asm runtime, a format template with `{0}`/`{1}`
+  placeholders) are appended.
+- **Code model:**
+  - an expression's result is in `csci`, and a binary operator's right operand in `dsdi`;
+  - intermediate values go on the CPU stack;
+  - variables live on a software stack at `sys_stackhead` (placed after the program image),
+    accessed through the `stackvar*` runtime helpers at offsets relative to it;
+  - `Scope` tracks those offsets;
+  - a call pushes a scope (moving `sys_stackhead`), assigns the arguments as the callee's
+    first locals, `cal`s the function, then pops the scope;
+  - `CODE_BLOCK` doesn't open a scope, so locals must be unique within a function.
+- Optimisations live in `EXPRESSION_BINARY.emit` / `logic()`:
+  - a constant right operand of a commutative operator is loaded straight into `dsdi`
+    (`context.hint_loaddsdi`);
+  - comparisons with `0` are short-circuited.
+
+  The `poc/bcc-opts*` branches contain earlier optimisation experiments.
+
+## Rules
+
+- Generated assembly must follow bc81asmc syntax: lowercase, fixed-width hex (`0x{:02x}` /
+  `0x{:04x}`), one instruction per line.
+- `bc_stdlib.py` routines call bcOS through `os_metacall` table indices. Those indices must
+  match `os_metatab` in `src/bc81asmc/bcOS/bcos.basm`. The `.def var_promptbuf 0x0bcf` /
+  `var_user_mem 0x0bcb` at the end of the runtime are stale bcOS 1.1 addresses and nothing
+  references them. Don't use them; take the addresses from `os_vartab` instead.
+- Changing the code model or the runtime changes every program. Afterwards, rebuild bdos
+  and all programs (`./buildos && ./buildtools && ./buildapps && ./makedisc`), boot
+  `os.bdd`, and smoke-test `ls`, `cat` and `texted`.
+- Language quirks to keep in mind, both when writing B and when changing the grammar:
+  - comparisons bind looser than `&&`/`||`;
+  - a unary operator applies to the whole rest of the expression;
+  - `return` should be the last statement of a function (`bugs.txt`).
