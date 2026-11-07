@@ -1,5 +1,7 @@
 I have always wanted to build 8bit computer, as i am to lazy to work with hardware, this is the closest thing to that. Ultimate goal is to have a language compiler working for it.
 
+Detailed documentation of the current BC64 (emulator, assembler, compiler, bcOS, bdos) is in [doc/](doc/README.md).
+
 # BC64
 ## roadmap
 0. memory increased to 64kb
@@ -54,7 +56,7 @@ one extension slot (basically allows a device to use memory directly)
 
 ## memory
 memory: 64kb
-~6kb rom + 58kb ram but bdos takes additional 10kb leaving about 48kb free
+~3.5kb bcos (0x0000-0x0d6b) + bdos with its buffers (0x0d80-0x5fff, ~21kb), user programs are loaded at 0x6000 leaving about 40kb free (up to the cpu stack at the top of memory)
 
 ### peripherals
 same as BC32 plus
@@ -101,21 +103,22 @@ memory: 32kb
 ### peripherals
 same as BC16 plus
 - real time clock 0x3
-- random generator 0x4
+- random generator 0x5
 - floppy disk drive 0x8
   - port 0x8 used for instructions and communication:
-    - 0xf0 - ping with response with version of the drive: returns READY | FDVER1
+    - 0xf0 - ping with response with version of the drive: returns READY | FDVER1 (0x11)
     - 0xf1 <imm16> - configure DMA - sets where drive can put read sector, always 128 bytes returns READY
     - 0xfa - set active drive A returns READY
     - 0xfb - set active drive B returns READY
-    - 0xf2 <imm8:t> <imm8:s> - reads sector s from track t returns READY or CFGERROR or CMDERROR
-    - 0xf3 <imm8:t> <imm8:s> - writes sector s from track t returns READY or CFGERROR or CMDERROR
+    - 0xf2 <imm8:t> <imm8:s> - reads sector s from track t returns READY or READERROR
+    - 0xf3 <imm8:t> <imm8:s> - writes sector s from track t returns READY or READERROR
     - 0xf4 - eject active drive
     - response codes:
       - READY: 0x10
       - FDVER1: 0x01
-      - CFGERROR: 0xe1
-      - CMDERROR: 0xe2
+      - DRIVEERROR: 0xe1
+      - READERROR: 0xe2 (also returned for track/sector out of range, for reads and writes)
+      - WRITEERROR: 0xe3 (defined, not used by the emulator)
 
   - uses direct memory access to read entire sector
   - double drive for single side 3" floppy disks that has 64 tracks of 16 sectors of 128 bytes = 128 KB
@@ -150,10 +153,12 @@ some extentions like 16bit arithmetic? or 8bit div/mod/mul
     valid commands to sent via 0x2 output port:
     0x80 - load tape - set this bit and question for the name of the tape file to read will appear; only one of 0x80/0x40 flag can be set
     0x40 - save tape - set this bit and question for the name of the tape file to save will appear; only one of 0x80/0x40 flag can be set
-    0x20 - start/stop moving recorder engine, initiates/ends read/write sequence
-    0x01 - reserved for writing or reading bit to/from the device    
-    0x10 - ready flag - if device is ready for reading next command
-    0x08 - error flag - ie when tape is full
+    0x20 - start moving recorder engine, initiates read/write sequence
+    0x10 - stop and go back to ready state (closes the tape file)
+    0x02 - TX flag - has to be set in every command, otherwise the command is ignored
+    0x01 - data bit for writing or reading bit to/from the device (when none of the above is set)
+    status read from 0x2 port uses the same bits: 0x80 read mode, 0x40 write mode, 0x20 moving,
+    0x10 ready, 0x08 error (ie wrong state or file not found), 0x02 bit available, 0x01 data bit
 
   example session for writing to the tape:
   read 0x2 port
@@ -228,6 +233,8 @@ bc8181 instruction set B0H:
       - 0x6 shr16 rno imm16
       - 0xe shr16 rno
       - 0x7 not16 rno
+      note: in the register forms the second operand is implied by the first one:
+      csci is combined with dsdi, dsdi and af are combined with csci
 0x6 - JMP t,(rno1,rno2)
   0x0 - if ZERO
   0x4 - if NOT ZERO
@@ -239,7 +246,7 @@ bc8181 instruction set B0H:
   0x7 - if NOT OVERFLOW
   0x8-0xF is special mode where addres is CS:imm (its kind of short absolute jump)
 0x7 - JMR t,imm7
-  t like JMP, imm7 is 8bit signed value
+  t like JMP, imm7 is 8bit sign-magnitude value (bit 7 = sign, bits 0-6 = distance)
   when t 0x8-0xF is special mode where rno is treated like imm7
 0x8 - PSH rno
 0x9 - POP rno
@@ -253,16 +260,18 @@ bc8181 instruction set B0H:
  0x0-0x7 - rno, #imm
  0x8-0xf - rno1, #rno2
 0xD - OUT imm,rno
- 0x0-0x7 - #rno1, imm
+ 0x0-0x7 - #rno1, imm  (not working: assembler and cpu disagree on encoding, unused)
  0x8-0xf - #rno1, rno2
 0xE - EXT - extensions
-    0x01 - JRX t, 0 - extended relative jump
+    0x01 - JRX t, imm15 - extended relative jump (15bit sign-magnitude)
     0x02 - JRX t, regno - same
+    note: negated conditions (nz, nc, nn, no) are currently evaluated as plain ones by the cpu
 0xF - KIL
 ```
+full and current reference: [doc/02-assembler.md](doc/02-assembler.md)
 ### software
-external assembler bc81asmc up to 1.1 (240317)
-external compiler bc of b language for bc8181-bc8182 cpu v 1.0.0 (240317)
+external assembler bc81asmc up to 1.1 (240317) - currently v1.3 (240914) for bc8183
+external compiler bc of b language for bc8181-bc8182 cpu v 1.0.0 (240317) - currently v1.3.1 (240927) for bc8183
 calc - basic calculator
 texted - basic line editor
 theodore - simple game

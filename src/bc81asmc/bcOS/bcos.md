@@ -8,19 +8,24 @@ additional code at boot to detect floppy drive and load a bootloader for bdos 1.
 small fixes
 
 # os features
-commandline supports up to 31 characters at single input
-commands:
-dump <addr> <len> - dumps hex content of memory from <addr> for <len> bytes
-print <addr>       - prints content of memory from <addr> as characters, finishes on 0x00
-write <addr>       - writes memory from <addr> as chars in 30-chars lines (prints start address of every line)
-xwrite <addr>      - writes memory from <addr> as hex in 16-bytes lines
-save <addr> <len> <fname> - saves content of memory from <addr> for <len> to tape (as file with preamble, and ending block) performs basic consistency checks
-load <addr>       - loads file from tape to memory, <addr> is optional, prints and perform basic checks
-help              - prints help
-quit              - quits the os
-run <addr>       - runs code from <addr> as CAL (program should end in RET)
-exe <addr>       - runs code as jump to <addr> (program should) end in jumping back to :os_goto_parse. :os_parse or 0x0000
-which will reset the OS
+commandline supports up to 32 characters at single input
+commands are selected by their first letter only, <addr> and <len> are always 4 hex digits:
+d <addr> <len>    - dump: dumps hex content of memory from <addr> for <len> bytes (16 bytes per line)
+p <addr> <len>    - print: prints content of memory from <addr> for <len> bytes as characters
+w <addr>          - write: stores typed lines as chars to memory from <addr>, stops on empty line (prints start address of every line)
+x <addr>          - xwrite: stores typed lines as 2-digit hex bytes to memory from <addr>, stops on empty line
+s <addr> <len> <fname> - save: saves content of memory from <addr> for <len> to tape (as file with preamble) performs basic consistency checks
+l [<addr>]        - load: loads file from tape to memory, <addr> is optional (default is the address stored in the file), prints and perform basic checks
+h                 - help: prints help
+q                 - quit: quits the os (fatal 0xf0, cpu stops)
+r <addr>          - run: runs code from <addr> as CAL (program should end in RET)
+e <addr>          - exe: runs code as jump to <addr> (program should end in jumping back to :os_goto_parse, :os_parse or 0x0000
+which will reset the OS)
+
+# system calls
+programs call bcos subroutines indirectly: function number in F (mov a, NN; psh a; pop f), then cal :os_metacall (0x0008)
+the full table of function numbers is in doc/04-bcos.md
+entry 0x37 (0x007a) is filled in by bdos with the address of bdio_call
 
 # error codes
 0x0x - soft errors

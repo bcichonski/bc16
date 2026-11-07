@@ -1310,11 +1310,11 @@ exec_exe_err:  cal :error
                jmr z,:exec_exe_end
 exec_exe_end:  ret
 ;=============
-; #2a: OS12_COMPERROR()  - prints message about incompatibility of code with version 1.2 of bcos
+; OS12_COMPERROR()  - prints message about incompatibility of code with version 1.2 of bcos (os_metatab entries #06 #07 #0b #0c #1f #20)
 os12_comperror:mov a, 0xce
                cal :fatal
 ;=============
-; #2b: OS_CALL(f) - calls the os subroutine
+; OS_CALL(f) - calls the os subroutine (not in os_metatab, reached via os_metacall at 0x0008)
 ; IN:  as for the subroutine
 ; OUT: as from the subroutine
 os_call:       psh a
@@ -1350,9 +1350,10 @@ os_init:       mov cs, ss
                .mv csci, :user_mem
                .mv dsdi, :var_user_mem
                cal :poke16
-; #2d 2.write greetings
+; 2.write greetings
 os_hello:      .mv dsdi, :data_os
                cal :printstr
+; #2b: OS_BOOT
 ; checks if floppy drive is present, if so loads the bootsector to memory and executes it
 os_boot:       mov a, 0xf0
                mov ci, 0x08
@@ -1407,7 +1408,7 @@ bdos_boot_read:mov a, 0xf2
 bdos_boot_run: .mv csci, :bdos_bootaddr
                xor a
                jmp z, csci
-; #2e continue bcos
+; #2d: OS_HELLO_NXT continue bcos
 os_hello_nxt:  .mv dsdi, :data_free
                cal :printstr
                .mv dsdi, :var_user_mem
@@ -1437,11 +1438,13 @@ os_hello_nxt:  .mv dsdi, :data_free
                cal :print_newline
                .mv dsdi, :data_helphint
                cal :printstr
+; #2e: OS_PROMPT
 os_prompt:     .mv dsdi, :data_prompt
                cal :printstr
                .mv dsdi, :var_promptbuf
                mov ci, 0x21
                cal :readstr
+; #2f: OS_PARSE
 os_parse:      mov a, #dsdi
                cal :upchar
                mov #dsdi, a
@@ -1533,6 +1536,7 @@ os_parse_unrec:mov a, 0x01
 os_goto_parse: .mv csci, :os_prompt
                xor a
                jmp z, csci
+; #30: OS_END
 os_end:        mov a, 0xff
                cal :fatal
 ;
@@ -1553,7 +1557,7 @@ var_oscall:    .db 0xa8
 ; #06
 var_oscalladdr:.db 0x00, 0x00
                .db 0xb0
-; #30
+; #07
 user_mem:      nop
 ; 3.write prompt
 ; 4.read command

@@ -1,3 +1,5 @@
+(early design notes - the real grammar is bc81asmc_grammar.py, reference is doc/02-assembler.md)
+
 line layout
 
 label: mnemonic param[,params...];comment
