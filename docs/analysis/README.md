@@ -41,10 +41,10 @@ Development stopped on 2025-01-04, in the middle of item 4.
 
 | Metric | Value | Why it matters |
 |---|---|---|
-| Emulator speed | about 130k instructions/s; about 200k (1.6×) without the debug strings it builds and throws away on every instruction | a full disc boot and an app session take seconds; an automated test run will be slow |
+| Emulator speed | about 130k instructions/s | intentionally slow; performance work is deferred (see [01-emulator.md](01-emulator.md#performance-deferred)) |
 | bcOS headroom | **21 bytes** (image ends at `0x0d6b`, bdio variables start at `0x0d80`) | almost any bcOS change forces the memory map to move |
 | bdos kernel | 18,466 bytes (`0x0f00–0x5722`); 1.5 KB left before the file buffers | bdos growth soon collides with fixed buffers |
-| User memory | 40,958 bytes (`0x6000–0xfffe`) | fine today; the limit for self-hosting (items 8–9) |
+| User memory | 40,958 bytes (`0x6000–0xfffe`; the emulator has only 65,535 bytes of RAM, #7) | fine today; the limit for self-hosting (items 8–9) |
 | "Hello world" | **1,665 bytes** | every program carries the whole runtime and every included library; item 5 is the fix |
 | B source | about 5,100 lines in `src/bdos/` | bdos and its apps are the compiler's biggest test case |
 | Tests | emulator 22/23; assembler 75/75; compiler 15/21 (with a stand-in for the missing `msilib` module; on Linux without it, 0 run) | there are no code-generation or end-to-end tests at all |
@@ -82,7 +82,7 @@ The host side, on the other hand, is behind current practice and that slows ever
 | CI | **add** | none today; needed to keep committed build outputs honest |
 | Tests | **extend** | compiler tests are stale; there are no golden-output or end-to-end tests |
 | Line endings | **normalise** | add a `.gitattributes`, and mark `.btap`/`.bdd`/`.b81` as binary |
-| Emulator code | **modernise lightly** | performance and a headless mode; the structure is sound |
+| Emulator code | **modernise lightly** | headless mode, the shared ISA table, full 64 KB memory; the structure is sound (performance is deferred) |
 | Assembler and compiler code | **keep, improve incrementally** | the parsy-based design is fine; add diagnostics and tests |
 | bcOS / bdos code | **no modernisation, evolve via the roadmap** | it is meant to be period-style code |
 
@@ -94,9 +94,9 @@ The host side, on the other hand, is behind current practice and that slows ever
    - `pyproject.toml`;
    - `.gitattributes`;
    - CI that runs all tests, rebuilds everything, and fails if committed outputs differ.
-3. **Emulator headless mode** (disk/tape names from the command line, scripted keyboard
+3. **Emulator headless mode** (#3; disk/tape names from the command line, scripted keyboard
    input) and an end-to-end smoke test in CI: boot `os.bdd`, then run `ls`, `cat` and
-   texted.
+   texted. Together with the emulator fixes (#4) and the full 64 KB memory (#7).
 4. **#2 Port the Theodore game.**
 5. **Compiler roadmap item 5**: dead-code elimination, then cheaper variable access. This
    frees memory for everything that follows.

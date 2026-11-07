@@ -204,6 +204,19 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Trade-offs:** a wrong byte sequence leaves the device in an intermediate state; a reset
   command is the only recovery.
 
+### E6. The emulator is intentionally slow; speed is not a goal
+- **Purpose:** keep the emulator simple and readable rather than fast.
+- **Rationale:** the BC64 should feel like a slow 8-bit machine (about 130k
+  instructions/s today), and clear code matters more than throughput.
+- **Usage:**
+  - don't optimise the CPU or the devices as part of an unrelated story;
+  - the measured hot spots and possible speed-ups are kept in the "Performance (deferred)"
+    section of `docs/analysis/01-emulator.md`;
+  - revisit only when automated end-to-end runs or the web console become impractically
+    slow.
+- **Trade-offs:** long automated runs take longer; a web build on WebAssembly will be
+  slower still.
+
 ---
 
 ## Assembler (`src/bc81asmc/`)

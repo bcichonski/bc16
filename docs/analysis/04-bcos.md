@@ -39,7 +39,7 @@ Reference: [../04-bcos.md](../04-bcos.md). Decisions: O1–O5, G1, G7 in
 
 ### Next steps
 
-1. **Contract asserts** (needs `.assert` in the assembler, see
+1. **Contract asserts** (needs `.assert` in the assembler, #8, see
    [02-assembler.md](02-assembler.md)):
    - `:os_metacall = 0x0008`
    - `:os_metatab = 0x000c`

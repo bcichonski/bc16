@@ -163,7 +163,7 @@ The usual long-jump idiom is `.mv csci, :target` then `xor a` then `jmp z, csci`
 | `in r, #0xH` | `C0 rH` | 2 | r = port H |
 | `in r, #r2` | `C8 r r2` | 2 | r = port[r2] |
 | `out #r, r2` | `D8 r r2` | 2 | port[r] = r2 |
-| `out #r, 0xHH` | – | – | **broken**: the encoder emits 1.5 bytes and the CPU reads the port from register 0, which doesn't exist. Unused; always load the value into a register first |
+| `out #r, 0xHH` | `D0 rH` (emitted) | 2 | **broken**: the CPU expects `Dr HH` (port register in the low nibble, full 8-bit value), so it reads the port from register 0, which doesn't exist, and the assembler keeps only the low 4 bits of the value. Unused; always load the value into a register first (#11) |
 
 ## Example
 

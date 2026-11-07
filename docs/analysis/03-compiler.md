@@ -29,31 +29,34 @@ Reference: [../03-compiler.md](../03-compiler.md). Decisions: C1–C5, G4 in
 
 ## Problems
 
-| # | Problem | Evidence | Impact |
-|---|---|---|---|
-| 1 | Windows-only import | `bc_ast.py:4` `from msilib.schema import Error` | the compiler and its tests don't start on Linux/macOS or Python 3.13+ |
-| 2 | Large output, no dead-code elimination | "Hello world" is **1,665 bytes**; all functions of every `#include`d library and the full runtime are emitted | bdos and apps waste memory; blocks item 9 |
-| 3 | Every variable access is a subroutine call | `cal :stackvar8gt16` and friends for each read and write | size and speed overhead in all generated code |
-| 4 | Stale tests, no codegen tests | 6/21 grammar tests fail; nothing checks the output `.basm` | any optimisation is a blind change |
-| 5 | Surprising semantics | comparisons bind looser than `&&`/`\|\|`; a unary operator applies to the whole rest of the expression; `\|\|` is bitwise | bugs in user code; every comparison must be parenthesised |
-| 6 | `return` only reliable at the end of a function | `bugs.txt`; the bdos code works around it with a `result` variable | verbose code |
-| 7 | `#define` is substring replacement | `newline.replace(key, val)` on every line, including strings and identifiers (`NULL` vs `NULLCHAR` is only safe thanks to the reverse sort) | silent corruption when names overlap |
-| 8 | Missing language features | no `for`/`break`/`continue`, arrays/indexing, structs, signed numbers, negative literals, block scopes, type checking | verbose `peek`/`poke` code; locals must be unique per function |
-| 9 | Noisy output | `print('TERM …')`, `print("PUSH SCOPE …")` etc. are printed on every compile regardless of `--verbose` | real errors are hard to spot |
-| 10 | Stale runtime definitions | `.def var_promptbuf 0x0bcf`, `var_user_mem 0x0bcb` (bcOS 1.1 addresses) in `bc_stdlib.py` | a trap for future runtime code |
-| 11 | Diagnostics | errors print preprocessed-line numbers (the `.genb` file), not the original file and line | hard to map back to the source |
+| # | Problem | Evidence | Impact | Issue |
+|---|---|---|---|---|
+| 1 | Windows-only import | `bc_ast.py:4` `from msilib.schema import Error` | the compiler and its tests don't start on Linux/macOS or Python 3.13+ | #13 (and #1) |
+| 2 | Large output, no dead-code elimination | "Hello world" is **1,665 bytes**; all functions of every `#include`d library and the full runtime are emitted | bdos and apps waste memory; blocks item 9 | #16 |
+| 3 | Every variable access is a subroutine call | `cal :stackvar8gt16` and friends for each read and write | size and speed overhead in all generated code | #17 |
+| 4 | Stale tests, no codegen tests | 6/21 grammar tests fail; nothing checks the output `.basm` | any optimisation is a blind change | #15 |
+| 5 | Surprising semantics | comparisons bind looser than `&&`/`\|\|`; `&`/`\|` bind tighter than shifts; a unary operator applies to the whole rest of the expression; `\|\|` is bitwise | bugs in user code; every comparison must be parenthesised | #18 |
+| 6 | `return` only reliable at the end of a function | `bugs.txt`. Cause: `return` emits `ret` directly and skips the function epilogue (`pop_scope('FUNC')`), which moves `sys_stackhead` back at run time. The bdos code works around it with a `result` variable | verbose code | #20 |
+| 7 | `#define` is substring replacement | `newline.replace(key, val)` on every line, including strings and identifiers (`NULL` vs `NULLCHAR` is only safe thanks to the reverse sort); the name is everything up to the last space | silent corruption when names overlap | #19 |
+| 8 | Missing language features | no `for`/`break`/`continue`, arrays/indexing, structs, signed numbers, negative literals, block scopes, type checking | verbose `peek`/`poke` code; locals must be unique per function | #21–#27 |
+| 9 | Noisy output | `print('TERM …')`, `print("PUSH SCOPE …")` etc. are printed on every compile regardless of `--verbose` | real errors are hard to spot | #14 |
+| 10 | Stale runtime definitions | `.def var_promptbuf 0x0bcf`, `var_user_mem 0x0bcb` (bcOS 1.1 addresses) in `bc_stdlib.py` | a trap for future runtime code | #29 |
+| 11 | Diagnostics | errors print preprocessed-line numbers (the `.genb` file), not the original file and line | hard to map back to the source | #28 |
+
+All proposals below are filed as issues #13–#29. Each issue contains both the problem and
+its proposal.
 
 ## Proposals
 
 ### Next steps
 
-1. **Replace the `msilib` import** (`Error = Exception`), and gate the debug prints behind
-   `--verbose`. This is part of issue #1.
-2. **Repair the grammar tests**, and add **golden code-generation tests**: compile
+1. **Replace the `msilib` import** (#13; `Error = Exception`, also in scope of #1), and gate
+   the debug prints behind `--verbose` (#14).
+2. **Repair the grammar tests**, and add **golden code-generation tests** (#15): compile
    `src/bc/code/*.b` and the bdos programs and compare against committed `.basm`. Also
    **track code size** per program in CI, so optimisations are measured the way
    `history.txt` already does by hand.
-3. **Dead-code elimination (item 5a):**
+3. **Dead-code elimination (item 5a)** (#16):
    1. build a call graph from `main`, including calls made inside `asm` strings to
       `:F…` labels and the runtime;
    2. emit only reachable functions and data;
@@ -64,28 +67,29 @@ Reference: [../03-compiler.md](../03-compiler.md). Decisions: C1–C5, G4 in
 
 ### Improvements
 
-4. **Cheaper frames (item 5b):** read and write variables with an inline sequence, e.g.
-   keep the frame base in `dsdi` and use `add`/`mov #dsdi` directly, instead of calling
+4. **Cheaper frames (item 5b)** (#17): read and write variables with an inline sequence,
+   e.g. keep the frame base in `dsdi` and use `add`/`mov #dsdi` directly, instead of calling
    `stackvar*`. Do it for short offsets first, and measure with the size tracking from
    step 2.
-5. **C-like precedence and unary scope**, behind a check. Every existing program is
+5. **C-like precedence and unary scope** (#18), behind a check. Every existing program is
    parenthesised already, so compile all sources before and after and require identical
    `.basm`. Bump the language version.
-6. **Token-based `#define`**: replace only whole identifiers, outside string literals. The
-   `asm` strings need a decision: keep replacing inside them, since bdos relies on it
+6. **Token-based `#define`** (#19): replace only whole identifiers, outside string literals.
+   The `asm` strings need a decision: keep replacing inside them, since bdos relies on it
    (`asm "mov ci, PRINTF_FORMATCHAR"`).
 7. **Language additions, in order of payoff:**
-   1. `return` anywhere;
-   2. `break`/`continue`;
-   3. `for`;
-   4. byte/word indexing `p[i]` (sugar for `peek`/`poke`);
-   5. block scopes.
-
-   Signed arithmetic and structs only if a real program needs them.
-8. **Source-mapped diagnostics**: keep `(file, line)` through `#include`, and report errors
-   and `.basm` comments with original positions.
-9. **Clean up the runtime**: remove the stale `.def`s, and decide per routine whether to
-   call bcOS through `os_metacall` (smaller) or carry a private copy (faster). Today the
+   1. `return` anywhere (#20);
+   2. `break`/`continue` (#21);
+   3. `for` (#22);
+   4. byte/word indexing `p[i]` (sugar for `peek`/`poke`) and arrays (#23);
+   5. block scopes (#24);
+   6. signed numbers and negative literals (#25);
+   7. structs (#26);
+   8. type and call checking (#27).
+8. **Source-mapped diagnostics** (#28): keep `(file, line)` through `#include`, and report
+   errors and `.basm` comments with original positions.
+9. **Clean up the runtime** (#29): remove the stale `.def`s, and decide per routine whether
+   to call bcOS through `os_metacall` (smaller) or carry a private copy (faster). Today the
    choice looks accidental.
 
 ## Modernisation verdict

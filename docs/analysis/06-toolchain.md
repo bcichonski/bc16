@@ -59,7 +59,7 @@ the root `CLAUDE.md`.
 
    Rebuild by timestamp or content hash. Keep the bash scripts as thin wrappers for a
    while, then remove them.
-2. **`pyproject.toml`**:
+2. **`pyproject.toml`** (#12):
    - `requires-python >= 3.10`;
    - `parsy` pinned to a major version;
    - console entry points `bc64`, `bc81asmc`, `bcc`, `ftool`.

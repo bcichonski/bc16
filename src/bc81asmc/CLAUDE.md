@@ -38,5 +38,5 @@ cd src/bc81asmc && python3 -m unittest bc81asmc_tests.TestGrammar.test_hex_imm8
   the compiler must follow the same rules.
 - `emit_4bit` packs nibbles. A label reference can't start on a half-emitted byte, so the
   instruction layout has to keep label operands byte-aligned.
-- Known broken and unused: `out #r, imm` (emits 1.5 bytes). The `CLC_A_IMM` 16-bit branch is
+- Known broken and unused: `out #r, imm`. It emits `D0 rH`, but the CPU expects `Dr HH` (#11). The `CLC_A_IMM` 16-bit branch is
   dead code.
