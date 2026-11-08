@@ -3,7 +3,7 @@ from bc64 import bc8183_cpu
 from bc64 import bc64_mem
 from bc64 import bc64_env
 
-debug = True
+debug = False  # silent: no test-name prints, no cpudebug.log
 
 class CpuTests(unittest.TestCase):
     def create_cpu(self, code):
@@ -191,16 +191,19 @@ class CpuTests(unittest.TestCase):
 
     def test_CLR_opcodes(self):
         if debug: print("test_CLR_opcodes")
+        # Relative CAL target = instruction address + offset + 2
+        # (assembler stores target - instruction address - 2).
+        # Both calls go to the subroutine at 0x000a.
         #given
         cpu = self.create_cpu([
             0x18, 0x00,            # 0x0000: MOV CS, 0x00 ; stack at 00fe
-            0x14, 0x06,            # 0x0002: MOV CI, 0x06
-            0xA1, 0x84,            # 0x0004: CLR csci
-            0xA9, 0x00, 0x06,      # 0x0006: CLR +0x0006
+            0x14, 0x04,            # 0x0002: MOV CI, 0x04
+            0xA1, 0x84,            # 0x0004: CLR csci -> 0x0004+0x04+2 = 0x000a
+            0xA9, 0x00, 0x02,      # 0x0006: CLR +0x0002 -> 0x0006+0x02+2 = 0x000a
             0xff,                  # 0x0009: KIL
             0x5d,                  # 0x000a: INC a
             0xb0,                  # 0x000b: RET
-            0xA9, 0x80, 0x02,      # 0x000c: CLR -0x0002
+            0xA9, 0x80, 0x04,      # 0x000c: CLR -0x0004 -> 0x000c-0x04+2 = 0x000a (not reached)
             0xb0,                  # 0x000f: RET
             0xff                   # 0x0010: KIL
         ])

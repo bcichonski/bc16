@@ -183,11 +183,17 @@ failure. Software checks for errors with `status & 0xe0`.
 
 ## Known quirks
 
-- `test_CLR_opcodes` in `src/tests/test_cpu.py` currently fails with an exception in
-  `op_CAL`. The other 22 tests pass (`./run_tests`, i.e. `python -m unittest` from `src/`).
+Each quirk has an issue. Where the fix is decided, a test in `src/bc64/` asserts the
+correct behaviour and is marked `expectedFailure`, so it reports as an expected failure
+until the fix lands. Where the behaviour is still undecided, a test pins today's behaviour
+and names the issue.
+
 - In `JRX` (`op_EXT`) the CPU checks the negation bit in the wrong nibble, so
   `jrx nz/nc/nn/no` behave like `jrx z/c/n/o`. Only `jrx z` is used anywhere, so nothing
-  breaks today.
-- `div`/`mod` by zero raises a Python exception, which stops the emulator.
+  breaks today (#4).
+- `div`/`mod` by zero raises a Python exception, which stops the emulator (#4; behaviour
+  undecided, pinned by a test).
 - `FloppyDriveV1.write_byte` sets `self.setate` (a typo) on an unknown command, so the
-  failure state is never actually set.
+  failure state is never actually set (#4).
+- The emulator memory is `TOPMEM = 0xffff` bytes, not 64 KB, so `0xffff` is not addressable
+  (#7).

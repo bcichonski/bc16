@@ -1,9 +1,21 @@
 import unittest
 import datetime
+from unittest import mock
 from bc64 import bc64_io
 from bc64 import bc64_env
 
 debug = False
+
+# Fixed "now" for the clock tests.
+FROZEN_NOW = datetime.datetime(2031, 7, 15, 23, 59, 59)
+
+class FixedRandom:
+    def __init__(self, value):
+        self.value = value
+        self.calls = []
+    def randint(self, a, b):
+        self.calls.append((a, b))
+        return self.value
 
 class MockedIODevice(bc64_io.IODevice):
     IO_PORT = 0x1
@@ -37,9 +49,9 @@ class MockedEnvironment(bc64_env.Environment):
     def __init__(self, debug):
         super().__init__(debug)
         self.data=[]
-    def open_file_for_read(self,filename):
+    def open_file_to_read(self, filename):
         pass
-    def open_file_for_write(self,filename):
+    def open_file_to_write(self, filename):
         self.data=[]
     def close_file(self, handle):
         pass
@@ -133,8 +145,15 @@ class ClockTests(unittest.TestCase):
 
         return (io, dev)
 
+    def freeze_now(self):
+        patcher = mock.patch.object(bc64_io, 'datetime')
+        fake = patcher.start()
+        self.addCleanup(patcher.stop)
+        fake.datetime.now.return_value = FROZEN_NOW
+
     def test_should_get_time(self):
         #given
+        self.freeze_now()
         (io, dev) = self.create_clock()
 
         #when
@@ -147,28 +166,28 @@ class ClockTests(unittest.TestCase):
 
         #then
         self.assertEqual(dev.state, bc64_io.Clock.STATE_READY)
-        self.assertIn(hour, range(0, 59))
-        self.assertIn(minute, range(0, 59))
-        self.assertIn(second, range(0, 59))
+        self.assertEqual(hour, 23)
+        self.assertEqual(minute, 59)
+        self.assertEqual(second, 59)
 
     def test_should_get_date(self):
         #given
+        self.freeze_now()
         (io, dev) = self.create_clock()
-        today = datetime.datetime.now()
 
         #when
         self.assertEqual(dev.state, bc64_io.Clock.STATE_READY)
         io.write_byte(bc64_io.Clock.DEFAULT_IO_PORT, bc64_io.Clock.COMMAND_GETDATE)
-        
+
         year = io.read_byte(bc64_io.Clock.DEFAULT_IO_PORT)
         month = io.read_byte(bc64_io.Clock.DEFAULT_IO_PORT)
         day = io.read_byte(bc64_io.Clock.DEFAULT_IO_PORT)
 
         #then
         self.assertEqual(dev.state, bc64_io.Clock.STATE_READY)
-        self.assertEqual(year, today.year % 2000)
-        self.assertEqual(month, today.month)
-        self.assertEqual(day, today.day)
+        self.assertEqual(year, 31)
+        self.assertEqual(month, 7)
+        self.assertEqual(day, 15)
 
 class RandomGeneratorTests(unittest.TestCase):
     def create(self):
@@ -179,15 +198,22 @@ class RandomGeneratorTests(unittest.TestCase):
 
         return (io, dev)
 
-    def test_should_get_time(self):
+    def test_should_draw_from_inclusive_byte_range(self):
         #given
         (io, dev) = self.create()
+        port = bc64_io.RandomGenerator.DEFAULT_IO_PORT
 
-        #when
-        val = io.read_byte(bc64_io.RandomGenerator.DEFAULT_IO_PORT)
+        for value in (0x00, 0xff):
+            #given a generator that returns the edge value
+            rnd = FixedRandom(value)
+            dev.rnd = rnd
 
-        #then
-        self.assertIn(val, range(0x00, 0xff))
+            #when
+            val = io.read_byte(port)
+
+            #then both edges of 0x00-0xff are reachable and passed through
+            self.assertEqual(val, value)
+            self.assertEqual(rnd.calls, [(0x00, 0xff)])
 
 if __name__ == '__main__':
     unittest.main()

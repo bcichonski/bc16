@@ -3,7 +3,7 @@ import unittest
 from parsy import *
 from bc81asmc_grammar import *
 
-debug = True
+debug = False
 
 class TestGrammar(unittest.TestCase):
     '''Test the implementation of ast parser.'''

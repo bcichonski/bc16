@@ -9,7 +9,7 @@ holds its whole stack, and each component has its own `CLAUDE.md` with its speci
 
 | Component | Path | Reference doc |
 |---|---|---|
-| emulator: bc8183 CPU + devices | `src/bc64.py`, `src/bc64/`, `src/tests/` | `docs/01-emulator.md` |
+| emulator: bc8183 CPU + devices | `src/bc64.py`, `src/bc64/` (tests: `src/bc64/test_*.py`) | `docs/01-emulator.md` |
 | assembler `bc81asmc` | `src/bc81asmc/` | `docs/02-assembler.md` |
 | compiler `bc` (C-like B language) | `src/bc/` | `docs/03-compiler.md` |
 | bcOS ROM monitor | `src/bc81asmc/bcOS/` | `docs/04-bcos.md` |
@@ -38,13 +38,14 @@ compiler's grammar notes.
   `os.bdd`. After changing a source file, rebuild it and commit the outputs together with
   the source. Keep unrelated rebuild churn in a separate commit.
 - **Shell scripts:** all of them live in `src/` and must be run from there (`bcc`,
-  `buildos`, `buildtools`, `buildapps`, `makedisc`, `run`, `run_tests`, `ftool`). The others
+  `buildos`, `buildtools`, `buildapps`, `makedisc`, `run`, `run_tests`, `ftool`; `run_tests` only wraps the root `run_tests.py`). The others
   call `winpty python …` because they were written for Git Bash on Windows; on Linux, run the
   same commands with `python3`. `bcc` picks the interpreter itself: `winpty python` when
   `winpty` is on `PATH`, otherwise `python3`.
 - **Python imports are flat** (`from bc64 import …`, `from bc_ast import *`), so the
   working directory matters. See the commands below.
-- The only dependency is `pip install parsy`, used by the assembler and the compiler.
+- The only dependency is `parsy` (`pip install -r requirements.txt`), used by the assembler and
+  the compiler and by the tests that cover them.
 - Many sources use **CRLF** line endings (e.g. `bcos.basm`). Keep them when editing.
 - The emulator asks for tape and disk file names on stdin, so running it non-interactively
   needs piped input. A trace run writes `cpudebug.log` to the working directory; it grows
@@ -54,13 +55,23 @@ compiler's grammar notes.
 cd src
 ./buildos && ./buildtools && ./buildapps && ./makedisc   # full rebuild of ROM, bdos, utilities, apps, os.bdd
 python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81            # run; enter "os.bdd" for disk A ("d" as 2nd arg = CPU trace)
-
-python3 -m unittest                                      # emulator tests (from src/)
-(cd bc81asmc && python3 -m unittest bc81asmc_tests)      # assembler tests
-(cd bc && python3 -m unittest bc_tests)                  # compiler tests
 ```
 
-There is no linter. The component files describe the current test status.
+Tests, from the repo root:
+
+```bash
+pip install -r requirements.txt                          # parsy, needed by the assembler and compiler tests
+python3 run_tests.py                                     # all suites: emulator, assembler, compiler (exit 0 = pass)
+
+cd src && python3 -m unittest discover -s . -t . -p "test_*.py"   # one suite: emulator (+ ftool)
+cd src/bc81asmc && python3 -m unittest discover -s . -t . -p "*_tests.py"   # one suite: assembler
+cd src/bc && python3 -m unittest discover -s . -t . -p "*_tests.py"         # one suite: compiler
+cd src && python3 -m unittest bc64.test_cpu.CpuTests.test_CLC16_opcodes    # one test (same form elsewhere)
+```
+
+Each suite uses flat imports, so run it from its own directory, as above.
+
+There is no linter. Test status is not recorded in the docs; `python3 run_tests.py` is the check.
 
 ## Cross-component contracts
 
@@ -68,7 +79,8 @@ The components are separate programs, but they share hard-coded numbers. Change 
 without the other and the system breaks silently.
 
 - **Opcodes:** duplicated in `src/bc64/bc8183_cpu.py` (CPU) and
-  `src/bc81asmc/bc81asmc_ast.py` (assembler).
+  `src/bc81asmc/bc81asmc_ast.py` (assembler). `src/bc81asmc/bc81asmc_opcode_agreement_tests.py` checks
+  that the two agree.
 - **bcOS system calls:** called via `F` = function number, then `cal :os_metacall`
   (`0x0008`). The `os_metatab` indices are an ABI used by the compiler runtime, bdos and
   apps.
