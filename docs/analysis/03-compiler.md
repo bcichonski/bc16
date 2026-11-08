@@ -88,9 +88,9 @@ its proposal.
    8. type and call checking (#27).
 8. **Source-mapped diagnostics** (#28): keep `(file, line)` through `#include`, and report
    errors and `.basm` comments with original positions.
-9. **Clean up the runtime** (#29): remove the stale `.def`s, and decide per routine whether
-   to call bcOS through `os_metacall` (smaller) or carry a private copy (faster). Today the
-   choice looks accidental.
+9. **Clean up the runtime** (#29): remove the stale `.def`s. The ROM-vs-private question is
+   decided: the runtime calls bcOS through `os_metacall` (#33); the hot paths are settled by
+   the spike #34.
 
 ## Modernisation verdict
 

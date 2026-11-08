@@ -354,8 +354,14 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - bcOS provides the monitor, terminal and tape I/O, hex parsing, comparisons, and the
     FDD boot hand-off;
   - anything disk- or file-related lives in bdos;
-  - helpers that compiled code inlines better live in `bc_stdlib.py`.
-- **Trade-offs:** some duplication between the bcOS routines and the compiler runtime.
+  - helpers that compiled code inlines better live in `bc_stdlib.py`;
+  - **routines that exist in both the ROM and the compiler runtime are owned by the ROM**:
+    the runtime calls them through `os_metacall` instead of carrying private copies
+    (decided 2026-11-08, option (a); implementation #33). The hot paths (`poke16`/`peek16`,
+    `gt16`/`gteq16`/`eq16`) stay as they are until the spike #34 decides between a ROM call,
+    a private copy and an inline sequence.
+- **Trade-offs:** a ROM call costs a dispatch through `os_metacall` per use, which is
+  accepted (E6); until #33 lands, the duplication remains.
 
 ### O2. Every routine starts with a header comment that is its contract
 - **Purpose:** callers in asm, the B runtime and bdos rely on exact register behaviour.
