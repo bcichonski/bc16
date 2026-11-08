@@ -1,2 +1,13 @@
 #!/bin/bash
-python -m unittest
+# Thin wrapper: runs the repo-root test runner (run_tests.py) with python3, or python if python3 is absent.
+# Usable from src/ or any other directory.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if command -v python3 >/dev/null 2>&1; then
+    PY=python3
+elif command -v python >/dev/null 2>&1; then
+    PY=python
+else
+    echo "run_tests: python3 or python is required" >&2
+    exit 127
+fi
+exec "$PY" "$ROOT/run_tests.py" "$@"

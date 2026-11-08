@@ -4,7 +4,7 @@ from parsy import *
 from bc_grammar import *
 from bc_ast import CompilerError, Context
 
-Debug = True
+Debug = False
 
 class TestGrammar(unittest.TestCase):
     '''Test the implementation of ast b language parser.'''
@@ -42,12 +42,12 @@ class TestGrammar(unittest.TestCase):
             'CONST(0x0041)')
 
     def test_expression_unary_addr(self):
-        val = expression_unary.parse("&0xabcd")
+        val = expression_unary.parse("#0xabcd")
         if Debug: 
             print("val={0}".format(val))
         self.assertEqual(
             "{0}".format(val),
-            'TERM(CONST(0xabcd)) &')
+            'TERM(CONST(0xabcd)) #')
 
     def test_expression_binary_add(self):
         val = expression_sum.parse("10 + 0xf000")
@@ -66,13 +66,13 @@ class TestGrammar(unittest.TestCase):
             'TERM(CONST(0x0002)) TERM(CONST(0x0003)) *')
 
     def test_expression_unary(self):
-        val = expression_unary.parse("&2")
+        val = expression_unary.parse("#2")
         if Debug: 
             print("val={0}".format(val))
             print(val)
         self.assertEqual(
             "{0}".format(val),
-            'TERM(CONST(0x0002)) &')
+            'TERM(CONST(0x0002)) #')
 
     def test_expression_full(self):
         val = expression.parse("1 + (2 * 3)")
@@ -99,7 +99,7 @@ class TestGrammar(unittest.TestCase):
             print("val={0}".format(val))
         self.assertEqual(
             "{0}".format(val),
-            "BLOCK([VARIABLE_DECLARATION(vartype='word', varname='var'), VARIABLE_ASSIGNEMENT(varname='var', expr=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term='var'), arguments=[]), arguments=[]), arguments=[]), arguments=[]))])")
+            "BLOCK([VARIABLE_DECLARATION(vartype='word', varname='var'), VARIABLE_ASSIGNEMENT(varname='var', expr=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term='var'), arguments=[]), arguments=[]), arguments=[]), arguments=[]), arguments=[]), arguments=[]), arguments=[]))])")
 
     def test_variable_declaration(self):
         val = statement.parse("word variable;")
@@ -120,7 +120,7 @@ class TestGrammar(unittest.TestCase):
             "BLOCK([VARIABLE_DECLARATION(vartype='byte', varname='variable')])")
 
     def test_if(self):
-        val = statement_if.parse("""if(1)
+        val = statement_ifelse.parse("""if(1)
             {
                 byte variable;
             }""")
@@ -152,7 +152,7 @@ class TestGrammar(unittest.TestCase):
         if Debug: 
             print("val={0}".format(val))
         self.assertEqual("{0}".format(val),
-        "FUNCTION function([VARIABLE_DECLARATION(vartype='byte', varname='param1'), VARIABLE_DECLARATION(vartype='word', varname='param2')])->word[BLOCK([VARIABLE_DECLARATION(vartype='byte', varname='var'), VARIABLE_ASSIGNEMENT(varname='var', expr=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term=EXPRESSION_CONSTANT(i16=1)), arguments=[]), arguments=[]), arguments=[]), arguments=[])), STATEMENT_RETURN(expr=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term='var'), arguments=[]), arguments=[]), arguments=[]), arguments=[]))])]")
+        "FUNCTION function([VARIABLE_DECLARATION(vartype='byte', varname='param1'), VARIABLE_DECLARATION(vartype='word', varname='param2')])->word[BLOCK([VARIABLE_DECLARATION(vartype='byte', varname='var'), VARIABLE_ASSIGNEMENT(varname='var', expr=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term=EXPRESSION_CONSTANT(i16=1)), arguments=[]), arguments=[]), arguments=[]), arguments=[]), arguments=[]), arguments=[]), arguments=[])), STATEMENT_RETURN(expr=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term='var'), arguments=[]), arguments=[]), arguments=[]), arguments=[]), arguments=[]), arguments=[]), arguments=[]))])]")
 
     def test_program(self):
         val = program.parse("""byte main() {
@@ -171,7 +171,7 @@ class TestGrammar(unittest.TestCase):
         if Debug: 
             print("val={0}".format(val))
         self.assertEqual("{0}".format(val),
-        "TERM(FUNCTION_CALL[function([EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term=EXPRESSION_CONSTANT(i16=1)), arguments=[]), arguments=[]), arguments=[]), arguments=[]), EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term=EXPRESSION_CONSTANT(i16=2)), arguments=[]), arguments=[['+', EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term=EXPRESSION_CONSTANT(i16=3)), arguments=[])]]), arguments=[]), arguments=[])])])")
+        "TERM(FUNCTION_CALL[function([EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term=EXPRESSION_CONSTANT(i16=1)), arguments=[]), arguments=[]), arguments=[]), arguments=[]), arguments=[]), arguments=[]), arguments=[]), EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term=EXPRESSION_CONSTANT(i16=2)), arguments=[]), arguments=[['+', EXPRESSION_BINARY(operand1=EXPRESSION_TERM(term=EXPRESSION_CONSTANT(i16=3)), arguments=[])]]), arguments=[]), arguments=[]), arguments=[]), arguments=[]), arguments=[])])])")
 
     def test_quotedstr_test(self):
         self.maxDiff = None

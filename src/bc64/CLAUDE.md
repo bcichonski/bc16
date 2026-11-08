@@ -7,12 +7,14 @@ are in `src/tests/`.
 ## Commands (from `src/`)
 
 ```bash
-python3 -m unittest                                              # all emulator tests (./run_tests)
+python3 -m unittest discover -s tests -t .                       # all emulator tests (all suites: ../run_tests.py)
 python3 -m unittest tests.test_cpu.CpuTests.test_CLC16_opcodes   # a single test
 python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 [d]                # run; "d" (any 2nd arg) = per-instruction trace
 ```
 
-Current status: 22 of 23 tests pass. `test_CLR_opcodes` fails with an exception in `op_CAL`.
+`tests/test_opcode_agreement.py` checks the CPU against the assembler for every opcode form.
+Known bugs are `expectedFailure` tests that name their issue; they show as expected failures,
+not failures. See `docs/01-emulator.md`, Known quirks.
 
 ## How it works
 
@@ -42,7 +44,8 @@ Current status: 22 of 23 tests pass. `test_CLR_opcodes` fails with an exception 
 ## Rules
 
 - **Opcode or encoding changes must also be made in `src/bc81asmc/bc81asmc_ast.py`** (and in
-  `README.md` / `docs/02-assembler.md`). Add a test in `tests/test_cpu.py` for any new opcode.
+  `README.md` / `docs/02-assembler.md`). Add a test for any new opcode to `tests/test_cpu_alu.py` or `tests/test_cpu_control.py`, and
+  extend `tests/test_opcode_agreement.py` so the assembler and the CPU agree on it.
 - Port numbers, FDD commands and status codes are part of bcOS and bdos code
   (`bcos.basm`, `bdioh.b`); changing them breaks booting.
 - Known latent bugs that existing code depends on not hitting:

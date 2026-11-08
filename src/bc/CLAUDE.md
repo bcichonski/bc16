@@ -8,7 +8,7 @@ Reference: `docs/03-compiler.md` covers the language, operators and libraries.
 ```bash
 cd src && python3 bc/bc.py --verbose bdos/ls.b    # -> bdos/ls.basm, plus bdos/ls.genb (preprocessed source)
 cd src && ./bcc bdos/ls                           # compile + assemble -> bdos/ls.btap
-cd src/bc && python3 -m unittest bc_tests         # grammar tests
+cd src/bc && python3 -m unittest discover -s . -t . -p "*_tests.py"   # grammar and codegen tests
 ```
 
 `bcc` runs `winpty python` when `winpty` is on `PATH` (Git Bash) and `python3` otherwise.

@@ -145,6 +145,30 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Trade-offs:** slow emulation and no packaging. Windows-only leftovers (`winpty`, still used
   by the other scripts; `bcc` falls back to `python3`) need cleaning up.
 
+### G11. One test runner; tests are silent and deterministic; known bugs are `expectedFailure` tests
+- **Purpose:** one command gives one pass/fail signal for the whole stack, and known defects
+  stay visible in the test suites until they are fixed.
+- **Rationale:** the three suites use flat imports and need different working directories.
+  `run_tests.py` at the repo root (standard library only) runs each suite as a subprocess in its
+  own directory, so the suites never share module names or `sys.path`. A clean run should read
+  as a result, not as log output, so a passing test prints nothing and does not depend on time,
+  test order or files left in the tree.
+- **Usage:**
+  - `pip install -r requirements.txt`, then `python3 run_tests.py` from the repo root runs every
+    suite (CPython 3.10 and 3.13+ are both checked before a test or code change lands);
+  - a test module is silent on a passing run: turn debug output off in the module rather than
+    filtering it. Temporary files come from `tempfile`;
+  - a known bug whose correct behaviour is decided by its issue gets a test of the correct
+    behaviour, marked `@unittest.expectedFailure`, with the issue number in a comment. When the
+    fix lands, the test reports an unexpected success and the marker is removed;
+  - a known bug whose behaviour is still undecided gets a test that pins today's behaviour and
+    names the issue; that test changes when the issue decides;
+  - a production defect found by a test is reported (issue or plan note) and is not fixed in a
+    test-only change.
+- **Trade-offs:** an expected failure counts as a pass, so the marker must be removed when the
+  fix lands or the signal goes stale. A pinned test can hold a bug in place until its issue
+  decides.
+
 ---
 
 ## Emulator (`src/bc64.py`, `src/bc64/`)

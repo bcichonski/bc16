@@ -7,7 +7,7 @@ Reference: `docs/02-assembler.md` has the syntax and full instruction encoding.
 
 ```bash
 cd src && python3 bc81asmc/bc81asmc.py --verbose path/file.basm   # -> path/file.btap (always btap)
-cd src/bc81asmc && python3 -m unittest bc81asmc_tests             # 75 grammar tests, all passing
+cd src/bc81asmc && python3 -m unittest discover -s . -t . -p "*_tests.py"   # grammar and emit tests (silent)
 cd src/bc81asmc && python3 -m unittest bc81asmc_tests.TestGrammar.test_hex_imm8
 ```
 
@@ -29,7 +29,8 @@ cd src/bc81asmc && python3 -m unittest bc81asmc_tests.TestGrammar.test_hex_imm8
 ## Rules
 
 - Opcode constants are duplicated in `src/bc64/bc8183_cpu.py`. Change both, and add tests
-  on both sides (`bc81asmc_tests.py`, `src/tests/test_cpu.py`).
+  on both sides (`bc81asmc_tests.py`, `bc81asmc_emit_tests.py`, `src/tests/test_cpu_*.py`).
+  `src/tests/test_opcode_agreement.py` checks that the two sides agree; extend it for new forms.
 - In the grammar, more specific alternatives must come first in the `|` chains
   (`mnemonic`, `mCLC`). For example, the 16-bit forms are listed before the 8-bit ones; a
   shorter match first would swallow the longer form.
