@@ -20,7 +20,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 # (name, working directory relative to ROOT, unittest arguments)
 SUITES = [
     ("emulator", os.path.join("src"),
-     ["discover", "-s", "tests", "-t", "."]),
+     ["discover", "-s", ".", "-t", ".", "-p", "test_*.py"]),
     ("assembler", os.path.join("src", "bc81asmc"),
      ["discover", "-s", ".", "-t", ".", "-p", "*_tests.py"]),
     ("compiler", os.path.join("src", "bc"),

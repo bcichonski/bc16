@@ -9,7 +9,7 @@ holds its whole stack, and each component has its own `CLAUDE.md` with its speci
 
 | Component | Path | Reference doc |
 |---|---|---|
-| emulator: bc8183 CPU + devices | `src/bc64.py`, `src/bc64/`, `src/tests/` | `docs/01-emulator.md` |
+| emulator: bc8183 CPU + devices | `src/bc64.py`, `src/bc64/` (tests: `src/bc64/test_*.py`) | `docs/01-emulator.md` |
 | assembler `bc81asmc` | `src/bc81asmc/` | `docs/02-assembler.md` |
 | compiler `bc` (C-like B language) | `src/bc/` | `docs/03-compiler.md` |
 | bcOS ROM monitor | `src/bc81asmc/bcOS/` | `docs/04-bcos.md` |
@@ -63,10 +63,10 @@ Tests, from the repo root:
 pip install -r requirements.txt                          # parsy, needed by the assembler and compiler tests
 python3 run_tests.py                                     # all suites: emulator, assembler, compiler (exit 0 = pass)
 
-cd src && python3 -m unittest discover -s tests -t .     # one suite: emulator
+cd src && python3 -m unittest discover -s . -t . -p "test_*.py"   # one suite: emulator (+ ftool)
 cd src/bc81asmc && python3 -m unittest discover -s . -t . -p "*_tests.py"   # one suite: assembler
 cd src/bc && python3 -m unittest discover -s . -t . -p "*_tests.py"         # one suite: compiler
-cd src && python3 -m unittest tests.test_cpu.CpuTests.test_CLC16_opcodes    # one test (same form elsewhere)
+cd src && python3 -m unittest bc64.test_cpu.CpuTests.test_CLC16_opcodes    # one test (same form elsewhere)
 ```
 
 Each suite uses flat imports, so run it from its own directory, as above.
@@ -79,7 +79,7 @@ The components are separate programs, but they share hard-coded numbers. Change 
 without the other and the system breaks silently.
 
 - **Opcodes:** duplicated in `src/bc64/bc8183_cpu.py` (CPU) and
-  `src/bc81asmc/bc81asmc_ast.py` (assembler). `src/tests/test_opcode_agreement.py` checks
+  `src/bc81asmc/bc81asmc_ast.py` (assembler). `src/bc81asmc/bc81asmc_opcode_agreement_tests.py` checks
   that the two agree.
 - **bcOS system calls:** called via `F` = function number, then `cal :os_metacall`
   (`0x0008`). The `os_metatab` indices are an ABI used by the compiler runtime, bdos and

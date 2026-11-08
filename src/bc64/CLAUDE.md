@@ -2,17 +2,17 @@
 
 Reference: `docs/01-emulator.md`. The entry point is `src/bc64.py`. It wires the bus, loads
 the ROM image at `0x0000`, runs the CPU, and dumps memory to `bc64.dmp` on `KIL`. The tests
-are in `src/tests/`.
+live next to the code: `src/bc64/test_*.py` (`src/test_ftool.py` for `ftool.py`).
 
 ## Commands (from `src/`)
 
 ```bash
-python3 -m unittest discover -s tests -t .                       # all emulator tests (all suites: ../run_tests.py)
-python3 -m unittest tests.test_cpu.CpuTests.test_CLC16_opcodes   # a single test
+python3 -m unittest discover -s . -t . -p "test_*.py"             # all emulator tests (all suites: ../run_tests.py)
+python3 -m unittest bc64.test_cpu.CpuTests.test_CLC16_opcodes    # a single test
 python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 [d]                # run; "d" (any 2nd arg) = per-instruction trace
 ```
 
-`tests/test_opcode_agreement.py` checks the CPU against the assembler for every opcode form.
+`src/bc81asmc/bc81asmc_opcode_agreement_tests.py` checks the CPU against the assembler for every opcode form.
 Known bugs are `expectedFailure` tests that name their issue; they show as expected failures,
 not failures. See `docs/01-emulator.md`, Known quirks.
 
@@ -44,8 +44,8 @@ not failures. See `docs/01-emulator.md`, Known quirks.
 ## Rules
 
 - **Opcode or encoding changes must also be made in `src/bc81asmc/bc81asmc_ast.py`** (and in
-  `README.md` / `docs/02-assembler.md`). Add a test for any new opcode to `tests/test_cpu_alu.py` or `tests/test_cpu_control.py`, and
-  extend `tests/test_opcode_agreement.py` so the assembler and the CPU agree on it.
+  `README.md` / `docs/02-assembler.md`). Add a test for any new opcode to `test_cpu_alu.py` or `test_cpu_control.py`, and
+  extend `src/bc81asmc/bc81asmc_opcode_agreement_tests.py` so the assembler and the CPU agree on it.
 - Port numbers, FDD commands and status codes are part of bcOS and bdos code
   (`bcos.basm`, `bdioh.b`); changing them breaks booting.
 - Known latent bugs that existing code depends on not hitting:

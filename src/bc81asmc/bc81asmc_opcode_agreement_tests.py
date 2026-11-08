@@ -27,6 +27,8 @@ SRC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASM_DIR = os.path.join(SRC_DIR, 'bc81asmc')
 if ASM_DIR not in sys.path:
     sys.path.append(ASM_DIR)
+if SRC_DIR not in sys.path:
+    sys.path.append(SRC_DIR)  # for `from bc64 import ...` when run from src/bc81asmc/
 
 import parsy  # noqa: E402
 import bc81asmc_ast as asm_ast  # noqa: E402

@@ -183,7 +183,7 @@ failure. Software checks for errors with `status & 0xe0`.
 
 ## Known quirks
 
-Each quirk has an issue. Where the fix is decided, a test in `src/tests/` asserts the
+Each quirk has an issue. Where the fix is decided, a test in `src/bc64/` asserts the
 correct behaviour and is marked `expectedFailure`, so it reports as an expected failure
 until the fix lands. Where the behaviour is still undecided, a test pins today's behaviour
 and names the issue.
