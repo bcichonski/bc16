@@ -38,9 +38,10 @@ compiler's grammar notes.
   `os.bdd`. After changing a source file, rebuild it and commit the outputs together with
   the source. Keep unrelated rebuild churn in a separate commit.
 - **Shell scripts:** all of them live in `src/` and must be run from there (`bcc`,
-  `buildos`, `buildtools`, `buildapps`, `makedisc`, `run`, `run_tests`, `ftool`). They call
-  `winpty python …` because they were written for Git Bash on Windows. On Linux, run the
-  same commands with `python3`.
+  `buildos`, `buildtools`, `buildapps`, `makedisc`, `run`, `run_tests`, `ftool`). The others
+  call `winpty python …` because they were written for Git Bash on Windows; on Linux, run the
+  same commands with `python3`. `bcc` picks the interpreter itself: `winpty python` when
+  `winpty` is on `PATH`, otherwise `python3`.
 - **Python imports are flat** (`from bc64 import …`, `from bc_ast import *`), so the
   working directory matters. See the commands below.
 - The only dependency is `pip install parsy`, used by the assembler and the compiler.

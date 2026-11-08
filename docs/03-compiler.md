@@ -33,9 +33,8 @@ python bc81asmc/bc81asmc.py bdos/helloworld.basm  # -> bdos/helloworld.btap
 - `--verbose` also writes the preprocessed source to `<name>.genb`. `--btap` is obsolete.
 - On a parse error the compiler prints the lines around the failure, numbered as in the
   preprocessed source.
-- Python dependency: `parsy`. `bc_ast.py` imports `from msilib.schema import Error`, a
-  Windows-only module that was removed in Python 3.13. To run the compiler on Linux/macOS or
-  a newer Python, that import has to be replaced (e.g. with the built-in `Exception`).
+- Python dependency: `parsy`, the only one. The compiler runs on Python >= 3.10 on Linux,
+  macOS and Windows (tested on 3.10, 3.13 and 3.14). Output files are written as UTF-8.
 
 ## Preprocessor
 

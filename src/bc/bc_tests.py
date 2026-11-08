@@ -2,6 +2,7 @@ import unittest
 
 from parsy import *
 from bc_grammar import *
+from bc_ast import CompilerError, Context
 
 Debug = True
 
@@ -197,6 +198,19 @@ class TestGrammar(unittest.TestCase):
         self.assertEqual(
             "{0}".format(val),
             "BLOCK([STATEMENT_ASM(expr='quoted')])")
+
+
+class TestCompilerError(unittest.TestCase):
+    '''Test the compiler's own error type and the scope errors that raise it.'''
+
+    def test_compiler_error_is_exception(self):
+        self.assertTrue(issubclass(CompilerError, Exception))
+
+    def test_pop_scope_without_push_raises(self):
+        context = Context()
+        with self.assertRaises(CompilerError) as cm:
+            context.pop_scope('test')
+        self.assertEqual(str(cm.exception), 'Scope none error')
 
 
 if __name__ == '__main__':
