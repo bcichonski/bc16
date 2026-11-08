@@ -11,10 +11,12 @@ cd src && ./bcc bdos/ls                           # compile + assemble -> bdos/l
 cd src/bc && python3 -m unittest bc_tests         # grammar tests
 ```
 
-`bc_ast.py` imports `from msilib.schema import Error`, which is Windows-only and was removed
-in Python 3.13. Both the compiler and its tests fail to import on Linux or newer Python until
-it is replaced (the built-in `Exception` works). `bc.py` sets
-`sys.setrecursionlimit(2000)` because the parsy grammar recurses deeply.
+`bcc` runs `winpty python` when `winpty` is on `PATH` (Git Bash) and `python3` otherwise.
+
+The compiler and its tests run on Linux, macOS and Windows with Python >= 3.10 (tested on
+3.10, 3.13 and 3.14); `parsy` is the only dependency. Internal compiler errors raise
+`CompilerError` (defined in `bc_ast.py`). Output files (`.basm`, `.genb`) are written as UTF-8.
+`bc.py` sets `sys.setrecursionlimit(2000)` because the parsy grammar recurses deeply.
 
 ## How it works
 

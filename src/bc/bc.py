@@ -36,7 +36,7 @@ def compile(ast, verbose):
     return context.basm
 
 def save_output_file(fname, code):
-    with open(fname, 'w') as file_handle:
+    with open(fname, 'w', encoding='utf8') as file_handle:
         return file_handle.write(code)
 
 def preprocess(input, verbose, defaultdir):

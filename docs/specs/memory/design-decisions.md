@@ -142,8 +142,8 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - scripts and imports assume `src/` as the working directory;
   - keep the tools runnable on Linux as well as Git Bash (the `winpty` wrappers are a known
     wart).
-- **Trade-offs:** slow emulation and no packaging. Windows-only leftovers (`msilib`,
-  `winpty`) need cleaning up.
+- **Trade-offs:** slow emulation and no packaging. Windows-only leftovers (`winpty`, still used
+  by the other scripts; `bcc` falls back to `python3`) need cleaning up.
 
 ---
 

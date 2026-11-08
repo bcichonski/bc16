@@ -1,7 +1,9 @@
 from bc_stdlib import stdlib_template
 from array import array
 from dataclasses import dataclass
-from msilib.schema import Error
+
+class CompilerError(Exception):
+    pass
 
 STACKHEAD = "sys_stackhead"
 HEAPHEAD = "sys_heaphead"
@@ -172,7 +174,7 @@ class Context:
         if self.scope.prev_scope is not None:
             scopeoffset = scopeoffset - self.scope.prev_scope.startoffset
         if scopeoffset < 0:
-            raise Error('Scope push error')
+            raise CompilerError('Scope push error')
         if scopeoffset > 0:
             if scopeoffset < 127:
                 self.emit("""
@@ -195,11 +197,11 @@ class Context:
         oldscope = self.scope
         self.scope = self.scope.prev_scope
         if self.scope is None:
-            raise Error('Scope none error')
+            raise CompilerError('Scope none error')
         scopeoffset = oldscope.startoffset - self.scope.startoffset
         print("POP SCOPE (startoffset={0}, offset={1}, diff={2}, depth={3}, caller={4})".format(self.scope.startoffset, self.scope.offset, scopeoffset, self.scope.depth, caller))
         if scopeoffset < 0:
-            raise Error('Scope pop error')
+            raise CompilerError('Scope pop error')
         if scopeoffset > 0:
             if scopeoffset < 127:
                 self.emit("""
