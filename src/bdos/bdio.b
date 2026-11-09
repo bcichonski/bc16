@@ -555,6 +555,24 @@ byte bdio_fcat_checkattribs(word PfcatEntry, byte attribs)
     return ((fcatattribs & attribs) = attribs);
 }
 
+word bdio_getfdesc_addr(byte fhandle)
+{
+    word Pfdesc;
+    Pfdesc <- BDIO_NULL;
+
+    if(fhandle & BDIO_FDESCRIPTOR_NUMBERWRITE)
+    {
+        Pfdesc <- BDIO_VAR_FDESCTAB_WRITE;
+    }
+
+    if(fhandle & BDIO_FDESCRIPTOR_NUMBERREAD)
+    {
+        Pfdesc <- BDIO_VAR_FDESCTAB_READ + ((fhandle & 0x0f) * BDIO_FDESCRIPTOR_LEN);
+    }
+    
+    return Pfdesc;
+}
+
 word bdio_fbinbuf_getbufaddr(byte fhandle)
 {
     word bufaddr;
@@ -608,34 +626,24 @@ byte bdio_fbinopen_internal(word Pfnameext, byte testattrib, byte mode)
                 }
             }
 
-            if(mode = BDIO_FOPEN_MODE_BUFFERED)
+            if((mode = BDIO_FOPEN_MODE_BUFFERED) && (fhandle < BDIO_FOPEN_FNAME_NOTFOUND))
             {
+                //only a valid handle has a buffer; a read handle starts "used up"
                 word Pbuf;
                 Pbuf <- bdio_fbinbuf_getbufaddr(fhandle);
                 mzero(Pbuf, BDIO_SECTBUF_LEN);
+
+                if(fhandle & BDIO_FDESCRIPTOR_NUMBERREAD)
+                {
+                    word Pfdesc;
+                    Pfdesc <- bdio_getfdesc_addr(fhandle);
+                    poke8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER, BDIO_SECTBUF_LEN);
+                }
             }
         }
     }
 
     return fhandle;
-}
-
-word bdio_getfdesc_addr(byte fhandle)
-{
-    word Pfdesc;
-    Pfdesc <- BDIO_NULL;
-
-    if(fhandle & BDIO_FDESCRIPTOR_NUMBERWRITE)
-    {
-        Pfdesc <- BDIO_VAR_FDESCTAB_WRITE;
-    }
-
-    if(fhandle & BDIO_FDESCRIPTOR_NUMBERREAD)
-    {
-        Pfdesc <- BDIO_VAR_FDESCTAB_READ + ((fhandle & 0x0f) * BDIO_FDESCRIPTOR_LEN);
-    }
-    
-    return Pfdesc;
 }
 
 byte bdio_fbin_internal(byte fhandle, word Pmembuf, byte sectors, byte descMode)
@@ -988,84 +996,65 @@ byte bdio_fcreate(word Pfnameext, byte attribs)
 
 word bdio_fbinbufread(byte fhandle, word Pmembuf, word length)
 {
+    //copies up to length bytes of an open buffered read handle into Pmembuf
+    //BUFFCOUNTER = bytes of the buffer already consumed (BDIO_SECTBUF_LEN = used up)
+    //returns bytes copied; fewer than length only at the end of the file, 0 at the end
     word Pfdesc;
-    byte mode;
-    byte result;
+    word result;
 
-    Pfdesc <- bdio_getfdesc_addr(fhandle);
-    mode <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_ACCESSMODE);
     result <- BDIO_FBINBUFREAD_ERROR;
 
-    printf("read md: %x pf: %w len:%x%n", mode, Pfdesc, length);
-    
-    if(mode = BDIO_FOPEN_MODE_BUFFERED)
+    if(fhandle & BDIO_FDESCRIPTOR_NUMBERREAD)
     {
-        byte bufcounter;
-        byte bufleft;
-        word Pbuf;
-        byte binres;
+        byte fdescNo;
+        byte mode;
 
-        result <- 0;
-        binres <- 1;
-        bufcounter <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER);
-        bufleft <- BDIO_SECTBUF_LEN - bufcounter;
-        Pbuf <- bdio_fbinbuf_getbufaddr(fhandle);
+        Pfdesc <- bdio_getfdesc_addr(fhandle);
+        fdescNo <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER);
+        mode <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_ACCESSMODE);
 
-        printf("Pb:%w bl:%x bc:%x%n", Pbuf, bufleft, bufcounter);
-
-        if(length > bufleft)
+        if((fdescNo = fhandle) && (mode = BDIO_FOPEN_MODE_BUFFERED))
         {
-            printf("a: mc(Pb:%w st: %w l: %w)%n", Pbuf, Pmembuf, bufleft);
-            memcpy(Pbuf, Pmembuf, bufleft);
+            word bufcounter;
+            word chunk;
+            word Pbuf;
+            byte binres;
 
-            length <- length - bufleft;
-            Pmembuf <- Pmembuf + bufleft;
-            result <- bufleft;
-            bufleft <- 0;
-            bufcounter <- 0;
+            result <- 0;
             binres <- 1;
-                     
-            while((length >= BDIO_SECTBUF_LEN) && binres)
-            {
-                printf("a: r(Pb:%w)%n", Pbuf);
-                binres <- bdio_fbin_internal(fhandle, Pbuf, 1, BDIO_FDESCRIPTOR_NUMBERREAD);
-                
-                if(binres)
-                {
-                    printf("a: mc(Pb:%w st: %w l: %w)%n", Pbuf, Pmembuf, BDIO_SECTBUF_LEN);
-                    memcpy(Pbuf, Pmembuf, BDIO_SECTBUF_LEN);
+            bufcounter <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER);
+            Pbuf <- bdio_fbinbuf_getbufaddr(fhandle);
 
-                    result <- result +  BDIO_SECTBUF_LEN;
-                    length <- length - BDIO_SECTBUF_LEN;
-                    Pmembuf <- Pmembuf + BDIO_SECTBUF_LEN;
+            while((length > 0) && (binres > 0))
+            {
+                if(bufcounter = BDIO_SECTBUF_LEN)
+                {
+                    binres <- bdio_fbin_internal(fhandle, Pbuf, 1, BDIO_FDESCRIPTOR_NUMBERREAD);
+                    if(binres > 0)
+                    {
+                        bufcounter <- 0;
+                    }
+                }
+
+                if(binres > 0)
+                {
+                    chunk <- BDIO_SECTBUF_LEN - bufcounter;
+                    if(length < chunk)
+                    {
+                        chunk <- length;
+                    }
+
+                    memcpy(Pbuf + bufcounter, Pmembuf, chunk);
+
+                    bufcounter <- bufcounter + chunk;
+                    Pmembuf <- Pmembuf + chunk;
+                    length <- length - chunk;
+                    result <- result + chunk;
                 }
             }
-        }
 
-        if(length && binres)
-        {
-            if(bufleft)
-            {
-                printf("b: mc(Pb:%w st: %w l: %w)%n", Pbuf + bufcounter, Pmembuf, bufleft);
-                memcpy(Pbuf + bufcounter, Pmembuf, bufleft);
-                bufcounter = BDIO_SECTBUF_LEN;
-            }
-            else
-            {
-                printf("a: r(Pb:%w)%n", Pbuf);
-                binres <- bdio_fbin_internal(fhandle, Pbuf, 1, BDIO_FDESCRIPTOR_NUMBERREAD);
-                if(binres)
-                {
-                    printf("c: mc(Pb:%w st: %w l: %w)%n", Pbuf + bufcounter, Pmembuf, length);
-                    memcpy(Pbuf + bufcounter, Pmembuf, length);
-                
-                    result <- result + length;
-                    bufcounter <- length;
-                }
-            }
+            poke8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER, bufcounter);
         }
-
-        poke8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER, bufcounter);
     }
 
     return result;
@@ -1073,76 +1062,57 @@ word bdio_fbinbufread(byte fhandle, word Pmembuf, word length)
 
 word bdio_fbinbufwrite(byte fhandle, word Pmembuf, word length)
 {
+    //takes length bytes from Pmembuf into an open buffered write handle
+    //BUFFCOUNTER = bytes pending in the buffer (0..127 between calls);
+    //a full buffer is written to the disc at once, the rest by bdio_fclose
+    //returns bytes taken
     word Pfdesc;
-    byte mode;
-    byte result;
+    word result;
 
-    Pfdesc <- bdio_getfdesc_addr(fhandle);
-    mode <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_ACCESSMODE);
     result <- BDIO_FBINBUFWRITE_ERROR;
-    
-    if(mode = BDIO_FOPEN_MODE_BUFFERED)
+
+    if(fhandle & BDIO_FDESCRIPTOR_NUMBERWRITE)
     {
-        byte bufcounter;
-        byte bufleft;
-        word Pbuf;
-        byte binres;
-        byte written;
+        byte fdescNo;
+        byte mode;
 
-        result <- 0;
-        bufcounter <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER);
-        bufleft <- BDIO_SECTBUF_LEN - bufcounter;
-        Pbuf <- bdio_fbinbuf_getbufaddr(fhandle);
-        written <- FALSE;
+        Pfdesc <- bdio_getfdesc_addr(fhandle);
+        fdescNo <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_NUMBER);
+        mode <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_ACCESSMODE);
 
-        //1st write what is in the buffer
-        if(length >= bufleft)
+        if((fdescNo = fhandle) && (mode = BDIO_FOPEN_MODE_BUFFERED))
         {
-            memcpy(Pmembuf, Pbuf + bufcounter, bufleft);
+            word bufcounter;
+            word chunk;
+            word Pbuf;
 
-            result <- bufleft;
-            length <- length - bufleft;
-            Pmembuf <- Pmembuf + bufleft;
-            bufcounter <- 0;
-            bufleft <- BDIO_SECTBUF_LEN;
-            written <- TRUE;
-        }
+            result <- 0;
+            bufcounter <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER);
+            Pbuf <- bdio_fbinbuf_getbufaddr(fhandle);
 
-        //then write more sectors if the buffer is big
-        while((length >= BDIO_SECTBUF_LEN) && binres)
-        {
-            binres <- bdio_fbin_internal(fhandle, Pbuf, 1, BDIO_FDESCRIPTOR_NUMBERWRITE);
-            
-            if(binres)
+            while(length > 0)
             {
-                memcpy(Pmembuf, Pbuf, BDIO_SECTBUF_LEN);
+                chunk <- BDIO_SECTBUF_LEN - bufcounter;
+                if(length < chunk)
+                {
+                    chunk <- length;
+                }
 
-                result <- result + BDIO_SECTBUF_LEN;
-                length <- length - BDIO_SECTBUF_LEN;
-                Pmembuf <- Pmembuf + BDIO_SECTBUF_LEN;
+                memcpy(Pmembuf, Pbuf + bufcounter, chunk);
+
+                bufcounter <- bufcounter + chunk;
+                Pmembuf <- Pmembuf + chunk;
+                length <- length - chunk;
+                result <- result + chunk;
+
+                if(bufcounter = BDIO_SECTBUF_LEN)
+                {
+                    bdio_fbin_internal(fhandle, Pbuf, 1, BDIO_FDESCRIPTOR_NUMBERWRITE);
+                    bufcounter <- 0;
+                }
             }
 
-            bufcounter <- 0;
-            written <- TRUE;
-        }
-
-        binres <- 1;
-        //then if there is still something to write, do it
-        if(length)
-        {
-            if((!bufcounter) && written)
-            {
-                binres <- bdio_fbin_internal(fhandle, Pbuf, 1, BDIO_FDESCRIPTOR_NUMBERWRITE);
-            }          
-                
-            if(binres)
-            {
-                memcpy(Pmembuf, Pbuf + bufcounter, length);
-
-                result <- result + length;
-                bufcounter <- bufcounter + length;
-                poke8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER, bufcounter);
-            }
+            poke8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER, bufcounter);
         }
     }
 

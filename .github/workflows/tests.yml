@@ -97,7 +97,7 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          (cd src && BC64_UPDATE_GOLDEN=1 python -m unittest test_e2e_bcos test_e2e_bdos test_e2e_toolchain < /dev/null) || true
+          (cd src && BC64_UPDATE_GOLDEN=1 python -m unittest test_e2e_bcos test_e2e_bdos test_e2e_toolchain test_e2e_bdio_buffered < /dev/null) || true
           git diff --binary src/bc64/testdata/ > "$RUNNER_TEMP/testdata.patch" || true
           ls -l "$RUNNER_TEMP/testdata.patch"
 
