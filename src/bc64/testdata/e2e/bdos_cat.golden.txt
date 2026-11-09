@@ -1,0 +1,22 @@
+bcOS 1.2
+booting from FDDlding
+bDOS 1.1 shell
+9FF5 bytes free
+reading disc...
+A>cat -c test.b
+.......
+printing A:TEST    B   with options 10...
+10 first line !ln
+20 second line !ln
+30 very loooooooooooooooooooooooooooooooooooongline !ln
+40 another looooooooooooooooooooooooooooooooooo#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00
+ooooooooooooooooooooooooooooooong !ln
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00
+
+A>exit
+bye!
+

@@ -1,0 +1,15 @@
+bcOS 1.2
+booting from FDDlding
+bDOS 1.1 shell
+9FF5 bytes free
+reading disc...
+A>foo
+error: E0 file not found
+A>cat -c nofile.txt
+.......
+printing A:NOFILE  TXT with options 10...
+error: E0 file not found
+
+A>exit
+bye!
+

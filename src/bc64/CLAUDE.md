@@ -38,6 +38,18 @@ Check the transcript diff by eye: it should show only the intended changes. Comm
 `smoke_transcript.txt` together with the rebuilt `os.bdd`. The session runs on a temp copy, so
 `smoke.bdd` itself is never written by the emulator.
 
+## End-to-end scenarios
+
+The e2e modules boot the emulator headless and compare the printer output with goldens:
+`src/test_e2e_bcos.py` (monitor, `--no-floppy`), `src/test_e2e_bdos.py` (shell on the frozen
+`smoke.bdd`), `src/test_e2e_toolchain.py` (B program to disc and run, on a copy of the live `os.bdd`)
+and `src/test_e2e_harness.py` (harness self-tests). The harness is `src/e2e_harness.py`, a plain module
+and not a test. Scripts and goldens are in `src/bc64/testdata/e2e/` (`<scenario>.in.txt`,
+`<scenario>.golden.txt`). Regenerate with `BC64_UPDATE_GOLDEN=1`, e.g. `cd src && BC64_UPDATE_GOLDEN=1
+python3 -m unittest test_e2e_bdos`, then review the diff. Long scenarios need `BC64_E2E_SLOW=1`. Scripts
+must not use `q` or a bad-argument command followed by more commands (both crash the CPU). The known
+failures (tape round trip, `cp`) are `expectedFailure` tests; see `docs/01-emulator.md`.
+
 ## How it works
 
 - `bc8183_cpu.py` decodes on the **high nibble** of the first byte (`create_instructions`).
@@ -57,13 +69,13 @@ Check the transcript diff by eye: it should show only the intended changes. Comm
   - `0x2` tape
   - `0x3` clock
   - `0x5` random generator
-  - `0x8` floppy
+  - `0x8` floppy (`FloppyDriveV1`; with `--no-floppy`, `NoFloppyDrive` reads `0x00` and ignores writes)
 
   The floppy writes and reads `MemBus` directly (DMA).
 - All host access (console, files, logging) goes through `bc64_env.Environment`. Keep
   devices free of direct `open`/`print` calls.
 - `bc64_env.ScriptedEnvironment` is the headless environment. `bc64.py` (`make_env`) picks it when
-  any headless option is given or stdin is not a terminal. It answers `Disk A/B name:` from
+  any headless option is given (`--no-floppy` is one) or stdin is not a terminal. It answers `Disk A/B name:` from
   `--disk-a`/`--disk-b` without reading input, reads keys from the input with each line ending
   as one CR, raises `EndOfInput` at the end (caught in `main`, exit 0), resolves `.btap` names in
   `--tape-dir`, and copies printer bytes to `--output`. The console `Environment` is unchanged.

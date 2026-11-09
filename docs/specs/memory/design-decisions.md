@@ -263,6 +263,41 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   repeats the CPU's run loop in `bc64.py`, so a change to `cpu.run()` must be mirrored there;
   prompt matching depends on the device's prompt text.
 
+### E8. `--no-floppy` starts bcOS without a floppy drive
+- **Purpose:** the monitor (ROM only, no disc) can be run and tested headless, without a disc image.
+- **Rationale:** with the floppy device mapped, bcOS always tries to boot from the disc, so the monitor
+  cannot be reached without one. `IOBus` raises `KeyError` on an unmapped port, so an absent drive needs
+  a stand-in device on port `0x08`, not a missing one.
+- **Usage:**
+  - `--no-floppy` attaches `NoFloppyDrive` (in `bc64_io.py`): the status read is `0x00` (no READY bit),
+    writes are ignored;
+  - `FloppyDriveV1` is unchanged;
+  - the option is a headless option and conflicts with `--disk-a`/`--disk-b` (usage error, exit 2).
+- **Trade-offs:** a program that needs a disc cannot run in this mode; the stand-in only has to match
+  the status byte that bcOS reads.
+
+### E9. End-to-end tests boot the headless emulator from scripts and compare goldens byte for byte
+- **Purpose:** bcOS, the bdos shell and the toolchain are tested the way a user runs them, through the
+  real emulator.
+- **Rationale:** unit tests cannot show that a boot, a typed command and the disc agree.
+- **Usage:**
+  - the harness is `src/e2e_harness.py`, a plain module (D2); the scenarios are `test_e2e_*.py` next to
+    `bc64.py`, where the code they drive lives (co-location);
+  - a scenario is a script `<scenario>.in.txt` and a golden `<scenario>.golden.txt` in
+    `src/bc64/testdata/e2e/` (D3); the golden is compared byte for byte, and marker strings must appear;
+  - discs (D4): monitor scenarios use `--no-floppy`; shell scenarios use a temp copy of the frozen
+    `smoke.bdd`; the toolchain scenario uses a temp copy of the live `os.bdd` and compares only the
+    program output;
+  - goldens are regenerated with `BC64_UPDATE_GOLDEN=1` (D5) and reviewed before commit;
+  - the instruction limit is about 10x the measured need, capped at 200M; exit 3 fails the test (D6);
+  - a known bug is an `expectedFailure` that names its issue, not a dropped scenario (D7); a scenario
+    with no bug is not written as a golden of broken output;
+  - every run uses temp dirs, and the source discs and `cpudebug.log` are checked after each run; no
+    apps scenarios (D8);
+  - `run_tests.py` discovers the e2e modules like the other `test_*.py`, so it is the `/grind` check (D9).
+- **Trade-offs:** goldens follow the emulator and bcOS, so an intended change means regenerating them;
+  the frozen disc does not follow `os.bdd` rebuilds; each scenario costs seconds of run time.
+
 ---
 
 ## Assembler (`src/bc81asmc/`)

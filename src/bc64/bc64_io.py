@@ -277,6 +277,16 @@ class RandomGenerator(IODevice):
     def write_byte(self, byte):
         None
 
+class NoFloppyDrive(IODevice):
+    """Stands in for the floppy drive port when no drive is attached: reads 0x00, ignores writes."""
+    DEFAULT_IO_PORT = 0x08
+    def __init__(self):
+        self.io_port = NoFloppyDrive.DEFAULT_IO_PORT
+    def read_byte(self):
+        return 0x00
+    def write_byte(self, byte):
+        pass
+
 class FloppyDriveV1(IODevice):
     DEFAULT_IO_PORT = 0x08
     SECTOR_SIZE = 128

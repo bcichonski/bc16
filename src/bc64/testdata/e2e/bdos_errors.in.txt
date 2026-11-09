@@ -1,0 +1,3 @@
+foo
+cat -c nofile.txt
+exit

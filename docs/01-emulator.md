@@ -42,6 +42,7 @@ python bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 d      # any 2nd argument turns on 
 |---|---|
 | `--disk-a FILE` | disk image answered to the `Disk A name:` prompt |
 | `--disk-b FILE` | disk image answered to the `Disk B name:` prompt |
+| `--no-floppy` | do not attach a floppy drive: port `0x08` reads `0x00` and writes are ignored, so bcOS skips the floppy boot. Cannot be combined with `--disk-a` or `--disk-b` (exit 2) |
 | `--tape-dir DIR` | directory where `*.btap` tape files are read and written |
 | `--input FILE` | file with the keystrokes to type; `-` reads stdin (the default when stdin is piped) |
 | `--output FILE` | file that receives a copy of every printer byte |
@@ -57,6 +58,13 @@ All options are optional and can be combined.
 - **Headless** (any option other than `--help`, or stdin is not a terminal): keys come from
   `--input FILE`, or from stdin when it is piped or redirected (`< keys.txt`). Printer output
   goes to stdout, and also to `--output` when given.
+
+### Monitor without a disc
+
+- `--no-floppy` starts bcOS with no floppy drive. Port `0x08` reads `0x00` (no READY bit) and
+  ignores writes, so bcOS skips the floppy boot and goes straight to its `> ` monitor prompt. Use it
+  to test the monitor. It is a headless option. It cannot be combined with `--disk-a` or `--disk-b`:
+  that is a usage error, exit 2.
 
 ### Keys and Enter
 
@@ -131,6 +139,81 @@ bye!
 The disc is opened read-write, so a session can change it. This example leaves `os.bdd`
 unchanged, but a program may not. Use a copy of `os.bdd` for tests. `out.txt` and `bc64.dmp`
 are written to the working directory too.
+
+## End-to-end tests
+
+The e2e tests boot the whole system on the headless emulator, type a script, and compare the
+printer output with a golden file. They are the `test_e2e_*.py` modules in `src/`:
+
+| Module | What it covers |
+| :--- | :--- |
+| `test_e2e_bcos.py` | bcOS monitor, with `--no-floppy` |
+| `test_e2e_bdos.py` | bdos shell (`ls`, `cat`, `hellowrd`, `rm`, error messages, `cp`) on a frozen disc |
+| `test_e2e_toolchain.py` | a B program compiled, assembled, put on a disc and run |
+| `test_e2e_harness.py` | self-tests of the harness |
+
+The harness is `src/e2e_harness.py`. For each scenario it:
+
+- reads the script `<scenario>.in.txt` and the golden `<scenario>.golden.txt` from `src/bc64/testdata/e2e/`;
+- copies the disc to a temp dir and runs `bc64.py` with `--input`, `--output` and `--max-instructions`;
+- fails on exit 3 (instruction limit), on any other non-zero exit, when the source disc changed, or
+  when `cpudebug.log` appeared;
+- checks that the marker strings appear in the output, so an empty output cannot pass;
+- compares the output with the golden byte for byte.
+
+Nothing is written into `src/`, and the committed discs are never changed.
+
+### Running them
+
+```bash
+python3 run_tests.py < /dev/null              # from the repo root: all suites, e2e included
+cd src && python3 -m unittest test_e2e_bdos   # one module
+```
+
+Long scenarios are marked `@h.slow` and are skipped unless `BC64_E2E_SLOW=1` is set, for example
+`cd src && BC64_E2E_SLOW=1 python3 -m unittest test_e2e_bdos`. No scenario is slow yet.
+
+### Regenerating goldens
+
+After an intended change in output, regenerate the goldens of one module from `src/`:
+
+```bash
+BC64_UPDATE_GOLDEN=1 python3 -m unittest test_e2e_bdos
+```
+
+With `BC64_UPDATE_GOLDEN=1` the test writes the golden and passes, so read the result before
+committing: `git diff` for a changed golden, or the file itself for a new one. A run with no change
+writes the same bytes.
+
+### Discs
+
+- Monitor scenarios use `--no-floppy` and no disc.
+- Shell scenarios boot a temp copy of the frozen `src/bc64/testdata/smoke.bdd`, so the catalog and
+  the free space stay the same. Do not refresh `smoke.bdd` unless that is the goal.
+- The toolchain scenario boots a temp copy of the live `src/os.bdd`. It compares only the program
+  output, the section between `A>e2eprog` and the next `A>` prompt, so a rebuild of `os.bdd` does not
+  break it.
+
+### Adding a scenario
+
+1. Write the script `src/bc64/testdata/e2e/<name>.in.txt`: one command per line. A bdos script ends
+   with `exit`; the monitor stops cleanly at the end of its input. Scripts must avoid `q` and a
+   bad-argument command (e.g. `d 00`) followed by more commands, because both crash the CPU today.
+2. Add a test method to the module for that area. Call `check_golden` with the marker strings the
+   output must contain, e.g. `A>ls` or `Hello world!`.
+3. Generate the golden with `BC64_UPDATE_GOLDEN=1 python3 -m unittest <module>`, then read it.
+4. Run the module again without the variable, then `python3 run_tests.py < /dev/null`.
+
+### Known failures
+
+Known bugs are `expectedFailure` tests, so they show as expected failures, not failures:
+
+- `test_tape_round_trip` (`test_e2e_bcos.py`): `s` writes a tape file, but `l` reads past the end of
+  the tape and the run stops with a Python `TypeError`. Issues #32 and #62.
+- `test_cp_then_cat_shows_same_text` (`test_e2e_bdos.py`): `cp` reads keys until the input runs out,
+  so `cat` and `exit` never run. Found by #49; the issue is not filed yet.
+
+When a fix lands, the test reports an unexpected success: remove its decorator then.
 
 ## Memory
 

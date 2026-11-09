@@ -96,9 +96,27 @@ class ArgumentParsingTests(unittest.TestCase):
             finally:
                 env.close()
 
+    def test_no_floppy_option(self):
+        self.assertFalse(self.parse("rom.b81").no_floppy)
+        self.assertTrue(self.parse("rom.b81", "--no-floppy").no_floppy)
+
+    def test_no_floppy_is_headless(self):
+        module = self.module
+        with mock.patch.object(module, "stdin_is_tty", return_value=True):
+            self.assertTrue(module.is_headless(self.parse("--no-floppy")))
+
+    def test_no_floppy_conflicts_with_disks(self):
+        module = self.module
+        for disk in ("--disk-a", "--disk-b"):
+            with self.subTest(disk=disk), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as raised:
+                    module.parse_args(["--no-floppy", disk, "x.bdd"])
+                self.assertEqual(raised.exception.code, 2)
+
     def test_help_lists_every_option(self):
         text = self.module.build_parser().format_help()
-        for option in ("--disk-a", "--disk-b", "--tape-dir", "--input", "--output", "--max-instructions"):
+        for option in ("--disk-a", "--disk-b", "--tape-dir", "--input", "--output", "--max-instructions",
+                       "--no-floppy"):
             self.assertIn(option, text)
 
 
@@ -210,6 +228,19 @@ class RunTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         for option in (b"--disk-a", b"--disk-b", b"--tape-dir", b"--input", b"--output", b"--max-instructions"):
             self.assertIn(option, result.stdout)
+
+    def test_no_floppy_boots_the_real_rom_to_the_prompt(self):
+        rom = os.path.join(SRC, "bc81asmc", "bcOS", "bcos_v1_2_0.b81")
+        script = os.path.join(self.tmp, "keys.txt")
+        with open(script, "wb") as f:
+            f.write(b"h\n")
+        result = subprocess.run([sys.executable, BC64_PY, rom, "--no-floppy", "--input", script],
+                                cwd=self.tmp, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE, timeout=120)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(b"type h for help", result.stdout)
+        self.assertNotIn(b"Disk A name", result.stdout)
+        self.assertEqual([n for n in os.listdir(self.tmp) if n.endswith(".bdd")], [])
 
     def test_output_file_is_flushed_when_the_limit_stops_the_run(self):
         # prints "Hi" then loops forever: the limit stops it and the file still holds the output
