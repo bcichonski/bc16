@@ -75,8 +75,9 @@ cd src && python3 -m unittest bc64.test_cpu.CpuTests.test_CLC16_opcodes    # one
 Each suite uses flat imports, so run it from its own directory, as above.
 The emulator suite also runs `src/test_bc64_smoke.py`. It boots a frozen disc
 (`src/bc64/testdata/smoke.bdd`) and compares the session byte for byte with a committed transcript,
-and it boots the current `src/os.bdd` and checks only output that survives a rebuild. Rebuilding
-`os.bdd` doesn't require a new transcript.
+and it boots the current `src/os.bdd` and checks only output that survives a rebuild. For a
+meaningful e2e run after rebuilding `os.bdd`, refresh `smoke.bdd` and its transcript first (see
+`src/bc64/CLAUDE.md`).
 
 There is no linter. Test status is not recorded in the docs; `python3 run_tests.py` is the check.
 

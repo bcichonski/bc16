@@ -17,6 +17,27 @@ printf 'ls\nhellowrd\nexit\n' | python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 --
 Known bugs are `expectedFailure` tests that name their issue; they show as expected failures,
 not failures. See `docs/01-emulator.md`, Known quirks.
 
+## End-to-end (smoke) tests
+
+`src/test_bc64_smoke.py` boots bdos headless. Its byte-exact test runs on a **frozen** disc,
+`src/bc64/testdata/smoke.bdd`, not on `src/os.bdd`, and the live-disc test checks only a few
+markers. So after `os.bdd` is rebuilt (bdos, utilities, apps), the e2e tests say little about
+the current system until the frozen disc is refreshed. **For now, to run the e2e tests
+meaningfully, refresh `smoke.bdd` and regenerate the transcript first** (from `src/`):
+
+```bash
+cp os.bdd bc64/testdata/smoke.bdd
+d=$(mktemp -d) && cp bc64/testdata/smoke.bdd $d/os.bdd && (cd $d && \
+  python3 "$OLDPWD/bc64.py" "$OLDPWD/bc81asmc/bcOS/bcos_v1_2_0.b81" --disk-a os.bdd \
+  --input "$OLDPWD/bc64/testdata/smoke_session.txt" --output "$OLDPWD/bc64/testdata/smoke_transcript.txt" \
+  --max-instructions 200000000 < /dev/null); rm -rf $d   # runs in the temp dir: bc64.dmp lands there
+python3 -m unittest test_bc64_smoke
+```
+
+Check the transcript diff by eye: it should show only the intended changes. Commit `smoke.bdd` and
+`smoke_transcript.txt` together with the rebuilt `os.bdd`. The session runs on a temp copy, so
+`smoke.bdd` itself is never written by the emulator.
+
 ## How it works
 
 - `bc8183_cpu.py` decodes on the **high nibble** of the first byte (`create_instructions`).
