@@ -8,7 +8,7 @@ class RegistersTests(unittest.TestCase):
         #when
         register.set(0xffab)
         #then
-        self.assertEqual(register.get(), 0xab)
+        self.assertEqual(register.get(), 0xac)  # deliberately broken: #50 AC-4 red-CI check
     def test_value_increas_should_wrap(self):
         #given
         register = bc8183_cpu.Register(0xff)
