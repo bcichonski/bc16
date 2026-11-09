@@ -65,27 +65,42 @@ Tests, from the repo root:
 
 ```bash
 pip install -r requirements.txt                          # parsy, needed by the assembler and compiler tests
-python3 run_tests.py < /dev/null                         # all suites: emulator (incl. e2e), assembler, compiler (exit 0 = pass)
+python3 run_tests.py < /dev/null                         # all suites: emulator, ftool, assembler, compiler, e2e (exit 0 = pass)
+python3 run_tests.py --group unit < /dev/null            # unit suites only: emulator, ftool, assembler, compiler
+python3 run_tests.py --group e2e < /dev/null             # e2e suite only
 
-cd src && python3 -m unittest discover -s . -t . -p "test_*.py"   # one suite: emulator (+ ftool)
+cd src && python3 -m unittest discover -s . -t . -p "test_*.py"   # one suite: emulator (+ ftool, + e2e)
 cd src/bc81asmc && python3 -m unittest discover -s . -t . -p "*_tests.py"   # one suite: assembler
 cd src/bc && python3 -m unittest discover -s . -t . -p "*_tests.py"         # one suite: compiler
 cd src && python3 -m unittest bc64.test_cpu.CpuTests.test_CLC16_opcodes    # one test (same form elsewhere)
 ```
 
 Each suite uses flat imports, so run it from its own directory, as above.
-`python3 run_tests.py` includes the e2e scenarios (`src/test_e2e_*.py`, see `docs/01-emulator.md`), and it
-is the check, also for `/grind`. After an intended change in bcOS or bdos output, regenerate the goldens with
+`python3 run_tests.py` runs the e2e suite by default (`src/test_e2e_*.py` and `src/test_bc64_smoke.py`, see
+`docs/01-emulator.md`), and `python3 run_tests.py --group e2e` runs only that suite. It is the check, also for `/grind`. After an intended change in bcOS or bdos output, regenerate the goldens with
 `cd src && BC64_UPDATE_GOLDEN=1 python3 -m unittest test_e2e_bdos` (or another e2e module), then review them
 by eye before committing.
 
-The emulator suite also runs `src/test_bc64_smoke.py`. It boots a frozen disc
+The e2e suite's smoke test, `src/test_bc64_smoke.py`, boots a frozen disc
 (`src/bc64/testdata/smoke.bdd`) and compares the session byte for byte with a committed transcript,
 and it boots the current `src/os.bdd` and checks only output that survives a rebuild. For a
 meaningful e2e run after rebuilding `os.bdd`, refresh `smoke.bdd` and its transcript first (see
 `src/bc64/CLAUDE.md`).
 
-There is no linter. Test status is not recorded in the docs; `python3 run_tests.py` is the check.
+There is no linter. `python3 run_tests.py` is the local check; CI runs it on GitHub (see CI below).
+
+## CI
+
+The `tests` workflow (`.github/workflows/tests.yml`) runs on every push and PR to `bc64`:
+- job `unit` runs `python run_tests.py --group unit` on Python 3.10 and 3.14;
+- job `e2e` (Python 3.14, after `unit`) refreshes `smoke.bdd` from `os.bdd` and regenerates the smoke
+  transcript, fails on any diff in `src/bc64/testdata/`, then runs `python run_tests.py --group e2e`.
+  On failure it uploads the `e2e-golden-diff` artifact (regenerated goldens and their patch).
+
+CI must be green before merge. For `/grind`, a PR is finished only when its `tests` checks pass; the PR
+monitor watches those check runs. The e2e job fails on an unreviewed disc change, so commit a refreshed
+`smoke.bdd` and its transcript with every `os.bdd` rebuild. Making `tests` a required status check on
+`bc64` is a repo-owner setting.
 
 ## Cross-component contracts
 

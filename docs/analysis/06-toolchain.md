@@ -17,7 +17,9 @@ the root `CLAUDE.md`.
 - **Tests:** three separate `unittest` suites, each run from a different directory.
   Results: emulator 22/23, assembler 75/75, compiler 15/21 (0 on Linux without a stand-in
   for `msilib`). There are no code-generation or end-to-end tests.
-- **No CI.** `.github/` doesn't exist apart from what `/grind` will use.
+- **No CI** until #50, which added the `tests` workflow (`.github/workflows/tests.yml`): it sets up Python,
+  installs, runs the suites and the headless e2e boot test. `build.py all`, the `git diff --exit-code` check
+  of committed outputs and the code-size report are still open.
 - **Docs:** `docs/` (reference, analysis, design decisions, the `/grind` workflow) and
   hierarchical CLAUDE.md files, all added in this session.
 
@@ -35,7 +37,7 @@ the root `CLAUDE.md`.
 |---|---|---|---|
 | 1 | Not cross-platform | `winpty` in scripts; `msilib` import; `getch` via `msvcrt` with a POSIX fallback | Linux and macOS users (and CI, and agents) need workarounds |
 | 2 | No dependency-aware build | scripts rebuild fixed lists; the order (`buildos` → `buildtools` → `buildapps` → `makedisc`) is manual | forgotten steps → stale outputs (that's how the disc went stale) |
-| 3 | Nothing checks committed outputs | no CI; no `git diff --exit-code` after a rebuild | stale `BDOS.SYS`/`CAT.PRG` went unnoticed for months |
+| 3 | Nothing checks committed outputs | CI runs the suites since #50, but no `build.py all` and no `git diff --exit-code` after a rebuild | stale `BDOS.SYS`/`CAT.PRG` went unnoticed for months |
 | 4 | Fragmented, partly broken tests | 3 suites, 3 working directories, 7 failing or erroring tests, no end-to-end test | no safety net for optimisations or ABI changes |
 | 5 | Outdated packaging | Python 3.7 Pipfile (EOL June 2023), only for the assembler | unclear supported Python version; `msilib` was removed in Python 3.13 |
 | 6 | Mixed line endings | CRLF in `bcos.basm`, the generated `.basm` files and others; LF elsewhere; no `.gitattributes` | noisy diffs, and the editor/tool mismatches seen in this session |
@@ -73,6 +75,7 @@ the root `CLAUDE.md`.
    5. `git diff --exit-code` (committed outputs must match the sources, G3);
    6. later, an end-to-end boot test with the emulator's headless mode (see
       [01-emulator.md](01-emulator.md)).
+   _Status:_ #50 added the `tests` workflow covering items 1–3 and 6; items 4–5 and the code-size report remain open.
 
    Optionally publish per-program code sizes as a job summary, to track compiler
    optimisations.
