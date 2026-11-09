@@ -318,3 +318,9 @@ files out as CRLF; judge them with `git show HEAD:<file>`.
     `--input -` ("i want it just to work"). Updated: the Source Conflict Log, D3, the Decision Lock, the
     backward-compatibility rule in §2.4, and T2's Definition of Done and tests. T1 is unaffected: its
     `input_source='-'` already reads stdin.
+*   **2026-11-09 — smoke test split, at the owner's request ("fix it"), after PR #71 was opened**: the owner's
+    uncommitted rebuild of `src/os.bdd` changes the `ls` listing, the free-space numbers and `test.b`, so a
+    byte-exact transcript of the live disc would break on every rebuild. The byte-exact transcript test now boots a
+    frozen disc (`src/bc64/testdata/smoke.bdd`, a copy of `os.bdd` at `06df0cd`). A second test boots the current
+    `src/os.bdd` (`ls`, `hellowrd`, `exit`) and checks only rebuild-stable markers. Both pass on the committed and
+    on the rebuilt disc. This supersedes A1's note that a rebuild changes the transcript.
