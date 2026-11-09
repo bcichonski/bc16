@@ -33,8 +33,15 @@
       "history": []
     },
     "finalize": {
-      "status": "in_progress",
-      "pr_urls": []
+      "status": "done",
+      "mode": "bail-out",
+      "pr_urls": [
+        {
+          "repo": "bc16",
+          "pr_url": "https://github.com/bcichonski/bc16/pull/77",
+          "pr_pending": false
+        }
+      ]
     },
     "pr_monitor": {
       "status": "pending",
@@ -49,7 +56,8 @@
     "estimates_posted": false,
     "estimates": [],
     "sub_issues": [],
-    "pending_writes": []
+    "pending_writes": [],
+    "blocked_on": 76
   },
   "notes": [
     "Worktree /c/workspace/bc16-47 off origin/bc64 (main checkout holds owner's uncommitted work); PR base bc64.",
