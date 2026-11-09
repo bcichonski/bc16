@@ -2,6 +2,8 @@ I have always wanted to build 8bit computer, as i am to lazy to work with hardwa
 
 Detailed documentation of the current BC64 (emulator, assembler, compiler, bcOS, bdos) is in [docs/](docs/README.md).
 
+[![tests](https://github.com/bcichonski/bc16/actions/workflows/tests.yml/badge.svg?branch=bc64)](https://github.com/bcichonski/bc16/actions/workflows/tests.yml)
+
 # BC64
 ## roadmap
 0. memory increased to 64kb

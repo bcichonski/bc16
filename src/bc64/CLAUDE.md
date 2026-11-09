@@ -36,7 +36,8 @@ python3 -m unittest test_bc64_smoke
 
 Check the transcript diff by eye: it should show only the intended changes. Commit `smoke.bdd` and
 `smoke_transcript.txt` together with the rebuilt `os.bdd`. The session runs on a temp copy, so
-`smoke.bdd` itself is never written by the emulator.
+`smoke.bdd` itself is never written by the emulator. CI's `e2e` job repeats this refresh on every run and
+fails if the committed `smoke.bdd` or transcript does not match, so commit them with every `os.bdd` rebuild.
 
 ## End-to-end scenarios
 
