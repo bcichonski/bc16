@@ -1,0 +1,63 @@
+{
+  "ticket": "47",
+  "checkout_path": "/c/workspace/bc16-47",
+  "branch": "ai/feature/47-texted-saved-file-loads-shows-no-text",
+  "base_branch": "bc64",
+  "tools": {
+    "github_mcp": true,
+    "gh": true,
+    "ci_logs": "gh",
+    "ci_rerun": "gh"
+  },
+  "phases": {
+    "review_story": {
+      "status": "done"
+    },
+    "spec_plan": {
+      "status": "blocked",
+      "plan_file": "docs/specs/plans/47-TextEd-File-Saved-Before-a-Restart-Loads-but-Shows-No-Text.md",
+      "revision": "A0",
+      "amendments": [],
+      "reason": "Owner split the bdio buffered I/O defects into #76 and asked to stop #47 if it is required first; TextEd load cannot work until bdio_fbinbufread is fixed (OQ-1)."
+    },
+    "implementation": {
+      "status": "pending",
+      "base_refs": {
+        "bc16": "74a94bf68ffd11a29cc0f322fd0265c20536817d"
+      }
+    },
+    "verification": {
+      "status": "pending",
+      "round": 0,
+      "max_rounds": 3,
+      "history": []
+    },
+    "finalize": {
+      "status": "in_progress",
+      "pr_urls": []
+    },
+    "pr_monitor": {
+      "status": "pending",
+      "repos": {}
+    }
+  },
+  "github": {
+    "repo": "bcichonski/bc16",
+    "story_issue": 47,
+    "story_points_estimated": true,
+    "story_moved_to_development": false,
+    "estimates_posted": false,
+    "estimates": [],
+    "sub_issues": [],
+    "pending_writes": []
+  },
+  "notes": [
+    "Worktree /c/workspace/bc16-47 off origin/bc64 (main checkout holds owner's uncommitted work); PR base bc64.",
+    "Owner comment on #47: add an e2e smoke test for simple save & reload.",
+    "Issue is labelled bug but has AC; estimated points:5 by comparison with #3/#49 (5).",
+    "Owner (mid-run): 'generate separate issue on that and perhaps stop this fix if the new one also required' -> created #76 (bdio buffered I/O, points:3); #47 bails out blocked on #76.",
+    "TextEd code itself is not correct either (sector-mode open, records not stored, missing-file error never printed), so #47 is still needed after #76.",
+    "Retention: 6 main plans; oldest (#3) has no docs/CHANGELOG.md entry -> deletion skipped (no human to confirm).",
+    "Estimates not posted: plan never reached FINAL."
+  ]
+}
