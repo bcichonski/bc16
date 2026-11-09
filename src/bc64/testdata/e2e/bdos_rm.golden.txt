@@ -9,8 +9,8 @@ bcOS 1.2
 ........
 listing files of drive A:
 HELLOWRD.PRG -R-X 0780 11 00 0F
-TEXTED  .PRG -R-X 3200 2D 00 64
-EC catalog entries free; 00D4 sectors free...
+TEXTED  .PRG -R-X 3800 2D 00 70
+EC catalog entries free; 00C0 sectors free...
 A>exit
 bye!
 

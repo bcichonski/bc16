@@ -1,0 +1,21 @@
+bcOS 1.2
+booting from FDDlding
+bDOS 1.1 shell
+9FF5 bytes free
+reading disc...
+A>texted
+..............
+TextEd v1.2
+type h for help
+texted>l note.txt
+loading note.txt...
+0003 lines loaded
+texted>p 0 65535
+10 first line
+20 second line
+30 third line
+texted>q
+Bye!
+A>exit
+bye!
+

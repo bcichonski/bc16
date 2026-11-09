@@ -1,0 +1,135 @@
+{
+  "ticket": "47",
+  "checkout_path": "/c/workspace/bc16-47",
+  "branch": "ai/feature/47-texted-saved-file-loads-shows-no-text",
+  "base_branch": "bc64",
+  "tools": {
+    "github_mcp": true,
+    "gh": true,
+    "ci_logs": "gh",
+    "ci_rerun": "gh"
+  },
+  "phases": {
+    "review_story": {
+      "status": "done"
+    },
+    "spec_plan": {
+      "status": "done",
+      "plan_file": "docs/specs/plans/47-TextEd-File-Saved-Before-a-Restart-Loads-but-Shows-No-Text.md",
+      "revision": "A2",
+      "amendments": [
+        {
+          "id": "A1",
+          "source": "implementation",
+          "requested_by": "T2",
+          "requests": [
+            "test-conflict \u2014 test_e2e_bdos test_cat_prints_text_file / bdos_cat.golden.txt change on fresh makedisc (CAT.PRG on disc unreproducible; HEAD build wraps trailing #00 padding 26+26+2 vs 27+27)",
+            "missing-change \u2014 CAT.PRG HEAD build is 62 sectors, catalog says 61",
+            "missing-change \u2014 committed btap/boot.sector stale; makedisc disc doesn't boot; all programs need rebuild (D5 does not hold)",
+            "test-conflict (T3) \u2014 cat -c splits records crossing sector boundaries and shows #00 inside them; T3 DoD/AC-4"
+          ],
+          "status": "done",
+          "result": "R1 accepted; R2 accepted; R3 accepted; R4 accepted (new T4 cat -c fix) \u2014 A1 \u2014 FINAL \u2014 tasks amended: T2, T3; added: T4"
+        },
+        {
+          "id": "A2",
+          "source": "implementation",
+          "requested_by": "T2",
+          "requests": [
+            "test-conflict \u2014 D4 (A1) every length = build makes CP.PRG 57 and turns #49 expectedFailure test_cp_then_cat_shows_same_text into unexpected success"
+          ],
+          "result": "accepted by narrowing D4 (only TEXTED/CAT/TEST.B entries change; CP stays 56, follow-up) \u2014 A2 \u2014 FINAL \u2014 tasks amended: T2",
+          "status": "done"
+        }
+      ]
+    },
+    "implementation": {
+      "status": "done",
+      "base_refs": {
+        "bc16": "9aefa13ff181a51f18af28de1c0340b603aee993"
+      }
+    },
+    "verification": {
+      "status": "done",
+      "round": 2,
+      "max_rounds": 3,
+      "history": [
+        {
+          "round": 1,
+          "snapshot": {
+            "bc16": "d4575cee6521e7106ef71e2d8444b3fdc1cbc622"
+          },
+          "gates": {
+            "bc16": {
+              "verify": "ALL PASSED (run_tests.py; verify.sh UNSUPPORTED)",
+              "test_guard": "VERDICT: PASS \u2014 no protected test changed"
+            }
+          },
+          "verdict": "FINDINGS",
+          "findings": [
+            "CODE T1 \u2014 D1 file format not documented in docs/05-bdos.md nor design-decisions.md"
+          ],
+          "action": "rework"
+        },
+        {
+          "round": 2,
+          "snapshot": {
+            "bc16": "2f87a2506ffff29b3595a0d902fb484c53c51d4f"
+          },
+          "gates": {
+            "bc16": {
+              "verify": "ALL PASSED (full suite before docs-only rework; unit re-run after)",
+              "test_guard": "VERDICT: PASS \u2014 no protected test changed"
+            }
+          },
+          "verdict": "PASS",
+          "findings": [],
+          "action": "proceed"
+        }
+      ]
+    },
+    "finalize": {
+      "status": "in_progress",
+      "prior_mode": "bail-out",
+      "pr_urls": [
+        {
+          "repo": "bc16",
+          "pr_url": "https://github.com/bcichonski/bc16/pull/77",
+          "pr_pending": false
+        }
+      ],
+      "mode": "normal-success"
+    },
+    "pr_monitor": {
+      "status": "pending",
+      "repos": {}
+    }
+  },
+  "github": {
+    "repo": "bcichonski/bc16",
+    "story_issue": 47,
+    "story_points_estimated": true,
+    "story_moved_to_development": true,
+    "estimates_posted": true,
+    "estimates": [
+      {
+        "kind": "BE",
+        "repo": "bc16",
+        "estimate_hours": 2.5,
+        "done_hours": 2.5
+      }
+    ],
+    "sub_issues": [],
+    "pending_writes": []
+  },
+  "notes": [
+    "Worktree /c/workspace/bc16-47 off origin/bc64 (main checkout holds owner's uncommitted work); PR base bc64.",
+    "Owner comment on #47: add an e2e smoke test for simple save & reload.",
+    "Issue is labelled bug but has AC; estimated points:5 by comparison with #3/#49 (5).",
+    "Owner (mid-run): 'generate separate issue on that and perhaps stop this fix if the new one also required' -> created #76 (bdio buffered I/O, points:3); #47 bails out blocked on #76.",
+    "TextEd code itself is not correct either (sector-mode open, records not stored, missing-file error never printed), so #47 is still needed after #76.",
+    "Retention: 6 main plans; oldest (#3) has no docs/CHANGELOG.md entry -> deletion skipped (no human to confirm).",
+    "Resumed 2026-11-09: #76 merged (PR #78); merged origin/bc64 into branch; OQ-1 closed, plan FINAL A0. Test baseline moved to bc64@9aefa13 (includes #76's tests). Existing draft PR #77 will be promoted.",
+    "A2 (2026-11-09): T2's second attempt left the tree in the A2 end state (CP 56, ALL PASSED). Instead of a no-op re-dispatch, T2 is confirmed by the wave barrier (test-guard + full suite) against the A2 DoD. Follow-up for the owner: CP.PRG catalog length 56 truncates the 57-sector cp build (cause of #49's expectedFailure cp test) - not filed as an issue (no human approval in this run); reported in PR and story comment."
+  ]
+}

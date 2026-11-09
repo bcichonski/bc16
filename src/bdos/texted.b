@@ -82,7 +82,7 @@ word findPreviousLine(word PtextedVars, word lineNumber)
         //printf("PcurrLine: %w PprevLine: %w currLineNumber: %w prevLineNumber: %w%n", PcurrLine, PprevLine, currLineNumber, prevLineNumber);
     }
 
-    if(currLineNumber >= lineNumber)
+    if((PcurrLine = NULL) || (currLineNumber >= lineNumber))
     {
         PcurrLine <- PprevLine;
     }
@@ -163,17 +163,12 @@ byte insertLineBuf(word PinputBuf, word PtextedVars, word lineNumber)
             prevLineNumber <- #(PprevLine + TELINE_NUMBER);
         }
 
-        if(PprevLine != NULL && (lineNumber > prevLineNumber)) 
+        if((PprevLine != NULL) && (lineNumber > prevLineNumber)) 
         {
             PnextLine <- #(PprevLine + TELINE_PNEXT);
             nextLineNumber <- #(PnextLine + TELINE_NUMBER);
 
-            if (PnextLine = NULL) 
-            {
-                nextLineNumber <- MAXLINENUMBER;
-            }
-
-            if (lineNumber < nextLineNumber) {
+            if ((PnextLine = NULL) || (lineNumber < nextLineNumber)) {
                 poke16(PnewLine + TELINE_PNEXT, PnextLine);
                 poke16(PprevLine + TELINE_PNEXT, PnewLine);
             }
@@ -216,7 +211,7 @@ byte insertLine(word PinputBuf, word PtextedVars, word lineNumber)
     poke16(PinputBuf, 0);
     putdecw(lineNumber);
     puts(" ");
-    readsn(PinputBuf, MAXLINELENGTH);
+    readsn(PinputBuf, MAXLINELENGTH + 1);
 
     return insertLineBuf(PinputBuf, PtextedVars, lineNumber);   
 }
@@ -431,56 +426,28 @@ byte saveLines(word PtextedVars, byte fHandleOut, word Ptextbuf)
     printf("%w lines saved%n", i);
 }
 
-byte saveFile(word PinputBuf, word PtextedVars)
+word fileArg(word PinputBuf, word bufLen, word Pverb)
 {
+    //parses the <file> argument, prints "<verb> <file>..."
+    //returns a new buffer of bufLen bytes holding the normalized file name, or NULL on error
     word Pwstart;
     word Pwend;
-    word Ptextbuf;
-    byte error;
-    byte len;
-    error <- 0;
+    word Pbuf;
 
+    Pbuf <- NULL;
     Pwstart <- strnextword(PinputBuf+1);
     Pwend <- strnextword(Pwstart);
 
     if(Pwstart && Pwend)
     {
-        len <- Pwend - Pwstart;
-
-        if(len <= MAXFILENAMELEN)
+        if((Pwend - Pwstart) <= MAXFILENAMELEN)
         {
-            byte fHandleOut;
-            byte result;
+            poke8(Pwend, NULLCHAR);
+            Pbuf <- malloc(bufLen);
 
-            poke16(Pwend, NULLCHAR);
-            Ptextbuf <- malloc(BDIO_FCAT_ENTRY_NAMELEN + 1);
+            bdio_fnormalize(Pwstart, Pbuf);
 
-            bdio_fnormalize(Pwstart, Ptextbuf);
-
-            printf("saving %s...%n", Pwstart);
-
-            result <- bdio_fcreate(Ptextbuf, BDIO_FILE_ATTRIB_READ | BDIO_FILE_ATTRIB_WRITE);
-            error <- 1;
-
-            if(!result)
-            {
-                fHandleOut <- bdio_fbinopenw(Ptextbuf, BDIO_FOPEN_MODE_BUFFERED);
-                result <- fHandleOut;
-
-                if(fHandleOut < BDIO_FOPEN_FNAME_NOTFOUND)
-                {
-                    saveLines(PtextedVars, fHandleOut, Ptextbuf);
-                    bdio_fclose(fHandleOut);
-                    error <- 0;
-                }
-            }
-
-            mfree(Ptextbuf);
-
-            if(error)
-            {
-                bdio_printexecres(result);
-            }
+            printf("%s %s...%n", Pverb, Pwstart);
         }
         else 
         {
@@ -491,115 +458,165 @@ byte saveFile(word PinputBuf, word PtextedVars)
     {
         putsnl("Error. Expected argument <file>.");
     }
+
+    return Pbuf;
 }
 
-byte readLines(word PtextedVars, byte fHandleIn, word Ptextbuf)
+byte saveFile(word PinputBuf, word PtextedVars)
 {
-    word lineNumber;
-    word PcurrentLine;
-    word PlineText;
-    word PnextToken;
-    word maxLen;
-    word Plinebuf;
+    word Ptextbuf;
+    byte fHandleOut;
     byte result;
-    byte lineLen;
-    byte char;
-    word i;
-    word lines;
 
-    PcurrentLine <- Ptextbuf;
-    result <- 1;
-    
-    maxLen <- MAXLINELENGTH + BDIO_FCAT_ENTRY_NAMELEN;
-    Plinebuf <- malloc(maxLen);
-    lineLen <- 0;
-    lines <- 0;
+    Ptextbuf <- fileArg(PinputBuf, BDIO_FCAT_ENTRY_NAMELEN + 1, "saving");
 
-    while(bdio_fbinbufread(fHandleIn, Ptextbuf, 1)) 
+    if(Ptextbuf)
     {
-        i<-0;
+        result <- bdio_fcreate(Ptextbuf, BDIO_FILE_ATTRIB_READ | BDIO_FILE_ATTRIB_WRITE);
 
-        while(i < BDIO_SECTBUF_LEN) 
+        if(!result)
         {
-            char <- peek8(Ptextbuf + i);
+            fHandleOut <- bdio_fbinopenw(Ptextbuf, BDIO_FOPEN_MODE_BUFFERED);
+            result <- fHandleOut;
 
-            if(lineLen < maxLen) 
+            if(fHandleOut < BDIO_FOPEN_FNAME_NOTFOUND)
             {
-                poke8(Plinebuf + lineLen, char);
-                lineLen <- lineLen + 1;
+                saveLines(PtextedVars, fHandleOut, Ptextbuf);
+                bdio_fclose(fHandleOut);
+                result <- 0;
             }
+        }
 
-            if(char = NULLCHAR || char = CHAR_LF)
+        mfree(Ptextbuf);
+
+        if(result)
+        {
+            bdio_printexecres(result);
+        }
+    }
+}
+
+byte readLines(word PtextedVars, byte fHandleIn, word Pbuf)
+{
+    //file format: records "<line number> <text>" ended by CHAR_LF, NULLCHAR after the last one
+    //records are parsed while the chunks are read, so they may span chunk boundaries
+    //textLen is 0 while the line number is parsed, the text is stored from Pline + 1
+    word Pline;
+    word count;
+    word i;
+    word lineNumber;
+    byte char;
+    byte digits;
+    byte textLen;
+    byte reading;
+
+    Pline <- Pbuf + BDIO_SECTBUF_LEN;
+    lineNumber <- 0;
+    digits <- 0;
+    textLen <- 0;
+    reading <- 1;
+
+    while(reading)
+    {
+        count <- bdio_fbinbufread(fHandleIn, Pbuf, BDIO_SECTBUF_LEN);
+        reading <- count;
+        i <- 0;
+
+        while(reading && (i < count))
+        {
+            char <- peek8(Pbuf + i);
+
+            if((char = NULLCHAR) || (char = CHAR_LF))
             {
-                poke8(Plinebuf + lineLen, NULLCHAR);
+                //records without a valid line number or without text are skipped
+                if(digits && (textLen > 1))
+                {
+                    poke8(Pline + textLen, NULLCHAR);
+                    insertLineBuf(Pline + 1, PtextedVars, lineNumber);
+                }
 
-                putsnl(Plinebuf);
+                reading <- char;
+                lineNumber <- 0;
+                digits <- 0;
+                textLen <- 0;
+            }
+            else
+            {
+                if(textLen)
+                {
+                    //longer text is truncated
+                    if(textLen <= MAXLINELENGTH)
+                    {
+                        poke8(Pline + textLen, char);
+                        textLen <- textLen + 1;
+                    }
+                }
+                else
+                {
+                    textLen <- 1;
 
-                lineLen <- 0;
-                lines <- lines + 1;
+                    if(char != ' ')
+                    {
+                        char <- char - '0';
+
+                        if((char > 9) || (lineNumber > 6553) || ((lineNumber = 6553) && (char > 5)))
+                        {
+                            digits <- 0;
+                        }
+                        else
+                        {
+                            lineNumber <- lineNumber * 10 + char;
+                            digits <- 1;
+                            textLen <- 0;
+                        }
+                    }
+                }
             }
 
             i <- i + 1;
         }
     }
 
-    printf("%w lines loaded%n", lines);
+    printf("%w lines loaded%n", #PtextedVars);
 }
 
 byte loadFile(word PinputBuf, word PtextedVars)
 {
-    word Pwstart;
-    word Pwend;
-    word Ptextbuf;
-    byte error;
-    byte len;
-    error <- 0;
+    word Pbuf;
+    word PcurrentLine;
+    word PnextLine;
+    byte fHandleIn;
 
-    Pwstart <- strnextword(PinputBuf+1);
-    Pwend <- strnextword(Pwstart);
+    //chunk buffer followed by the line buffer, the file name goes first
+    Pbuf <- fileArg(PinputBuf, BDIO_SECTBUF_LEN + MAXLINELENGTH + 2, "loading");
 
-    if(Pwstart && Pwend)
+    if(Pbuf)
     {
-        len <- Pwend - Pwstart;
+        fHandleIn <- bdio_fbinopenr(Pbuf, BDIO_FOPEN_MODE_BUFFERED);
 
-        if(len <= MAXFILENAMELEN)
+        if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
         {
-            byte fHandleIn;
-            byte result;
-
-            poke16(Pwend, NULLCHAR);
-            Ptextbuf <- malloc(BDIO_SECTBUF_LEN + 1);
-
-            bdio_fnormalize(Pwstart, Ptextbuf);
-
-            printf("loading %s...%n", Pwstart);
-
-            fHandleIn <- bdio_fbinopenr(Ptextbuf, BDIO_FOPEN_MODE_SECTOR);
-            result <- fHandleIn;
-
-            if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
+            //load replaces the buffer, but only once the file is open
+            PcurrentLine <- #(PtextedVars + TEVARS_PFIRSTLINE);
+            while(PcurrentLine)
             {
-                readLines(PtextedVars, fHandleIn, Ptextbuf);
-
-                bdio_fclose(fHandleIn);
-                error <- 0;
+                PnextLine <- #(PcurrentLine + TELINE_PNEXT);
+                mfree(PcurrentLine);
+                PcurrentLine <- PnextLine;
             }
-            
-            mfree(Ptextbuf);
+            //TEVARS_TOTALLINES and TEVARS_PFIRSTLINE
+            mzero(PtextedVars, 4);
 
-            if(error)
-            {
-                bdio_printexecres(result);
-            }
+            readLines(PtextedVars, fHandleIn, Pbuf);
+
+            bdio_fclose(fHandleIn);
         }
-        else 
+        else
         {
-            putsnl("Error. <file> too long.");
+            bdio_printexecres(fHandleIn);
         }
-    }
-    else 
-    {
-        putsnl("Error. Expected argument <file>.");
+
+        mfree(Pbuf);
     }
 }
 
@@ -608,10 +625,8 @@ byte mainLoop(word PinputBuf, word PtextedVars)
     byte choice;
     byte continue;
     byte knownCommand;
-    word firstLine;
 
     continue <- 1;
-    firstLine <- NULL;
     
     while(continue) {
         puts("texted>");
@@ -653,7 +668,7 @@ byte mainLoop(word PinputBuf, word PtextedVars)
 
         if(choice = 'H')
         {
-            printf("i <n> <s> - insert new lines starting from line number <n> with step <s>%np <n> <m> - print lines from <n> to <m>%nd <n> <m> - delete lines from <n> to <m>%nl <fname> - loads file%ns <fname> - saves file%nm - memory stats%nh - help%nq - quit%n");
+            printf("i <n> <s> - insert new lines starting from line number <n> with step <s>%np <n> <m> - print lines from <n> to <m>%nd <n> <m> - delete lines from <n> to <m>%nl <fname> - loads file (replaces the buffer)%ns <fname> - saves file%nm - memory stats%nh - help%nq - quit%n");
             knownCommand <- 1;
         }
 
@@ -678,7 +693,7 @@ byte main()
     PtextedVars <- malloc(TEVARS_SIZE);
     poke16(PtextedVars + TEVARS_TOTALLINES, 0);
     poke16(PtextedVars + TEVARS_PFIRSTLINE, NULL);
-    PinputBuf <- malloc(MAXLINELENGTH);
+    PinputBuf <- malloc(MAXLINELENGTH + 1);
 
     mainLoop(PinputBuf, PtextedVars);
 

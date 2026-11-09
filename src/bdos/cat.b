@@ -69,14 +69,11 @@ byte changeDriveIfNeeded(byte currentDrive, byte targetDrive, byte silent)
     return currentDrive;
 }
 
-word printchars(word Pstart, word len)
+word printchars(word Pstart, word len, word linelen)
 {
     byte char;
     word curr;
     curr <- len;
-    byte linelen;
-
-    linelen <- 0;
 
     while(curr)
     {
@@ -116,7 +113,7 @@ word printchars(word Pstart, word len)
         curr <- curr - 1;
     }
 
-    return len;
+    return linelen;
 }
 
 word printbins(word Pstart, word len, word Preladdr)
@@ -140,26 +137,28 @@ word printbins(word Pstart, word len, word Preladdr)
     return len;
 }
 
-byte printbuf(word Pmembuf, word Preladdr, byte options)
+word printbuf(word Pmembuf, word Preladdr, byte options, word linelen)
 {
     word Plast;
     word Pnext;
     Plast <- Pmembuf + BDIO_SECTBUF_LEN;
 
-    while(Pmembuf < Plast)
+    if(options & MODE_CHAR)
     {
-        if(options & MODE_CHAR)
-        {
-            Pnext <- printchars(Pmembuf, CHARPERLINE);
-        }
-        else
+        linelen <- printchars(Pmembuf, BDIO_SECTBUF_LEN, linelen);
+    }
+    else
+    {
+        while(Pmembuf < Plast)
         {
             Pnext <- printbins(Pmembuf, BINPERLINE, Preladdr);
-        }
 
-        Pmembuf <- Pmembuf + Pnext;
-        Preladdr <- Preladdr + Pnext;
+            Pmembuf <- Pmembuf + Pnext;
+            Preladdr <- Preladdr + Pnext;
+        }
     }
+
+    return linelen;
 }
 
 byte printfile(byte sourcedrive, word Psourcefileext, byte options)
@@ -169,6 +168,7 @@ byte printfile(byte sourcedrive, word Psourcefileext, byte options)
     byte fHandleIn;
     byte sectorsread;
     word reladdr;
+    word linelen;
 
     printf("printing %s:%s with options %x...%n", getdriveletter(sourcedrive), Psourcefileext, options);
 
@@ -179,15 +179,19 @@ byte printfile(byte sourcedrive, word Psourcefileext, byte options)
     if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
     {
         reladdr <- 0;
+        linelen <- 0;
         sectorsread <- bdio_fbinread(fHandleIn, INFILEBUF_ADDR, 0x01);
 
         while(sectorsread)
         {
-            printbuf(INFILEBUF_ADDR, reladdr, options);
+            linelen <- printbuf(INFILEBUF_ADDR, reladdr, options, linelen);
             reladdr <- reladdr + BDIO_SECTBUF_LEN;
 
             sectorsread <- bdio_fbinread(fHandleIn, INFILEBUF_ADDR, 0x01);
-            putnl();
+            if((options & MODE_CHAR) = 0)
+            {
+                putnl();
+            }
         }
 
         bdio_fclose(fHandleIn);
