@@ -553,3 +553,15 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - `malloc` (`stdmem.b`) is for user programs, which choose their own `#heap`.
 - **Trade-offs:** hard limits on open files; buffered I/O is limited to one sector of
   buffering per handle.
+
+### D6. TextEd files keep the `0x13` line-end text format (#47, D1)
+- **Purpose:** one stable on-disc format for TextEd text files.
+- **Rationale:** `0x13` is the `CHAR_LF` of both `texted.b` and `cat.b`, so `cat -c` already
+  shows the records as lines (` !ln`); existing files such as `TEST.B` and `saveLines` already
+  use it. Switching to `0x0a` was rejected: it would break those files and `cat -c`, for no gain.
+- **Usage:**
+  - one record per line, `<decimal line number> <text>` followed by `0x13`;
+  - one `0x00` after the last record, then zero padding to the end of the sector;
+  - the loader stops at the first `0x00` or at the end of the file (format details in
+    `docs/05-bdos.md`, TextEd file format).
+- **Trade-offs:** not a plain-text format for host tools, which expect `0x0a` line ends.

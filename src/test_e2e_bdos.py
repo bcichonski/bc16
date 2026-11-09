@@ -5,8 +5,8 @@ import e2e_harness as h
 
 # ~10x the measured need (about 2M instructions for a handful of commands).
 LIMIT = 50000000
-CATALOG_LINES = [b"HELLOWRD.PRG -R-X 0780 11 00 0F", b"TEXTED  .PRG -R-X 3200 2D 00 64",
-                 b"TEST    .B   -RW- 0100 33 04 02"]
+CATALOG_LINES = [b"HELLOWRD.PRG -R-X 0780 11 00 0F", b"TEXTED  .PRG -R-X 3800 2D 00 70",
+                 b"TEST    .B   -RW- 0100 34 00 02"]
 TEST_B_TEXT = [b"10 first line !ln", b"20 second line !ln"]
 
 

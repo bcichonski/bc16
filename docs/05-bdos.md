@@ -76,8 +76,9 @@ directories. Each file is one **contiguous** run of sectors.
 | 6 | `FORMAT.PRG` | 25/0 | 82 | S R X |
 | 7 | `RM.PRG` | 31/0 | 63 | S R X |
 | 8 | `CHA.PRG` | 37/0 | 56 | S R X |
-| 9 | `CAT.PRG` | 41/0 | 61 | S R X |
+| 9 | `CAT.PRG` | 41/0 | 62 | S R X |
 | 10 | `TEXTED.PRG` | 45/0 | 112 | R X |
+| 11 | `TEST.B` | 52/0 | 2 | R W |
 
 The catalog itself is a file: `DISC.CAT`, from track 0 sector 1 to the end of track 1.
 
@@ -213,10 +214,25 @@ Use `-h` for help in each tool. File arguments accept a drive prefix: `[d:]name.
 | `cha` | `cha [+-][SRWX] [d:]name.ext` | set or clear attributes |
 | `format` | `format d: [-q]` | `-q` (quick) writes an empty `DISC.CAT` on a disc that already has the system layout. A full format makes the target a **system disc**: wipes it, copies the boot sector, creates the catalog and copies `BDOS.SYS`, `LS`, `CP`, `FORMAT`, … from the source system disc |
 | `hellowrd` | `hellowrd` | prints "Hello world!" and a number |
-| `texted` | `texted` | TextEd v1.2, a line editor: `i <n> <s>` insert lines from `n` in steps of `s`, `p <n> <m>` print, `d <n> <m>` delete, `l <file>` load, `s <file>` save, `m` memory stats, `h` help, `q` quit |
+| `texted` | `texted` | TextEd v1.2, a line editor: `i <n> <s>` insert lines from `n` in steps of `s`, `p <n> <m>` print, `d <n> <m>` delete, `l <file>` load (replaces the buffer; a missing file prints the bdio error and keeps it), `s <file>` save, `m` memory stats, `h` help, `q` quit |
 
 `calc` (calculator), `theodore` (a "find uncle Theodore" guessing game), `fddtest` and
 `debug` are in the sources but are not built onto the disc.
+
+### TextEd file format
+
+`s <file>` writes, and `l <file>` reads, a text file of records (`saveLines` / `readLines` in
+`texted.b`):
+
+- one record per line: `<decimal line number> <text>`, followed by `0x13`. This is the
+  `CHAR_LF` of `texted.b` and `cat.b`, not `0x0a`;
+- after the last record, one `0x00`;
+- then zero padding to the end of the sector (buffered write, flush-on-close).
+
+`l` replaces the buffer. It reads the file in buffered chunks, so records may span sectors; it
+stops at the first `0x00` or at the end of the file. A record with no valid number or no text
+is skipped, and text longer than the line length is truncated. `cat -c` shows each record
+ending with ` !ln`.
 
 ## Building the system disc
 

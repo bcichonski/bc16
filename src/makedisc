@@ -91,4 +91,7 @@ echo burning cat program
 echo burning texted program
 ./ftool importsector bdos/texted.sectors os.bdd 45 0
 
+echo burning test.b sample file
+./ftool importsector bdos/testb.sectors os.bdd 52 0
+
 echo done!
