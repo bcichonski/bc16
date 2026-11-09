@@ -47,14 +47,17 @@ compiler's grammar notes.
 - The only dependency is `parsy` (`pip install -r requirements.txt`), used by the assembler and
   the compiler and by the tests that cover them.
 - Many sources use **CRLF** line endings (e.g. `bcos.basm`). Keep them when editing.
-- The emulator asks for tape and disk file names on stdin, so running it non-interactively
-  needs piped input. A trace run writes `cpudebug.log` to the working directory; it grows
+- Headless runs: `--disk-a`/`--disk-b` answer the disk prompts, piped stdin (or `--input FILE`)
+  is typed as keys, `--output FILE` captures the printer output, `--max-instructions N` bounds
+  the run and `--tape-dir DIR` sets the tape folder. Options and exit codes are in
+  `docs/01-emulator.md`. A trace run writes `cpudebug.log` to the working directory; it grows
   to gigabytes, so delete it afterwards.
 
 ```bash
 cd src
 ./buildos && ./buildtools && ./buildapps && ./makedisc   # full rebuild of ROM, bdos, utilities, apps, os.bdd
 python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81            # run; enter "os.bdd" for disk A ("d" as 2nd arg = CPU trace)
+printf 'ls\nhellowrd\nexit\n' | python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 --disk-a os.bdd --output out.txt   # headless; use a copy of os.bdd
 ```
 
 Tests, from the repo root:
@@ -70,6 +73,8 @@ cd src && python3 -m unittest bc64.test_cpu.CpuTests.test_CLC16_opcodes    # one
 ```
 
 Each suite uses flat imports, so run it from its own directory, as above.
+The emulator suite also runs `src/test_bc64_smoke.py`, which boots `os.bdd` on a copy and checks a
+headless session end to end.
 
 There is no linter. Test status is not recorded in the docs; `python3 run_tests.py` is the check.
 

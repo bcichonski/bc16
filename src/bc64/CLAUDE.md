@@ -10,6 +10,7 @@ live next to the code: `src/bc64/test_*.py` (`src/test_ftool.py` for `ftool.py`)
 python3 -m unittest discover -s . -t . -p "test_*.py"             # all emulator tests (all suites: ../run_tests.py)
 python3 -m unittest bc64.test_cpu.CpuTests.test_CLC16_opcodes    # a single test
 python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 [d]                # run; "d" (any 2nd arg) = per-instruction trace
+printf 'ls\nhellowrd\nexit\n' | python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 --disk-a os.bdd --output out.txt   # headless (keys from stdin); use a copy of os.bdd
 ```
 
 `src/bc81asmc/bc81asmc_opcode_agreement_tests.py` checks the CPU against the assembler for every opcode form.
@@ -40,6 +41,11 @@ not failures. See `docs/01-emulator.md`, Known quirks.
   The floppy writes and reads `MemBus` directly (DMA).
 - All host access (console, files, logging) goes through `bc64_env.Environment`. Keep
   devices free of direct `open`/`print` calls.
+- `bc64_env.ScriptedEnvironment` is the headless environment. `bc64.py` (`make_env`) picks it when
+  any headless option is given or stdin is not a terminal. It answers `Disk A/B name:` from
+  `--disk-a`/`--disk-b` without reading input, reads keys from the input with each line ending
+  as one CR, raises `EndOfInput` at the end (caught in `main`, exit 0), resolves `.btap` names in
+  `--tape-dir`, and copies printer bytes to `--output`. The console `Environment` is unchanged.
 
 ## Rules
 

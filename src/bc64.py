@@ -4,7 +4,8 @@ from bc64 import bc64_io
 from bc64 import bc8183_cpu
 from bc64 import bc64_mem
 from bc64 import bc64_env
-from sys import argv
+import argparse
+import sys
 
 TOPMEM = 0xffff
 
@@ -28,17 +29,100 @@ class Bc64:
 
         self.cpu = bc8183_cpu.Bc8183(self.mem, self.io, debug)
 
-    def run(self):
-        self.cpu.run()
+    def run(self, max_instructions=None):
+        """Run until KIL. Returns True on KIL, False when max_instructions was reached first."""
+        if max_instructions is None:
+            self.cpu.run()
+            return True
+        cpu = self.cpu
+        count = 0
+        try:
+            cpu.inc_pc(0)
+            cpu.print_context()
+            while not cpu.kill:
+                if count >= max_instructions:
+                    return False
+                cpu.run_next_opcode()
+                count += 1
+            cpu.print_debug(f"====================== KILL at {cpu.pc.get():04x}")
+            return True
+        finally:
+            cpu.flush_debug()
+
+EXIT_OK = 0
+EXIT_LIMIT = 3
+
+def positive_int(text):
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid integer: {text!r}")
+    if value < 1:
+        raise argparse.ArgumentTypeError("must be at least 1")
+    return value
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        prog='bc64.py',
+        description='bc64 emulator. With a terminal on stdin and no option the console is used; '
+                    'with any option, or with piped stdin, the scripted (headless) environment is used '
+                    'and keys are read from stdin unless --input FILE is given.')
+    parser.add_argument('rom', nargs='?', help='ROM image loaded at 0x0000')
+    parser.add_argument('trace', nargs='?', help='any word here turns the per-instruction trace on')
+    parser.add_argument('--disk-a', metavar='FILE', help='disk image answered to the "Disk A name:" prompt')
+    parser.add_argument('--disk-b', metavar='FILE', help='disk image answered to the "Disk B name:" prompt')
+    parser.add_argument('--tape-dir', metavar='DIR', help='directory where *.btap tape files are read and written')
+    parser.add_argument('--input', metavar='FILE',
+                        help='file with the keystrokes to type; "-" reads stdin (the default when stdin is piped)')
+    parser.add_argument('--output', metavar='FILE', help='file receiving a copy of every printer byte')
+    parser.add_argument('--max-instructions', metavar='N', type=positive_int,
+                        help='stop with exit code 3 after N instructions without a halt')
+    return parser
+
+def stdin_is_tty():
+    try:
+        return sys.stdin.isatty()
+    except (AttributeError, ValueError):
+        return False
+
+def is_headless(args):
+    return stdin_is_tty() is False or any(value is not None for value in (
+        args.disk_a, args.disk_b, args.tape_dir, args.input, args.output, args.max_instructions))
+
+def make_env(args, trace):
+    if not is_headless(args):
+        return bc64_env.Environment()
+    input_source = args.input
+    if input_source is None and not stdin_is_tty():
+        input_source = '-'
+    return bc64_env.ScriptedEnvironment(
+        debug=trace, disk_a=args.disk_a, disk_b=args.disk_b, tape_dir=args.tape_dir,
+        input_source=input_source, output_path=args.output)
 
 def main(argv):
-    env = bc64_env.Environment()
-    computer = Bc64(env, len(argv) >= 3)
-    if len(argv) >= 2:
-        import_rom(argv[1], env, computer.mem)
-    computer.mem.write_byte(TOPMEM-1, 0xff)
-    computer.run()
-    dump_mem('bc64.dmp', env, computer.mem)
+    """Runs the emulator. argv includes the program name. Returns the exit code:
+    0 halt or end of input, 3 instruction limit; 2 usage error (SystemExit from argparse);
+    an exception in the emulator propagates (Python exits with 1)."""
+    args = build_parser().parse_args(argv[1:])
+    trace = args.trace is not None
+    env = make_env(args, trace)
+    try:
+        computer = Bc64(env, trace)
+        if args.rom is not None:
+            import_rom(args.rom, env, computer.mem)
+        computer.mem.write_byte(TOPMEM-1, 0xff)
+        try:
+            halted = computer.run(args.max_instructions)
+        except bc64_env.EndOfInput:
+            return EXIT_OK
+        if not halted:
+            print(f"bc64: stopped after {args.max_instructions} instructions without a halt", file=sys.stderr)
+            return EXIT_LIMIT
+        dump_mem('bc64.dmp', env, computer.mem)
+        return EXIT_OK
+    finally:
+        if hasattr(env, 'close'):
+            env.close()
 
 def dump_mem(file, env, mem):
     fhandle = env.open_file_to_write(file)
@@ -60,4 +144,4 @@ def import_rom(file, env, mem):
     env.close_file(fhandle)
 
 if __name__ == "__main__":
-    main(argv)
+    sys.exit(main(sys.argv))
