@@ -1,0 +1,129 @@
+name: tests
+
+on:
+  push:
+    branches: [bc64]
+  pull_request:
+    branches: [bc64]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.14"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Unit tests
+        run: python run_tests.py --group unit < /dev/null
+
+      - name: Guard (no cpudebug.log, release/ untouched)
+        if: always()
+        shell: bash
+        run: |
+          status=0
+          if [ -n "$(find . -name cpudebug.log -print)" ]; then
+            echo "::error::cpudebug.log found in the checkout"
+            find . -name cpudebug.log -print
+            status=1
+          fi
+          if [ -n "$(git status --porcelain -- release/)" ]; then
+            echo "::error::release/ has changes"
+            git status --porcelain -- release/
+            status=1
+          fi
+          exit "$status"
+
+  e2e:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Refresh frozen smoke disc and transcript
+        shell: bash
+        working-directory: src
+        run: |
+          set -euo pipefail
+          src_dir="$PWD"
+          cp os.bdd bc64/testdata/smoke.bdd
+          tmp="$(mktemp -d)"
+          cp bc64/testdata/smoke.bdd "$tmp/os.bdd"
+          (
+            cd "$tmp"
+            python "$src_dir/bc64.py" "$src_dir/bc81asmc/bcOS/bcos_v1_2_0.b81" --disk-a os.bdd \
+              --input "$src_dir/bc64/testdata/smoke_session.txt" \
+              --output "$src_dir/bc64/testdata/smoke_transcript.txt" \
+              --max-instructions 200000000 < /dev/null
+          )
+          rm -rf "$tmp"
+
+      - name: Check the frozen smoke disc and transcript are current
+        run: git diff --exit-code src/bc64/testdata/
+
+      - name: E2E tests
+        run: python run_tests.py --group e2e < /dev/null
+
+      - name: Regenerate goldens and collect patch
+        if: failure()
+        shell: bash
+        run: |
+          (cd src && BC64_UPDATE_GOLDEN=1 python -m unittest test_e2e_bcos test_e2e_bdos test_e2e_toolchain < /dev/null) || true
+          git diff --binary src/bc64/testdata/ > "$RUNNER_TEMP/testdata.patch" || true
+          ls -l "$RUNNER_TEMP/testdata.patch"
+
+      - name: Upload golden patch and testdata
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-golden-diff
+          path: |
+            ${{ runner.temp }}/testdata.patch
+            src/bc64/testdata/
+          if-no-files-found: warn
+
+      - name: Guard (no cpudebug.log, release/ untouched)
+        if: always()
+        shell: bash
+        run: |
+          status=0
+          if [ -n "$(find . -name cpudebug.log -print)" ]; then
+            echo "::error::cpudebug.log found in the checkout"
+            find . -name cpudebug.log -print
+            status=1
+          fi
+          if [ -n "$(git status --porcelain -- release/)" ]; then
+            echo "::error::release/ has changes"
+            git status --porcelain -- release/
+            status=1
+          fi
+          exit "$status"
