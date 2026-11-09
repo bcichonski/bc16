@@ -129,8 +129,8 @@ In B, `#include bdosh.b` and use the wrappers:
 | `0x15` | `bdio_fclose(h)` | flushes and updates the catalog entry | status |
 | `0x16` | `bdio_fdelete(Pname)` | remove the catalog entry | status |
 | `0x17` | `bdio_fsetattr(Pname, attribs)` | change attributes | status |
-| `0x18` | `bdio_fbinbufread(h, Pbuf, bytes)` | buffered byte-count read (the length goes through `0x0d92`) | bytes read (`0` = error/EOF) |
-| `0x19` | `bdio_fbinbufwrite(h, Pbuf, bytes)` | buffered byte-count write | bytes written |
+| `0x18` | `bdio_fbinbufread(h, Pbuf, bytes)` | buffered byte-count read (the length goes through `0x0d92`) | bytes copied, `1..length` (`0` = EOF, `length` 0, or not buffered) |
+| `0x19` | `bdio_fbinbufwrite(h, Pbuf, bytes)` | buffered byte-count write | bytes accepted (`length`; `0` = not buffered) |
 
 - **File names:** `Pname` is the 11-character catalog form `NAME    EXT` (space-padded, no
   dot). `bdio_fnormalize` (bdostools.b) converts `name.ext` to that form.
@@ -140,6 +140,25 @@ In B, `#include bdosh.b` and use the wrappers:
   direct / `0x0b` buffered).
 - **Shell-only functions:** `bdio_ffindfile`, `bdio_getfreesect`, `bdio_execute` and
   `bdio_freemem` are used by the shell and are not reachable through `bdio_call`.
+
+### Buffered I/O
+
+Buffered handles (`0x18` / `0x19`, open mode `1`) work on byte counts, not whole sectors.
+
+- **Read (`0x18`)**: returns the bytes copied, `1..length`. It returns fewer than `length` only
+  when the end of the file is reached during the call. It returns `0` at the end of the file, for
+  `length = 0`, or for a handle that is not buffered. Read chunks may be `1..128` bytes (any `word`
+  value works).
+- **Write (`0x19`)**: returns the bytes accepted, which is `length` on success, or `0` for a handle
+  that is not buffered. Write chunks may be any length.
+- **Caller buffer**: must hold `length` bytes.
+- **Flush**: data reaches the disc as each 128-byte sector fills (flush-on-full). The rest is written
+  by `bdio_fclose` (flush-on-close), and the final sector is zero-padded.
+- **File length** is whole sectors. A buffered reader gets the zero padding bytes after the last
+  written byte, before the `0` at the end of the file.
+- **Buffer counter** (one byte per handle): on a read handle, the bytes of the current buffer
+  already consumed (`128` = used up; a freshly opened read handle starts at `128`). On a write
+  handle, the bytes pending (`0..127` between calls).
 
 ### Result and error codes (bdioh.b)
 
