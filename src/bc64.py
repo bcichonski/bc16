@@ -10,14 +10,17 @@ import sys
 TOPMEM = 0xffff
 
 class Bc64:
-    def __init__(self, env, debug):
+    def __init__(self, env, debug, no_floppy=False):
         self.mem = bc64_mem.MemBus(env, TOPMEM)
         self.keyboard = bc64_io.TerminalKeyboard(env)
         self.printer = bc64_io.TerminalPrinter(env)
         self.taperecorder = bc64_io.TapeRecorder(env)
         self.clock = bc64_io.Clock(env)
         self.randgen = bc64_io.RandomGenerator(env)
-        self.floppydrive = bc64_io.FloppyDriveV1(env, self.mem)
+        if no_floppy:
+            self.floppydrive = bc64_io.NoFloppyDrive()
+        else:
+            self.floppydrive = bc64_io.FloppyDriveV1(env, self.mem)
         
         self.io = bc64_io.IOBus()
         self.io.add_device(self.keyboard)
@@ -71,6 +74,8 @@ def build_parser():
     parser.add_argument('trace', nargs='?', help='any word here turns the per-instruction trace on')
     parser.add_argument('--disk-a', metavar='FILE', help='disk image answered to the "Disk A name:" prompt')
     parser.add_argument('--disk-b', metavar='FILE', help='disk image answered to the "Disk B name:" prompt')
+    parser.add_argument('--no-floppy', action='store_true',
+                        help='do not attach a floppy drive (port 0x08 reads 0x00); conflicts with --disk-a and --disk-b')
     parser.add_argument('--tape-dir', metavar='DIR', help='directory where *.btap tape files are read and written')
     parser.add_argument('--input', metavar='FILE',
                         help='file with the keystrokes to type; "-" reads stdin (the default when stdin is piped)')
@@ -79,6 +84,13 @@ def build_parser():
                         help='stop with exit code 3 after N instructions without a halt')
     return parser
 
+def parse_args(argv):
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.no_floppy and (args.disk_a is not None or args.disk_b is not None):
+        parser.error('--no-floppy cannot be combined with --disk-a or --disk-b')
+    return args
+
 def stdin_is_tty():
     try:
         return sys.stdin.isatty()
@@ -86,7 +98,7 @@ def stdin_is_tty():
         return False
 
 def is_headless(args):
-    return stdin_is_tty() is False or any(value is not None for value in (
+    return stdin_is_tty() is False or args.no_floppy or any(value is not None for value in (
         args.disk_a, args.disk_b, args.tape_dir, args.input, args.output, args.max_instructions))
 
 def make_env(args, trace):
@@ -103,11 +115,11 @@ def main(argv):
     """Runs the emulator. argv includes the program name. Returns the exit code:
     0 halt or end of input, 3 instruction limit; 2 usage error (SystemExit from argparse);
     an exception in the emulator propagates (Python exits with 1)."""
-    args = build_parser().parse_args(argv[1:])
+    args = parse_args(argv[1:])
     trace = args.trace is not None
     env = make_env(args, trace)
     try:
-        computer = Bc64(env, trace)
+        computer = Bc64(env, trace, args.no_floppy)
         if args.rom is not None:
             import_rom(args.rom, env, computer.mem)
         computer.mem.write_byte(TOPMEM-1, 0xff)

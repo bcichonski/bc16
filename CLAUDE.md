@@ -49,7 +49,8 @@ compiler's grammar notes.
 - Many sources use **CRLF** line endings (e.g. `bcos.basm`). Keep them when editing.
 - Headless runs: `--disk-a`/`--disk-b` answer the disk prompts, piped stdin (or `--input FILE`)
   is typed as keys, `--output FILE` captures the printer output, `--max-instructions N` bounds
-  the run and `--tape-dir DIR` sets the tape folder. Options and exit codes are in
+  the run and `--tape-dir DIR` sets the tape folder. `--no-floppy` starts bcOS with no floppy drive,
+  straight to the monitor; it can't be combined with `--disk-a`/`--disk-b`. Options and exit codes are in
   `docs/01-emulator.md`. A trace run writes `cpudebug.log` to the working directory; it grows
   to gigabytes, so delete it afterwards.
 
@@ -64,7 +65,7 @@ Tests, from the repo root:
 
 ```bash
 pip install -r requirements.txt                          # parsy, needed by the assembler and compiler tests
-python3 run_tests.py                                     # all suites: emulator, assembler, compiler (exit 0 = pass)
+python3 run_tests.py < /dev/null                         # all suites: emulator (incl. e2e), assembler, compiler (exit 0 = pass)
 
 cd src && python3 -m unittest discover -s . -t . -p "test_*.py"   # one suite: emulator (+ ftool)
 cd src/bc81asmc && python3 -m unittest discover -s . -t . -p "*_tests.py"   # one suite: assembler
@@ -73,6 +74,11 @@ cd src && python3 -m unittest bc64.test_cpu.CpuTests.test_CLC16_opcodes    # one
 ```
 
 Each suite uses flat imports, so run it from its own directory, as above.
+`python3 run_tests.py` includes the e2e scenarios (`src/test_e2e_*.py`, see `docs/01-emulator.md`), and it
+is the check, also for `/grind`. After an intended change in bcOS or bdos output, regenerate the goldens with
+`cd src && BC64_UPDATE_GOLDEN=1 python3 -m unittest test_e2e_bdos` (or another e2e module), then review them
+by eye before committing.
+
 The emulator suite also runs `src/test_bc64_smoke.py`. It boots a frozen disc
 (`src/bc64/testdata/smoke.bdd`) and compares the session byte for byte with a committed transcript,
 and it boots the current `src/os.bdd` and checks only output that survives a rebuild. For a

@@ -225,6 +225,14 @@ The catalog isn't generated. It comes from the hand-made `src/fcat0800.sector`, 
 track 0 sector 1, and the start tracks are hard-coded in `makedisc`. If a program grows past
 its slot, both have to be edited by hand.
 
+## Testing
+
+The shell is tested end to end in `src/test_e2e_bdos.py`. The scripts `src/bc64/testdata/e2e/bdos_*.in.txt`
+boot a frozen copy of the system disc (`smoke.bdd`) and check the output of `ls`, `cat`, `hellowrd`, `rm`
+and the error messages. `cp` is a known failure: `cp test.b copy.b` reads keys until the input runs out,
+so the test is marked `expectedFailure` (found by #49, issue not filed yet). See `docs/01-emulator.md`,
+End-to-end tests.
+
 ## Roadmap (from README / bdos.md)
 
 - **bdos 1.1b / 2.0:** use the real-time clock for file dates in the catalog, store load

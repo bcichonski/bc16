@@ -215,5 +215,21 @@ class RandomGeneratorTests(unittest.TestCase):
             self.assertEqual(val, value)
             self.assertEqual(rnd.calls, [(0x00, 0xff)])
 
+class NoFloppyDriveTests(unittest.TestCase):
+    def test_should_read_zero_and_ignore_writes_on_port_8(self):
+        #given
+        io = bc64_io.IOBus()
+        io.add_device(bc64_io.NoFloppyDrive())
+        port = bc64_io.FloppyDriveV1.DEFAULT_IO_PORT
+
+        #when
+        io.write_byte(port, 0xf0)
+        io.write_byte(port, 0x55)
+
+        #then
+        self.assertEqual(port, 0x08)
+        self.assertEqual(io.read_byte(port), 0x00)
+        self.assertEqual(io.read_byte(port), 0x00)
+
 if __name__ == '__main__':
     unittest.main()
