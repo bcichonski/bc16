@@ -241,6 +241,28 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Trade-offs:** long automated runs take longer; a web build on WebAssembly will be
   slower still.
 
+### E7. Headless mode runs the emulator from the command line with scripted input and output
+- **Purpose:** a script can drive a whole bcOS session (boot a disc, type commands, capture the
+  printer output), so tests and CI can run the real system.
+- **Rationale:** the console needs a terminal and a person (raw `getch`, prompts on the
+  console), so the system could only be tested by hand. Headless mode is a separate
+  environment, so the console path stays as it was.
+- **Usage:**
+  - options: `--disk-a`/`--disk-b` (prompt answers), `--tape-dir`, `--input` (`-` for stdin),
+    `--output`, `--max-instructions`; headless when one of them is given or stdin is not a
+    terminal, and piped stdin is typed as keys;
+  - `ScriptedEnvironment` in `bc64_env.py` is one class built from the options; each feature
+    is optional and independent;
+  - every line ending in the input becomes one CR, the Enter key;
+  - end of input is a clean stop with exit 0 and no memory dump; the dump stays on `KIL`;
+  - exit codes: 0 halt or end of input, 1 exception, 2 usage error, 3 instruction limit;
+  - `--max-instructions` switches to a limited run loop; without it `cpu.run()` is used as is;
+  - disk prompts are matched by their text (`Disk A name:`).
+- **Trade-offs:** the console and headless paths must be kept in step; a halt and end of input
+  both exit 0, so a script must check its output as well as the code; the limited run loop
+  repeats the CPU's run loop in `bc64.py`, so a change to `cpu.run()` must be mirrored there;
+  prompt matching depends on the device's prompt text.
+
 ---
 
 ## Assembler (`src/bc81asmc/`)

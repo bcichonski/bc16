@@ -30,10 +30,107 @@ python bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 d      # any 2nd argument turns on 
 - With trace on, the CPU appends the registers after every instruction to `cpudebug.log` in
   the current directory. This file grows very large very fast.
 - When the CPU halts (`KIL`), the whole memory is written to `bc64.dmp`.
-- Keyboard input reads one character at a time with no echo (`msvcrt.getch` on Windows,
-  `termios` raw mode elsewhere). Printer output goes to stdout.
+- On a terminal, keyboard input reads one character at a time with no echo (`msvcrt.getch` on
+  Windows, `termios` raw mode elsewhere). In headless mode the keys come from the input instead
+  (see below). Printer output goes to stdout, or to `--output` when given.
 - The repo's shell scripts call `winpty python …`, because they were written for Git Bash on
   Windows. On Linux or macOS, call `python` directly.
+
+### Options
+
+| Option | Meaning |
+|---|---|
+| `--disk-a FILE` | disk image answered to the `Disk A name:` prompt |
+| `--disk-b FILE` | disk image answered to the `Disk B name:` prompt |
+| `--tape-dir DIR` | directory where `*.btap` tape files are read and written |
+| `--input FILE` | file with the keystrokes to type; `-` reads stdin (the default when stdin is piped) |
+| `--output FILE` | file that receives a copy of every printer byte |
+| `--max-instructions N` | stop with exit code 3 after `N` instructions (at least 1) without a halt |
+| `-h`, `--help` | list the options |
+
+All options are optional and can be combined.
+
+### Console and headless mode
+
+- **Console** (the default when stdin is a terminal and no option is given): the keyboard is
+  read with raw `getch`, and the disk and tape names are asked on the console.
+- **Headless** (any option other than `--help`, or stdin is not a terminal): keys come from
+  `--input FILE`, or from stdin when it is piped or redirected (`< keys.txt`). Printer output
+  goes to stdout, and also to `--output` when given.
+
+### Keys and Enter
+
+- Every line ending in the key input (`LF`, `CR LF` or `CR`) is sent as one **CR** (`0x0d`),
+  which is what Enter sends. Other bytes are sent as they are. Keys arrive one at a time, not
+  line by line.
+- A script is therefore an ordinary text file with one command per line.
+
+### Prompts in headless mode
+
+- `--disk-a` and `--disk-b` answer the `Disk A name:` / `Disk B name:` prompt every time the
+  drive asks, so the answer still works after `EJECT`. As in the console, `.bdd` is added when
+  the name does not end with it.
+- Any other prompt, and a disk prompt for a drive with no option, takes the next line of the
+  input. So `printf 'os.bdd\nls\n' | python3 bc64.py ROM` mounts `os.bdd` and then types `ls`.
+
+### End of input
+
+- When the emulator needs a key or a prompt answer after the last line of the input, it stops
+  cleanly: exit code 0, output file closed, no memory dump. A program that is still waiting for
+  keys stops at that point.
+- A session that ends with `exit` halts the CPU, so it still writes `bc64.dmp`.
+
+### Tape files
+
+- With `--tape-dir DIR`, every relative `.btap` name is opened inside `DIR`. The recorder adds
+  `.btap` to the name typed at the prompt, so `test` means `DIR/test.btap`. Absolute names are
+  used as they are, and disk images are not affected. Without the option, tape files are in
+  the current directory.
+
+### Exit codes
+
+| Code | Meaning |
+|---|---|
+| 0 | the CPU halted (`KIL`; memory is dumped to `bc64.dmp`), or the input ended (no dump) |
+| 1 | an exception in the emulator (the CPU prints the address and stack, Python the traceback) |
+| 2 | usage error (argparse message, e.g. `--max-instructions 0`) |
+| 3 | `--max-instructions` reached without a halt (message on stderr, no dump) |
+
+### Example session
+
+From `src/`:
+
+```bash
+printf 'ls\nhellowrd\nexit\n' | python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 --disk-a os.bdd --output out.txt
+```
+
+This boots bcOS from the ROM, mounts `os.bdd` as drive A, runs `ls` and `hellowrd`, and exits.
+`out.txt` then holds the printer output, including the typed commands:
+
+```
+bcOS 1.2
+booting from FDDlding
+bDOS 1.1 shell
+9FF5 bytes free
+reading disc...
+A>ls
+........
+listing files of drive A:
+HELLOWRD.PRG -R-X 0780 11 00 0F
+TEXTED  .PRG -R-X 3200 2D 00 64
+TEST    .B   -RW- 0100 33 04 02
+EB catalog entries free; 00D6 sectors free...
+A>hellowrd
+..
+Hello world!
+10
+A>exit
+bye!
+```
+
+The disc is opened read-write, so a session can change it. This example leaves `os.bdd`
+unchanged, but a program may not. Use a copy of `os.bdd` for tests. `out.txt` and `bc64.dmp`
+are written to the working directory too.
 
 ## Memory
 
@@ -112,8 +209,9 @@ always comes from a register (`out #ci, a`) or a 4-bit immediate on `IN`.
 
 ### Port 0x2: cassette tape recorder
 
-The tape is a host file `<name>.btap` in the current directory. The recorder asks for the
-name on the console when a tape is opened. One tape bit is stored as one byte (`0x00`/`0x01`),
+The tape is a host file `<name>.btap` in the current directory, or in the `--tape-dir` folder
+(see [Running it](#running-it)). The recorder asks for the name when a tape is opened: on the
+console, or from the next input line in headless mode. One tape bit is stored as one byte (`0x00`/`0x01`),
 LSB first, so a `.btap` file is 8× the size of its data.
 
 Command byte written to the port. The `TX` bit `0x02` must be set; the first matching bit

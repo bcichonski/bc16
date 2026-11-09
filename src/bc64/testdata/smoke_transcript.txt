@@ -1,0 +1,33 @@
+bcOS 1.2
+booting from FDDlding
+bDOS 1.1 shell
+9FF5 bytes free
+reading disc...
+A>ls
+........
+listing files of drive A:
+HELLOWRD.PRG -R-X 0780 11 00 0F
+TEXTED  .PRG -R-X 3200 2D 00 64
+TEST    .B   -RW- 0100 33 04 02
+EB catalog entries free; 00D6 sectors free...
+A>cat -c test.b
+.......
+printing A:TEST    B   with options 10...
+10 first line !ln
+20 second line !ln
+30 very loooooooooooooooooooooooooooooooooooongline !ln
+40 another looooooooooooooooooooooooooooooooooo#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00
+ooooooooooooooooooooooooooooooong !ln
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00
+
+A>hellowrd
+..
+Hello world!
+10
+A>exit
+bye!
+
