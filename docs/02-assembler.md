@@ -67,6 +67,7 @@ label:   mnemonic operands   ; comment
 | `.db v, v, …` | emit bytes. Each `v` is `0xHH`, `'string'` (raw chars, add `0x00` yourself) or `:label` (2 bytes, big-endian address) |
 | `.mv pair, :label` | load a 16-bit label address into a pair. Expands to `mov hi,imm8` + `mov lo,imm8` (4 bytes) |
 | `.def name, 0xHHHH` | define a constant, used like a label (`:name`). Good for fixed addresses such as `bdos_bootaddr` |
+| `.assert :a OP :b` or `.assert :a OP 0xHHHH` (also `0xHH`) | check a comparison at build time. `OP` is one of `=`, `!=`, `<`, `<=`, `>`, `>=`; an operand is a `:name` (label or `.def`) or a literal. Emits no bytes; a label on the line gets the current address. A failure stops the build (see [Errors](#errors)) |
 
 ### How the two passes work
 
@@ -75,6 +76,8 @@ Pass 2 patches the placeholders with the high byte, low byte, 7-bit relative or 
 relative value. If a `jmr` target is more than ±127 bytes away, or a `jrx`/`clr` target is
 more than ±32767 bytes away, the assembler reports an error at that reference. Pass 1 and
 pass 2 keep going after such an error, so every problem is reported in one run (see [Errors](#errors)).
+Pass 2 then evaluates every `.assert` line, after all placeholders are patched, so an assert may
+name a label defined later in the file. Asserts emit nothing, so they never move an address.
 
 Relative offsets are stored as **sign-magnitude**: bit 7 (or bit 15) is the sign and the
 other bits are the magnitude. They are not two's complement.
@@ -114,6 +117,7 @@ cal :nowhere
 | relative range, 15-bit | `label ':name' too far away for relative 15bit jump (n bytes)` | the `:` of the target | `jrx` and `clr` (±32767 bytes) |
 | overflow | `code exceeds the 64 KB address space (past 0xffff)` | the first non-blank character of the line that crosses the limit | reported once per run |
 | unencodable line | `cannot encode 'line': reason` | the first non-blank character of the line | the line contributes no bytes and assembly goes on (e.g. `clr af`) |
+| assertion failed | `assertion failed: <left> <op> <right> (0xLLLL <op> 0xRRRR)`, e.g. `assertion failed: :os_metacall = 0x0008 (0x0009 = 0x0008)` | the first non-blank character of the `.assert` line | the operands as written, then their resolved values. Every failed assert is reported. An undefined operand gives `undefined label` at its `:` instead, and that assert is not evaluated |
 
 Pass 1 and pass 2 keep going after an error and report every problem they find, sorted by
 position. The syntax error is the exception: parsing is all-or-nothing, so only the first one

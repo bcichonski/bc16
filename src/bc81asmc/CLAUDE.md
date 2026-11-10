@@ -28,7 +28,10 @@ The diagnostics tests are `bc81asmc_diag_tests.py` (records, formatter, parse-er
      error;
   2. `compile()` in `bc81asmc.py` patches each placeholder by kind (`hi`, `lo`, `lorel`
      7-bit, `rel15`). An undefined label (one error per use) and an out-of-range relative jump
-     are collected as positioned errors; references that resolve are patched as before.
+     are collected as positioned errors; references that resolve are patched as before;
+  3. `.assert` lines (no bytes) are evaluated after patching, so forward references work. A failed
+     assert is an `assertion failed` diagnostic; an undefined operand is an `undefined label` error
+     and no assertion diagnostic.
 
   `.def` constants and labels share one namespace, so a clash is a duplicate error. A reference
   looks up `.def` first, then the label. A symbol is undefined only when it is in neither table,
@@ -37,7 +40,7 @@ The diagnostics tests are `bc81asmc_diag_tests.py` (records, formatter, parse-er
   message), `AssemblerError` (carries every diagnostic; `compile()` raises it), the formatter
   (`file:line:col: error: ...`, source line, caret) and the conversion of a parsy `ParseError`.
   Node positions are attributes (`lineno`, `col`), not dataclass fields, so node equality is
-  unchanged. A new check (e.g. the `.assert` of #8) must append a `Diagnostic` and raise through
+  unchanged. A new check (e.g. the `.assert` evaluation, #8) must append a `Diagnostic` and raise through
   this module, never `print` or raise a bare exception. Only `main()` prints and exits.
 - Output is a `.btap` file: a 24-byte preamble (`00 ff 00 ff bc 05`, org, length, name),
   then every byte expanded to 8 bit-bytes, LSB first.

@@ -23,8 +23,8 @@ The compiler and its tests run on Linux, macOS and Windows with Python >= 3.10 (
 
 - `bc.py preprocess()` handles `#include` (resolved relative to the **main** file's
   directory), `#define` (plain text replace, longer names first, applied inside strings and
-  `asm` too), `#code` / `#heap` (module globals for the code and heap addresses), and drops
-  `//` lines.
+  `asm` too), `#code` / `#heap` (module globals for the code and heap addresses), `#codelimit`
+  (reset on every `preprocess()`, so it does not leak between compiles), and drops `//` lines.
 - `bc_grammar.py` (parsy) builds the AST from `bc_ast.py`. Each node's `emit(context)`
   appends assembly text to `Context.basm`. `PROGRAM.emit` prepends the entry point; then the
   data segment and `bc_stdlib.py` (asm runtime, a format template with `{0}`/`{1}`

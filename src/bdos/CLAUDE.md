@@ -45,10 +45,10 @@ python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81     # (or `bc64 ...`) boot; enter 
   the dispatcher.
 - **Memory map:**
   - `bdos.b` is `#code 0x0f00` and must end below the file buffers at `BDIO_FDESCBUF_ADDR`
-    (`0x5d00`). Check the end address in the `.btap` preamble after a build.
+    (`0x5d00`). `bdos.b` sets `#codelimit 0x5d00`, so the assembler checks this at build time.
   - User programs are `#code 0x6000` (`BDIO_USERMEM`). Moving that means changing every
     program's `#code` line.
-  - The `#heap` value is chosen per program.
+  - The `#heap` value is chosen per program. The build asserts every program's image ends below it.
 - **New or larger program on the disc:**
   1. add it to `buildtools`/`buildapps`;
   2. add it to `makedisc` (both the `btap2bin` and the `importsector` lines) at a free start

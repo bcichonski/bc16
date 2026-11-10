@@ -24,7 +24,7 @@ Reference: [../02-assembler.md](../02-assembler.md). Decisions: A1–A6, G5 in
 
 | # | Problem | Evidence | Impact | Issue |
 |---|---|---|---|---|
-| 1 | No guards for the address contracts | bcOS must end below `0x0d80` (21 bytes left); `os_metacall` must stay at `0x0008`; `bdos` must end below `0x5d00` | an overflow corrupts memory silently at run time | #8 |
+| 1 | No guards for the address contracts | bcOS must end below `0x0d80` (21 bytes left); `os_metacall` must stay at `0x0008`; `bdos` must end below `0x5d00` | an overflow corrupts memory silently at run time | #8 (done; bcOS asserts in #30) |
 | 2 | No listing or symbol output | only `.btap` is written | addresses of labels have to be read from `--verbose` console output; traces can't show symbols | #9 |
 | 3 | Poor error messages | a parse error is a raw parsy `ParseError` with a character index (the compiler prints line context; the assembler doesn't); an undefined label raises a `KeyError` | slow debugging, especially of generated `.basm` | #10 (done) |
 | 4 | Opcodes duplicated with the CPU | `Bc8183` constants in `bc81asmc_ast.py` vs `bc8183_cpu.py`. There's even a typo'd constant name (`CLC_SUN16`) | drift risk | #5 |
@@ -40,10 +40,10 @@ issue also contains the matching proposal below.
 
 ### Next steps
 
-1. **`.assert` directive** (#8, problem 1), e.g. `.assert :user_mem < 0x0d80` and
-   `.assert :os_metacall = 0x0008`, evaluated in pass 2. Add asserts to `bcos.basm` and
-   `boot.basm`, and let the compiler emit one for `#code`-based programs (code end <
-   `#heap`). This enforces design decisions G1/G2 cheaply.
+1. **`.assert` directive** (#8, problem 1; done in #8, the bcOS asserts follow in #30), e.g.
+   `.assert :user_mem < 0x0d80` and `.assert :os_metacall = 0x0008`, evaluated in pass 2. Add asserts
+   to `bcos.basm` (#30) and `boot.basm` (done), and let the compiler emit one for `#code`-based
+   programs (code end < `#heap`, done). This enforces design decisions G1/G2 cheaply.
 2. **Listing and map output** (#9, problem 2; `--lst`, `--map`): address, bytes and source
    per line, and a sorted symbol table. Useful for the emulator debugger and for checking ABI
    addresses in review. Decided: `.lst`/`.map` are committed with the other build outputs

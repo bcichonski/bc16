@@ -47,6 +47,9 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 
   Constants live in `bdioh.b`, `boot.basm`, and each program's `#code`/`#heap`. A change
   to the map is a cross-cutting story: update all of them plus `docs/05-bdos.md`.
+  The map is checked at build time: `boot.basm` asserts the boot sector size (`<= 0x0e80`), the
+  compiler asserts every program's image ends below its `#heap` and `bdos.b` ends below `0x5d00`
+  (`#codelimit`), and bcOS's asserts follow once #30 lands (#8).
 - **Trade-offs:** one program at a time. Growth in bcOS or bdos forces coordinated address
   moves.
 
@@ -325,6 +328,7 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - label operands are recorded as `(addr, label, kind)` with kind `hi`, `lo`, `lorel`
     or `rel15`;
   - out-of-range relative targets are positioned errors (A6);
+  - `.assert` lines are evaluated in pass 2, after the patching, so they may use forward references (#8);
   - `.def` gives fixed external addresses (e.g. `os_metacall`, `bdos_bootaddr`) and is
     referenced like a label, `:name`; it shares the label namespace, so a repeated name is
     an error (A6).
@@ -336,7 +340,9 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Rationale:** high-level structure belongs in the B compiler. The assembler is a
   near-1:1 mapping of the encoding.
 - **Usage:**
-  - the only directives are `.org`, `.db`, `.mv` (label → register pair) and `.def`;
+  - the only directives are `.org`, `.db`, `.mv` (label → register pair), `.def` and `.assert`;
+  - `.assert` is the one exception to "no expressions": it is a build-time check, not an expression
+    language. It compares two operands (a `:name` or a literal, no arithmetic) and emits no bytes (#8);
   - lowercase only;
   - fixed-width hex: `0xHH`, `0xHHHH`, `#0xH`;
   - generated `.basm` must follow the same rules.
@@ -375,6 +381,8 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - the header is `<file>:<line>:<col>: error: <message>`, followed by the source line and a `^`
     caret; a tab counts as one column;
   - new checks report through `bc81asmc_diag.py` (see `src/bc81asmc/CLAUDE.md`);
+  - a failed `.assert` is an `assertion failed: <l> <op> <r> (0xLLLL <op> 0xRRRR)` diagnostic at the
+    first non-blank character of its line, reported with the other pass-2 errors (#8);
   - exit status `1` on any error, and no output file; `--verbose` adds the traceback after the
     diagnostics (`docs/02-assembler.md`, Errors).
 - **Trade-offs:** only the first syntax error is shown per run. A duplicate definition now fails

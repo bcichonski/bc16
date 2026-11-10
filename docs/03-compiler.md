@@ -48,6 +48,7 @@ The preprocessor works line by line, before parsing:
 | `#define NAME value` | plain text replacement in every later line. `value` is the last space-separated token. Longer names are replaced first, and replacement also applies inside strings and `asm` text |
 | `#code 0xHHHH` | address of the code (`.org`). Default `0x1000`; bdos programs use `0x6000` |
 | `#heap 0xHHHH` | start of the heap used by `malloc`. Default `0x3000` |
+| `#codelimit 0xHHHH` | optional second limit: the program's image must end below this address. Reset for every compile, so it has no default. `bdos.b` uses `0x5d00` |
 | `// …` | a line starting with `//` is dropped |
 
 ## Language
@@ -153,7 +154,11 @@ byte printf(word PformatStr)*** // variadic: extra args become word params P1, P
   implements `malloc`/`mfree` on top of it.
 - **Program layout:** the output is laid out in this order: `.org #code`, the entry point
   (init stackhead and heaphead, `cal main`, `ret`), the functions, the data segment
-  (strings), the runtime stdlib, `sys_heaphead`, then `sys_stackhead`.
+  (strings), the runtime stdlib, `sys_heaphead`, then `sys_stackhead`, then the `sys_codeend` label.
+- **Build-time checks:** the last line is `sys_codeend: .assert :sys_codeend < 0x<heap>`, so the
+  assembler fails the build if the image reaches the `#heap` address. The label costs no bytes.
+  With `#codelimit 0xHHHH`, a second line `.assert :sys_codeend < 0xHHHH` checks the same label
+  against that limit. A failure is reported as `assertion failed` (see [02-assembler.md](02-assembler.md)).
 
 ### Runtime stdlib (`bc_stdlib.py`, assembly)
 
