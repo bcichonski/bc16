@@ -32,6 +32,7 @@ if SRC_DIR not in sys.path:
 
 import parsy  # noqa: E402
 import bc81asmc_ast as asm_ast  # noqa: E402
+import bc81asmc_diag as asm_diag  # noqa: E402
 import bc81asmc_grammar as asm_grammar  # noqa: E402
 from bc64 import bc8183_cpu  # noqa: E402
 from bc64 import bc64_env  # noqa: E402
@@ -490,9 +491,12 @@ class PinnedFindingsTests(unittest.TestCase):
                     asm_grammar.program.parse(text + "\n")
 
     def test_clr_af_fails_to_assemble(self):
-        # D7: `clr af` is accepted by the grammar but REG2BIN('') raises KeyError.
-        with self.assertRaises(KeyError):
+        # D7/D6: `clr af` is accepted by the grammar but cannot be encoded; it is now
+        # a positioned assembler error instead of a bare KeyError.
+        with self.assertRaises(asm_diag.AssemblerError) as cm:
             assemble(['clr af'])
+        self.assertEqual([(d.line, d.column) for d in cm.exception.diagnostics], [(1, 1)])
+        self.assertIn('cannot encode', str(cm.exception))
 
     def test_call_and_return_round_trip(self):
         ast, code, labels = assemble(['cal :sub', 'kil', 'sub: ret'])
