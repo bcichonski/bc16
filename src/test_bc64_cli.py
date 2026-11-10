@@ -252,6 +252,24 @@ class RunTests(unittest.TestCase):
             self.assertEqual(f.read(), b"Hi")
 
 
+    def test_halt_dump_is_the_full_64_kb_ending_in_kil(self):
+        result = self.run_bc64(self.rom(KIL))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        with open(os.path.join(self.tmp, "bc64.dmp"), "rb") as f:
+            dump = f.read()
+        self.assertEqual(len(dump), 0x10000)
+        self.assertEqual(dump[0xffff], 0xff)
+        self.assertEqual(dump[0xfffe], 0x00)
+
+    def test_rom_starting_with_ret_stops_cleanly_with_exit_zero(self):
+        result = self.run_bc64(self.rom(bytes([0xb0])))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertTrue(self.dump_exists())
+        self.assertNotIn(b"Traceback", result.stderr)
+        self.assertIn(b"RET", result.stderr)
+        self.assertIn(b"empty stack", result.stderr)
+        self.assertEqual(result.stdout, b"")
+
 class _Bytes:
     """Minimal binary file-like object."""
     def __init__(self, data):

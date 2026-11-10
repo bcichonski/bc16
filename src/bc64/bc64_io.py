@@ -376,7 +376,7 @@ class FloppyDriveV1(IODevice):
 
         dmaaddr = self.dmaaddr
         for byte in bytes:
-            self.mem.write_byte(dmaaddr, byte & 0xff)
+            self.mem.write_byte(dmaaddr & 0xffff, byte & 0xff)
             dmaaddr += 1
 
         return (handle, name, FloppyDriveV1.STATE_READY)
@@ -390,7 +390,7 @@ class FloppyDriveV1(IODevice):
 
         i = 0
         while (i < FloppyDriveV1.SECTOR_SIZE):
-            bytes[i] = self.mem.read_byte(self.dmaaddr + i)
+            bytes[i] = self.mem.read_byte((self.dmaaddr + i) & 0xffff)
             i += 1
 
         position = self.track * FloppyDriveV1.SECTORS * FloppyDriveV1.SECTOR_SIZE + self.sector * FloppyDriveV1.SECTOR_SIZE
