@@ -10,13 +10,14 @@ sys.setrecursionlimit(2000)
 
 codeSegment = 0x1000
 heapSegment = 0x3000
+codeLimit = None
 
 def read_input_file(fname):
     with open(fname, 'r', encoding='utf8') as file_handle:
         return file_handle.read()
 
 def compile(ast, verbose):
-    context = Context(codeSegment, heapSegment, False)
+    context = Context(codeSegment, heapSegment, False, codeLimit)
     
     if(verbose):
         print("{}".format(ast))
@@ -42,6 +43,9 @@ def save_output_file(fname, code):
 def preprocess(input, verbose, defaultdir):
     if verbose:
         print('Preprocessing file')
+
+    global codeLimit
+    codeLimit = None  # #codelimit is per compile, unlike #code/#heap
 
     lines = input.splitlines()
 
@@ -70,6 +74,13 @@ def preprocess(input, verbose, defaultdir):
             for contentline in content.splitlines():
                 lines.insert(i + j, contentline)
                 j += 1
+            i += 1
+            continue
+
+        if(newline.startswith('#codelimit')):
+            addr = newline[11:]
+            codeLimit = int(addr, 16)
+            print('Code limit was set to 0x{0:04x}'.format(codeLimit));
             i += 1
             continue
 

@@ -388,9 +388,25 @@ dDEF = lexeme(seq(lexeme(string('.def')) >> lexeme(seq(pos, ident).combine(sourc
             heximm16).combine(DEF))\
         .desc('.def directive')
 
+class Literal(str):
+  # a hex literal operand of .assert as written; `value` is its integer value
+  value = 0
+
+def literal(text):
+  lit = Literal(text)
+  lit.value = int(text, 16)
+  return lit
+
+assertoperand = lexeme(labelstr | regex(r'0x[0-9a-fA-F]{4}').map(literal) | regex(r'0x[0-9a-fA-F]{2}').map(literal))\
+    .desc('label or hex literal')
+assertop = lexeme(string('<=') | string('>=') | string('!=') | string('<') | string('>') | string('='))\
+    .desc('comparison operator')
+dASSERT = lexeme(seq(lexeme(string('.assert')) >> assertoperand, assertop, assertoperand).combine(ASSERT))\
+        .desc('.assert directive')
+
 mnemonic = mNOP | mINC | mDEC | mNOT16 | mINC16 | mDEC16 | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | \
            mCLC | mJMP | mJMR | mKIL | mCAL | mCLR | mRET | mIN | mOUT | mPSH | mPOP | mJRX
-directive = dORG | dDB | dMV | dDEF
+directive = dORG | dDB | dMV | dDEF | dASSERT
 label = lexeme(seq(pos, ident << colon).combine(sourcename))
 instruction = mnemonic | directive
 linecomment = (ignore >> comment).map(LineComment)

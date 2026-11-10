@@ -1,5 +1,7 @@
 #code 0x0f00
 #heap 0x5fd0
+// Code must end below BDIO_FDESCBUF_ADDR (0x5d00); checked at assembly time
+#codelimit 0x5d00
 
 #include std.b
 #include strings.b

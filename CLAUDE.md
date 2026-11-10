@@ -132,7 +132,8 @@ without the other and the system breaks silently.
   - `0xffff`: `KIL` (reserved, written by the emulator at start-up)
 
   These values are spread over `boot.basm`, `bdioh.b`, `bdos.b`, and the `#code`/`#heap`
-  line of every program.
+  line of every program. The map is asserted at build time: `boot.basm` and the compiler (image end
+  below `#heap`, `bdos.b` via `#codelimit`); bcOS follows in #30.
 - **Disk layout:** the boot loader's sector range, the hand-made catalog
   `src/fcat0800.sector` and the fixed program tracks in `src/makedisc` must agree.
 
