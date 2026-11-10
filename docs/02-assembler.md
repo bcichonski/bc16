@@ -18,8 +18,9 @@
 ## Usage
 
 ```bash
-pip install parsy
-python bc81asmc/bc81asmc.py [--verbose] path/to/file.basm
+pip install -e .                                  # once, from the repo root: parsy + the console commands
+bc81asmc [--verbose] path/to/file.basm           # from any directory
+python bc81asmc/bc81asmc.py [--verbose] path/to/file.basm   # the same, from src/
 ```
 
 - The output is always `path/to/file.btap`, a tape image. The `--btap` flag is accepted but

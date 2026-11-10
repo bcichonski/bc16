@@ -7,6 +7,7 @@ Reference: `docs/02-assembler.md` has the syntax and full instruction encoding.
 
 ```bash
 cd src && python3 bc81asmc/bc81asmc.py --verbose path/file.basm   # -> path/file.btap (always btap)
+bc81asmc --verbose path/file.basm                                 # same via the console command (`pip install -e .`), any directory
 cd src/bc81asmc && python3 -m unittest discover -s . -t . -p "*_tests.py"   # grammar and emit tests (silent)
 cd src/bc81asmc && python3 -m unittest bc81asmc_tests.TestGrammar.test_hex_imm8
 ```

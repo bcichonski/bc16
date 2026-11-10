@@ -44,8 +44,12 @@ compiler's grammar notes.
   `winpty` is on `PATH`, otherwise `python3`.
 - **Python imports are flat** (`from bc64 import …`, `from bc_ast import *`), so the
   working directory matters. See the commands below.
-- The only dependency is `parsy` (`pip install -r requirements.txt`), used by the assembler and
-  the compiler and by the tests that cover them.
+- The only dependency is `parsy`, used by the assembler and the compiler and by the tests that
+  cover them. The root `pyproject.toml` (Python >= 3.10) declares it; `pip install -e .` (in a
+  venv, from the repo root) installs it and the console commands `bc64`, `bc81asmc`, `bcc` and
+  `ftool` (launchers in `src/bc64_toolchain.py`, editable install only). The commands work from
+  any directory and take the scripts' arguments; `bcc path/name` takes the path without `.b` and
+  compiles + assembles like `./bcc`. The `python3 path/script.py` forms below stay valid.
 - Many sources use **CRLF** line endings (e.g. `bcos.basm`). Keep them when editing.
 - Headless runs: `--disk-a`/`--disk-b` answer the disk prompts, piped stdin (or `--input FILE`)
   is typed as keys, `--output FILE` captures the printer output, `--max-instructions N` bounds
@@ -64,7 +68,7 @@ printf 'ls\nhellowrd\nexit\n' | python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 --
 Tests, from the repo root:
 
 ```bash
-pip install -r requirements.txt                          # parsy, needed by the assembler and compiler tests
+pip install -e .                                         # parsy, needed by the assembler and compiler tests, plus the console commands
 python3 run_tests.py < /dev/null                         # all suites: emulator, ftool, assembler, compiler, e2e (exit 0 = pass)
 python3 run_tests.py --group unit < /dev/null            # unit suites only: emulator, ftool, assembler, compiler
 python3 run_tests.py --group e2e < /dev/null             # e2e suite only
@@ -92,7 +96,8 @@ There is no linter. `python3 run_tests.py` is the local check; CI runs it on Git
 ## CI
 
 The `tests` workflow (`.github/workflows/tests.yml`) runs on every push and PR to `bc64`:
-- job `unit` runs `python run_tests.py --group unit` on Python 3.10 and 3.14;
+- both jobs install with `pip install -e .`; job `unit` also runs the four console commands from outside the checkout;
+- job `unit` then runs `python run_tests.py --group unit` on Python 3.10 and 3.14;
 - job `e2e` (Python 3.14, after `unit`) refreshes `smoke.bdd` from `os.bdd` and regenerates the smoke
   transcript, fails on any diff in `src/bc64/testdata/`, then runs `python run_tests.py --group e2e`.
   On failure it uploads the `e2e-golden-diff` artifact (regenerated goldens and their patch).

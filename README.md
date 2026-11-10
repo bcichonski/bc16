@@ -4,6 +4,19 @@ Detailed documentation of the current BC64 (emulator, assembler, compiler, bcOS,
 
 [![tests](https://github.com/bcichonski/bc16/actions/workflows/tests.yml/badge.svg?branch=bc64)](https://github.com/bcichonski/bc16/actions/workflows/tests.yml)
 
+# Getting started
+
+Needs Python 3.10 or newer. From the repo root:
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -e .                                # installs parsy and the bc64, bc81asmc, bcc and ftool commands
+cd src
+bc64 bc81asmc/bcOS/bcos_v1_2_0.b81              # run the emulator; at the "Disk A name:" prompt enter: os.bdd
+bcc bdos/helloworld                             # build a program: helloworld.b -> .basm -> .btap
+cd .. && python run_tests.py                    # run all the tests
+```
+
 # BC64
 ## roadmap
 0. memory increased to 64kb

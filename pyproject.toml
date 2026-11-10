@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bc64"
+version = "1.0.0"
+description = "bc8183 homebrew computer toolchain: bc64 emulator, bc81asmc assembler, bc B compiler and ftool"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+dependencies = ["parsy>=2.2,<3"]
+
+[project.scripts]
+bc64 = "bc64_toolchain:bc64"
+bc81asmc = "bc64_toolchain:bc81asmc"
+bcc = "bc64_toolchain:bcc"
+ftool = "bc64_toolchain:ftool"
+
+# The tools use flat imports and run from the source tree: only the launcher is packaged
+# (install with "pip install -e ."), everything else is found next to it.
+[tool.setuptools]
+package-dir = { "" = "src" }
+py-modules = ["bc64_toolchain"]

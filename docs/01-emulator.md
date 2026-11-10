@@ -20,6 +20,7 @@ Older generations are frozen in `release/bc16_v1.0` (bc8181/8182 CPU, 16 KB, tap
 From `src/`:
 
 ```bash
+bc64 bc81asmc/bcOS/bcos_v1_2_0.b81                 # after `pip install -e .` (repo root), works from any directory
 python bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81        # normal run (this is what ./run does)
 python bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 d      # any 2nd argument turns on CPU trace
 ```

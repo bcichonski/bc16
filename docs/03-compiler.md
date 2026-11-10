@@ -21,6 +21,8 @@ From `src/`:
 
 ```bash
 ./bcc bdos/helloworld          # compile helloworld.b -> .basm, then assemble -> .btap
+bcc bdos/helloworld            # the same console command (after `pip install -e .`), any directory;
+                               # the path is given without .b, relative to the current directory
 ```
 
 That is the same as running:

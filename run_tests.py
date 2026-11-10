@@ -171,7 +171,7 @@ def main(argv=None, suites=None, runner=run_suite, environ=None):
     if not check_parsy():
         sys.stderr.write(
             "parsy is not installed for %s.\n"
-            "Install it with: pip install -r requirements.txt\n" % sys.executable)
+            "Install it with: pip install -e .\n" % sys.executable)
         return 1
 
     if suites is None:
