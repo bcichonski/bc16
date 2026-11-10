@@ -54,7 +54,8 @@ For each program the repo also keeps generated files: `*.genb` (preprocessed), `
 | `0x5d00–0x5eff` | per-handle 128-byte buffers for buffered I/O (write handle, then 3 read handles) |
 | `0x5fd0` | bdos heap; `0x5fe0` is a temporary file-name buffer |
 | `0x6000` | **user memory**: `.PRG` programs are loaded and run here (`#code 0x6000`) |
-| `… 0xfffe` | CPU stack, growing downwards from the top of memory |
+| `… 0xfffe` | CPU stack, growing downwards from `0xfffe` |
+| `0xffff` | `KIL` (reserved, written by the emulator at start-up): running into it halts the CPU |
 
 Free memory, as reported by `bdio_freemem()`, is `SS:SI − 0x6000`, a little under 40 KB.
 

@@ -48,7 +48,9 @@ and `src/test_e2e_harness.py` (harness self-tests). The harness is `src/e2e_harn
 and not a test. Scripts and goldens are in `src/bc64/testdata/e2e/` (`<scenario>.in.txt`,
 `<scenario>.golden.txt`). Regenerate with `BC64_UPDATE_GOLDEN=1`, e.g. `cd src && BC64_UPDATE_GOLDEN=1
 python3 -m unittest test_e2e_bdos`, then review the diff. Long scenarios need `BC64_E2E_SLOW=1`. Scripts
-must not use `q` or a bad-argument command followed by more commands (both crash the CPU). The known
+must not use `q` or a bad-argument command followed by more commands. `q` ends the session with
+`fatal error F0 at FF0C` and a bcOS `KIL` (exit 0); a bad-argument command such as `d 00` ends it with an
+empty-stack `RET` stop (exit 0, a stderr line). Either one may only be the last command. The known
 failures (tape round trip, `cp`) are `expectedFailure` tests; see `docs/01-emulator.md`.
 
 ## How it works
@@ -94,4 +96,6 @@ failures (tape round trip, `cp`) are `expectedFailure` tests; see `docs/01-emula
   - `FloppyDriveV1.write_byte` sets `self.setate` (a typo).
 
   If you fix one, check that the assembler and compiler output still matches.
-- `TOPMEM = 0xffff` makes memory 65535 bytes, so `0xffff` itself is out of range.
+- Memory is 65,536 bytes (`0x0000–0xffff`): `MEMORY_SIZE = 0x10000`, `TOP_ADDRESS = 0xffff`
+  holds `KIL` (written by `Bc64.write_top_kil()` after the ROM load), `STACK_TOP = 0xfffe`. A stack access
+  outside memory stops the CPU like `KIL` (stderr line, exit 0); floppy DMA wraps with `& 0xffff`.

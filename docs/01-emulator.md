@@ -29,7 +29,8 @@ python bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 d      # any 2nd argument turns on 
   `./ftool btap2bin <in.btap> <out.b81>`.
 - With trace on, the CPU appends the registers after every instruction to `cpudebug.log` in
   the current directory. This file grows very large very fast.
-- When the CPU halts (`KIL`), the whole memory is written to `bc64.dmp`.
+- When the CPU halts (`KIL`, or a stack access outside memory, see Memory), the whole memory is
+  written to `bc64.dmp`, 65,536 bytes.
 - On a terminal, keyboard input reads one character at a time with no echo (`msvcrt.getch` on
   Windows, `termios` raw mode elsewhere). In headless mode the keys come from the input instead
   (see below). Printer output goes to stdout, or to `--output` when given.
@@ -99,7 +100,7 @@ All options are optional and can be combined.
 
 | Code | Meaning |
 |---|---|
-| 0 | the CPU halted (`KIL`; memory is dumped to `bc64.dmp`), or the input ended (no dump) |
+| 0 | the CPU halted (`KIL`, or a stack access outside memory; memory is dumped to `bc64.dmp`), or the input ended (no dump) |
 | 1 | an exception in the emulator (the CPU prints the address and stack, Python the traceback) |
 | 2 | usage error (argparse message, e.g. `--max-instructions 0`) |
 | 3 | `--max-instructions` reached without a halt (message on stderr, no dump) |
@@ -197,8 +198,10 @@ writes the same bytes.
 ### Adding a scenario
 
 1. Write the script `src/bc64/testdata/e2e/<name>.in.txt`: one command per line. A bdos script ends
-   with `exit`; the monitor stops cleanly at the end of its input. Scripts must avoid `q` and a
-   bad-argument command (e.g. `d 00`) followed by more commands, because both crash the CPU today.
+   with `exit`; the monitor stops cleanly at the end of its input. `q` ends the session with
+   `fatal error F0 at FF0C` and a bcOS `KIL` (exit 0). A bad-argument command such as `d 00` ends
+   it with an empty-stack `RET` stop (exit 0, a line on stderr). Scripts may use either one only as
+   the last command.
 2. Add a test method to the module for that area. Call `check_golden` with the marker strings the
    output must contain, e.g. `A>ls` or `Hello world!`.
 3. Generate the golden with `BC64_UPDATE_GOLDEN=1 python3 -m unittest <module>`, then read it.
@@ -217,12 +220,18 @@ When a fix lands, the test reports an unexpected success: remove its decorator t
 
 ## Memory
 
-- One flat address space with 16-bit addresses. `TOPMEM = 0xffff`, so the bytearray holds
-  65535 bytes (addresses `0x0000`–`0xfffe`).
+- One flat address space with 16-bit addresses: 65,536 bytes (`0x0000`–`0xffff`). Three
+  constants in `bc64.py` name it: the memory size `0x10000`, the top address `0xffff` and the
+  stack top `0xfffe`.
 - There is no ROM write protection. The OS image is just loaded into RAM at `0x0000`.
-- At startup the CPU stack pointer `SS:SI` is `0xfffe`, and the emulator writes `0xff` at
-  `0xfffe`.
-- One device (the floppy drive) writes to and reads from memory directly (DMA).
+- At startup the CPU stack pointer `SS:SI` is `0xfffe`, and the emulator writes `0xff` (`KIL`)
+  at `0xffff` after the ROM load. Jumping to `0xffff`, or running into it, halts the CPU.
+- The CPU stack grows downwards from `0xfffe`. A stack instruction (`PSH`, `POP`, `CAL`, `RET`)
+  that would read past the top of memory (an empty stack) or write below `0x0000` (overflow)
+  stops the CPU cleanly, like `KIL`: nothing is changed, the PC stays on the instruction, and one
+  line goes to stderr. The exit code is 0 and `bc64.dmp` is written.
+- One device (the floppy drive) writes to and reads from memory directly (DMA). Its addresses wrap
+  at `0xffff`, so a transfer past the top continues at `0x0000`.
 
 ## The bc8183 CPU
 
@@ -376,5 +385,3 @@ and names the issue.
   undecided, pinned by a test).
 - `FloppyDriveV1.write_byte` sets `self.setate` (a typo) on an unknown command, so the
   failure state is never actually set (#4).
-- The emulator memory is `TOPMEM = 0xffff` bytes, not 64 KB, so `0xffff` is not addressable
-  (#7).

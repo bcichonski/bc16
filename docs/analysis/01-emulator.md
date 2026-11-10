@@ -35,7 +35,7 @@ Reference: [../01-emulator.md](../01-emulator.md). Decisions: E1–E6, G8 in
 | 3 | Latent bugs | `op_EXT` checks the `JRX` negation bit in the wrong nibble; `FloppyDriveV1` `self.setate` typo; division by zero crashes Python; `OUT #r, imm` encoding mismatch (an assembler fix, #11) | a trap for the first program that uses these | #4 |
 | 4 | Failing test | `test_CLR_opcodes` | the suite isn't green, so a regression can't be told apart from the known failure | #4 |
 | 5 | Opcode constants duplicated in the assembler | `bc8183_cpu.py` vs `bc81asmc_ast.py` | encoding drift between the CPU and the tools | #5 |
-| 6 | **Memory is 65,535 bytes, not 64 KB** | `TOPMEM = 0xffff` is used as the size → `bytearray(0xffff)`; the stack starts at `0xfffe` | address `0xffff` can't be used; off by one against the docs. It must be the full `0x0000–0xffff` | #7 |
+| 6 | ~~**Memory was one byte short of 64 KB**~~ (done, #7) | `TOPMEM = 0xffff` was used as the size → `bytearray(0xffff)`; the stack starts at `0xfffe` | fixed: the memory is the full `0x0000–0xffff` (65,536 bytes) | #7 |
 | 7 | Release copies diverge | `release/bc32_v1.0/bc32/` contains a full older copy | fixes aren't shared (by design, G9), but confusing | |
 
 ## Proposals
@@ -49,9 +49,9 @@ Reference: [../01-emulator.md](../01-emulator.md). Decisions: E1–E6, G8 in
 2. **Fixes** (#4): `test_CLR_opcodes` (the test or `op_CAL`), the `JRX` negation bit, the FDD
    `setate` typo. Add tests for negated `jrx` and for `div`/`mod` by zero, which should set a
    flag or halt cleanly rather than crash.
-3. **Full 64 KB memory** (#7): 65,536 bytes, `0x0000–0xffff`. Decided: the stack keeps
-   starting at `0xfffe`, and `0xffff` holds `KIL` (`0xff`) as the ultimate stop; a `ret` or
-   `pop` on an empty stack stops just as cleanly. No other address in the memory map moves.
+3. ~~**Full 64 KB memory** (#7)~~ (done): 65,536 bytes, `0x0000–0xffff`. The stack starts at
+   `0xfffe`, and `0xffff` holds `KIL` (`0xff`) as the ultimate stop; a `ret` or `pop` on an empty
+   stack stops just as cleanly. No other address in the memory map moved.
 
 ### Improvements
 
