@@ -1176,7 +1176,7 @@ exec_load:     cal :nextword
                jmr z,:exec_load_addr
 exec_load_pr1: mov a, 0x03
                cal :error
-exec_load_end: ret
+exec_load_err: ret
 exec_load_def: xor a
                mov cs, a
                mov ci, a

@@ -22,7 +22,7 @@ byte strpoke8(word Paddr, byte value)
     asm "mov #csci, a";
 }
 
-word strnextword(word Pstring) 
+word strnextwordnull(word Pstring) 
 {
     //returns pointer to the next word in string, or NULLCHAR if not found
     Pstring;
