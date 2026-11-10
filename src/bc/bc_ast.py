@@ -103,12 +103,13 @@ class Scope:
         return sum
 
 class Context:
-    def __init__(self, codeaddr = 0x0000, heapaddr = 0x3000, hardkill = True):
+    def __init__(self, codeaddr = 0x0000, heapaddr = 0x3000, hardkill = True, codelimit = None):
         self.data = ''
         self.basm = ''
         self.errors = []
         self.code_segment_addr = codeaddr
         self.heap_segment_addr = heapaddr
+        self.code_limit_addr = codelimit
         self.scope = Scope(self)
         self.nextident = 0
         self.function_dict = { }
@@ -241,6 +242,10 @@ class Context:
 
     def add_stdlib(self):
         self.emit(stdlib_template.format(STACKHEAD, HEAPHEAD, hi(self.heap_segment_addr), lo(self.heap_segment_addr)))
+        # End-of-image label on the first assert line (costs no bytes), then the optional #codelimit assert
+        self.emit('sys_codeend: .assert :sys_codeend < 0x{0:04x}\n'.format(self.heap_segment_addr))
+        if self.code_limit_addr is not None:
+            self.emit('.assert :sys_codeend < 0x{0:04x}\n'.format(self.code_limit_addr))
         
 class Instruction:
     def __str__(self):

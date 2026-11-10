@@ -1150,3 +1150,4 @@ sys_stdprntf:.db 0x00, 0x00
 sys_seektmp: .db 0x00, 0x00 
 sys_heaphead:  .db 0xf0, 0x00
 sys_stackhead: nop
+sys_codeend: .assert :sys_codeend < 0xf000
