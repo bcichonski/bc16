@@ -29,8 +29,9 @@ Project process files:
   bc64.py emulator ◄── bcOS ROM at 0x0000 ──boots──► bdos from os.bdd ──runs──► .PRG at 0x6000
 ```
 
-Quick start, from `src/` (needs Python 3 and `pip install parsy`):
+Quick start (needs Python >= 3.10; in a venv run `pip install -e .` once from the repo root), from `src/`:
 
 ```bash
-python bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81    # at the "Disk A name:" prompt enter: os.bdd
+bc64 bc81asmc/bcOS/bcos_v1_2_0.b81              # at the "Disk A name:" prompt enter: os.bdd
+python bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81    # the same without installing the commands (needs parsy)
 ```

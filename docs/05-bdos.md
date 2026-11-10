@@ -247,6 +247,9 @@ From `src/` (the scripts use `winpty`; drop it outside Git Bash for Windows):
 ./run          # start the emulator; enter "os.bdd" when asked for the disk name
 ```
 
+A single program can also be built with the console command `bcc bdos/ls` (after
+`pip install -e .`), and the emulator started with `bc64 bc81asmc/bcOS/bcos_v1_2_0.b81`.
+
 `makedisc` uses `ftool.py`:
 
 | Command | Effect |

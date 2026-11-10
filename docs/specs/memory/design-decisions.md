@@ -143,8 +143,10 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - scripts and imports assume `src/` as the working directory;
   - keep the tools runnable on Linux as well as Git Bash (the `winpty` wrappers are a known
     wart).
-- **Trade-offs:** slow emulation and no packaging. Windows-only leftovers (`winpty`, still used
-  by the other scripts; `bcc` falls back to `python3`) need cleaning up.
+- **Trade-offs:** slow emulation. Packaging is a root `pyproject.toml` (Python >= 3.10, `parsy`
+  only) with the console commands `bc64`, `bc81asmc`, `bcc`, `ftool`; the flat-import tools stay in
+  `src/`, only a launcher is packaged (editable install). Windows-only leftovers (`winpty`, still
+  used by the bash scripts; `bcc` falls back to `python3`) need cleaning up.
 
 ### G11. One test runner; tests are silent and deterministic; known bugs are `expectedFailure` tests
 - **Purpose:** one command gives one pass/fail signal for the whole stack, and known defects
@@ -155,7 +157,7 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   as a result, not as log output, so a passing test prints nothing and does not depend on time,
   test order or files left in the tree.
 - **Usage:**
-  - `pip install -r requirements.txt`, then `python3 run_tests.py` from the repo root runs every
+  - `pip install -e .`, then `python3 run_tests.py` from the repo root runs every
     suite (CPython 3.10 and 3.13+ are both checked before a test or code change lands);
   - a test module is silent on a passing run: turn debug output off in the module rather than
     filtering it. Temporary files come from `tempfile`;
