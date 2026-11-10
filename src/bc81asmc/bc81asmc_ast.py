@@ -732,6 +732,15 @@ class DEF(Directive):
         context.set_const(self.lbl, self.value)
         
 
+@dataclass
+class ASSERT(Directive):
+    left : str
+    op : str
+    right : str
+    def __str__(self):
+        return ".ASSERT {0} {1} {2}".format(self.left, self.op, self.right)
+    # emits nothing: evaluated by compile() in pass 2
+
 def LINE(label, token, comment):
     if label:
         token.set_label(label)

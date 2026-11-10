@@ -66,3 +66,4 @@ bd_boot_error:     mov a, 0x02
                    cal :bd_boot_oscall
                    kil
 bd_diskver:        .db 0xbd, 0x05, 0x01, 0x01
+bd_end:            .assert :bd_end <= 0x0e80

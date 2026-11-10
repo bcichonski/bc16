@@ -19,6 +19,7 @@ def compile(ast, verbose):
     deflines = {}
     refpos = []
     diagnostics = []
+    asserts = []
     overflowed = False
     if verbose:
             print('1st pass')
@@ -48,6 +49,8 @@ def compile(ast, verbose):
                     "duplicate symbol '{0}' (first defined at line {1})".format(name, first)))
             else:
                 deflines[name] = lineno
+        if isinstance(line, ASSERT):
+            asserts.append(line)
         saved = (len(context.bytes), context.curraddr, context.currbyte, context.currhalf,
                  len(context.labels), context.startaddr)
         try:
@@ -117,6 +120,31 @@ def compile(ast, verbose):
                 addrdiff = (-addrdiff) | 0x8000
             context.emit_byte_at(addr, addrdiff >> 8)
             context.emit_byte_at(addr + 1, addrdiff & 0xff)     
+
+    compare = {
+        '=': lambda a, b: a == b, '!=': lambda a, b: a != b,
+        '<': lambda a, b: a < b, '<=': lambda a, b: a <= b,
+        '>': lambda a, b: a > b, '>=': lambda a, b: a >= b }
+    for node in asserts:
+        values = []
+        for operand in (node.left, node.right):
+            if isinstance(operand, int) or hasattr(operand, 'value'):
+                values.append(operand.value)
+                continue
+            name = str(operand)[1:]
+            value = context.defs.get(name)
+            if value is None:
+                value = labeladdresses.get(name)
+            if value is None:
+                diagnostics.append(Diagnostic(getattr(operand, 'line', 0) or node.lineno,
+                    getattr(operand, 'col', 0) or node.col, "undefined label ':{0}'".format(name)))
+            values.append(value)
+        if None in values:
+            continue
+        if not compare[node.op](values[0], values[1]):
+            diagnostics.append(Diagnostic(node.lineno, node.col,
+                "assertion failed: {0} {1} {2} (0x{3:04x} {1} 0x{4:04x})".format(
+                    node.left, node.op, node.right, values[0], values[1])))
 
     if diagnostics:
         diagnostics.sort(key=lambda d: (d.line, d.column))
