@@ -103,23 +103,76 @@ class EmulatorMemorySizeTests(unittest.TestCase):
         module = load_bc64_module()
         return module, module.Bc64(bc64_env.Environment(False), False)
 
-    @unittest.expectedFailure
     def test_emulator_memory_is_64_kb(self):
-        # #7: the emulator memory is TOPMEM = 0xffff bytes, so 0xffff is not addressable
+        # #7: the emulator memory is the full 64 KB, so 0xffff is addressable
         module, computer = self.create_computer()
         self.assertEqual(computer.mem.size, 0x10000)
         computer.mem.write_byte(0xffff, 0x12)
         self.assertEqual(computer.mem.read_byte(0xffff), 0x12)
 
-    def test_emulator_memory_is_65535_bytes_today(self):
-        # pinned today's behaviour, owned by #7
+    def test_memory_constants(self):
         module, computer = self.create_computer()
-        self.assertEqual(module.TOPMEM, 0xffff)
-        self.assertEqual(computer.mem.size, 0xffff)
-        computer.mem.write_byte(0xfffe, 0x12)
-        self.assertEqual(computer.mem.read_byte(0xfffe), 0x12)
+        self.assertEqual(module.MEMORY_SIZE, 0x10000)
+        self.assertEqual(module.TOP_ADDRESS, 0xffff)
+        self.assertEqual(module.STACK_TOP, 0xfffe)
+        self.assertFalse(hasattr(module, "TOPMEM"))
+
+    def test_round_trip_at_both_ends_and_below_top(self):
+        module, computer = self.create_computer()
+        for addr, val in ((0x0000, 0x34), (0xfffe, 0x56), (0xffff, 0x78)):
+            computer.mem.write_byte(addr, val)
+            self.assertEqual(computer.mem.read_byte(addr), val)
         with self.assertRaises(IndexError):
-            computer.mem.read_byte(0xffff)
+            computer.mem.read_byte(0x10000)
+
+    def test_stack_starts_at_0xfffe_and_first_push_leaves_0xffff_alone(self):
+        module, computer = self.create_computer()
+        cpu = computer.cpu
+        self.assertEqual(cpu.ss.get() << 8 | cpu.si.get(), 0xfffe)
+        computer.write_top_kil()
+        cpu._PSH(0x5a)
+        self.assertEqual(computer.mem.read_byte(0xfffe), 0x5a)
+        self.assertEqual(computer.mem.read_byte(0xfffd), bc8183_cpu.Bc8183.STACKFRAME_TYPE_PUSH)
+        self.assertEqual(computer.mem.read_byte(0xffff), 0xff)
+        self.assertEqual(cpu.ss.get() << 8 | cpu.si.get(), 0xfffc)
+
+    def test_startup_step_writes_kil_at_0xffff(self):
+        module, computer = self.create_computer()
+        self.assertEqual(computer.mem.read_byte(0xffff), 0)
+        computer.write_top_kil()
+        self.assertEqual(computer.mem.read_byte(0xffff), 0xff)
+        self.assertEqual(computer.mem.read_byte(0xfffe), 0)
+
+    def test_jump_to_0xffff_halts_there(self):
+        module, computer = self.create_computer()
+        computer.write_top_kil()
+        # MOV CS,0xff ; JMP short if flag 0 set (it is after reset) -> 0xffff
+        for i, b in enumerate((0x18, 0xff, 0x68, 0xff)):
+            computer.mem.write_byte(i, b)
+        self.assertTrue(computer.run(1000))
+        self.assertEqual(computer.cpu.pc.get(), 0xffff)
+
+    def test_running_sequentially_into_0xffff_halts_there(self):
+        module, computer = self.create_computer()
+        computer.write_top_kil()
+        # all-zero memory is NOPs from 0x0000 up to the KIL at 0xffff
+        self.assertTrue(computer.run(0x20000))
+        self.assertEqual(computer.cpu.pc.get(), 0xffff)
+
+    def test_bare_full_size_cpu_defaults_stack_to_size_minus_one(self):
+        mem = bc64_mem.MemBus(bc64_env.Environment(False), 0x10000)
+        cpu = bc8183_cpu.Bc8183(mem, None, False)
+        self.assertEqual(cpu.ss.get() << 8 | cpu.si.get(), 0xffff)
+
+    def test_pc_wraps_from_0xffff_to_0x0000(self):
+        mem = bc64_mem.MemBus(bc64_env.Environment(False), 0x10000)
+        cpu = bc8183_cpu.Bc8183(mem, None, False)
+        mem.write_byte(0xffff, 0x00)  # NOP, 1 byte, not KIL
+        mem.write_byte(0x0000, 0xf0)
+        cpu.pc.set(0xffff)
+        cpu.inc_pc(0)
+        cpu.run_next_opcode()
+        self.assertEqual(cpu.pc.get(), 0x0000)
 
 
 if __name__ == "__main__":

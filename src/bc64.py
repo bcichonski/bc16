@@ -7,11 +7,13 @@ from bc64 import bc64_env
 import argparse
 import sys
 
-TOPMEM = 0xffff
+MEMORY_SIZE = 0x10000
+TOP_ADDRESS = MEMORY_SIZE - 1
+STACK_TOP = TOP_ADDRESS - 1
 
 class Bc64:
     def __init__(self, env, debug, no_floppy=False):
-        self.mem = bc64_mem.MemBus(env, TOPMEM)
+        self.mem = bc64_mem.MemBus(env, MEMORY_SIZE)
         self.keyboard = bc64_io.TerminalKeyboard(env)
         self.printer = bc64_io.TerminalPrinter(env)
         self.taperecorder = bc64_io.TapeRecorder(env)
@@ -30,7 +32,11 @@ class Bc64:
         self.io.add_device(self.randgen)
         self.io.add_device(self.floppydrive)
 
-        self.cpu = bc8183_cpu.Bc8183(self.mem, self.io, debug)
+        self.cpu = bc8183_cpu.Bc8183(self.mem, self.io, debug, STACK_TOP)
+
+    def write_top_kil(self):
+        """Start-up step: 0xffff is ordinary RAM holding KIL, so running off the end of memory halts."""
+        self.mem.write_byte(TOP_ADDRESS, 0xff)
 
     def run(self, max_instructions=None):
         """Run until KIL. Returns True on KIL, False when max_instructions was reached first."""
@@ -122,7 +128,7 @@ def main(argv):
         computer = Bc64(env, trace, args.no_floppy)
         if args.rom is not None:
             import_rom(args.rom, env, computer.mem)
-        computer.mem.write_byte(TOPMEM-1, 0xff)
+        computer.write_top_kil()
         try:
             halted = computer.run(args.max_instructions)
         except bc64_env.EndOfInput:
@@ -139,7 +145,7 @@ def main(argv):
 def dump_mem(file, env, mem):
     fhandle = env.open_file_to_write(file)
     i = 0
-    while i < TOPMEM:
+    while i < MEMORY_SIZE:
         byte = mem.read_byte(i)
         env.write_byte(fhandle, byte)
         i+=1

@@ -42,7 +42,8 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - bdos: `0x0f00`
   - file buffers: `0x5d00`
   - user programs: `0x6000`
-  - CPU stack: from the top of memory, downwards
+  - CPU stack: from `0xfffe`, downwards
+  - `0xffff`: `KIL` (reserved, the ultimate stop)
 
   Constants live in `bdioh.b`, `boot.basm`, and each program's `#code`/`#heap`. A change
   to the map is a cross-cutting story: update all of them plus `docs/05-bdos.md`.

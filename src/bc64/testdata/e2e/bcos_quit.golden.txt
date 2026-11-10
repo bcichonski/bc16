@@ -1,0 +1,6 @@
+bcOS 1.2
+free F294 from 0D6A to FFFE
+type h for help
+> q
+
+fatal error F0 at FF0C

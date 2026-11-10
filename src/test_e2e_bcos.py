@@ -2,7 +2,8 @@
 
 Scripts and goldens live in bc64/testdata/e2e/ (bcos_*.in.txt, bcos_*.golden.txt).
 Regenerate goldens with BC64_UPDATE_GOLDEN=1, then inspect the diff by eye.
-Scripts never use `q` nor a bad-argument command followed by more commands: both crash the CPU.
+`q` and a bad-argument command followed by more commands end the session (exit 0): `q` via a bcOS
+fatal error and KIL, a bad-argument command via an empty-stack RET. So scripts use them only as the last command.
 """
 import os
 import unittest
@@ -39,6 +40,18 @@ class BcosMonitorTests(unittest.TestCase):
         out = self.run_scenario("bcos_tape", tape_dir=True)
         h.assert_markers(out, [b"> s 2000 0005 hello.txt", b"> l 3000", b"> p 3000 0005",
                                b"3000 hello"])
+
+
+    def test_quit_ends_session_cleanly(self):
+        out = self.run_scenario("bcos_quit")
+        h.check_golden(h.golden_path("bcos_quit"), out, scenario="bcos_quit",
+                       markers=[b"bcOS 1.2", b"> q", b"fatal error F0"])
+
+    def test_bad_argument_ends_session_cleanly(self):
+        out = self.run_scenario("bcos_bad_arg")
+        h.check_golden(h.golden_path("bcos_bad_arg"), out, scenario="bcos_bad_arg",
+                       markers=[b"bcOS 1.2", b"> d 00", b"error 03"])
+        self.assertNotIn(b"> d 0000 0010", out)
 
 
 if __name__ == "__main__":

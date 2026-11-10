@@ -1,0 +1,8 @@
+bcOS 1.2
+free F294 from 0D6A to FFFE
+type h for help
+> d 00
+
+error 03
+
+

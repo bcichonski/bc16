@@ -44,7 +44,7 @@ Development stopped on 2025-01-04, in the middle of item 4.
 | Emulator speed | about 130k instructions/s | intentionally slow; performance work is deferred (see [01-emulator.md](01-emulator.md#performance-deferred)) |
 | bcOS headroom | **21 bytes** (image ends at `0x0d6b`, bdio variables start at `0x0d80`) | almost any bcOS change forces the memory map to move |
 | bdos kernel | 18,466 bytes (`0x0f00–0x5722`); 1.5 KB left before the file buffers | bdos growth soon collides with fixed buffers |
-| User memory | 40,958 bytes (`0x6000–0xfffe`; the emulator has only 65,535 bytes of RAM, #7) | fine today; the limit for self-hosting (items 8–9) |
+| User memory | 40,959 bytes (`0x6000–0xfffe`, shared with the CPU stack; `0xffff` is reserved for `KIL`) | fine today; the limit for self-hosting (items 8–9) |
 | "Hello world" | **1,665 bytes** | every program carries the whole runtime and every included library; item 5 is the fix |
 | B source | about 5,100 lines in `src/bdos/` | bdos and its apps are the compiler's biggest test case |
 | Tests | emulator 22/23; assembler 75/75; compiler 15/21 (with a stand-in for the missing `msilib` module; on Linux without it, 0 run) | there are no code-generation or end-to-end tests at all |

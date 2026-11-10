@@ -124,6 +124,7 @@ without the other and the system breaks silently.
   - file buffers: `0x5d00`
   - user programs: `0x6000`
   - CPU stack: grows down from `0xfffe`
+  - `0xffff`: `KIL` (reserved, written by the emulator at start-up)
 
   These values are spread over `boot.basm`, `bdioh.b`, `bdos.b`, and the `#code`/`#heap`
   line of every program.

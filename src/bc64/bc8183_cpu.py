@@ -1,3 +1,4 @@
+import sys
 # 8183 cpu version 1.2 (20240814)
 def hi(b):
     return (b >> 4) & 0xf
@@ -124,10 +125,10 @@ class Bc8183:
     STACKFRAME_TYPE_PUSH = 0x10
     STACKFRAME_TYPE_CALL = 0xc0
 
-    def __init__(self, membus, iobus, debug):
+    def __init__(self, membus, iobus, debug, stack_top=None):
         self.membus = membus
         self.iobus = iobus
-        self.create_registers(membus.size)
+        self.create_registers(membus.size - 1 if stack_top is None else stack_top)
         self.create_instructions()
         self.create_arithmetic_and_logical_unit()
         self.kill = False
@@ -325,6 +326,25 @@ class Bc8183:
         else:
             self.inc_pc(1)
 
+    def stack_fault(self, name, addrs):
+        """Stack bounds rule: every stack byte must lie inside memory (0 <= addr < size).
+
+        If not, stop like KIL (PC, registers, SS:SI and memory untouched) and report
+        on stderr and in the debug trace. Returns True when the instruction must not run.
+        """
+        size = self.membus.size
+        if all(0 <= a < size for a in addrs):
+            return False
+        if any(a >= size for a in addrs):
+            reason = 'empty stack (read past the top of memory)'
+        else:
+            reason = 'stack overflow (write below 0x0000)'
+        mesg = '{0} at {1:04x}: {2}, CPU stopped'.format(name, self.pc.get(), reason)
+        print(mesg, file=sys.stderr)
+        self.print_debug(mesg)
+        self.kill = True
+        return True
+
     def _PSH(self, val):
         addr = self.get_addr(Bc8183.SI)
         self.membus.write_byte(addr - 1, Bc8183.STACKFRAME_TYPE_PUSH)
@@ -342,12 +362,17 @@ class Bc8183:
         return val 
 
     def op_PSH(self):
+        addr = self.get_addr(Bc8183.SI)
+        if self.stack_fault('PSH', [addr - 1, addr]):
+            return
         regno = lo(self.nextbyte)
         val = self.regs[regno].get()
         self._PSH(val)
         self.inc_pc(1)
 
     def op_POP(self):
+        if self.stack_fault('POP', [self.get_addr(Bc8183.SI) + 2]):
+            return
         regno = lo(self.nextbyte)
         val = self._POP()
         self.regs[regno].set(val)
@@ -369,6 +394,9 @@ class Bc8183:
                 i += 4
 
     def op_CAL(self):
+        addr = self.get_addr(Bc8183.SI)
+        if self.stack_fault('CAL', [addr - 2, addr - 1, addr]):
+            return
         curraddr = self.pc.get()
         
         opcode = lo(self.nextbyte)
@@ -408,7 +436,15 @@ class Bc8183:
 
     def op_RET(self):
         addr = self.get_addr(Bc8183.SI)
+        if self.stack_fault('RET', [addr + 1]):
+            return
         frametype = self.membus.read_byte(addr + 1)
+        if frametype == Bc8183.STACKFRAME_TYPE_CALL:
+            needed = [addr + 2, addr + 3]
+        else:
+            needed = [addr + 2, addr + 4]
+        if self.stack_fault('RET', needed):
+            return
         addrhi = self.membus.read_byte(addr + 2)
         if(frametype == Bc8183.STACKFRAME_TYPE_CALL):
             addrlo = self.membus.read_byte(addr + 3)
@@ -507,7 +543,6 @@ class Bc8183:
         }
 
     def create_registers(self, memsize):
-        memsize -= 1
         self.pc = Register(0xffff)
         self.f = FlagsRegister(0xff)
         self.a = Register(0xff)
@@ -729,6 +764,10 @@ class Bc8183:
         
         cpuframetype = self.membus.read_byte(cpustackstart)
         cpustackstart, lastcpustackstart, cpuframe, cpuframetypestr = self.process_frame(cpustackstart, cpuframetype)
+        if cpuframe is None:
+            print(":::empty:::")
+            self.print_debug(":::empty:::")
+            return
         
         while(cpuframetype > 0 and cpustackstart <= self.membus.size):
             msg = "{0} {1:04x}: {2:04x}".format(cpuframetypestr, lastcpustackstart, cpuframe)
@@ -737,7 +776,7 @@ class Bc8183:
 
             cpustackstart, lastcpustackstart, cpuframe, cpuframetypestr = self.process_frame(cpustackstart, cpuframetype)
             
-            if cpuframe != 'ERR' and cpustackstart < self.membus.size:
+            if cpuframe is not None and cpustackstart < self.membus.size:
                 cpuframetype = self.membus.read_byte(cpustackstart)
             else: cpuframetype = 0
 
