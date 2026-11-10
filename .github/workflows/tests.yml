@@ -41,7 +41,8 @@ jobs:
           bc64 --help < /dev/null
           bc81asmc --help < /dev/null
           bcc --help < /dev/null
-          ftool < /dev/null
+          ftool createbdd ci-check.bdd < /dev/null
+          test -s ci-check.bdd
 
       - name: Unit tests
         run: python run_tests.py --group unit < /dev/null
