@@ -9,6 +9,7 @@
 | `bc81asmc.py` | CLI, the two passes (emit + label fix-ups), `.btap` writer |
 | `bc81asmc_grammar.py` | the parsy grammar (the real syntax reference) |
 | `bc81asmc_ast.py` | one dataclass per instruction/directive, each with its own `emit()`; opcode constants |
+| `bc81asmc_diag.py` | error records (`Diagnostic`, `AssemblerError`), the `file:line:col` formatter, parsy `ParseError` conversion |
 | `bc81asmc_tests.py` | unit tests (need `parsy`) |
 | `grammar.txt` | early informal grammar sketch |
 | `examples/` | `hello.basm`, `first.basm` |
@@ -47,7 +48,7 @@ label:   mnemonic operands   ; comment
 - **Mnemonics and register names must be lowercase.**
 - A label is an identifier followed by `:` at the start of a line. To refer to a label,
   prefix it with a colon: `:label`.
-- Immediates are **hex only** and the digit count is fixed:
+- Immediates are **hex only** and the digit count is fixed (a wider value is a syntax error, see [Errors](#errors)):
   - `0xHH`: 8-bit
   - `0xHHHH`: 16-bit
   - `#0xH`: 4-bit (only as the `IN` port)
@@ -71,10 +72,56 @@ label:   mnemonic operands   ; comment
 Pass 1 emits code and writes placeholder bytes (`0xfa`) wherever a label address is needed.
 Pass 2 patches the placeholders with the high byte, low byte, 7-bit relative or 15-bit
 relative value. If a `jmr` target is more than ±127 bytes away, or a `jrx`/`clr` target is
-more than ±32767 bytes away, the assembler raises an error.
+more than ±32767 bytes away, the assembler reports an error at that reference. Pass 1 and
+pass 2 keep going after such an error, so every problem is reported in one run (see [Errors](#errors)).
 
 Relative offsets are stored as **sign-magnitude**: bit 7 (or bit 15) is the sign and the
 other bits are the magnitude. They are not two's complement.
+
+## Errors
+
+A user error is reported as one block per diagnostic on **stderr**, and the run exits with
+status `1`:
+
+```
+two.basm:1:8: error: label ':far' too far away for relative 7bit jump (207 bytes)
+jmr z, :far
+       ^
+two.basm:2:5: error: undefined label ':nowhere'
+cal :nowhere
+    ^
+```
+
+- The header is `<file>:<line>:<col>: error: <message>`. `<file>` is the path as given on the
+  command line. Lines and columns are **1-based**; a tab counts as one column.
+- The next line is the source line as written. The caret line puts `^` under the column
+  (tabs are kept, so the caret lines up).
+- Exit status `0` means success, `1` any error. Progress lines (`Reading input file`,
+  `Code length`, ...) still go to stdout; only the diagnostics go to stderr.
+- On error no `.btap` is written, so an old output file is never mistaken for a new one.
+- No Python traceback is printed for a user error. `--verbose` prints the traceback of the
+  exception that ended the run, after the diagnostics, for debugging the assembler itself.
+  `bcc` and `buildos` always pass `--verbose`, so their builds show that traceback too.
+
+| Class | Message (abridged) | Column points at | Notes |
+| :--- | :--- | :--- | :--- |
+| syntax | `syntax error: expected ...` or `syntax error: unexpected '...'` | the first character the parser cannot accept | only the first syntax error is reported; parsing stops and nothing is assembled |
+| undefined label | `undefined label ':name'` | the `:` of the reference | every use is reported, not every name |
+| duplicate label | `duplicate label 'name' (first defined at line n)` | the first character of the repeated name | one per repeated definition; the first definition is not reported |
+| duplicate symbol | `duplicate symbol 'name' (first defined at line n)` | the first character of the repeated name | `.def` names and labels share one namespace, so a `.def` and a label with the same name clash |
+| relative range, 7-bit | `label ':name' too far away for relative 7bit jump (n bytes)` | the `:` of the target | `jmr` only (±127 bytes) |
+| relative range, 15-bit | `label ':name' too far away for relative 15bit jump (n bytes)` | the `:` of the target | `jrx` and `clr` (±32767 bytes) |
+| overflow | `code exceeds the 64 KB address space (past 0xffff)` | the first non-blank character of the line that crosses the limit | reported once per run |
+| unencodable line | `cannot encode 'line': reason` | the first non-blank character of the line | the line contributes no bytes and assembly goes on (e.g. `clr af`) |
+
+Pass 1 and pass 2 keep going after an error and report every problem they find, sorted by
+position. The syntax error is the exception: parsing is all-or-nothing, so only the first one
+is shown.
+
+Over-wide immediates are syntax errors, not range errors, because the grammar is fixed-width.
+For example, `mov a, 0x100` gives `syntax error: expected comment or new line`, with the column
+on the first extra digit. The same goes for `0x10000` and `#0x10`. `jmp cond, :label` is not
+range-checked either: it encodes only the low byte, and `CS` supplies the page at run time.
 
 ## Instruction set
 

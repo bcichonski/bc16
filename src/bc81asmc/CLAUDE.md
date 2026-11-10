@@ -11,6 +11,10 @@ cd src/bc81asmc && python3 -m unittest discover -s . -t . -p "*_tests.py"   # gr
 cd src/bc81asmc && python3 -m unittest bc81asmc_tests.TestGrammar.test_hex_imm8
 ```
 
+The diagnostics tests are `bc81asmc_diag_tests.py` (records, formatter, parse-error conversion),
+`bc81asmc_compile_diag_tests.py` (errors raised by `compile()`) and `bc81asmc_cli_tests.py`
+(stderr, exit codes and `--verbose`, run as subprocesses).
+
 ## How it works
 
 - `bc81asmc_grammar.py` turns each line into one AST dataclass from `bc81asmc_ast.py`.
@@ -18,11 +22,22 @@ cd src/bc81asmc && python3 -m unittest bc81asmc_tests.TestGrammar.test_hex_imm8
   `CodeContext`.
 - **Two passes:**
   1. emit, with a `0xfa` placeholder wherever a label is used, recorded in
-     `context.labels` as `(addr, label, kind)`;
+     `context.labels` as `(addr, label, kind)`. A repeated label or `.def` name is an error
+     (one per repeated definition), and a line whose emit raises becomes a `cannot encode`
+     error;
   2. `compile()` in `bc81asmc.py` patches each placeholder by kind (`hi`, `lo`, `lorel`
-     7-bit, `rel15`).
+     7-bit, `rel15`). An undefined label (one error per use) and an out-of-range relative jump
+     are collected as positioned errors; references that resolve are patched as before.
 
-  `.def` constants are looked up before labels.
+  `.def` constants and labels share one namespace, so a clash is a duplicate error. A reference
+  looks up `.def` first, then the label. A symbol is undefined only when it is in neither table,
+  so an address or value of `0x0000` counts as defined.
+- **Errors go through `bc81asmc_diag.py`.** It holds `Diagnostic` (1-based line and column,
+  message), `AssemblerError` (carries every diagnostic; `compile()` raises it), the formatter
+  (`file:line:col: error: ...`, source line, caret) and the conversion of a parsy `ParseError`.
+  Node positions are attributes (`lineno`, `col`), not dataclass fields, so node equality is
+  unchanged. A new check (e.g. the `.assert` of #8) must append a `Diagnostic` and raise through
+  this module, never `print` or raise a bare exception. Only `main()` prints and exits.
 - Output is a `.btap` file: a 24-byte preamble (`00 ff 00 ff bc 05`, org, length, name),
   then every byte expanded to 8 bit-bytes, LSB first.
 
