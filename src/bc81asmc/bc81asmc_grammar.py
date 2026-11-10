@@ -1,5 +1,21 @@
-from parsy import regex, Parser, string, seq, letter, digit
+from parsy import regex, Parser, Result, string, seq, letter, digit
 from bc81asmc_ast import *
+from bc81asmc_diag import line_col_at
+
+@Parser
+def pos(stream, index):
+  # zero-width: the 1-based (line, column) of the current position
+  return Result.success(index, line_col_at(stream, index))
+
+class SourceName(str):
+  # a label name or label reference; `line`/`col` are plain attributes, equality is that of str
+  line = 0
+  col = 0
+
+def sourcename(position, text):
+  name = SourceName(text)
+  name.line, name.col = position
+  return name
 
 hexstr2int = lambda x: int(x, 16)
 comment = regex(r';[^\r\n]*').desc('comment')
@@ -20,7 +36,7 @@ quote = string("'")
 
 ident = letter + (letter | digit | underscore).many().concat()
 quotedstr = lexeme(quote >> regex(r"[^']*") << quote).desc('quoted string')
-labelstr = lexeme(colon + ident).desc('label string')
+labelstr = lexeme(seq(pos, colon + ident).combine(sourcename)).desc('label string')
 
 heximm4 = lexeme(
   (hexprefix >> regex(r'[0-9a-fA-F]'))
@@ -286,7 +302,7 @@ mSHR16r = \
 logictest = lexeme(string('nz') | string('z') | string('nc') | string('c') |  \
      string('nn') | string('o') | string('no') | string('n'))
 
-labelarg = colon + ident
+labelarg = seq(pos, colon + ident).combine(sourcename)
 jmpregargs = paramreg2
 
 jmpaddrarg = lexeme(jmpregargs | labelarg)
@@ -368,15 +384,32 @@ dMV  = lexeme(seq(lexeme(string('.mv')) >> lexeme(paramreg2) << comma,
             labelarg).combine(MV))\
         .desc('.mv directive')
 
-dDEF = lexeme(seq(lexeme(string('.def')) >> lexeme(ident) << comma,
+dDEF = lexeme(seq(lexeme(string('.def')) >> lexeme(seq(pos, ident).combine(sourcename)) << comma,
             heximm16).combine(DEF))\
         .desc('.def directive')
 
 mnemonic = mNOP | mINC | mDEC | mNOT16 | mINC16 | mDEC16 | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | \
            mCLC | mJMP | mJMR | mKIL | mCAL | mCLR | mRET | mIN | mOUT | mPSH | mPOP | mJRX
 directive = dORG | dDB | dMV | dDEF
-label = lexeme(ident << colon)
+label = lexeme(seq(pos, ident << colon).combine(sourcename))
 instruction = mnemonic | directive
 linecomment = (ignore >> comment).map(LineComment)
-line = (linecomment | (ignore >> seq(label.optional(), instruction, comment.optional()).combine(LINE))) << nl
+
+def positioned(node_parser):
+  # attaches `lineno` (1-based), `col` (1-based, first non-blank character) and `source` (the
+  # line as written, stripped) as plain attributes
+  @Parser
+  def parser(stream, index):
+    result = node_parser(stream, index)
+    if not result.status:
+      return result
+    node = result.value
+    node.lineno, node.col = line_col_at(stream, index)
+    node.source = stream[index:result.index].strip()
+    return result
+  return parser
+
+line = (ignore >> positioned(
+    comment.map(LineComment) |
+    seq(label.optional(), instruction, comment.optional()).combine(LINE))) << nl
 program = Parser.many(line)

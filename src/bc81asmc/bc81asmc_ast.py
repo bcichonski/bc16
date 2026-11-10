@@ -176,6 +176,17 @@ class Bc8183:
 
 ASMCODES = Bc8183()
 
+class LabelName(str):
+    """A label name without its colon; `line`/`col` of the reference are kept when known."""
+    line = 0
+    col = 0
+
+def label_name(ref):
+    name = LabelName(ref[1:])
+    name.line = getattr(ref, 'line', 0)
+    name.col = getattr(ref, 'col', 0)
+    return name
+
 class CodeContext:
     def __init__(self):
         self.bytes = bytearray()
@@ -237,6 +248,7 @@ class Token:
         pass
     def set_label(self, label):
         self.label = label
+        self.label_col = getattr(label, 'col', None)
     def set_comment(self, comment):
         self.comment = comment
 
@@ -497,7 +509,7 @@ class JMP(Instruction):
 
         if(self.arg.startswith(':')):
             context.emit_4bit(ASMCODES.TEST2OPCODE(self.test) | ASMCODES.CLC_OP_RNO)
-            context.emit_lo8addr(self.arg[1:])
+            context.emit_lo8addr(label_name(self.arg))
         else:
             context.emit_4bit(ASMCODES.TEST2OPCODE(self.test))
             context.emit_4bit(0)
@@ -515,7 +527,7 @@ class JMR(Instruction):
 
         if(self.arg.startswith(':')):
             context.emit_4bit(ASMCODES.TEST2OPCODE(self.test))
-            context.emit_rel8addr(self.arg[1:])
+            context.emit_rel8addr(label_name(self.arg))
         else:
             context.emit_4bit(ASMCODES.TEST2OPCODE(self.test) | ASMCODES.CLC_OP_RNO)
             context.emit_4bit(ASMCODES.REG2BIN(self.arg[0:2]))
@@ -535,7 +547,7 @@ class JRX(Instruction):
             context.emit_4bit(ASMCODES.EXT_JRX_ADR)
             context.emit_4bit(ASMCODES.TEST2OPCODE(self.test))
             context.emit_4bit(0)
-            context.emit_rel15addr(self.arg[1:])
+            context.emit_rel15addr(label_name(self.arg))
         else:
             context.emit_4bit(ASMCODES.EXT_JRX_REG)
             context.emit_4bit(ASMCODES.TEST2OPCODE(self.test) | ASMCODES.CLC_OP_RNO)
@@ -595,8 +607,8 @@ class CAL(Instruction):
         context.emit_4bit(ASMCODES.CAL)
         if(self.arg.startswith(':')):
             context.emit_4bit(ASMCODES.CLC_OP_RNO)
-            context.emit_hi8addr(self.arg[1:])
-            context.emit_lo8addr(self.arg[1:])
+            context.emit_hi8addr(label_name(self.arg))
+            context.emit_lo8addr(label_name(self.arg))
         else:
             context.emit_4bit(0)
             context.emit_4bit(ASMCODES.REG2BIN(self.arg[0:2]))
@@ -612,7 +624,7 @@ class CLR(Instruction):
         context.emit_4bit(ASMCODES.CAL)
         if(self.arg.startswith(':')):
             context.emit_4bit(ASMCODES.CAL_EX_I16)
-            context.emit_rel15addr(self.arg[1:])
+            context.emit_rel15addr(label_name(self.arg))
         else:
             context.emit_4bit(ASMCODES.CAL_EX_RNO)
             context.emit_4bit(ASMCODES.REG2BIN(self.arg[0:2]))
@@ -687,8 +699,8 @@ class DB(Directive):
         for val in self.values:
             if isinstance(val, str):
                 if val.startswith(":"):
-                    context.emit_hi8addr(val[1:])
-                    context.emit_lo8addr(val[1:])
+                    context.emit_hi8addr(label_name(val))
+                    context.emit_lo8addr(label_name(val))
                 else:
                     for char in val:
                         context.emit_byte(ord(char))
@@ -704,10 +716,10 @@ class MV(Directive):
         super().emit(context)
         context.emit_4bit(ASMCODES.MOVRI8)
         context.emit_4bit(ASMCODES.REG2BIN(self.regs[0:2]))
-        context.emit_hi8addr(self.lbl[1:])
+        context.emit_hi8addr(label_name(self.lbl))
         context.emit_4bit(ASMCODES.MOVRI8)
         context.emit_4bit(ASMCODES.REG2BIN(self.regs[2:]))
-        context.emit_lo8addr(self.lbl[1:])
+        context.emit_lo8addr(label_name(self.lbl))
 
 @dataclass
 class DEF(Directive):

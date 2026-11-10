@@ -10,6 +10,7 @@ from parsy import ParseError
 
 import bc81asmc
 from bc81asmc_ast import CodeContext
+from bc81asmc_diag import AssemblerError
 from bc81asmc_grammar import program
 
 
@@ -69,21 +70,20 @@ class TestLabelsAbsolute(unittest.TestCase):
             code(".org 0x0300\njmp z, :fn\nfn: ret\n"),
             [0x68, 0x02, 0xb0])
 
-    def test_label_at_address_zero_is_rejected(self):
-        # D7 finding: compile() uses `if not labeladdr`, so a label whose
-        # address is 0 is reported as "not defined"
-        with self.assertRaisesRegex(Exception, 'not defined'):
-            assemble("start: nop\n.db :start\n")
+    def test_label_at_address_zero_resolves(self):
+        # D9: a label at address 0 is defined (it used to be reported as "not defined")
+        self.assertEqual(code("start: nop\n.db :start\n"), [0x00, 0x00, 0x00])
 
-    def test_def_with_value_zero_is_rejected(self):
-        # D7 finding: same `if not labeladdr` check applies to .def 0x0000
-        with self.assertRaisesRegex(Exception, 'not defined'):
-            assemble(".def zero, 0x0000\n.db :zero\n")
+    def test_def_with_value_zero_resolves(self):
+        # D9: same for .def 0x0000
+        self.assertEqual(code(".def zero, 0x0000\n.db :zero\n"), [0x00, 0x00])
 
-    def test_undefined_label_raises_keyerror(self):
-        # D7 finding: pinned as a bare KeyError, not a friendly message
-        with self.assertRaises(KeyError):
+    def test_undefined_label_is_positioned_assembler_error(self):
+        # AC-1 / AC-2: no bare KeyError; the error names line and column of the reference
+        with self.assertRaises(AssemblerError) as cm:
             assemble(".org 0x0100\n.db :nowhere\n")
+        self.assertEqual([(d.line, d.column, d.message) for d in cm.exception.diagnostics],
+                         [(2, 5, "undefined label ':nowhere'")])
 
 
 class TestLabelsRelative7(unittest.TestCase):
@@ -226,9 +226,12 @@ class TestDirectives(unittest.TestCase):
             code(".def port, 0xbeef\n.db :port\n"),
             [0xbe, 0xef])
 
-    def test_def_takes_precedence_over_label(self):
-        context = assemble(".org 0x0100\n.def thing, 0x4321\nthing: nop\n.db :thing\n")
-        self.assertEqual(list(context.bytes), [0x00, 0x43, 0x21])
+    def test_label_clashing_with_def_is_duplicate_symbol(self):
+        # D3 (A2): labels and .def share one namespace, the clash is a positioned error
+        with self.assertRaises(AssemblerError) as cm:
+            assemble(".org 0x0100\n.def thing, 0x4321\nthing: nop\n.db :thing\n")
+        self.assertEqual([(d.line, d.column, d.message) for d in cm.exception.diagnostics],
+                         [(3, 1, "duplicate symbol 'thing' (first defined at line 2)")])
 
     def test_def_does_not_emit_and_is_recorded(self):
         context = assemble(".def abc, 0x1234\n")

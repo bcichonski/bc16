@@ -1,6 +1,6 @@
 # Assembler (bc81asmc): analysis
 
-Reference: [../02-assembler.md](../02-assembler.md). Decisions: A1–A5, G5 in
+Reference: [../02-assembler.md](../02-assembler.md). Decisions: A1–A6, G5 in
 [../specs/memory/design-decisions.md](../specs/memory/design-decisions.md).
 
 ## Current state
@@ -26,7 +26,7 @@ Reference: [../02-assembler.md](../02-assembler.md). Decisions: A1–A5, G5 in
 |---|---|---|---|---|
 | 1 | No guards for the address contracts | bcOS must end below `0x0d80` (21 bytes left); `os_metacall` must stay at `0x0008`; `bdos` must end below `0x5d00` | an overflow corrupts memory silently at run time | #8 |
 | 2 | No listing or symbol output | only `.btap` is written | addresses of labels have to be read from `--verbose` console output; traces can't show symbols | #9 |
-| 3 | Poor error messages | a parse error is a raw parsy `ParseError` with a character index (the compiler prints line context; the assembler doesn't); an undefined label raises a `KeyError` | slow debugging, especially of generated `.basm` | #10 |
+| 3 | Poor error messages | a parse error is a raw parsy `ParseError` with a character index (the compiler prints line context; the assembler doesn't); an undefined label raises a `KeyError` | slow debugging, especially of generated `.basm` | #10 (done) |
 | 4 | Opcodes duplicated with the CPU | `Bc8183` constants in `bc81asmc_ast.py` vs `bc8183_cpu.py`. There's even a typo'd constant name (`CLC_SUN16`) | drift risk | #5 |
 | 5 | `out #r, imm` is encoded wrongly | `OUT.emit` with an integer emits `D0 rH`: the port register lands in the second byte and only the low 4 bits of the value survive. The CPU expects `Dr HH` (port register `a`/`ci`/`di` in the low nibble, then the full value) and reads the port from register 0, which doesn't exist | a crash, or silent corruption, if anyone uses it | #11 |
 | 6 | No label arithmetic | `:label+1` and `hi(:label)` aren't possible; `.def` only takes a literal | workarounds in hand-written asm (e.g. `.mv` + `inc`) | |
@@ -49,7 +49,7 @@ issue also contains the matching proposal below.
    addresses in review. Decided: `.lst`/`.map` are committed with the other build outputs
    (G3), and the committed maps must match the memory map (G2) exactly.
 3. **Error reporting with file:line:column** (#10, problem 3) and the offending line, for
-   both parse errors and undefined labels.
+   both parse errors and undefined labels. **Done in #10**, see [02-assembler.md](../02-assembler.md#errors).
 
 ### Improvements
 

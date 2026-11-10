@@ -322,9 +322,10 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Usage:**
   - label operands are recorded as `(addr, label, kind)` with kind `hi`, `lo`, `lorel`
     or `rel15`;
-  - out-of-range relative targets are hard errors;
+  - out-of-range relative targets are positioned errors (A6);
   - `.def` gives fixed external addresses (e.g. `os_metacall`, `bdos_bootaddr`) and is
-    referenced like a label, `:name`.
+    referenced like a label, `:name`; it shares the label namespace, so a repeated name is
+    an error (A6).
 - **Trade-offs:** label operands must be byte-aligned (no half-emitted nibble). There are no
   expressions like `label+1`.
 
@@ -357,6 +358,26 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - `cal :label`, `jmp z, csci`;
   - port operands use `#` too: `in a, #ci`, `out #cs, a`.
 - **Trade-offs:** `#` means both "memory" and "port" depending on the instruction.
+
+### A6. Errors are positioned `file:line:col` diagnostics on stderr; parsing stops at the first syntax error, later passes collect
+- **Purpose:** a user error names the place in the source it is about, so a generated `.basm`
+  of thousands of lines can be debugged without counting characters.
+- **Rationale:** the `file:line:col: error:` form is the GNU/gcc one, and 1-based lines and
+  columns match editors, so terminals and IDEs can link to it (D1). parsy's `many()` cannot
+  resume after a failed line without restructuring the grammar, so a syntax error stops the run
+  (D2). Once parsing succeeds, both passes run to the end, so every undefined label shows up in
+  one run. Duplicate labels and `.def` names are errors rather than "last one wins" (D3): the two
+  duplicates in the committed sources were renamed, and every `.btap` stayed byte-identical.
+  Diagnostics go to stderr; progress lines stay on stdout (D7).
+- **Usage:**
+  - the header is `<file>:<line>:<col>: error: <message>`, followed by the source line and a `^`
+    caret; a tab counts as one column;
+  - new checks report through `bc81asmc_diag.py` (see `src/bc81asmc/CLAUDE.md`);
+  - exit status `1` on any error, and no output file; `--verbose` adds the traceback after the
+    diagnostics (`docs/02-assembler.md`, Errors).
+- **Trade-offs:** only the first syntax error is shown per run. A duplicate definition now fails
+  the build until it is renamed. The renamed first definition of `strnextword` is kept as dead
+  code rather than deleted, because deleting it would change the size of every program.
 
 ---
 

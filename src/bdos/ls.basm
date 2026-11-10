@@ -13,7 +13,7 @@
                 mov cs, 0xf0
                 mov ci, 0x00
                 cal :poke16
-                cal :FMAIN0083
+                cal :FMAIN0084
                 ret
 ;FUNCTIONS
 ;FUNCTION peek8
@@ -1288,7 +1288,7 @@ FSTRPOKE80041:  nop
                 mov #csci, a
                 ret
 ;END OF FUNCTION strpoke8
-;FUNCTION strnextword
+;FUNCTION strnextwordnull
 FSTRNEXTWOR0042:nop
                 mov a, 0x00
                 cal :stackvar8gt16
@@ -1301,7 +1301,7 @@ FSTRNEXTWOR0042:nop
                 strnnextw: mov cs, ds
                 mov ci, di
                 ret
-;END OF FUNCTION strnextword
+;END OF FUNCTION strnextwordnull
 ;FUNCTION strnlen8
 FSTRNLEN80043:  nop
                 mov a, 0x00
@@ -1941,7 +1941,7 @@ LABEL005b:      nop
                 ret
 ;END OF FUNCTION upstring
 ;FUNCTION strnextword
-FSTRNEXTWOR0042:nop
+FSTRNEXTWOR005d:nop
                 mov a, 0x00
                 cal :stackvar8gt16
                 mov ds, cs
@@ -1952,7 +1952,7 @@ FSTRNEXTWOR0042:nop
                 ret
 ;END OF FUNCTION strnextword
 ;FUNCTION strndecw
-FSTRNDECW005d:  nop
+FSTRNDECW005e:  nop
                 mov cs, 0x27
                 mov ci, 0x10
             mov a, 0x06
@@ -1965,7 +1965,7 @@ FSTRNDECW005d:  nop
                 mov ci, 0x00
             mov a, 0x09
             cal :stackvar8st8
-LABEL005e:      nop
+LABEL005f:      nop
                 mov a, 0x06
                 cal :stackvar8gt16
                         psh cs
@@ -1999,7 +1999,7 @@ LABEL005e:      nop
                 mov ci, a
                 mov a, cs
                 or ci
-                jrx z, :LABEL005f
+                jrx z, :LABEL0060
                 mov a, 0x00
                 cal :stackvar8gt16
                     psh cs
@@ -2042,17 +2042,17 @@ LABEL005e:      nop
                 or csci, dsdi
                 mov a, cs
                 or ci
-                jrx z, :LABEL0060
+                jrx z, :LABEL0061
                 mov cs, 0x00
                 mov ci, 0x01
             mov a, 0x08
             cal :stackvar8st8
-LABEL0060:      nop
+LABEL0061:      nop
                 mov a, 0x08
                 cal :stackvar8gt8
                 mov a, cs
                 or ci
-                jrx z, :LABEL0061
+                jrx z, :LABEL0062
                 mov cs, 0x00
                 mov ci, 0x30
                         psh cs
@@ -2093,7 +2093,7 @@ LABEL0060:      nop
                 add csci, dsdi
             mov a, 0x09
             cal :stackvar8st8
-LABEL0061:      nop
+LABEL0062:      nop
                 mov a, 0x06
                 cal :stackvar8gt16
                     psh cs
@@ -2108,16 +2108,16 @@ LABEL0061:      nop
             mov a, 0x06
             cal :stackvar8st16
                 xor a
-                jrx z, :LABEL005e
-LABEL005f:      nop
+                jrx z, :LABEL005f
+LABEL0060:      nop
                 mov a, 0x09
                 cal :stackvar8gt8
                 ret
                 ret
 ;END OF FUNCTION strndecw
 ;FUNCTION getdriveletter
-FGETDRIVELE0062:nop
-                .mv csci, :DATA0063
+FGETDRIVELE0063:nop
+                .mv csci, :DATA0064
             mov a, 0x01
             cal :stackvar8st16
                 mov a, 0x00
@@ -2129,13 +2129,13 @@ FGETDRIVELE0062:nop
                 mov ci, a
                 mov a, cs
                 or ci
-                jrx z, :LABEL0064
-                .mv csci, :DATA0065
+                jrx z, :LABEL0065
+                .mv csci, :DATA0066
             mov a, 0x01
             cal :stackvar8st16
                 xor a
-                jrx z, :LABEL0066
-LABEL0064:      nop
+                jrx z, :LABEL0067
+LABEL0065:      nop
                 mov a, 0x00
                 cal :stackvar8gt8
                 mov ds, 0x00
@@ -2145,19 +2145,19 @@ LABEL0064:      nop
                 mov ci, a
                 mov a, cs
                 or ci
-                jrx z, :LABEL0067
-                .mv csci, :DATA0068
+                jrx z, :LABEL0068
+                .mv csci, :DATA0069
             mov a, 0x01
             cal :stackvar8st16
+LABEL0068:      nop
 LABEL0067:      nop
-LABEL0066:      nop
                 mov a, 0x01
                 cal :stackvar8gt16
                 ret
                 ret
 ;END OF FUNCTION getdriveletter
 ;FUNCTION getdrive
-FGETDRIVE0069:  nop
+FGETDRIVE006a:  nop
     ;depth 2: STACKHEAD += 4
                     mov a, 0x04
                     cal :stackheadrll8
@@ -2165,7 +2165,7 @@ FGETDRIVE0069:  nop
                 cal :stackvar8gt16
             mov a, 0x00
             cal :stackvar8st16
-                .mv csci, :DATA006a
+                .mv csci, :DATA006b
             mov a, 0x02
             cal :stackvar8st16
                 mov cs, 0x00
@@ -2183,14 +2183,14 @@ FGETDRIVE0069:  nop
                 mov ci, a
                 mov a, cs
                 or ci
-                jrx z, :LABEL006b
+                jrx z, :LABEL006c
                 mov cs, 0x00
                 mov ci, 0x00
             mov a, 0x02
             cal :stackvar8st16
                 xor a
-                jrx z, :LABEL006c
-LABEL006b:      nop
+                jrx z, :LABEL006d
+LABEL006c:      nop
     ;depth 2: STACKHEAD += 4
                     mov a, 0x04
                     cal :stackheadrll8
@@ -2198,7 +2198,7 @@ LABEL006b:      nop
                 cal :stackvar8gt16
             mov a, 0x00
             cal :stackvar8st16
-                .mv csci, :DATA006d
+                .mv csci, :DATA006e
             mov a, 0x02
             cal :stackvar8st16
                 mov cs, 0x00
@@ -2216,14 +2216,14 @@ LABEL006b:      nop
                 mov ci, a
                 mov a, cs
                 or ci
-                jrx z, :LABEL006e
+                jrx z, :LABEL006f
                 mov cs, 0x00
                 mov ci, 0x01
             mov a, 0x02
             cal :stackvar8st16
                 xor a
-                jrx z, :LABEL006f
-LABEL006e:      nop
+                jrx z, :LABEL0070
+LABEL006f:      nop
     ;depth 2: STACKHEAD += 4
                     mov a, 0x04
                     cal :stackheadrll8
@@ -2233,15 +2233,15 @@ LABEL006e:      nop
                     cal :stackheadrll8
             mov a, 0x02
             cal :stackvar8st16
-LABEL006f:      nop
-LABEL006c:      nop
+LABEL0070:      nop
+LABEL006d:      nop
                 mov a, 0x02
                 cal :stackvar8gt16
                 ret
                 ret
 ;END OF FUNCTION getdrive
 ;FUNCTION setAttrib
-FSETATTRIB0070: nop
+FSETATTRIB0071: nop
                 mov a, 0x02
                 cal :stackvar8gt8
                         psh cs
@@ -2262,7 +2262,7 @@ FSETATTRIB0070: nop
                 mov ci, a
                 mov a, cs
                 or ci
-                jrx z, :LABEL0071
+                jrx z, :LABEL0072
     ;depth 2: STACKHEAD += 5
                     mov a, 0x05
                     cal :stackheadrll8
@@ -2278,11 +2278,11 @@ FSETATTRIB0070: nop
     ;depth 1: STACKHEAD -= 5
                     mov a, 0x85
                     cal :stackheadrll8
-LABEL0071:      nop
+LABEL0072:      nop
                 ret
 ;END OF FUNCTION setAttrib
 ;FUNCTION listCatalogItem
-FLISTCATALO0072:nop
+FLISTCATALO0073:nop
     ;depth 2: STACKHEAD += 14
                     mov a, 0x0e
                     cal :stackheadrll8
@@ -2315,7 +2315,7 @@ FLISTCATALO0072:nop
                     pop cs
                 mov a, cs
                 or ci
-                jrx z, :LABEL0073
+                jrx z, :LABEL0074
     ;depth 2: STACKHEAD += 14
                     mov a, 0x0e
                     cal :stackheadrll8
@@ -2352,7 +2352,7 @@ FLISTCATALO0072:nop
                 or csci, dsdi
                 mov a, cs
                 or ci
-                jrx z, :LABEL0074
+                jrx z, :LABEL0075
     ;depth 2: STACKHEAD += 14
                     mov a, 0x0e
                     cal :stackheadrll8
@@ -2527,7 +2527,7 @@ FLISTCATALO0072:nop
                 mov ci, 0x53
             mov a, 0x04
             cal :stackvar8st8
-                cal :FSETATTRIB0070
+                cal :FSETATTRIB0071
     ;depth 1: STACKHEAD -= 14
                     mov a, 0x8e
                     cal :stackheadrll8
@@ -2553,7 +2553,7 @@ FLISTCATALO0072:nop
                 mov ci, 0x52
             mov a, 0x04
             cal :stackvar8st8
-                cal :FSETATTRIB0070
+                cal :FSETATTRIB0071
     ;depth 1: STACKHEAD -= 14
                     mov a, 0x8e
                     cal :stackheadrll8
@@ -2579,7 +2579,7 @@ FLISTCATALO0072:nop
                 mov ci, 0x57
             mov a, 0x04
             cal :stackvar8st8
-                cal :FSETATTRIB0070
+                cal :FSETATTRIB0071
     ;depth 1: STACKHEAD -= 14
                     mov a, 0x8e
                     cal :stackheadrll8
@@ -2605,7 +2605,7 @@ FLISTCATALO0072:nop
                 mov ci, 0x58
             mov a, 0x04
             cal :stackvar8st8
-                cal :FSETATTRIB0070
+                cal :FSETATTRIB0071
     ;depth 1: STACKHEAD -= 14
                     mov a, 0x8e
                     cal :stackheadrll8
@@ -2634,7 +2634,7 @@ FLISTCATALO0072:nop
                 mov ci, 0x07
             mov a, 0x00
             cal :stackvar8st16
-                .mv csci, :DATA0075
+                .mv csci, :DATA0076
             mov a, 0x02
             cal :stackvar8st16
                 mov cs, 0xf7
@@ -2665,19 +2665,19 @@ FLISTCATALO0072:nop
     ;depth 1: STACKHEAD -= 14
                     mov a, 0x8e
                     cal :stackheadrll8
-LABEL0074:      nop
+LABEL0075:      nop
                 mov cs, 0x00
                 mov ci, 0x01
             mov a, 0x03
             cal :stackvar8st8
-LABEL0073:      nop
+LABEL0074:      nop
                 mov a, 0x03
                 cal :stackvar8gt8
                 ret
                 ret
 ;END OF FUNCTION listCatalogItem
 ;FUNCTION changeDriveIfNeeded
-FCHANGEDRIV0076:nop
+FCHANGEDRIV0077:nop
                 mov a, 0x00
                 cal :stackvar8gt8
                         psh cs
@@ -2692,7 +2692,7 @@ FCHANGEDRIV0076:nop
                     mov ci, a
                 mov a, cs
                 or ci
-                jrx z, :LABEL0077
+                jrx z, :LABEL0078
     ;depth 2: STACKHEAD += 3
                     mov a, 0x03
                     cal :stackheadrll8
@@ -2712,14 +2712,14 @@ FCHANGEDRIV0076:nop
                 cal :stackvar8gt8
             mov a, 0x00
             cal :stackvar8st8
-LABEL0077:      nop
+LABEL0078:      nop
                 mov a, 0x00
                 cal :stackvar8gt8
                 ret
                 ret
 ;END OF FUNCTION changeDriveIfNeeded
 ;FUNCTION listCatalog
-FLISTCATALO0078:nop
+FLISTCATALO0079:nop
     ;depth 2: STACKHEAD += 10
                     mov a, 0x0a
                     cal :stackheadrll8
@@ -2727,7 +2727,7 @@ FLISTCATALO0078:nop
                 mov ci, 0x02
             mov a, 0x00
             cal :stackvar8st16
-                .mv csci, :DATA0079
+                .mv csci, :DATA007a
             mov a, 0x02
             cal :stackvar8st16
     ;depth 3: STACKHEAD += 6
@@ -2737,7 +2737,7 @@ FLISTCATALO0078:nop
                 cal :stackvar8gt8
             mov a, 0x00
             cal :stackvar8st8
-                cal :FGETDRIVELE0062
+                cal :FGETDRIVELE0063
     ;depth 2: STACKHEAD -= 6
                     mov a, 0x86
                     cal :stackheadrll8
@@ -2771,7 +2771,7 @@ FLISTCATALO0078:nop
                 mov ci, 0x00
             mov a, 0x02
             cal :stackvar8st8
-                cal :FCHANGEDRIV0076
+                cal :FCHANGEDRIV0077
     ;depth 1: STACKHEAD -= 10
                     mov a, 0x8a
                     cal :stackheadrll8
@@ -2780,7 +2780,7 @@ FLISTCATALO0078:nop
     ;depth 2: STACKHEAD += 10
                     mov a, 0x0a
                     cal :stackheadrll8
-                .mv csci, :DATA007a
+                .mv csci, :DATA007b
             mov a, 0x00
             cal :stackvar8st16
                 mov cs, 0x00
@@ -2813,7 +2813,7 @@ FLISTCATALO0078:nop
                 mov ci, a
                 mov a, cs
                 or ci
-                jrx z, :LABEL007b
+                jrx z, :LABEL007c
     ;depth 2: STACKHEAD += 10
                     mov a, 0x0a
                     cal :stackheadrll8
@@ -2835,7 +2835,7 @@ FLISTCATALO0078:nop
                     cal :stackheadrll8
             mov a, 0x04
             cal :stackvar8st8
-LABEL007c:      nop
+LABEL007d:      nop
                 mov a, 0x04
                 cal :stackvar8gt8
                         psh cs
@@ -2857,12 +2857,12 @@ LABEL007c:      nop
                 mov ci, a
                 mov a, cs
                 or ci
-                jrx z, :LABEL007d
+                jrx z, :LABEL007e
                 mov cs, 0xf8
                 mov ci, 0x00
             mov a, 0x05
             cal :stackvar8st16
-LABEL007e:      nop
+LABEL007f:      nop
                 mov a, 0x07
                 cal :stackvar8gt8
                         psh cs
@@ -2899,7 +2899,7 @@ LABEL007e:      nop
                 mov ci, a
                 mov a, cs
                 or ci
-                jrx z, :LABEL007f
+                jrx z, :LABEL0080
     ;depth 2: STACKHEAD += 10
                     mov a, 0x0a
                     cal :stackheadrll8
@@ -2911,7 +2911,7 @@ LABEL007e:      nop
                 cal :stackvar8gt8
             mov a, 0x02
             cal :stackvar8st8
-                cal :FLISTCATALO0072
+                cal :FLISTCATALO0073
     ;depth 1: STACKHEAD -= 10
                     mov a, 0x8a
                     cal :stackheadrll8
@@ -2925,13 +2925,13 @@ LABEL007e:      nop
             mov a, 0x05
             cal :stackvar8st16
                 xor a
-                jrx z, :LABEL007e
-LABEL007f:      nop
+                jrx z, :LABEL007f
+LABEL0080:      nop
                 mov a, 0x07
                 cal :stackvar8gt8
                 mov a, cs
                 or ci
-                jrx z, :LABEL0080
+                jrx z, :LABEL0081
     ;depth 2: STACKHEAD += 10
                     mov a, 0x0a
                     cal :stackheadrll8
@@ -2953,10 +2953,10 @@ LABEL007f:      nop
                     cal :stackheadrll8
             mov a, 0x04
             cal :stackvar8st8
-LABEL0080:      nop
+LABEL0081:      nop
                 xor a
-                jrx z, :LABEL007c
-LABEL007d:      nop
+                jrx z, :LABEL007d
+LABEL007e:      nop
     ;depth 2: STACKHEAD += 10
                     mov a, 0x0a
                     cal :stackheadrll8
@@ -2969,8 +2969,8 @@ LABEL007d:      nop
                     mov a, 0x8a
                     cal :stackheadrll8
                 xor a
-                jrx z, :LABEL0081
-LABEL007b:      nop
+                jrx z, :LABEL0082
+LABEL007c:      nop
     ;depth 2: STACKHEAD += 10
                     mov a, 0x0a
                     cal :stackheadrll8
@@ -2982,7 +2982,7 @@ LABEL007b:      nop
     ;depth 1: STACKHEAD -= 10
                     mov a, 0x8a
                     cal :stackheadrll8
-LABEL0081:      nop
+LABEL0082:      nop
     ;depth 2: STACKHEAD += 16
                     mov a, 0x10
                     cal :stackheadrll8
@@ -3065,7 +3065,7 @@ LABEL0081:      nop
                 mov ci, 0x03
             mov a, 0x00
             cal :stackvar8st16
-                .mv csci, :DATA0082
+                .mv csci, :DATA0083
             mov a, 0x02
             cal :stackvar8st16
                 mov a, 0x81
@@ -3095,14 +3095,14 @@ LABEL0081:      nop
                 mov ci, 0x00
             mov a, 0x02
             cal :stackvar8st8
-                cal :FCHANGEDRIV0076
+                cal :FCHANGEDRIV0077
     ;depth 1: STACKHEAD -= 16
                     mov a, 0x90
                     cal :stackheadrll8
                 ret
 ;END OF FUNCTION listCatalog
 ;FUNCTION main
-FMAIN0083:      nop
+FMAIN0084:      nop
                 mov cs, 0x00
                 mov ci, 0x00
             mov a, 0x02
@@ -3125,7 +3125,7 @@ FMAIN0083:      nop
                 mov ci, 0xd2
             mov a, 0x00
             cal :stackvar8st16
-                cal :FSTRNEXTWOR0042
+                cal :FSTRNEXTWOR005d
     ;depth 1: STACKHEAD -= 3
                     mov a, 0x83
                     cal :stackheadrll8
@@ -3138,7 +3138,7 @@ FMAIN0083:      nop
                 cal :stackvar8gt16
             mov a, 0x00
             cal :stackvar8st16
-                .mv csci, :DATA0084
+                .mv csci, :DATA0085
             mov a, 0x02
             cal :stackvar8st16
                 mov cs, 0x00
@@ -3156,7 +3156,7 @@ FMAIN0083:      nop
                 mov ci, a
                 mov a, cs
                 or ci
-                jrx z, :LABEL0085
+                jrx z, :LABEL0086
     ;depth 2: STACKHEAD += 3
                     mov a, 0x03
                     cal :stackheadrll8
@@ -3164,16 +3164,16 @@ FMAIN0083:      nop
                 mov ci, 0x04
             mov a, 0x00
             cal :stackvar8st16
-                .mv csci, :DATA0086
+                .mv csci, :DATA0087
             mov a, 0x02
             cal :stackvar8st16
-                .mv csci, :DATA0087
+                .mv csci, :DATA0088
             mov a, 0x04
             cal :stackvar8st16
-                .mv csci, :DATA0088
+                .mv csci, :DATA0089
             mov a, 0x06
             cal :stackvar8st16
-                .mv csci, :DATA0089
+                .mv csci, :DATA008a
             mov a, 0x08
             cal :stackvar8st16
                 cal :FPRINTF001c
@@ -3181,8 +3181,8 @@ FMAIN0083:      nop
                     mov a, 0x83
                     cal :stackheadrll8
                 xor a
-                jrx z, :LABEL008a
-LABEL0085:      nop
+                jrx z, :LABEL008b
+LABEL0086:      nop
     ;depth 2: STACKHEAD += 3
                     mov a, 0x03
                     cal :stackheadrll8
@@ -3190,7 +3190,7 @@ LABEL0085:      nop
                 cal :stackvar8gt16
             mov a, 0x00
             cal :stackvar8st16
-                .mv csci, :DATA008b
+                .mv csci, :DATA008c
             mov a, 0x02
             cal :stackvar8st16
                 mov cs, 0x00
@@ -3208,7 +3208,7 @@ LABEL0085:      nop
                 mov ci, a
                 mov a, cs
                 or ci
-                jrx z, :LABEL008c
+                jrx z, :LABEL008d
                 mov cs, 0x00
                 mov ci, 0x01
             mov a, 0x02
@@ -3220,7 +3220,7 @@ LABEL0085:      nop
                 add csci, dsdi
             mov a, 0x00
             cal :stackvar8st16
-LABEL008c:      nop
+LABEL008d:      nop
     ;depth 2: STACKHEAD += 4
                     mov a, 0x04
                     cal :stackheadrll8
@@ -3228,7 +3228,7 @@ LABEL008c:      nop
                 cal :stackvar8gt16
             mov a, 0x00
             cal :stackvar8st16
-                cal :FGETDRIVE0069
+                cal :FGETDRIVE006a
     ;depth 1: STACKHEAD -= 4
                     mov a, 0x84
                     cal :stackheadrll8
@@ -3245,11 +3245,11 @@ LABEL008c:      nop
                 cal :stackvar8gt8
             mov a, 0x01
             cal :stackvar8st8
-                cal :FLISTCATALO0078
+                cal :FLISTCATALO0079
     ;depth 1: STACKHEAD -= 4
                     mov a, 0x84
                     cal :stackheadrll8
-LABEL008a:      nop
+LABEL008b:      nop
                 ret
 ;END OF FUNCTION main
 ;>>>>>>>>>>DATA SEGMENT<<<<<<<<<<<<<
@@ -3262,21 +3262,21 @@ DATA002b:      .db 'cat and file handle mismatch', 0x00
 DATA002d:      .db 'not enough user memory', 0x00
 DATA002f:      .db 'not all sectors loaded', 0x00
 DATA0030:      .db 'error: %x %s%n', 0x00
-DATA0063:      .db '?', 0x00
-DATA0065:      .db 'A', 0x00
-DATA0068:      .db 'B', 0x00
-DATA006a:      .db 'A:', 0x00
-DATA006d:      .db 'B:', 0x00
-DATA0075:      .db '%s %s %w %x %x %x%n', 0x00
-DATA0079:      .db 'listing files of drive %s:%n', 0x00
-DATA007a:      .db 'DISC    CAT', 0x00
-DATA0082:      .db '%x catalog entries free; %w sectors free...%n', 0x00
-DATA0084:      .db '-H', 0x00
-DATA0086:      .db '%s%n%s%n%s%n', 0x00
-DATA0087:      .db 'lists files', 0x00
-DATA0088:      .db '-a show all files', 0x00
-DATA0089:      .db '-h print help', 0x00
-DATA008b:      .db '-A', 0x00
+DATA0064:      .db '?', 0x00
+DATA0066:      .db 'A', 0x00
+DATA0069:      .db 'B', 0x00
+DATA006b:      .db 'A:', 0x00
+DATA006e:      .db 'B:', 0x00
+DATA0076:      .db '%s %s %w %x %x %x%n', 0x00
+DATA007a:      .db 'listing files of drive %s:%n', 0x00
+DATA007b:      .db 'DISC    CAT', 0x00
+DATA0083:      .db '%x catalog entries free; %w sectors free...%n', 0x00
+DATA0085:      .db '-H', 0x00
+DATA0087:      .db '%s%n%s%n%s%n', 0x00
+DATA0088:      .db 'lists files', 0x00
+DATA0089:      .db '-a show all files', 0x00
+DATA008a:      .db '-h print help', 0x00
+DATA008c:      .db '-A', 0x00
 ;>>>>>>>>>>COMPILER ASM STDLIB for BCOS v1.2 on BC64 v1.0<<<<<<<<<<<<<
             mov a, 0xff
             mov a, 0xff
