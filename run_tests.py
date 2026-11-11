@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the component test suites and report one line per suite.
 
-Suites: emulator, ftool, assembler, compiler (group "unit") and e2e (group "e2e").
+Suites: emulator, ftool, assembler, compiler, release (group "unit") and e2e (group "e2e").
 
 Usage (from any directory):
     python3 run_tests.py [--group unit|e2e|all]
@@ -87,6 +87,7 @@ def build_suites(root=ROOT):
         ("ftool", "unit", "src", modules["ftool"]),
         ("assembler", "unit", os.path.join("src", "bc81asmc"), discover),
         ("compiler", "unit", os.path.join("src", "bc"), discover),
+        ("release", "unit", "scripts", ["discover", "-s", "tests", "-t", ".", "-p", "test_*.py"]),
         ("e2e", "e2e", "src", modules["e2e"]),
     ]
 
@@ -191,7 +192,7 @@ def write_summary(results, path):
 def main(argv=None, suites=None, runner=run_suite, environ=None, manifest=MANIFEST):
     parser = argparse.ArgumentParser(description="Run the component test suites.")
     parser.add_argument("--group", choices=GROUPS, default="all",
-                        help="unit = emulator/ftool/assembler/compiler, e2e = end-to-end, all = both")
+                        help="unit = emulator/ftool/assembler/compiler/release, e2e = end-to-end, all = both")
     options = parser.parse_args(argv)
     environ = os.environ if environ is None else environ
 

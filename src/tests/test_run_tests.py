@@ -56,16 +56,24 @@ class SelectionTests(unittest.TestCase):
     def test_suite_order_and_groups(self):
         suites = run_tests.build_suites()
         self.assertEqual([s[0] for s in suites],
-                         ["emulator", "ftool", "assembler", "compiler", "e2e"])
+                         ["emulator", "ftool", "assembler", "compiler", "release", "e2e"])
         self.assertEqual([s[1] for s in suites],
-                         ["unit", "unit", "unit", "unit", "e2e"])
+                         ["unit", "unit", "unit", "unit", "unit", "e2e"])
 
     def test_group_filtering(self):
         suites = run_tests.build_suites()
         names = lambda group: [s[0] for s in run_tests.filter_suites(suites, group)]
-        self.assertEqual(names("unit"), ["emulator", "ftool", "assembler", "compiler"])
+        self.assertEqual(names("unit"), ["emulator", "ftool", "assembler", "compiler", "release"])
         self.assertEqual(names("e2e"), ["e2e"])
-        self.assertEqual(names("all"), ["emulator", "ftool", "assembler", "compiler", "e2e"])
+        self.assertEqual(names("all"),
+                         ["emulator", "ftool", "assembler", "compiler", "release", "e2e"])
+
+    def test_release_suite_discovers_scripts_tests(self):
+        suites = {s[0]: s for s in run_tests.build_suites()}
+        _name, group, cwd, args = suites["release"]
+        self.assertEqual((group, cwd), ("unit", "scripts"))
+        self.assertEqual(args[:3], ["discover", "-s", "tests"])
+        self.assertTrue(os.path.isfile(os.path.join(ROOT, "scripts", "tests", "__init__.py")))
 
 
 class ParseTests(unittest.TestCase):
