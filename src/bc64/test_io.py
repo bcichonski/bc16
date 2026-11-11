@@ -215,6 +215,22 @@ class RandomGeneratorTests(unittest.TestCase):
             self.assertEqual(val, value)
             self.assertEqual(rnd.calls, [(0x00, 0xff)])
 
+class RandomGeneratorSeedTests(unittest.TestCase):
+    def sequence(self, seed=None, count=32):
+        dev = bc64_io.RandomGenerator(MockedEnvironment(debug), seed)
+        return [dev.read_byte() for _ in range(count)]
+
+    def test_same_seed_gives_same_sequence(self):
+        self.assertEqual(self.sequence(42), self.sequence(42))
+
+    def test_different_seeds_give_different_sequences(self):
+        self.assertNotEqual(self.sequence(1), self.sequence(2))
+
+    def test_unseeded_still_returns_bytes(self):
+        values = self.sequence()
+        self.assertEqual(len(values), 32)
+        self.assertTrue(all(0x00 <= v <= 0xff for v in values))
+
 class NoFloppyDriveTests(unittest.TestCase):
     def test_should_read_zero_and_ignore_writes_on_port_8(self):
         #given

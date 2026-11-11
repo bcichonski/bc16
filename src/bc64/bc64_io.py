@@ -266,10 +266,11 @@ class Clock(IODevice):
 class RandomGenerator(IODevice):
     DEFAULT_IO_PORT = 0x05
 
-    def __init__(self, env):
+    def __init__(self, env, seed=None):
         self.env = env
         self.io_port = RandomGenerator.DEFAULT_IO_PORT
-        self.rnd = random.Random()
+        # seed None: seeded from the system; an int makes the byte sequence reproducible
+        self.rnd = random.Random(seed)
 
     def read_byte(self):
         return self.rnd.randint(0x00, 0xff)

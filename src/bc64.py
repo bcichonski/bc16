@@ -12,13 +12,13 @@ TOP_ADDRESS = MEMORY_SIZE - 1
 STACK_TOP = TOP_ADDRESS - 1
 
 class Bc64:
-    def __init__(self, env, debug, no_floppy=False):
+    def __init__(self, env, debug, no_floppy=False, random_seed=None):
         self.mem = bc64_mem.MemBus(env, MEMORY_SIZE)
         self.keyboard = bc64_io.TerminalKeyboard(env)
         self.printer = bc64_io.TerminalPrinter(env)
         self.taperecorder = bc64_io.TapeRecorder(env)
         self.clock = bc64_io.Clock(env)
-        self.randgen = bc64_io.RandomGenerator(env)
+        self.randgen = bc64_io.RandomGenerator(env, random_seed)
         if no_floppy:
             self.floppydrive = bc64_io.NoFloppyDrive()
         else:
@@ -70,6 +70,15 @@ def positive_int(text):
         raise argparse.ArgumentTypeError("must be at least 1")
     return value
 
+def seed_int(text):
+    try:
+        value = int(text, 0)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid integer: {text!r}")
+    if value < 0:
+        raise argparse.ArgumentTypeError("must be at least 0")
+    return value
+
 def build_parser():
     parser = argparse.ArgumentParser(
         prog='bc64.py',
@@ -88,6 +97,8 @@ def build_parser():
     parser.add_argument('--output', metavar='FILE', help='file receiving a copy of every printer byte')
     parser.add_argument('--max-instructions', metavar='N', type=positive_int,
                         help='stop with exit code 3 after N instructions without a halt')
+    parser.add_argument('--random-seed', metavar='N', type=seed_int,
+                        help='seed the port 0x05 random generator (decimal or 0x-hex, at least 0) for a reproducible run')
     return parser
 
 def parse_args(argv):
@@ -125,7 +136,7 @@ def main(argv):
     trace = args.trace is not None
     env = make_env(args, trace)
     try:
-        computer = Bc64(env, trace, args.no_floppy)
+        computer = Bc64(env, trace, args.no_floppy, args.random_seed)
         if args.rom is not None:
             import_rom(args.rom, env, computer.mem)
         computer.write_top_kil()

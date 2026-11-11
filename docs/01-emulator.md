@@ -49,6 +49,7 @@ python bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 d      # any 2nd argument turns on 
 | `--input FILE` | file with the keystrokes to type; `-` reads stdin (the default when stdin is piped) |
 | `--output FILE` | file that receives a copy of every printer byte |
 | `--max-instructions N` | stop with exit code 3 after `N` instructions (at least 1) without a halt |
+| `--random-seed N` | seed the port `0x5` random generator with `N` (decimal or `0x` hex, at least 0; a bad value is exit 2), so a run is reproducible. Without it the generator is seeded from the system |
 | `-h`, `--help` | list the options |
 
 All options are optional and can be combined.
@@ -347,7 +348,8 @@ Reading in the ready state returns `0x80`. Reading in any other state returns `0
 
 ### Port 0x5: random number generator
 
-- `IN` returns a random byte `0x00`–`0xff`.
+- `IN` returns a random byte `0x00`–`0xff`. With `--random-seed N` the sequence is the same on every run;
+  without it the sequence differs per run.
 - `OUT` is ignored.
 
 ### Port 0x8: floppy disk drive (FDD v1)
