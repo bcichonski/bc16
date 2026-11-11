@@ -1,0 +1,39 @@
+bcOS 1.2
+booting from FDDlding
+bDOS 1.1 shell
+9FF5 bytes free
+reading disc...
+A>ls -h
+.......
+lists files
+-a show all files
+-h print help
+A>cp -h
+.......
+copy file
+[d:]srcfname.ext
+[d:]dstfname.ext
+
+A>format -h
+..........
+format disc
+d: drive
+-q quick
+A>rm -h
+........
+remove file
+[-f] force
+[d:]srcfname.ext
+A>cha -h
+.......
+set file attributes
+[+-][SRWX] set or unset attrib
+A>cat -h
+.......
+print files
+-b binary
+-c characters
+
+A>exit
+bye!
+

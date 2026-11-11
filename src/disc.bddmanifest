@@ -1,0 +1,18 @@
+# System disc manifest, built by `./ftool mkdisc disc.bddmanifest os.bdd` (see ftool_mkdisc.py).
+# Columns: NAME.EXT  SOURCE  ATTRIBS  [PLACE]
+#   SOURCE  - file path relative to this manifest
+#   ATTRIBS - letters from R W X S (read, write, execute, system)
+#   PLACE   - boot | system | T/S (explicit decimal start) | empty = automatic (back to back from track 12)
+# The first line must be the boot file, the second the system file. DISC.CAT is written by the tool.
+BOOTSECT.BIN  bdos/boot.sector          SR   boot
+BDOS.SYS      bdos/bdos.sector          SR   system
+LS.PRG        bdos/ls.sectors           SRX
+HELLOWRD.PRG  bdos/helloworld.sectors   RX
+CP.PRG        bdos/cp.sectors           SRX
+FORMAT.PRG    bdos/format.sectors       SRX
+RM.PRG        bdos/rm.sectors           SRX
+CHA.PRG       bdos/cha.sectors          SRX
+CAT.PRG       bdos/cat.sectors          SRX
+TEXTED.PRG    bdos/texted.sectors       RX
+TEST.B        bdos/testb.sectors        RW
+THEODORE.PRG  bdos/theodore.sectors     RX

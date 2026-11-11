@@ -5,9 +5,9 @@ import e2e_harness as h
 
 # ~10x the measured need (about 2M instructions for a handful of commands).
 LIMIT = 50000000
-CATALOG_LINES = [b"HELLOWRD.PRG -R-X 0780 11 00 0F", b"TEXTED  .PRG -R-X 3800 2D 00 70",
-                 b"TEST    .B   -RW- 0100 34 00 02",
-                 b"THEODORE.PRG -R-X 1300 35 00 26"]
+CATALOG_LINES = [b"HELLOWRD.PRG -R-X 0700 0F 0A 0E", b"TEXTED  .PRG -R-X 3800 24 08 70",
+                 b"TEST    .B   -RW- 0100 2B 08 02",
+                 b"THEODORE.PRG -R-X 1300 2B 0A 26"]
 TEST_B_TEXT = [b"10 first line !ln", b"20 second line !ln"]
 
 
@@ -52,10 +52,6 @@ class BdosShellTests(unittest.TestCase):
         out = self.check("bdos_errors", [b"A>foo", b"A>cat -c nofile.txt", b"bye!"])
         self.assertEqual(2, out.count(b"error: E0 file not found"))
 
-    # Found by #49, issue to be filed. Observed: `cp test.b copy.b` prints its dots and then reads
-    # keys until the input runs out; the emulator exits 0 at end of input, so `cat -c copy.b` and
-    # `exit` never run. No golden: the correct transcript is not known, only the markers below.
-    @unittest.expectedFailure
     def test_cp_then_cat_shows_same_text(self):
         out = run("bdos_cp")
         h.assert_markers(out, [b"A>cp test.b copy.b", b"A>cat -c copy.b"] + TEST_B_TEXT + [b"bye!"])
