@@ -2730,13 +2730,31 @@ FPARSE2ARGS0072:nop
                     cal :stackheadrll8
             mov a, 0x0a
             cal :stackvar8st16
-                mov a, 0x08
+    ;depth 2: STACKHEAD += 13
+                    mov a, 0x0d
+                    cal :stackheadrll8
+                mov a, 0x85
                 cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FPEEK80001
+    ;depth 1: STACKHEAD -= 13
+                    mov a, 0x8d
+                    cal :stackheadrll8
                 mov a, cs
                 or ci
                 jrx z, :LABEL0073
-                mov a, 0x0a
+    ;depth 2: STACKHEAD += 13
+                    mov a, 0x0d
+                    cal :stackheadrll8
+                mov a, 0x83
                 cal :stackvar8gt16
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FPEEK80001
+    ;depth 1: STACKHEAD -= 13
+                    mov a, 0x8d
+                    cal :stackheadrll8
                 mov a, cs
                 or ci
                 jrx z, :LABEL0074
@@ -4905,25 +4923,17 @@ FFILEARG00b4:   nop
                     cal :stackheadrll8
             mov a, 0x08
             cal :stackvar8st16
-                mov a, 0x06
+    ;depth 2: STACKHEAD += 12
+                    mov a, 0x0c
+                    cal :stackheadrll8
+                mov a, 0x86
                 cal :stackvar8gt16
-                        psh cs
-                        psh ci
-                mov a, 0x08
-                cal :stackvar8gt16
-                        pop di
-                        pop ds
-                mov a, cs
-                or ci
-                mov ci, f
-                mov a, ds
-                or di
-                mov a, f
-                or ci
-                not a
-                and 0x01
-                mov cs, 0x00
-                mov ci, a
+            mov a, 0x00
+            cal :stackvar8st16
+                cal :FPEEK80001
+    ;depth 1: STACKHEAD -= 12
+                    mov a, 0x8c
+                    cal :stackheadrll8
                 mov a, cs
                 or ci
                 jrx z, :LABEL00b5

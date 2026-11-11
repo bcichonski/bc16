@@ -33,8 +33,8 @@ byte parse2args(word PinputBuf, word PtextedVars)
     Pwstart <- strnextword(PinputBuf+1);
     Pwend <- strnextword(Pwstart);
 
-    if(Pwstart) {
-        if(Pwend) {
+    if(peek8(Pwstart)) {
+        if(peek8(Pwend)) {
             poke8(Pwend - 1, 0);
             arg1 <- parsedecw(Pwstart, 5);
             arg2 <- parsedecw(Pwend, 5);
@@ -438,7 +438,7 @@ word fileArg(word PinputBuf, word bufLen, word Pverb)
     Pwstart <- strnextword(PinputBuf+1);
     Pwend <- strnextword(Pwstart);
 
-    if(Pwstart && Pwend)
+    if(peek8(Pwstart))
     {
         if((Pwend - Pwstart) <= MAXFILENAMELEN)
         {
