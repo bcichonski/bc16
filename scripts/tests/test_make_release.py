@@ -31,7 +31,8 @@ def history_missing():
     """Return why the legacy commits can't be read, or None."""
     if git("rev-parse", "--is-shallow-repository").decode().strip() == "true":
         return "shallow clone: the legacy release commits are not available"
-    for commit in (make_release.LEGACY_COMMIT, make_release.BC16_ROM_COMMIT):
+    for commit in (make_release.LEGACY_COMMIT, make_release.BC32_ROM_COMMIT,
+                   make_release.BC16_ROM_COMMIT):
         try:
             make_release.require_commit(ROOT, commit)
         except make_release.ReleaseError:
@@ -228,10 +229,17 @@ class Bc32ZipTests(LegacyZipMixin, ZipChecks, unittest.TestCase):
     rom_name = "bcos_v1_1_1.b81"
     start_line = "$PY ../bc32.py ../rom/bcos_v1_1_1.b81 $1"
 
-    def test_rom_is_bcos_1_1_1_of_the_legacy_commit(self):
+    def test_rom_is_bcos_1_1_1_of_the_release_commit(self):
+        self.assertEqual(make_release.BC32_ROM_COMMIT, "6304761")
         self.assertEqual(self.read("rom/bcos_v1_1_1.b81"),
-                         git("show", make_release.LEGACY_COMMIT
+                         git("show", make_release.BC32_ROM_COMMIT
                              + ":src/bc81asmc/bcOS/bcos_v1_1_1.b81"))
+
+    def test_rom_is_not_the_later_copy_of_the_legacy_commit(self):
+        # b9f2fe6 changed the ROM after the bc32 release; the copy at 7d4cda9 crashes bc32.
+        self.assertNotEqual(self.read("rom/bcos_v1_1_1.b81"),
+                            git("show", make_release.LEGACY_COMMIT
+                                + ":src/bc81asmc/bcOS/bcos_v1_1_1.b81"))
 
     def test_disc_is_shipped(self):
         self.assertIn("discs/bdos.bdd", self.names)
@@ -289,6 +297,7 @@ class NotesTests(unittest.TestCase):
         bc32 = make_release.notes(ROOT, "bc32")
         self.assertIn("bcos_v1_1_1.b81", bc32)
         self.assertIn(make_release.LEGACY_COMMIT, bc32)
+        self.assertIn(make_release.BC32_ROM_COMMIT, bc32)
 
     def test_cli_prints_the_notes_from_another_cwd(self):
         with tempfile.TemporaryDirectory() as cwd:

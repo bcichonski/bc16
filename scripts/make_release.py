@@ -12,7 +12,7 @@ bc64    zips the tracked files of the current machine at HEAD (emulator, ROM, os
         planning docs are left out. File modes from git are kept.
 legacy  zips a frozen earlier generation into DIR/<gen>-v1.0.zip (root <gen>-v1.0/):
         release/<gen>_v1.0/ as at LEGACY_COMMIT, plus rom/ (bc32: the bcOS 1.1.1 ROM of
-        LEGACY_COMMIT; bc16: bcOS 1.0 assembled from BC16_ROM_COMMIT with that commit's
+        BC32_ROM_COMMIT, the release commit; bc16: bcOS 1.0 assembled from BC16_ROM_COMMIT with that commit's
         assembler), the run script with the interpreter pick of src/run, and RELEASE-NOTES.md.
 notes   prints the release notes: the README section of that generation.
 
@@ -34,6 +34,9 @@ import time
 import zipfile
 
 LEGACY_COMMIT = "7d4cda9"
+# The bc32 ROM comes from the release commit: b9f2fe6 changed it later, and that copy
+# (the one at LEGACY_COMMIT) crashes the bc32 emulator at start.
+BC32_ROM_COMMIT = "6304761"
 BC16_ROM_COMMIT = "bd2498a"
 LEGACY_GENERATIONS = ("bc16", "bc32")
 NOTES_GENERATIONS = ("bc64", "bc16", "bc32")
@@ -266,7 +269,8 @@ def build_bc16_rom(root, python=None):
 def legacy_rom(root, generation):
     """Return (file name, bytes) of the generation's ROM."""
     if generation == "bc32":
-        return "bcos_v1_1_1.b81", show(root, LEGACY_COMMIT, "src/bc81asmc/bcOS/bcos_v1_1_1.b81")
+        require_commit(root, BC32_ROM_COMMIT)
+        return "bcos_v1_1_1.b81", show(root, BC32_ROM_COMMIT, "src/bc81asmc/bcOS/bcos_v1_1_1.b81")
     return "bcos.b81", build_bc16_rom(root)
 
 
@@ -338,7 +342,7 @@ def notes(root, generation):
         start = "cd tape` and loads `../rom/bcos.b81"
     else:
         rom = ("`rom/bcos_v1_1_1.b81` (bcOS 1.1.1) is `src/bc81asmc/bcOS/bcos_v1_1_1.b81` "
-               "as at commit `%s`." % LEGACY_COMMIT)
+               "as at the release commit `%s`." % BC32_ROM_COMMIT)
         start = "cd discs` and loads `../rom/bcos_v1_1_1.b81"
     intro = (
         "Frozen %s machine generation (tag `%s` on `%s`). The files are `release/%s_v1.0/` "
