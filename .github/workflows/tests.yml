@@ -50,7 +50,7 @@ jobs:
       - name: Unit tests
         run: python run_tests.py --group unit < /dev/null
 
-      - name: Guard (tracked files, no cpudebug.log, release/ untouched)
+      - name: Guard (tracked files, generated files, no cpudebug.log)
         if: always()
         shell: bash
         run: |
@@ -70,11 +70,6 @@ jobs:
           if [ -n "$(find . -name cpudebug.log -print)" ]; then
             echo "::error::cpudebug.log found in the checkout"
             find . -name cpudebug.log -print
-            status=1
-          fi
-          if [ -n "$(git status --porcelain -- release/)" ]; then
-            echo "::error::release/ has changes"
-            git status --porcelain -- release/
             status=1
           fi
           exit "$status"
@@ -151,7 +146,7 @@ jobs:
             src/bc64/testdata/
           if-no-files-found: warn
 
-      - name: Guard (no cpudebug.log, release/ untouched)
+      - name: Guard (no cpudebug.log)
         if: always()
         shell: bash
         run: |
@@ -159,11 +154,6 @@ jobs:
           if [ -n "$(find . -name cpudebug.log -print)" ]; then
             echo "::error::cpudebug.log found in the checkout"
             find . -name cpudebug.log -print
-            status=1
-          fi
-          if [ -n "$(git status --porcelain -- release/)" ]; then
-            echo "::error::release/ has changes"
-            git status --porcelain -- release/
             status=1
           fi
           exit "$status"

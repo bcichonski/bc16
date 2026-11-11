@@ -12,8 +12,8 @@ The BC64 is a made-up 8-bit computer that exists only as a Python emulator. It h
 | `bc64/bc64_io.py` | `IOBus` and the devices: keyboard, printer, tape recorder, clock, random generator, floppy drive |
 | `bc64/bc64_env.py` | host abstraction: console I/O (raw `getch`), files, debug log |
 
-Older generations are frozen in `release/bc16_v1.0` (bc8181/8182 CPU, 16 KB, tape only) and
-`release/bc32_v1.0` (bc8182 CPU, 32 KB, adds clock, random generator and floppy drive).
+Older generations are frozen as GitHub Releases, tagged `bc16-v1.0` (bc8181/8182 CPU, 16 KB, tape only) and
+`bc32-v1.0` (bc8182 CPU, 32 KB, adds clock, random generator and floppy drive). See "Releases" in the README.
 
 ## Running it
 

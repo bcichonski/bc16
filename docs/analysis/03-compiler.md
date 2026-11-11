@@ -53,7 +53,8 @@ its proposal.
 1. **Replace the `msilib` import** (#13; `Error = Exception`, also in scope of #1), and gate
    the debug prints behind `--verbose` (#14).
 2. **Repair the grammar tests**, and add **golden code-generation tests** (#15): compile
-   `src/bc/code/*.b` and the bdos programs and compare against committed `.basm`. Also
+   `src/bc/code/*.b` and the bdos programs and compare against golden `.basm` files kept in the
+   tests (since #90 the generated `.basm` files are no longer committed). Also
    **track code size** per program in CI, so optimisations are measured the way
    `history.txt` already does by hand.
 3. **Dead-code elimination (item 5a)** (#16):

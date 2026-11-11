@@ -17,6 +17,71 @@ bcc bdos/helloworld                             # build a program: helloworld.b 
 cd .. && python run_tests.py                    # run all the tests
 ```
 
+A fresh clone runs at once, because the ROM (`bcos_v1_2_0.b81`) and the disc (`src/os.bdd`) are committed.
+Everything else the build produces (`.basm`, `.btap`, `.sector(s)`, `.genb`) is ignored by git. To build
+anything, or to run the end-to-end tests, run the whole pipeline first:
+
+```bash
+cd src && ./buildos && ./buildtools && ./buildapps && ./makedisc
+```
+
+`debug`, `fddtest` and the programs in `src/bc/code/` aren't part of the pipeline. Build them on demand with
+`./bcc <name>` (for example `./bcc bdos/debug`).
+
+# Releases
+
+Every machine generation is a tagged GitHub Release with a zip. The tags are:
+
+| Tag | Generation | Commit |
+|---|---|---|
+| `bc16-v1.0` | BC16 (tape only) | `bd2498a` |
+| `bc32-v1.0` | BC32 (adds clock, random generator, floppy drive) | `6304761` |
+| `bc64-v*` | BC64 (the current machine, `bc64-v1.0` and later) | the tagged commit |
+| `bc-v0.5` | an early tag that already existed | |
+
+What the zips contain:
+
+- **bc64** (`bc64-vX.Y.zip`, root folder `bc64-vX.Y/`): the tracked files of the emulator, the ROM, `src/os.bdd`, the
+  toolchain (`bc`, `bc81asmc`, `bdos`, `ftool`, the shell scripts), `README.md`, `LICENSE`, `pyproject.toml` and the
+  reference docs `docs/0*-*.md`. Tests, test data, CI files and planning docs are left out. Unpack it, then
+  `cd bc64-vX.Y/src && ./run` starts the machine.
+- **bc16** and **bc32** (`bc16-v1.0.zip`, `bc32-v1.0.zip`): the frozen `bc16_v1.0` / `bc32_v1.0` folders that used
+  to live in `release/` (emulator, assembler, tapes or discs), plus a `rom/` folder with the bcOS ROM and a
+  `RELEASE-NOTES.md`. The bc32 ROM is bcOS 1.1.1. The bc16 ROM (bcOS 1.0) is assembled at release time from
+  commit `bd2498a`. The only change to the frozen files is that `run` picks the Python interpreter like `src/run`.
+
+`scripts/make_release.py` builds the zips (standard library only, run it in a full clone with history, from
+anywhere). Output goes to `dist/` unless `--out DIR` is given:
+
+```bash
+python3 scripts/make_release.py bc64 --tag bc64-v1.0      # dist/bc64-v1.0.zip, from HEAD
+python3 scripts/make_release.py legacy bc16               # dist/bc16-v1.0.zip
+python3 scripts/make_release.py legacy bc32               # dist/bc32-v1.0.zip
+python3 scripts/make_release.py notes bc16                # prints the release notes (the README "# BC16" section)
+```
+
+The `legacy bc16` command needs `parsy` (`pip install -e .`), because it assembles the old ROM.
+
+`.github/workflows/release.yml` publishes bc64: pushing a `bc64-v*` tag builds the intermediates, runs the tests,
+builds the zip and creates the GitHub Release with the zip attached. Running the workflow by hand
+(`workflow_dispatch`, input: zip name) does the same without publishing and uploads the zip as a workflow artifact.
+GitHub only offers `workflow_dispatch` for a workflow file on the default branch (`master`), so the dry run is
+available only after the file is there.
+
+The two legacy releases are published once, by the repo owner:
+
+```bash
+git tag bc16-v1.0 bd2498a
+git tag bc32-v1.0 6304761
+git push origin bc16-v1.0 bc32-v1.0
+python3 scripts/make_release.py legacy bc16
+python3 scripts/make_release.py notes bc16 > dist/bc16-notes.md
+gh release create bc16-v1.0 dist/bc16-v1.0.zip --title bc16-v1.0 --notes-file dist/bc16-notes.md
+python3 scripts/make_release.py legacy bc32
+python3 scripts/make_release.py notes bc32 > dist/bc32-notes.md
+gh release create bc32-v1.0 dist/bc32-v1.0.zip --title bc32-v1.0 --notes-file dist/bc32-notes.md
+```
+
 # BC64
 ## roadmap
 0. memory increased to 64kb

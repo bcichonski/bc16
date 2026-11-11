@@ -11,8 +11,9 @@ python3 ftool.py btap2bin bc81asmc/bcOS/bcos.btap bc81asmc/bcOS/bcos_v1_2_0.b81
 # or ./buildos, which also rebuilds the bdos boot loader and shell
 ```
 
-`bcos_v1_2_0.b81` is the ROM image that `./run` uses. `bcos_v1_1_*.b81` are older builds;
-keep them.
+`bcos_v1_2_0.b81` is the ROM image that `./run` uses, and the only ROM that is committed (rebuild and
+commit it with every bcOS change). `bcos.btap` is a build output and is ignored by git. The older ROMs are gone
+from the tree: the bc32 ROM (v1.1.1) ships in the `bc32-v1.0` release zip.
 
 ## Rules
 

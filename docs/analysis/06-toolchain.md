@@ -42,7 +42,7 @@ the root `CLAUDE.md`.
 | 5 | Outdated packaging | Python 3.7 Pipfile (EOL June 2023), only for the assembler | unclear supported Python version; `msilib` was removed in Python 3.13 |
 | 6 | Mixed line endings | CRLF in `bcos.basm`, the generated `.basm` files and others; LF elsewhere; no `.gitattributes` | noisy diffs, and the editor/tool mismatches seen in this session |
 | 7 | Leftovers | tracked: the top-level `bc/grammar.txt` (an old copy), and `src/rundebug`, which references the old `bc16.py`. Untracked but ignored local clutter: `src/string.btap` (0 bytes), `src/texted.compile.log`, `src/history.log`, `src/bc64.dmp` | clutter, and a broken script |
-| 8 | Release snapshots are full copies | `release/bc16_v1.0`, `release/bc32_v1.0` | fine for history (G9); git tags would be lighter |
+| 8 | ~~Release snapshots are full copies~~ (done, #90) | the old `release/bc16_v1.0` and `release/bc32_v1.0` folders | replaced by the tagged GitHub Releases `bc16-v1.0` and `bc32-v1.0` (G9) |
 
 ## Proposals
 
@@ -97,9 +97,9 @@ the root `CLAUDE.md`.
    - fix or delete `rundebug`;
    - add `trace.in` (written by `rundebug`) to `.gitignore` (`*.log` and `*.dmp` are
      already ignored).
-7. **Release tags** (`bc16-v1.0`, `bc32-v1.0`, later `bc64-v1.0`) in addition to the
-   `release/` folders. Consider replacing the folders with tags once nobody needs a
-   side-by-side checkout.
+7. **Release tags** (`bc16-v1.0`, `bc32-v1.0`, later `bc64-v1.0`) (done, #90): the
+   `release/` folders are replaced by tagged GitHub Releases with zips (`scripts/make_release.py`,
+   `release.yml`; see the README "Releases" and G9).
 8. **Agent friendliness for `/grind`:** the root CLAUDE.md should point to the single
    `build.py test` / `build.py all` command once it exists, so every story ends with the
    same verification.

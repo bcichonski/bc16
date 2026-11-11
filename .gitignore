@@ -122,5 +122,3 @@ src/bc/code/*.basm
 !src/os.bdd
 !src/utils.bdd
 !src/bc64/testdata/*.bdd
-# TODO(T5): remove with release/ (frozen snapshots, deleted by T5)
-!release/**

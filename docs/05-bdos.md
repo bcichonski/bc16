@@ -25,8 +25,10 @@ Sources are in `src/bdos/`:
 | `calc.b`, `fddtest.b`, `debug.b` | older or test programs, not on the disc |
 | `bdos.md` | short design notes: disk format, bdio call list, memory map |
 
-For each program the repo also keeps generated files: `*.genb` (preprocessed), `*.basm`,
-`*.btap` and `*.sector(s)` (raw sectors).
+Building a program creates generated files next to it: `*.genb` (preprocessed), `*.basm`,
+`*.btap` and `*.sector(s)` (raw sectors). They are ignored by git and must be rebuilt after a fresh
+clone (the pipeline command is below). Only `boot.basm` (hand-written) and `testb.sectors` (sample
+data) are committed. The committed outputs are `os.bdd` and the ROM.
 
 ## Boot
 
@@ -100,7 +102,7 @@ first free catalog entry and the first free sector after the used area. New data
 allocated from that point onwards (`bdio_getfreesect`), and files are written
 append-only. Deleted space is not reused or compacted.
 
-**Discs made before #37.** `os.bdd` and `smoke.bdd` copied before #37 number only catalog entries 0–15, and entries 16–247 hold 0. bdio takes the first empty entry's number byte as the slot for a new file, so on such a disc the 17th file gets entry number 0 and overwrites the entry of `BOOTSECT.BIN`. The disc still boots, but its catalog is corrupted. Re-make the disc (`format` from a new system disc, or a copy of the new `os.bdd`), or keep it at 16 files or fewer. Discs made by `format`, and the committed `src/bdos.bdd` and `release/bc32_v1.0/discs/bdos.bdd`, number all 248 entries and are not affected.
+**Discs made before #37.** `os.bdd` and `smoke.bdd` copied before #37 number only catalog entries 0–15, and entries 16–247 hold 0. bdio takes the first empty entry's number byte as the slot for a new file, so on such a disc the 17th file gets entry number 0 and overwrites the entry of `BOOTSECT.BIN`. The disc still boots, but its catalog is corrupted. Re-make the disc (`format` from a new system disc, or a copy of the new `os.bdd`), or keep it at 16 files or fewer. Discs made by `format` and the committed `src/os.bdd` number all 248 entries and are not affected.
 
 ## bdio: the system call API
 
@@ -243,6 +245,11 @@ From `src/` (the scripts pick the interpreter themselves: `winpty python` on Git
 ./makedisc     # convert each .btap to sectors, then build a fresh os.bdd from src/disc.bddmanifest
 ./run          # start the emulator; enter "os.bdd" when asked for the disk name
 ```
+
+After a fresh clone run the whole pipeline once: `cd src && ./buildos && ./buildtools && ./buildapps && ./makedisc`.
+It recreates every ignored file that `disc.bddmanifest` uses, and rewrites the committed ROM and `os.bdd`.
+`debug`, `fddtest` and the programs in `src/bc/code/` are not part of the pipeline; build them on demand
+with `./bcc` (for example `./bcc bdos/debug`).
 
 A single program can also be built with the console command `bcc bdos/ls` (after
 `pip install -e .`), and the emulator started with `bc64 bc81asmc/bcOS/bcos_v1_2_0.b81`.

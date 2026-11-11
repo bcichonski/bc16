@@ -8,8 +8,8 @@ bc8183 CPU.
 | File | Contents |
 |---|---|
 | `bcos.basm` | source |
-| `bcos.btap` | assembled tape image |
-| `bcos_v1_2_0.b81` | raw ROM image used by `./run` (`bcos_v1_1_0.b81` / `bcos_v1_1_1.b81` are older builds) |
+| `bcos.btap` | assembled tape image (build output, ignored by git) |
+| `bcos_v1_2_0.b81` | raw ROM image used by `./run`; the only ROM committed. The older ROMs are gone from the tree (the bc32 ROM, v1.1.1, ships in the `bc32-v1.0` release zip) |
 | `bcos.md` | short feature notes, command list and error codes |
 
 To build: `./buildos` from `src/` assembles bcOS, converts it with
