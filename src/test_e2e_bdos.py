@@ -6,7 +6,8 @@ import e2e_harness as h
 # ~10x the measured need (about 2M instructions for a handful of commands).
 LIMIT = 50000000
 CATALOG_LINES = [b"HELLOWRD.PRG -R-X 0780 11 00 0F", b"TEXTED  .PRG -R-X 3800 2D 00 70",
-                 b"TEST    .B   -RW- 0100 34 00 02"]
+                 b"TEST    .B   -RW- 0100 34 00 02",
+                 b"THEODORE.PRG -R-X 1300 35 00 26"]
 TEST_B_TEXT = [b"10 first line !ln", b"20 second line !ln"]
 
 
@@ -26,7 +27,7 @@ class BdosShellTests(unittest.TestCase):
         self.check("bdos_boot", [b"bDOS 1.1 shell", b"A>exit", b"bye!"])
 
     def test_ls_lists_catalog(self):
-        self.check("bdos_ls", [b"A>ls"] + CATALOG_LINES + [b"EB catalog entries free"])
+        self.check("bdos_ls", [b"A>ls"] + CATALOG_LINES + [b"EA catalog entries free"])
 
     def test_cat_prints_text_file(self):
         self.check("bdos_cat", [b"A>cat -c test.b"] + TEST_B_TEXT)

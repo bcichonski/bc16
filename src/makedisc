@@ -51,6 +51,10 @@ echo converting texted to sectors...
 ./ftool btap2bin bdos/texted.btap bdos/texted.sectors
 check_exit_code $?
 
+echo converting theodore to sectors...
+./ftool btap2bin bdos/theodore.btap bdos/theodore.sectors
+check_exit_code $?
+
 echo creating empty floppy disk
 ./ftool createbdd os.bdd
 check_exit_code $?
@@ -90,6 +94,9 @@ echo burning cat program
 
 echo burning texted program
 ./ftool importsector bdos/texted.sectors os.bdd 45 0
+
+echo burning theodore program
+./ftool importsector bdos/theodore.sectors os.bdd 53 0
 
 echo burning test.b sample file
 ./ftool importsector bdos/testb.sectors os.bdd 52 0
