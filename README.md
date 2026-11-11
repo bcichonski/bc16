@@ -25,7 +25,7 @@ cd .. && python run_tests.py                    # run all the tests
 2. related changes and optimizations in bcc (usage of new arithmetic)
 2. bcos 1.2 (move from bcc stdlib, other improvements)
 3. bdos 1.1 (buffered read and buffered writes)
-4. texted and game new versions
+4. texted and game new versions (done: TextEd v1.2 #1, theodore v1.1 #2)
 5. bcc (new optimization to drop unused code and managing stacks inside subroutines)
 6. bdos 1.1b (fcat with dates! and load addresses)
 7. new discs (increase number of tracks and sectors 80 tracks by 32 sectors)
@@ -289,5 +289,5 @@ external assembler bc81asmc up to 1.1 (240317) - currently v1.3 (240914) for bc8
 external compiler bc of b language for bc8181-bc8182 cpu v 1.0.0 (240317) - currently v1.3.1 (240927) for bc8183
 calc - basic calculator
 texted - basic line editor
-theodore - simple game
+theodore - simple game (v1.1, on the bdos system disc)
 

@@ -182,6 +182,7 @@ byte printf(word PformatStr)*** // variadic: extra args become word params P1, P
 | `strings.b` | `strpeek8`, `strpoke8`, `strnlen8`, `strcpy`, `strncpy`, `strncmp` (`STRCMP_EQ/LT/GT`), `strnposc`, `strnextword`, `upchar`, `upstring`, `strndecw` |
 | `bdosh.b` + `bdioh.b` | bdos system-call wrappers and constants (see [05-bdos.md](05-bdos.md)) |
 | `bdostools.b` | `bdio_fnormalize`: `name.ext` → the space-padded 8+3 catalog form |
+| `random.b` | `random(max)`: random number via `BDIO_RANDOM`; include after `bdosh.b` |
 
 `printf` format codes: `%s` string, `%w` hex word, `%x` hex byte, `%n` newline.
 
