@@ -47,11 +47,23 @@ jobs:
       - name: Unit tests
         run: python run_tests.py --group unit < /dev/null
 
-      - name: Guard (no cpudebug.log, release/ untouched)
+      - name: Guard (tracked files, no cpudebug.log, release/ untouched)
         if: always()
         shell: bash
         run: |
           status=0
+          if [ -n "$(git ls-files -i -c --exclude-standard)" ]; then
+            echo "::error::tracked files match .gitignore (git rm --cached them)"
+            git ls-files -i -c --exclude-standard
+            status=1
+          fi
+          # a tracked X.basm beside a tracked X.b is compiler output and must not be committed
+          while IFS= read -r basm; do
+            if git ls-files --error-unmatch -- "${basm%.basm}.b" > /dev/null 2>&1; then
+              echo "::error::${basm} is generated from ${basm%.basm}.b and must not be tracked"
+              status=1
+            fi
+          done < <(git ls-files '*.basm')
           if [ -n "$(find . -name cpudebug.log -print)" ]; then
             echo "::error::cpudebug.log found in the checkout"
             find . -name cpudebug.log -print
@@ -79,6 +91,20 @@ jobs:
 
       - name: Install dependencies
         run: pip install -e .
+
+      - name: Build the ignored intermediates
+        shell: bash
+        working-directory: src
+        run: |
+          set -euo pipefail
+          ./buildos && ./buildtools && ./buildapps && ./makedisc
+          # the committed ROM and disc are restored, never compared
+          git checkout -- os.bdd bc81asmc/bcOS/bcos_v1_2_0.b81
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::the build changed or left tracked/untracked files, so an output is not ignored"
+            git status --porcelain
+            exit 1
+          fi
 
       - name: Refresh frozen smoke disc and transcript
         shell: bash

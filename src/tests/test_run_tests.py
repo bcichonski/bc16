@@ -191,5 +191,68 @@ class MainTests(unittest.TestCase):
             self.assertFalse(os.path.exists(path))
 
 
+class DiscSourceHintTests(unittest.TestCase):
+    E2E_SUITES = [("e2e", "e2e", "src", ["tests.test_x"]), ("ftool", "unit", "src", ["tests.test_y"])]
+
+    @staticmethod
+    def write_manifest(directory, sources):
+        path = os.path.join(directory, "disc.bddmanifest")
+        lines = ["# comment", "", "DISC.CAT  -  SR  role=catalog at=0/1"]
+        lines += ["%s.PRG  %s  RX" % (os.path.basename(s).upper(), s) for s in sources]
+        with open(path, "w") as handle:
+            handle.write("\n".join(lines) + "\n")
+        return path
+
+    def run_main(self, manifest):
+        calls = []
+
+        def runner(name, cwd, args):
+            calls.append(name)
+            return True, "Ran 1 test, OK", "Ran 1 test in 0s\n\nOK\n", 0
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = run_tests.main([], suites=self.E2E_SUITES, runner=runner, environ={},
+                                  manifest=manifest)
+        return code, calls, out.getvalue()
+
+    def test_missing_source_is_reported_first_one_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            touch(tmp, "bdos/b.sectors")
+            manifest = self.write_manifest(tmp, ["bdos/a.sectors", "bdos/b.sectors", "bdos/c.sectors"])
+            self.assertEqual(run_tests.missing_disc_source(manifest), "bdos/a.sectors")
+
+    def test_catalog_dash_and_comments_are_ignored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = self.write_manifest(tmp, [])
+            self.assertIsNone(run_tests.missing_disc_source(manifest))
+
+    def test_all_sources_present(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            touch(tmp, "bdos/a.sectors", "bdos/b.sectors")
+            manifest = self.write_manifest(tmp, ["bdos/a.sectors", "bdos/b.sectors"])
+            self.assertIsNone(run_tests.missing_disc_source(manifest))
+
+    def test_e2e_fails_with_hint_and_does_not_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            manifest = self.write_manifest(tmp, ["bdos/a.sectors"])
+            code, calls, out = self.run_main(manifest)
+        self.assertEqual(code, 1)
+        self.assertEqual(calls, ["ftool"])
+        self.assertIn("e2e        FAIL", out)
+        self.assertIn("bdos/a.sectors", out)
+        self.assertIn(run_tests.PIPELINE, out)
+        self.assertIn("SOME SUITES FAILED", out)
+
+    def test_e2e_runs_when_sources_present(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            touch(tmp, "bdos/a.sectors")
+            manifest = self.write_manifest(tmp, ["bdos/a.sectors"])
+            code, calls, out = self.run_main(manifest)
+        self.assertEqual(code, 0)
+        self.assertEqual(calls, ["e2e", "ftool"])
+        self.assertIn("ALL PASSED", out)
+
+
 if __name__ == "__main__":
     unittest.main()
