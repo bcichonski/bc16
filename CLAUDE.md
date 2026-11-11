@@ -84,8 +84,6 @@ Each suite uses flat imports, so run it from its own directory, as above.
 `docs/01-emulator.md`), and `python3 run_tests.py --group e2e` runs only that suite. It is the check, also for `/grind`. After an intended change in bcOS or bdos output, regenerate the goldens with
 `cd src && BC64_UPDATE_GOLDEN=1 python3 -m unittest test_e2e_bdos` (or another e2e module), then review them
 by eye before committing.
-`src/test_e2e_build.py` rebuilds everything (`buildos`, `buildtools`, `buildapps`, `makedisc`) in a temp copy of `src/`
-and fails if any committed generated output (`.genb`, `.basm`, `.btap`, `.sector(s)`, `.b81`, `os.bdd`) differs.
 
 The e2e suite's smoke test, `src/test_bc64_smoke.py`, boots a frozen disc
 (`src/bc64/testdata/smoke.bdd`) and compares the session byte for byte with a committed transcript,

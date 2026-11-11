@@ -4,7 +4,7 @@
 
 **Story Type**: `Internal`
 
-**Plan Revision**: `A0`
+**Plan Revision**: `A1`
 
 > This plan captures **what** to build and **why**: domain, architecture, decisions, and verified facts.
 > It deliberately does **not** contain implementation code, pseudocode, line numbers, mock setups, or test bodies.
@@ -119,7 +119,7 @@ N/A — Internal story.
 *   **D1. Fix TextEd only; #82 stays open.** The AC of #1 needs TextEd's error paths. #82 also asks for one `strnextword` in `strings.b` and changes to five other tools. Changing `strings.b` rebuilds every program that includes it, which is a large unrelated binary diff, and TEXTED has only 26 bytes of headroom. So TextEd adopts #82's option A, the existing contract ("pointer to the next word, or to the terminating NUL"), and tests for an empty word. Cleaning up `strings.b` and the other callers stays in #82. The PR body says `Refs #82`.
 *   **D2. The disc layout does not move.** TEXTED.PRG stays at 45/0 with 112 sectors, and TEST.B stays at 52/0. `CATALOG_LINES` and the `bdos_ls`/`bdos_rm` goldens are protected tests and must not change. If the code doesn't fit, shrink it inside `texted.b`, never on the disc.
 *   **D3. The scripts run on Linux and on Git Bash.** Same interpreter rule as `bcc` (§2.4). The scripts get file mode `100755`, and a root `.gitattributes` gives them `text eol=lf`, so `./buildos` runs right after a checkout on any platform. A CRLF shebang breaks bash, and Git Bash accepts LF. Each script keeps its own small block, as `bcc` does; there is no new sourced helper.
-*   **D4. The build check is an e2e test.** `src/test_e2e_build.py` (group `e2e`, so CI's Python 3.14 `e2e` job runs it) copies `src/` to a temp dir, runs the four scripts there with `./name`, and compares outputs (§2.4). It never writes into the real `src/`. This keeps the "full rebuild runs cleanly" and "all outputs committed" AC items enforced from now on.
+*   **D4 (superseded by A1, owner decision: no automated build check).** ~~The build check is an e2e test.~~ `src/test_e2e_build.py` (group `e2e`, so CI's Python 3.14 `e2e` job runs it) copies `src/` to a temp dir, runs the four scripts there with `./name`, and compares outputs (§2.4). It never writes into the real `src/`. This keeps the "full rebuild runs cleanly" and "all outputs committed" AC items enforced from now on.
 *   **D5. New tests go in new modules.** The new TextEd scenarios go in a new module (e.g. `src/test_e2e_texted_commands.py`) with new goldens in `src/bc64/testdata/e2e/`. They reuse `e2e_harness.py` and may import helpers from `test_e2e_texted.py`. No existing test file is edited.
 *   **Assumption A1 (low stakes, closed):** "`ls` lists the file with the expected size" means the size bdos records: whole 128-byte sectors (`0080` for up to one sector of text). The test checks the `ls` row against the number of sectors the saved text needs, not the exact text length. bdos 1.1 catalogs only keep sector counts.
 *   **Assumption A2 (low stakes, closed):** "`m` still works after loading a large file" is met by a file of a few hundred lines that spans several sectors, loaded with `l`. `m` must print `total lines: N` with the right N, and the session must go on (`p` still works afterwards).
@@ -146,7 +146,7 @@ No open questions.
 | :--- | :--- | :--- | :--- |
 | `T1` | Build scripts run on Linux and Git Bash | — | `Medium` |
 | `T2` | TextEd rejects missing arguments; rebuild TextEd, `os.bdd`, smoke disc | `T1` | `Medium` |
-| `T3` | Full-rebuild e2e check and refreshed `bcos.btap` | `T1`, `T2` | `Medium` |
+| `T3` | Refreshed `bcos.btap` (full-rebuild e2e check removed by A1) | `T1`, `T2` | `Medium` |
 | `T4` | E2E coverage for the remaining TextEd AC flows | `T2` | `Medium` |
 
 ### T1 — Build scripts run on Linux and Git Bash
@@ -215,7 +215,7 @@ No open questions.
 
 ## 5. Verification
 
-*   **All suites**: `python3 run_tests.py < /dev/null` from the repo root, exit 0. This includes the new `test_e2e_build.py` and the new TextEd scenarios.
+*   **All suites**: `python3 run_tests.py < /dev/null` from the repo root, exit 0. This includes the new TextEd scenarios (the full-rebuild check was removed by A1; check the rebuild by hand as below).
 *   **Full rebuild in the real tree**: from `src/`, `./buildos && ./buildtools && ./buildapps && ./makedisc` exits 0, and afterwards `git status` shows no changes to generated outputs.
 *   **Smoke disc**: `cmp src/os.bdd src/bc64/testdata/smoke.bdd` matches, and re-running the smoke refresh leaves `smoke_transcript.txt` unchanged (this is the check CI's `e2e` job makes).
 *   **Observable behaviour**: a headless session on a copy of `os.bdd` running `texted`, `s`, `l`, `p`, `i`, `s note.txt`, `q`, `ls` shows the error messages, a single new `NOTE.TXT` entry and no empty-name entry.
@@ -244,3 +244,4 @@ No open questions.
 
 | Amendment | Request | Decision | Plan changes |
 | :--- | :--- | :--- | :--- |
+| A1 | Owner, after PR #86 was opened: "that is to rigid, remove the test" (the full-rebuild e2e check `src/test_e2e_build.py`) | accepted (owner decision) | D4 superseded; T3 keeps only the refreshed `bcos.btap`; `src/test_e2e_build.py` and its `CLAUDE.md` lines removed. The full rebuild stays a manual check (§5). |
