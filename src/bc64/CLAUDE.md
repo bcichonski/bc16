@@ -52,7 +52,7 @@ python3 -m unittest test_e2e_bdos`, then review the diff. Long scenarios need `B
 must not use `q` or a bad-argument command followed by more commands. `q` ends the session with
 `fatal error F0 at FF0C` and a bcOS `KIL` (exit 0); a bad-argument command such as `d 00` ends it with an
 empty-stack `RET` stop (exit 0, a stderr line). Either one may only be the last command. The known
-failures (tape round trip, `cp`) are `expectedFailure` tests; see `docs/01-emulator.md`.
+failure (tape round trip) is an `expectedFailure` test; see `docs/01-emulator.md`.
 
 ## How it works
 

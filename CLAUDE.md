@@ -31,7 +31,7 @@ compiler's grammar notes.
 ## Build pipeline and global conventions
 
 ```
-.b ──bc──► .basm ──bc81asmc──► .btap ──ftool btap2bin──► .b81 (ROM) / .sector(s) ──makedisc──► src/os.bdd
+.b ──bc──► .basm ──bc81asmc──► .btap ──ftool btap2bin──► .b81 (ROM) / .sector(s) ──ftool mkdisc──► src/os.bdd
 ```
 
 - **Generated files are committed:** `.genb`, `.basm`, `.btap`, `.sector(s)`, `.b81` and
@@ -134,7 +134,8 @@ without the other and the system breaks silently.
   These values are spread over `boot.basm`, `bdioh.b`, `bdos.b`, and the `#code`/`#heap`
   line of every program. The map is asserted at build time: `boot.basm` and the compiler (image end
   below `#heap`, `bdos.b` via `#codelimit`); bcOS follows in #30.
-- **Disk layout:** the boot loader's sector range, the hand-made catalog
-  `src/fcat0800.sector` and the fixed program tracks in `src/makedisc` must agree.
+- **Disk layout:** the boot loader's sector range (160 sectors from 2/0), `src/disc.bddmanifest` and
+  `ftool mkdisc` must agree. `mkdisc` fails the build when a file, or the system file, does not fit;
+  the other files are placed automatically from 12/0.
 
 Commit messages follow the existing style: `feat: …`, `fix: …`, `chore: …`, `docs: …`.

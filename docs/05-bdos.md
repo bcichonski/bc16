@@ -71,19 +71,21 @@ directories. Each file is one **contiguous** run of sectors.
 |---|---|---|---|---|
 | 0 | `BOOTSECT.BIN` | 0/0 | 1 | S R |
 | 1 | `DISC.CAT` | 0/1 | 31 | S R |
-| 2 | `BDOS.SYS` | 2/0 | 152 | S R |
-| 3 | `LS.PRG` | 13/0 | 64 | S R X |
-| 4 | `HELLOWRD.PRG` | 17/0 | 15 | R X |
-| 5 | `CP.PRG` | 21/0 | 56 | S R X |
-| 6 | `FORMAT.PRG` | 25/0 | 82 | S R X |
-| 7 | `RM.PRG` | 31/0 | 63 | S R X |
-| 8 | `CHA.PRG` | 37/0 | 56 | S R X |
-| 9 | `CAT.PRG` | 41/0 | 62 | S R X |
-| 10 | `TEXTED.PRG` | 45/0 | 112 | R X |
-| 11 | `TEST.B` | 52/0 | 2 | R W |
-| 12 | `THEODORE.PRG` | 53/0 | 38 | R X |
+| 2 | `BDOS.SYS` | 2/0 | 160 | S R |
+| 3 | `LS.PRG` | 12/0 | 58 | S R X |
+| 4 | `HELLOWRD.PRG` | 15/10 | 14 | R X |
+| 5 | `CP.PRG` | 16/8 | 57 | S R X |
+| 6 | `FORMAT.PRG` | 20/1 | 82 | S R X |
+| 7 | `RM.PRG` | 25/3 | 63 | S R X |
+| 8 | `CHA.PRG` | 29/2 | 56 | S R X |
+| 9 | `CAT.PRG` | 32/10 | 62 | S R X |
+| 10 | `TEXTED.PRG` | 36/8 | 112 | R X |
+| 11 | `TEST.B` | 43/8 | 2 | R W |
+| 12 | `THEODORE.PRG` | 43/10 | 38 | R X |
 
 The catalog itself is a file: `DISC.CAT`, from track 0 sector 1 to the end of track 1.
+
+`BDOS.SYS` covers the whole boot loader range (160 sectors). The bdos build is 138 sectors, and the rest is zero. The other files follow each other from 12/0 in manifest order, and the first free sector is 46/0. The lengths are the sizes of the built files, rounded up to sectors. A rebuilt disc is the authority if a source size changes.
 
 ### Catalog entry (16 bytes, 8 per sector, up to 248 entries)
 
@@ -112,6 +114,8 @@ When the catalog is read (`bdio_fcat_read`, run on every drive change), bdio rem
 first free catalog entry and the first free sector after the used area. New data is always
 allocated from that point onwards (`bdio_getfreesect`), and files are written
 append-only. Deleted space is not reused or compacted.
+
+**Discs made before #37.** `os.bdd` and `smoke.bdd` copied before #37 number only catalog entries 0–15, and entries 16–247 hold 0. bdio takes the first empty entry's number byte as the slot for a new file, so on such a disc the 17th file gets entry number 0 and overwrites the entry of `BOOTSECT.BIN`. The disc still boots, but its catalog is corrupted. Re-make the disc (`format` from a new system disc, or a copy of the new `os.bdd`), or keep it at 16 files or fewer. Discs made by `format`, and the committed `src/bdos.bdd` and `release/bc32_v1.0/discs/bdos.bdd`, number all 248 entries and are not affected.
 
 ## bdio: the system call API
 
@@ -251,7 +255,7 @@ From `src/` (the scripts pick the interpreter themselves: `winpty python` on Git
 ./buildos      # bcOS ROM + boot loader + bdos shell
 ./buildtools   # ls cp format rm cha cat
 ./buildapps    # helloworld texted theodore
-./makedisc     # convert each .btap to sectors, then write everything into a fresh os.bdd
+./makedisc     # convert each .btap to sectors, then build a fresh os.bdd from src/disc.bddmanifest
 ./run          # start the emulator; enter "os.bdd" when asked for the disk name
 ```
 
@@ -267,17 +271,45 @@ A single program can also be built with the console command `bcc bdos/ls` (after
 | `importsector in.bin disk.bdd track sector` | write a file to the disk starting at that sector |
 | `exportsector disk.bdd out.bin track sector` | read one sector out |
 | `dumpsector disk.bdd track sector count` | hex dump sectors |
+| `mkdisc disc.bddmanifest out.bdd` | build a system disc from a manifest: places the files, writes the catalog. Any error stops it before anything is written (see below) |
 
-The catalog isn't generated. It comes from the hand-made `src/fcat0800.sector`, written to
-track 0 sector 1, and the start tracks are hard-coded in `makedisc`. If a program grows past
-its slot, both have to be edited by hand.
+### Disc manifest
+
+`src/disc.bddmanifest` lists the files of `os.bdd`. `./makedisc` runs `ftool mkdisc disc.bddmanifest os.bdd`, which writes the catalog and every file. The catalog lengths are the source sizes, so a program that grows gets its new length, and the files after it move. A new program is one line in the manifest.
+
+One file per line. `#` starts a comment, and blank lines are ignored:
+
+```
+NAME.EXT  SOURCE  ATTRIBS  [PLACE]
+```
+
+| Column | Meaning |
+|---|---|
+| `NAME.EXT` | 1–8 characters, plus an optional extension of 0–3. `A–Z` and `0–9` only, upper-cased. `DISC.CAT` is reserved |
+| `SOURCE` | file path, relative to the manifest's directory |
+| `ATTRIBS` | letters `R W X S`, in any order |
+| `PLACE` | `boot`, `system`, an explicit `T/S` start (decimal), or empty for an automatic start |
+
+Line 1 must be the `boot` file (`BOOTSECT.BIN`: exactly 128 bytes, ending `BD 05 01 01`). Line 2 must be the `system` file (`BDOS.SYS`). The tool writes `DISC.CAT` itself. The system file takes the whole boot loader range (160 sectors). Other files start at 12/0 and follow each other in manifest order. An explicit start may not be before the next free sector.
+
+Any error stops the build with a message on stderr (`mkdisc: error: ...`), exit status 1, and no output file:
+
+- a source file is missing or empty;
+- a file is over 255 sectors (the length is one byte);
+- the system file is over 160 sectors (bdos past the loader range);
+- a file would end past sector 1024 (the disc is full);
+- more than 247 catalog entries are used (one must stay empty);
+- the boot file is not 128 bytes, or lacks the signature `BD 05 01 01`;
+- line 1 is not `boot`, or line 2 is not `system`;
+- an explicit start is before the next free sector, or outside the disc;
+- a bad or duplicate name, an unknown attribute letter, or empty attributes;
+- a malformed line.
 
 ## Testing
 
 The shell is tested end to end in `src/test_e2e_bdos.py`. The scripts `src/bc64/testdata/e2e/bdos_*.in.txt`
 boot a frozen copy of the system disc (`smoke.bdd`) and check the output of `ls`, `cat`, `hellowrd`, `rm`
-and the error messages. `cp` is a known failure: `cp test.b copy.b` reads keys until the input runs out,
-so the test is marked `expectedFailure` (found by #49, issue not filed yet). See `docs/01-emulator.md`,
+and the error messages. `cp` copies a file (`cp test.b copy.b`), and `cat` checks the copy. See `docs/01-emulator.md`,
 End-to-end tests.
 
 ## Roadmap (from README / bdos.md)
