@@ -38,10 +38,10 @@ compiler's grammar notes.
   `os.bdd`. After changing a source file, rebuild it and commit the outputs together with
   the source. Keep unrelated rebuild churn in a separate commit.
 - **Shell scripts:** all of them live in `src/` and must be run from there (`bcc`,
-  `buildos`, `buildtools`, `buildapps`, `makedisc`, `run`, `run_tests`, `ftool`; `run_tests` only wraps the root `run_tests.py`). The others
-  call `winpty python …` because they were written for Git Bash on Windows; on Linux, run the
-  same commands with `python3`. `bcc` picks the interpreter itself: `winpty python` when
-  `winpty` is on `PATH`, otherwise `python3`.
+  `buildos`, `buildtools`, `buildapps`, `makedisc`, `run`, `run_tests`, `ftool`; `run_tests` only wraps the root `run_tests.py`). The ones that call
+  Python (`bcc`, `buildos`, `ftool`, `run`) pick the interpreter themselves: `winpty python` when
+  `winpty` is on `PATH` (Git Bash), otherwise `python3`, otherwise `python`. They are
+  executable and pinned to LF endings via `.gitattributes`.
 - **Python imports are flat** (`from bc64 import …`, `from bc_ast import *`), so the
   working directory matters. See the commands below.
 - The only dependency is `parsy`, used by the assembler and the compiler and by the tests that
@@ -84,6 +84,8 @@ Each suite uses flat imports, so run it from its own directory, as above.
 `docs/01-emulator.md`), and `python3 run_tests.py --group e2e` runs only that suite. It is the check, also for `/grind`. After an intended change in bcOS or bdos output, regenerate the goldens with
 `cd src && BC64_UPDATE_GOLDEN=1 python3 -m unittest test_e2e_bdos` (or another e2e module), then review them
 by eye before committing.
+`src/test_e2e_build.py` rebuilds everything (`buildos`, `buildtools`, `buildapps`, `makedisc`) in a temp copy of `src/`
+and fails if any committed generated output (`.genb`, `.basm`, `.btap`, `.sector(s)`, `.b81`, `os.bdd`) differs.
 
 The e2e suite's smoke test, `src/test_bc64_smoke.py`, boots a frozen disc
 (`src/bc64/testdata/smoke.bdd`) and compares the session byte for byte with a committed transcript,
