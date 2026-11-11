@@ -620,7 +620,7 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Purpose:** catalog lengths and start tracks come from the real files, and a disc that does not fit fails the build.
 - **Rationale:** the hand-made binary catalog drifted from the builds (`CP.PRG` was truncated, so `cp` failed). The tool places files back to back and checks every limit before it writes anything.
 - **Usage:**
-  - the manifest is `src/disc.bddmanifest`: one file per line, `NAME.EXT SOURCE ATTRIBS [PLACE]`; line 1 is the boot file and line 2 the system file;
+  - the manifest is `src/disc.bddmanifest`: one file per line, `NAME.EXT SOURCE ATTRIBS [OPTIONS]`, where the options are `role=boot|catalog|system` (the first three lines, in order), `at=T/S` (exact start) and `max=N` (a fixed slot of at most N sectors). The layout requirements of the system disc are stated there;
   - `BDOS.SYS` covers the whole boot loader range, 160 sectors, zero after the bdos build;
   - all 248 catalog entries are numbered, as `format` does; at most 247 are used, so the catalog is never full;
   - all checks run before the output is written; a failed build writes no output file.

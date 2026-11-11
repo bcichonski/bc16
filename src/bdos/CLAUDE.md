@@ -53,8 +53,9 @@ python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81     # (or `bc64 ...`) boot; enter 
 - **New or larger program on the disc:**
   1. add it to `buildtools`/`buildapps`;
   2. add its `btap2bin` line to `makedisc`;
-  3. add one line to `src/disc.bddmanifest`: `NAME.EXT  bdos/name.sectors  ATTRIBS` with no place.
+  3. add one line to `src/disc.bddmanifest`: `NAME.EXT  bdos/name.sectors  ATTRIBS`, with no `at=`.
      The tool puts it after the last file and sets its length from the file size.
+     For a fixed, checked slot, add `max=N`: the build fails if the file grows past N sectors.
 
   Executables need the X attribute (`0x04`); system files also carry S (`0x80`).
 - Programs get their arguments by parsing the shell buffer at `BDIO_CMDPROMPTADDR`

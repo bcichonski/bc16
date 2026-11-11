@@ -134,8 +134,7 @@ without the other and the system breaks silently.
   These values are spread over `boot.basm`, `bdioh.b`, `bdos.b`, and the `#code`/`#heap`
   line of every program. The map is asserted at build time: `boot.basm` and the compiler (image end
   below `#heap`, `bdos.b` via `#codelimit`); bcOS follows in #30.
-- **Disk layout:** the boot loader's sector range (160 sectors from 2/0), `src/disc.bddmanifest` and
-  `ftool mkdisc` must agree. `mkdisc` fails the build when a file, or the system file, does not fit;
-  the other files are placed automatically from 12/0.
+- **Disk layout:** the boot loader range and the catalog location are requirements stated in
+  `src/disc.bddmanifest`, and `ftool mkdisc` checks them. A file over its `max=` also fails the build.
 
 Commit messages follow the existing style: `feat: …`, `fix: …`, `chore: …`, `docs: …`.

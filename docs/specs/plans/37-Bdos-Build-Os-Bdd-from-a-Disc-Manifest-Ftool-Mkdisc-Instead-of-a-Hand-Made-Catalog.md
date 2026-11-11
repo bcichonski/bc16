@@ -4,7 +4,7 @@
 
 **Story Type**: `Internal`
 
-**Plan Revision**: `A3`
+**Plan Revision**: `A4`
 
 > This plan captures **what** to build and **why**: domain, architecture, decisions, and verified facts.
 > It deliberately does **not** contain implementation code, pseudocode, line numbers, mock setups, or test bodies.
@@ -140,6 +140,13 @@ sequenceDiagram
 *   **D9 — Keep the old commands.** `createbdd`, `importsector`, `exportsector`, `dumpsector` stay: others use them (e.g. patching `BDOS.SYS` in #76).
 *   **Assumption A1 (no OQ, low stakes):** mid-track start sectors are fine for executables and data. bdio already allocates mid-track (e.g. new files after THEODORE at 55/6), and `test_e2e_toolchain` runs a program put at the free sector. AC3's e2e test checks every program on the new disc anyway.
 
+*   **D10 — The manifest states the layout requirements (A4, owner).** This supersedes D1's syntax. A line is `NAME.EXT  SOURCE  ATTRIBS  [OPTIONS]`, and OPTIONS are `key=value` tokens in any order:
+    *   `role=boot|catalog|system`: the three special entries, which must be the first three lines (entries 0, 1, 2) in that order. `DISC.CAT` is now listed, with `-` as its source; the tool still writes its content.
+    *   `at=T/S`: an exact start. It must not be before the end of the previous slot.
+    *   `max=N`: the file must be at most N sectors (an error names the file, its size and N). It also reserves an N-sector slot, so the next file without `at=` starts after the slot. Without `max`, the slot is the file's own size.
+
+    The roles keep their hardware rules, and the tool refuses a manifest that contradicts them, naming the reason. `role=boot` needs `at=0/0 max=1` and a 128-byte file with the `BD 05 01 01` signature. `role=catalog` needs source `-`, `at=0/1` and `max=31` (catalog v1, hard-coded in bdio). `role=system` needs `at=2/0` and `max` ≤ 160 (the loader range), and its catalog length is `max` (D3: padded). Every other file's catalog length is its real size. `max` > 255 is an error. `src/disc.bddmanifest` carries the requirements as these options plus short comments: boot `at=0/0 max=1`, catalog `at=0/1 max=31`, BDOS.SYS `at=2/0 max=160`, and LS.PRG `at=12/0` (first sector after the loader range). The resulting `os.bdd` stays byte-identical. `src/bdos/bdos.md` ("disk format") and `docs/05-bdos.md` ("Layout of the system disc") keep only a reference to the manifest (plus `ls -a` for the actual positions), and no longer carry their own layout list.
+
 ### 3.1 Decision Lock (Constants & Policies)
 
 | Constant / Policy | Selected Value | Why | Where it lives |
@@ -169,6 +176,8 @@ No open questions. Resolution attempts: placement start (AC "after bdos" + the l
 | `T2` | System disc from `disc.bddmanifest`: makedisc, new os.bdd, smoke disc, layout-pinned tests | `T1` | `Medium` |
 | `T3` | e2e: new disc boots, `ls -a` shows every file with real sizes, every utility runs | `T2` | `Medium` |
 | `T4` | Docs: building os.bdd, layout, contracts, new-program steps, known failures | `T2` | `Low` |
+| `T5` | Manifest options `role=`/`at=`/`max=`; layout requirements in `disc.bddmanifest` (A4) | `T4` | `Medium` |
+| `T6` | Docs: layout requirements only in the manifest; references elsewhere (A4) | `T5` | `Low` |
 
 ### T1 — `ftool mkdisc`: manifest, placement, catalog v1, errors + unit tests
 
@@ -234,6 +243,45 @@ No open questions. Resolution attempts: placement start (AC "after bdos" + the l
 *   **Tests expected**: none (docs).
 *   **Tests to modify**: None.
 
+### T5 — Manifest options `role=`/`at=`/`max=`; layout requirements in `disc.bddmanifest` (A4)
+
+*   **Amended in**: A4
+*   **Goal**: `ftool mkdisc` reads D10's syntax and enforces `at=`/`max=` and the role rules. `src/disc.bddmanifest` states the layout requirements, and the rebuilt `os.bdd` is byte-identical to the current one.
+*   **Depends on**: `T4` (the PR's current state).
+*   **Complexity**: `Medium`.
+*   **Pointers**: `src/ftool_mkdisc.py` (parser, `plan_disc`, docstring), `src/ftool.py` (unchanged CLI), `src/disc.bddmanifest`, `src/test_ftool.py` (the `Mkdisc*` classes added by T1), `src/test_e2e_disc.py` (uses `plan_disc`; must keep passing unchanged).
+*   **Definition of Done**:
+    *   D10 syntax is parsed. The old positional `boot`/`system`/`T/S` form is gone, and an unknown key or a bad value is an error.
+    *   `max=` is checked and reserves its slot. `at=` is exact and never before the previous slot's end. The role rules are enforced with errors that name the rule.
+    *   `disc.bddmanifest` carries the requirements (D10) with one short comment per requirement, giving the reason: the boot ROM loads 0/0, bdio's catalog is at 0/1 for 31 sectors, the loader reads 2/0–11/15, and data starts at 12/0.
+    *   Every §2.4 rule-6 check still exists.
+    *   `cd src && ./makedisc` leaves `os.bdd` byte-identical (`git diff --quiet src/os.bdd`).
+    *   `python3 run_tests.py < /dev/null` exits 0.
+*   **Tests expected**: unit tests in `src/test_ftool.py`:
+    *   `max=` too small → error; `max=` reserves the slot (the next file starts after it); `max` > 255 → error;
+    *   `at=` honoured, and `at=` inside the previous slot → error;
+    *   each role rule violated → error (boot not 0/0 or not max=1, catalog not `-`/0/1/31, system not 2/0 or max > 160);
+    *   unknown key and malformed option → error; `DISC.CAT` listed without `role=catalog` → error;
+    *   the CLI still exits 0/1 as before.
+*   **Tests to modify**:
+    *   `src/test_ftool.py`: the `MkdiscLayoutTests`, `MkdiscErrorTests` and `MkdiscMainTests` classes added by T1 in this story. Their manifests use the old positional `boot`/`system`/`T/S` syntax, which D10 (A4, owner decision) replaces. Rewrite their manifest text to the new syntax and keep every behaviour they check. The tests that existed before #37 stay untouched.
+
+### T6 — Docs: layout requirements only in the manifest; references elsewhere (A4)
+
+*   **Amended in**: A4
+*   **Goal**: the layout requirements live only in `src/disc.bddmanifest`, and the docs refer to it.
+*   **Depends on**: `T5`.
+*   **Complexity**: `Low`.
+*   **Pointers**:
+    *   `src/bdos/bdos.md` "### disk format": replace the track list with a reference to `src/disc.bddmanifest`. Keep the catalog-entry format, which is format, not layout.
+    *   `docs/05-bdos.md`: replace the "Layout of the system disc" table and its paragraph with a reference to the manifest and `ls -a`. Update the "Disc manifest" section to D10's syntax and errors. Keep the catalog entry, attributes, allocation and old-disc caveat sections.
+    *   `docs/specs/memory/design-decisions.md` D8: syntax.
+    *   `src/bdos/CLAUDE.md` "New or larger program": still one manifest line; mention `max=` for a fixed slot.
+    *   Root `CLAUDE.md` disk-layout contract: the manifest states the requirements, and mkdisc checks them.
+*   **Definition of Done**: no doc outside `docs/specs/plans/`, `docs/CHANGELOG.md`, `docs/analysis/` and `release/` lists system-disc start tracks or sector ranges as its own source of truth. Each doc that used to now points to `src/disc.bddmanifest`. Line endings are kept.
+*   **Tests expected**: none.
+*   **Tests to modify**: None.
+
 ---
 
 ## 5. Verification
@@ -270,3 +318,5 @@ No open questions. Resolution attempts: placement start (AC "after bdos" + the l
 | A1 | 2026-11-11 | T2 | test-conflict: add `bdos_hellowrd.golden.txt` to T2's Tests to modify | accepted (verified: `bdio.b` prints a dot at `currSeq & 7 = 7`; D4 deliberately changes HELLOWRD.PRG from 15 to 14 sectors, so the golden's `..` becomes `.`; not a fail-driven change) | §2.4 fact on progress dots; T2 Tests to modify + DoD wording |
 | A2 | 2026-11-11 | owner (mid-run) | contradiction: name the manifest `src/disc.bddmanifest` instead of adding A1's `.gitignore` exception | accepted (owner decision; `.bddmanifest` isn't matched by `*.manifest`, so no ignore exception is needed) | manifest renamed throughout §1–§5; §2.3 `.gitignore` row → reference only; T2 DoD; A1's exception superseded |
 | A3 | 2026-11-11 | owner (mid-run) | uncovered-AC: document the entry-numbering caveat for existing disc files that stay | accepted (owner request; verified on `HEAD:src/os.bdd`/`smoke.bdd`: entries 16–247 hold 0; `src/bdos.bdd` and `release/bc32_v1.0/discs/bdos.bdd` are fully numbered) | T4: old-disc caveat bullet + DoD |
+| A4 | 2026-11-11 | owner (mid-run) | missing-task: manifest options for an exact start and a checked max length of selected files (boot, catalog, BDOS.SYS), enforced by mkdisc | accepted (owner decision; layout unchanged, os.bdd stays byte-identical) | D10 (supersedes D1's syntax); new T5 |
+| A4 | 2026-11-11 | owner (mid-run) | missing-task: move the layout requirements from `src/bdos/bdos.md` / the `docs/05-bdos.md` layout table into the manifest; docs keep only a reference | accepted (owner decision) | D10; new T6 |
