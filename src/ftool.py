@@ -1,6 +1,8 @@
 from sys import argv
 from bc64 import bc64_env
 from bc64 import bc64_io
+import sys
+import ftool_mkdisc
 
 env = bc64_env.Environment()
 
@@ -104,6 +106,14 @@ def importsector(fsectorname, fname, track, sector):
     env.close_file(fouthandle)
     env.log('{} sectors imported'.format(i))
 
+def mkdisc(fmanifest, fname):
+    env.log('make disc {} from manifest {}'.format(fname, fmanifest))
+    try:
+        ftool_mkdisc.mkdisc(fmanifest, fname)
+    except ftool_mkdisc.MkdiscError as e:
+        print('mkdisc: error: {}'.format(e), file=sys.stderr)
+        sys.exit(1)
+
 def main():
     env.log("ftool v1.0")
 
@@ -125,6 +135,9 @@ def main():
     elif command=='importsector':
         checkargs(5)
         importsector(argv[2], argv[3], int(argv[4]), int(argv[5]))
+    elif command=='mkdisc':
+        checkargs(3)
+        mkdisc(argv[2], argv[3])
     else:
         env.log('Unknown command: {}'.format(command))
 
