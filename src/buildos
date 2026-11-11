@@ -1,4 +1,12 @@
 #!/bin/bash
+# Pick the Python interpreter: winpty python on Git Bash (Windows), else python3, else python.
+if command -v winpty >/dev/null 2>&1; then
+    PY="winpty python"
+elif command -v python3 >/dev/null 2>&1; then
+    PY="python3"
+else
+    PY="python"
+fi
 trap "exit 1" TERM
 export TOP_PID=$$
 
@@ -11,7 +19,7 @@ check_exit_code()
 }
 
 echo building bcos...
-python ./bc81asmc/bc81asmc.py --verbose ./bc81asmc/bcOS/bcos.basm
+$PY ./bc81asmc/bc81asmc.py --verbose ./bc81asmc/bcOS/bcos.basm
 check_exit_code $?
 
 echo converting bcos to rom...
@@ -19,7 +27,7 @@ echo converting bcos to rom...
 check_exit_code $?
 
 echo building bootloader...
-winpty python ./bc81asmc/bc81asmc.py --verbose ./bdos/boot.basm
+$PY ./bc81asmc/bc81asmc.py --verbose ./bdos/boot.basm
 check_exit_code $?
 
 echo building bdos...
