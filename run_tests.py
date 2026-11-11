@@ -30,23 +30,24 @@ GROUPS = ("unit", "e2e", "all")
 def select_src_modules(src_dir):
     """Partition the test modules under src_dir into {suite name: [module names]}.
 
-    e2e:      test_e2e_*.py and test_bc64_smoke.py
-    ftool:    test_ftool.py
-    emulator: bc64/test_*.py and every other test_*.py
+    Tests live in a tests/ package of their tool:
+    e2e:      tests/test_e2e_*.py and tests/test_bc64_smoke.py
+    ftool:    tests/test_ftool.py
+    emulator: bc64/tests/test_*.py and every other tests/test_*.py
     Module names are importable with src_dir as the working directory.
     """
     e2e, ftool, emulator = [], [], []
-    for path in sorted(glob.glob(os.path.join(src_dir, "test_*.py"))):
-        module = os.path.splitext(os.path.basename(path))[0]
-        if module.startswith("test_e2e_") or module == "test_bc64_smoke":
+    for path in sorted(glob.glob(os.path.join(src_dir, "tests", "test_*.py"))):
+        module = "tests." + os.path.splitext(os.path.basename(path))[0]
+        if module.startswith("tests.test_e2e_") or module == "tests.test_bc64_smoke":
             e2e.append(module)
-        elif module == "test_ftool":
+        elif module == "tests.test_ftool":
             ftool.append(module)
         else:
             emulator.append(module)
     bc64 = [
-        "bc64." + os.path.splitext(os.path.basename(path))[0]
-        for path in sorted(glob.glob(os.path.join(src_dir, "bc64", "test_*.py")))
+        "bc64.tests." + os.path.splitext(os.path.basename(path))[0]
+        for path in sorted(glob.glob(os.path.join(src_dir, "bc64", "tests", "test_*.py")))
     ]
     return {"emulator": bc64 + emulator, "ftool": ftool, "e2e": e2e}
 
@@ -54,7 +55,7 @@ def select_src_modules(src_dir):
 def build_suites(root=ROOT):
     """Return [(name, group, cwd relative to root, unittest arguments)] in report order."""
     modules = select_src_modules(os.path.join(root, "src"))
-    discover = ["discover", "-s", ".", "-t", ".", "-p", "*_tests.py"]
+    discover = ["discover", "-s", "tests", "-t", ".", "-p", "*_tests.py"]
     return [
         ("emulator", "unit", "src", modules["emulator"]),
         ("ftool", "unit", "src", modules["ftool"]),

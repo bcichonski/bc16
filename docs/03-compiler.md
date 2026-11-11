@@ -11,7 +11,7 @@ written in B.
 | `bc_grammar.py` | parsy grammar for expressions, statements and functions |
 | `bc_ast.py` | AST node classes, each with `emit()`: scopes, variables, code generation, constant-operand optimisations |
 | `bc_stdlib.py` | assembly runtime library appended to every program |
-| `bc_dbg.py`, `bc_tests.py` | debug helper, unit tests |
+| `bc_dbg.py`, `tests/bc_tests.py` | debug helper, unit tests |
 | `grammar.txt`, `history.txt`, `bugs.txt` | design notes, code-size optimisation history, known bugs |
 | `code/` | small test programs (`declarations.b`, `functions.b`, `funrec.b`, `stdmemtest.b`, …) |
 

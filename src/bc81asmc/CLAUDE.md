@@ -8,12 +8,12 @@ Reference: `docs/02-assembler.md` has the syntax and full instruction encoding.
 ```bash
 cd src && python3 bc81asmc/bc81asmc.py --verbose path/file.basm   # -> path/file.btap (always btap)
 bc81asmc --verbose path/file.basm                                 # same via the console command (`pip install -e .`), any directory
-cd src/bc81asmc && python3 -m unittest discover -s . -t . -p "*_tests.py"   # grammar and emit tests (silent)
-cd src/bc81asmc && python3 -m unittest bc81asmc_tests.TestGrammar.test_hex_imm8
+cd src/bc81asmc && python3 -m unittest discover -s tests -t . -p "*_tests.py"   # grammar and emit tests (silent)
+cd src/bc81asmc && python3 -m unittest tests.bc81asmc_tests.TestGrammar.test_hex_imm8
 ```
 
-The diagnostics tests are `bc81asmc_diag_tests.py` (records, formatter, parse-error conversion),
-`bc81asmc_compile_diag_tests.py` (errors raised by `compile()`) and `bc81asmc_cli_tests.py`
+The diagnostics tests are `tests/bc81asmc_diag_tests.py` (records, formatter, parse-error conversion),
+`tests/bc81asmc_compile_diag_tests.py` (errors raised by `compile()`) and `tests/bc81asmc_cli_tests.py`
 (stderr, exit codes and `--verbose`, run as subprocesses).
 
 ## How it works
@@ -48,8 +48,8 @@ The diagnostics tests are `bc81asmc_diag_tests.py` (records, formatter, parse-er
 ## Rules
 
 - Opcode constants are duplicated in `src/bc64/bc8183_cpu.py`. Change both, and add tests
-  on both sides (`bc81asmc_tests.py`, `bc81asmc_emit_tests.py`, `src/bc64/test_cpu_*.py`).
-  `bc81asmc_opcode_agreement_tests.py` checks that the two sides agree; extend it for new forms.
+  on both sides (`tests/bc81asmc_tests.py`, `tests/bc81asmc_emit_tests.py`, `src/bc64/tests/test_cpu_*.py`).
+  `tests/bc81asmc_opcode_agreement_tests.py` checks that the two sides agree; extend it for new forms.
 - In the grammar, more specific alternatives must come first in the `|` chains
   (`mnemonic`, `mCLC`). For example, the 16-bit forms are listed before the 8-bit ones; a
   shorter match first would swallow the longer form.

@@ -5,7 +5,7 @@ from bc64 import bc64_env
 from bc64 import bc64_mem
 from bc64 import bc8183_cpu
 
-SRC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def load_bc64_module():

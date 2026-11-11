@@ -9,7 +9,7 @@ holds its whole stack, and each component has its own `CLAUDE.md` with its speci
 
 | Component | Path | Reference doc |
 |---|---|---|
-| emulator: bc8183 CPU + devices | `src/bc64.py`, `src/bc64/` (tests: `src/bc64/test_*.py`) | `docs/01-emulator.md` |
+| emulator: bc8183 CPU + devices | `src/bc64.py`, `src/bc64/` (tests: `src/bc64/tests/`) | `docs/01-emulator.md` |
 | assembler `bc81asmc` | `src/bc81asmc/` | `docs/02-assembler.md` |
 | compiler `bc` (C-like B language) | `src/bc/` | `docs/03-compiler.md` |
 | bcOS ROM monitor | `src/bc81asmc/bcOS/` | `docs/04-bcos.md` |
@@ -73,19 +73,21 @@ python3 run_tests.py < /dev/null                         # all suites: emulator,
 python3 run_tests.py --group unit < /dev/null            # unit suites only: emulator, ftool, assembler, compiler
 python3 run_tests.py --group e2e < /dev/null             # e2e suite only
 
-cd src && python3 -m unittest discover -s . -t . -p "test_*.py"   # one suite: emulator (+ ftool, + e2e)
-cd src/bc81asmc && python3 -m unittest discover -s . -t . -p "*_tests.py"   # one suite: assembler
-cd src/bc && python3 -m unittest discover -s . -t . -p "*_tests.py"         # one suite: compiler
-cd src && python3 -m unittest bc64.test_cpu.CpuTests.test_CLC16_opcodes    # one test (same form elsewhere)
+cd src && python3 -m unittest discover -s bc64/tests -t . -p "test_*.py"    # emulator package tests (the emulator suite also has src/tests/)
+cd src && python3 -m unittest discover -s tests -t . -p "test_*.py"         # src/tests: ftool, toolchain, run_tests, e2e (system tests)
+cd src/bc81asmc && python3 -m unittest discover -s tests -t . -p "*_tests.py"   # one suite: assembler
+cd src/bc && python3 -m unittest discover -s tests -t . -p "*_tests.py"         # one suite: compiler
+cd src && python3 -m unittest bc64.tests.test_cpu.CpuTests.test_CLC16_opcodes   # one test (same form elsewhere)
 ```
 
-Each suite uses flat imports, so run it from its own directory, as above.
-`python3 run_tests.py` runs the e2e suite by default (`src/test_e2e_*.py` and `src/test_bc64_smoke.py`, see
+Each tool keeps its tests in a `tests/` package of its folder (`src/bc64/tests/`, `src/bc/tests/`, `src/bc81asmc/tests/`, and `src/tests/` for
+the tools in `src/` and the e2e tests). Each suite uses flat imports, so run it from its own directory, as above.
+`python3 run_tests.py` runs the e2e suite by default (`src/tests/test_e2e_*.py` and `src/tests/test_bc64_smoke.py`, see
 `docs/01-emulator.md`), and `python3 run_tests.py --group e2e` runs only that suite. It is the check, also for `/grind`. After an intended change in bcOS or bdos output, regenerate the goldens with
-`cd src && BC64_UPDATE_GOLDEN=1 python3 -m unittest test_e2e_bdos` (or another e2e module), then review them
+`cd src && BC64_UPDATE_GOLDEN=1 python3 -m unittest tests.test_e2e_bdos` (or another e2e module), then review them
 by eye before committing.
 
-The e2e suite's smoke test, `src/test_bc64_smoke.py`, boots a frozen disc
+The e2e suite's smoke test, `src/tests/test_bc64_smoke.py`, boots a frozen disc
 (`src/bc64/testdata/smoke.bdd`) and compares the session byte for byte with a committed transcript,
 and it boots the current `src/os.bdd` and checks only output that survives a rebuild. For a
 meaningful e2e run after rebuilding `os.bdd`, refresh `smoke.bdd` and its transcript first (see
@@ -113,7 +115,7 @@ The components are separate programs, but they share hard-coded numbers. Change 
 without the other and the system breaks silently.
 
 - **Opcodes:** duplicated in `src/bc64/bc8183_cpu.py` (CPU) and
-  `src/bc81asmc/bc81asmc_ast.py` (assembler). `src/bc81asmc/bc81asmc_opcode_agreement_tests.py` checks
+  `src/bc81asmc/bc81asmc_ast.py` (assembler). `src/bc81asmc/tests/bc81asmc_opcode_agreement_tests.py` checks
   that the two agree.
 - **bcOS system calls:** called via `F` = function number, then `cal :os_metacall`
   (`0x0008`). The `os_metatab` indices are an ABI used by the compiler runtime, bdos and

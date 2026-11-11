@@ -4,7 +4,7 @@ import sys
 import tempfile
 import unittest
 
-SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bc81asmc.py')
+SCRIPT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'bc81asmc.py')
 
 
 class CliCase(unittest.TestCase):

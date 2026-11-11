@@ -13,7 +13,7 @@ from bc81asmc_ast import ASSERT
 from bc81asmc_diag import AssemblerError
 from bc81asmc_grammar import program
 
-SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bc81asmc.py')
+SCRIPT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'bc81asmc.py')
 
 
 def compile_source(source):

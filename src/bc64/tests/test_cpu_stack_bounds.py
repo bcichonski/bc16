@@ -24,7 +24,7 @@ KIL = 0xf0
 
 
 def load_bc64_main():
-    path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bc64.py")
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "bc64.py")
     spec = importlib.util.spec_from_file_location("bc64_main_under_test", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

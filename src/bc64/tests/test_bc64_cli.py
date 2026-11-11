@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-SRC = os.path.dirname(os.path.abspath(__file__))
+SRC = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 BC64_PY = os.path.join(SRC, "bc64.py")
 
 # Hand-made ROMs. DI=1 is the printer port, A is the data register.

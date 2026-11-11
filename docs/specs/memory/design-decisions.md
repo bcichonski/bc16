@@ -291,8 +291,8 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   real emulator.
 - **Rationale:** unit tests cannot show that a boot, a typed command and the disc agree.
 - **Usage:**
-  - the harness is `src/e2e_harness.py`, a plain module (D2); the scenarios are `test_e2e_*.py` next to
-    `bc64.py`, where the code they drive lives (co-location);
+  - the harness is `src/tests/e2e_harness.py`, a plain module (D2); the scenarios are `tests/test_e2e_*.py` in `src/`
+    (moved there with all tests, see #90);
   - a scenario is a script `<scenario>.in.txt` and a golden `<scenario>.golden.txt` in
     `src/bc64/testdata/e2e/` (D3); the golden is compared byte for byte, and marker strings must appear;
   - discs (D4): monitor scenarios use `--no-floppy`; shell scenarios use a temp copy of the frozen

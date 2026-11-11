@@ -7,7 +7,7 @@ import bc81asmc
 from bc81asmc_diag import AssemblerError
 from bc81asmc_grammar import program
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BOOT = os.path.join(HERE, '..', 'bdos', 'boot.basm')
 BCOS = os.path.join(HERE, 'bcOS', 'bcos.basm')
 

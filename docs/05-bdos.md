@@ -307,7 +307,7 @@ Any error stops the build with a message on stderr (`mkdisc: error: ...`), exit 
 
 ## Testing
 
-The shell is tested end to end in `src/test_e2e_bdos.py`. The scripts `src/bc64/testdata/e2e/bdos_*.in.txt`
+The shell is tested end to end in `src/tests/test_e2e_bdos.py`. The scripts `src/bc64/testdata/e2e/bdos_*.in.txt`
 boot a frozen copy of the system disc (`smoke.bdd`) and check the output of `ls`, `cat`, `hellowrd`, `rm`
 and the error messages. `cp` copies a file (`cp test.b copy.b`), and `cat` checks the copy. See `docs/01-emulator.md`,
 End-to-end tests.

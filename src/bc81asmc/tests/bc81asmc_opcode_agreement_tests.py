@@ -23,7 +23,7 @@ import unittest
 from dataclasses import dataclass, field
 from typing import Any
 
-SRC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ASM_DIR = os.path.join(SRC_DIR, 'bc81asmc')
 if ASM_DIR not in sys.path:
     sys.path.append(ASM_DIR)

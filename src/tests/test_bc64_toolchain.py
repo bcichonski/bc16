@@ -10,7 +10,7 @@ import sys
 import tempfile
 import unittest
 
-SRC = os.path.dirname(os.path.abspath(__file__))
+SRC = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BC_PY = os.path.join(SRC, "bc", "bc.py")
 ASM_PY = os.path.join(SRC, "bc81asmc", "bc81asmc.py")
 FTOOL_PY = os.path.join(SRC, "ftool.py")

@@ -4,9 +4,9 @@ import sys
 import tempfile
 import unittest
 
-from bc_codegen_tests import compile_source
+from tests.bc_codegen_tests import compile_source
 
-ASM = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'bc81asmc', 'bc81asmc.py')
+ASM = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '..', 'bc81asmc', 'bc81asmc.py')
 PROGRAM = 'byte main() { return 1; }\n'
 
 

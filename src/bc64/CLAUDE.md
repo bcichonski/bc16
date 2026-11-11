@@ -2,25 +2,25 @@
 
 Reference: `docs/01-emulator.md`. The entry point is `src/bc64.py`. It wires the bus, loads
 the ROM image at `0x0000`, runs the CPU, and dumps memory to `bc64.dmp` on `KIL`. The tests
-live next to the code: `src/bc64/test_*.py` (`src/test_ftool.py` for `ftool.py`).
+live in `src/bc64/tests/` (`src/tests/test_ftool.py` for `ftool.py`).
 
 ## Commands (from `src/`)
 
 ```bash
-python3 -m unittest discover -s . -t . -p "test_*.py"             # all emulator tests (all suites: ../run_tests.py)
-python3 -m unittest bc64.test_cpu.CpuTests.test_CLC16_opcodes    # a single test
+python3 -m unittest discover -s bc64/tests -t . -p "test_*.py"     # emulator package tests (all suites: ../run_tests.py)
+python3 -m unittest bc64.tests.test_cpu.CpuTests.test_CLC16_opcodes   # a single test
 python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 [d]                # run; "d" (any 2nd arg) = per-instruction trace
 bc64 bc81asmc/bcOS/bcos_v1_2_0.b81 [d]                           # same via the console command (`pip install -e .`), any directory
 printf 'ls\nhellowrd\nexit\n' | python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 --disk-a os.bdd --output out.txt   # headless (keys from stdin); use a copy of os.bdd
 ```
 
-`src/bc81asmc/bc81asmc_opcode_agreement_tests.py` checks the CPU against the assembler for every opcode form.
+`src/bc81asmc/tests/bc81asmc_opcode_agreement_tests.py` checks the CPU against the assembler for every opcode form.
 Known bugs are `expectedFailure` tests that name their issue; they show as expected failures,
 not failures. See `docs/01-emulator.md`, Known quirks.
 
 ## End-to-end (smoke) tests
 
-`src/test_bc64_smoke.py` boots bdos headless. Its byte-exact test runs on a **frozen** disc,
+`src/tests/test_bc64_smoke.py` boots bdos headless. Its byte-exact test runs on a **frozen** disc,
 `src/bc64/testdata/smoke.bdd`, not on `src/os.bdd`, and the live-disc test checks only a few
 markers. So after `os.bdd` is rebuilt (bdos, utilities, apps), the e2e tests say little about
 the current system until the frozen disc is refreshed. **For now, to run the e2e tests
@@ -32,7 +32,7 @@ d=$(mktemp -d) && cp bc64/testdata/smoke.bdd $d/os.bdd && (cd $d && \
   python3 "$OLDPWD/bc64.py" "$OLDPWD/bc81asmc/bcOS/bcos_v1_2_0.b81" --disk-a os.bdd \
   --input "$OLDPWD/bc64/testdata/smoke_session.txt" --output "$OLDPWD/bc64/testdata/smoke_transcript.txt" \
   --max-instructions 200000000 < /dev/null); rm -rf $d   # runs in the temp dir: bc64.dmp lands there
-python3 -m unittest test_bc64_smoke
+python3 -m unittest tests.test_bc64_smoke
 ```
 
 Check the transcript diff by eye: it should show only the intended changes. Commit `smoke.bdd` and
@@ -43,12 +43,12 @@ fails if the committed `smoke.bdd` or transcript does not match, so commit them 
 ## End-to-end scenarios
 
 The e2e modules boot the emulator headless and compare the printer output with goldens:
-`src/test_e2e_bcos.py` (monitor, `--no-floppy`), `src/test_e2e_bdos.py` (shell on the frozen
-`smoke.bdd`), `src/test_e2e_toolchain.py` (B program to disc and run, on a copy of the live `os.bdd`)
-and `src/test_e2e_harness.py` (harness self-tests). The harness is `src/e2e_harness.py`, a plain module
+`src/tests/test_e2e_bcos.py` (monitor, `--no-floppy`), `src/tests/test_e2e_bdos.py` (shell on the frozen
+`smoke.bdd`), `src/tests/test_e2e_toolchain.py` (B program to disc and run, on a copy of the live `os.bdd`)
+and `src/tests/test_e2e_harness.py` (harness self-tests). The harness is `src/tests/e2e_harness.py`, a plain module
 and not a test. Scripts and goldens are in `src/bc64/testdata/e2e/` (`<scenario>.in.txt`,
 `<scenario>.golden.txt`). Regenerate with `BC64_UPDATE_GOLDEN=1`, e.g. `cd src && BC64_UPDATE_GOLDEN=1
-python3 -m unittest test_e2e_bdos`, then review the diff. Long scenarios need `BC64_E2E_SLOW=1`. Scripts
+python3 -m unittest tests.test_e2e_bdos`, then review the diff. Long scenarios need `BC64_E2E_SLOW=1`. Scripts
 must not use `q` or a bad-argument command followed by more commands. `q` ends the session with
 `fatal error F0 at FF0C` and a bcOS `KIL` (exit 0); a bad-argument command such as `d 00` ends it with an
 empty-stack `RET` stop (exit 0, a stderr line). Either one may only be the last command. The known
@@ -87,8 +87,8 @@ failure (tape round trip) is an `expectedFailure` test; see `docs/01-emulator.md
 ## Rules
 
 - **Opcode or encoding changes must also be made in `src/bc81asmc/bc81asmc_ast.py`** (and in
-  `README.md` / `docs/02-assembler.md`). Add a test for any new opcode to `test_cpu_alu.py` or `test_cpu_control.py`, and
-  extend `src/bc81asmc/bc81asmc_opcode_agreement_tests.py` so the assembler and the CPU agree on it.
+  `README.md` / `docs/02-assembler.md`). Add a test for any new opcode to `tests/test_cpu_alu.py` or `tests/test_cpu_control.py`, and
+  extend `src/bc81asmc/tests/bc81asmc_opcode_agreement_tests.py` so the assembler and the CPU agree on it.
 - Port numbers, FDD commands and status codes are part of bcOS and bdos code
   (`bcos.basm`, `bdioh.b`); changing them breaks booting.
 - Known latent bugs that existing code depends on not hitting:

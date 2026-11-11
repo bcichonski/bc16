@@ -16,7 +16,7 @@ import sys
 import tempfile
 import unittest
 
-SRC = os.path.dirname(os.path.abspath(__file__))
+SRC = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BC64_PY = os.path.join(SRC, "bc64.py")
 ROM = os.path.join(SRC, "bc81asmc", "bcOS", "bcos_v1_2_0.b81")
 OS_DISK = os.path.join(SRC, "os.bdd")

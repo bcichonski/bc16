@@ -7,7 +7,7 @@ import sys
 import tempfile
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SRC = os.path.join(ROOT, "src")
 sys.path.insert(0, ROOT)
 import run_tests  # noqa: E402
@@ -23,31 +23,35 @@ def touch(directory, *names):
 class SelectionTests(unittest.TestCase):
     def test_rules_on_synthetic_tree(self):
         with tempfile.TemporaryDirectory() as src:
-            touch(src, "test_bc64_cli.py", "test_new_thing.py", "test_ftool.py",
-                  "test_e2e_a.py", "test_e2e_new.py", "test_bc64_smoke.py",
-                  "e2e_harness.py", "ftool.py", "bc64/test_cpu.py", "bc64/bc64_io.py")
+            touch(src, "bc64/tests/test_bc64_cli.py", "tests/test_new_thing.py",
+                  "tests/test_ftool.py", "tests/test_e2e_a.py", "tests/test_e2e_new.py",
+                  "tests/test_bc64_smoke.py", "tests/e2e_harness.py", "ftool.py",
+                  "bc64/tests/test_cpu.py", "bc64/bc64_io.py", "test_stray.py")
             modules = run_tests.select_src_modules(src)
         self.assertEqual(modules["emulator"],
-                         ["bc64.test_cpu", "test_bc64_cli", "test_new_thing"])
-        self.assertEqual(modules["ftool"], ["test_ftool"])
+                         ["bc64.tests.test_bc64_cli", "bc64.tests.test_cpu", "tests.test_new_thing"])
+        self.assertEqual(modules["ftool"], ["tests.test_ftool"])
         self.assertEqual(modules["e2e"],
-                         ["test_bc64_smoke", "test_e2e_a", "test_e2e_new"])
+                         ["tests.test_bc64_smoke", "tests.test_e2e_a", "tests.test_e2e_new"])
 
     def test_real_tree_partition_has_no_overlap_and_no_gap(self):
         modules = run_tests.select_src_modules(SRC)
         selected = [m for names in modules.values() for m in names]
         self.assertEqual(len(selected), len(set(selected)))
         expected = set()
-        for name in os.listdir(SRC):
+        for name in os.listdir(os.path.join(SRC, "tests")):
             if name.startswith("test_") and name.endswith(".py"):
-                expected.add(name[:-3])
-        for name in os.listdir(os.path.join(SRC, "bc64")):
+                expected.add("tests." + name[:-3])
+        for name in os.listdir(os.path.join(SRC, "bc64", "tests")):
             if name.startswith("test_") and name.endswith(".py"):
-                expected.add("bc64." + name[:-3])
+                expected.add("bc64.tests." + name[:-3])
+        orphans = [name for name in os.listdir(SRC)
+                   if name.startswith("test_") and name.endswith(".py")]
+        self.assertEqual(orphans, [])
         self.assertEqual(set(selected), expected)
-        self.assertIn("test_run_tests", modules["emulator"])
-        self.assertIn("test_bc64_smoke", modules["e2e"])
-        self.assertIn("test_ftool", modules["ftool"])
+        self.assertIn("tests.test_run_tests", modules["emulator"])
+        self.assertIn("tests.test_bc64_smoke", modules["e2e"])
+        self.assertIn("tests.test_ftool", modules["ftool"])
 
     def test_suite_order_and_groups(self):
         suites = run_tests.build_suites()
