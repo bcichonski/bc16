@@ -15,6 +15,7 @@ track, sector - kind - description
 0, 1 .. 1, 15 - disk catalog table (DISC.CAT, 31 sectors)
 2, 0 .. 11, 15 - bdos shell + bdio (BDOS.SYS, boot loader reads sectors 0x20..0xbf to 0x0f00)
 12, 0 - data (on os.bdd system programs start at fixed tracks set in src/makedisc)
+53, 0 .. 55, 5 - THEODORE.PRG on os.bdd (38 sectors)
 
 ### disk catalog table
 max length = 31 sectors (track 0 sector 1 to the end of track 1)
@@ -71,6 +72,8 @@ call numbers as dispatched by bdio_call (see bdioh.b and bdosh.b wrappers)
 ### buffered file io (bdos 1.1)
 0x18: bdio_fbinbufread(fhandle, Pmembuf, bytes) - reads given number of bytes, length passed via BDIO_VAR_PMEMBUF_LEN (0x0d92)
 0x19: bdio_fbinbufwrite(fhandle, Pmembuf, bytes) - writes given number of bytes, length passed via BDIO_VAR_PMEMBUF_LEN (0x0d92)
+### random numbers (opt-in, bdos 1.1)
+0x1a: BDIO_RANDOM, wrapper random(max) in random.b (include after bdosh.b) - random word from port 0x05; max=0 returns the whole word, else word % max
 buffered I/O contract (return values, EOF, flush, buffer counter): see docs/05-bdos.md, section "Buffered I/O"
 ### internal, used by the shell only (not available via bdio_call)
 bdio_ffindfile(Pfnameext) - find a sector in which catalog entry for given name and extension is located

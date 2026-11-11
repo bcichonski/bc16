@@ -63,12 +63,13 @@ def _tail(data, limit=TAIL):
 
 
 def run_session(scenario, session, rom=ROM, disks=None, tape_dir=False, no_floppy=False,
-                max_instructions=DEFAULT_MAX_INSTRUCTIONS, inspect=None):
+                max_instructions=DEFAULT_MAX_INSTRUCTIONS, inspect=None, seed=None):
     """Boot the emulator headless with the keys of the session file; return the printer bytes.
 
     disks: {"a": path, "b": path}; each image is copied to a temp dir and the copy is used.
     tape_dir: pass a temp tape directory (--tape-dir). no_floppy: pass --no-floppy (no disks).
     inspect: optional callable(paths) run before cleanup; paths has "tmp", "a", "b", "tape".
+    seed: optional int passed as --random-seed (reproducible port 0x05 random numbers).
     Raises AssertionError on an instruction-limit stop (exit 3) or any other non-zero exit,
     and when a source image changed or a cpudebug.log appeared.
     """
@@ -79,6 +80,8 @@ def run_session(scenario, session, rom=ROM, disks=None, tape_dir=False, no_flopp
         output = os.path.join(tmp, "out.txt")
         cmd = [sys.executable, BC64_PY, rom, "--input", session, "--output", output,
                "--max-instructions", str(max_instructions)]
+        if seed is not None:
+            cmd += ["--random-seed", str(seed)]
         if no_floppy:
             cmd.append("--no-floppy")
         for name in sorted(disks):

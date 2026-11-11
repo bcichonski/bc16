@@ -62,6 +62,19 @@ class ArgumentParsingTests(unittest.TestCase):
                     self.parse("--max-instructions", bad)
                 self.assertEqual(raised.exception.code, 2)
 
+    def test_random_seed_decimal_and_hex(self):
+        self.assertEqual(self.parse("--random-seed", "42").random_seed, 42)
+        self.assertEqual(self.parse("--random-seed", "0x2A").random_seed, 42)
+        self.assertEqual(self.parse("--random-seed", "0").random_seed, 0)
+        self.assertIsNone(self.parse().random_seed)
+
+    def test_bad_random_seed_is_a_usage_error(self):
+        for bad in ("abc", "-1", "1.5", ""):
+            with self.subTest(bad=bad), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as raised:
+                    self.parse("--random-seed", bad)
+                self.assertEqual(raised.exception.code, 2)
+
     def test_headless_selection(self):
         module = self.module
         with mock.patch.object(module, "stdin_is_tty", return_value=True):
@@ -151,6 +164,15 @@ class RunTests(unittest.TestCase):
         with open(out, "rb") as f:
             self.assertEqual(f.read(), b"Hi")
         self.assertTrue(self.dump_exists())
+
+    def test_random_seed_option_is_accepted(self):
+        result = self.run_bc64(self.rom(KIL), "--random-seed", "0x10")
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_bad_random_seed_exits_two(self):
+        result = self.run_bc64(self.rom(KIL), "--random-seed", "-1")
+        self.assertEqual(result.returncode, 2)
+        self.assertFalse(self.dump_exists())
 
     def test_instruction_limit_exits_three_without_dump(self):
         out = os.path.join(self.tmp, "out.bin")

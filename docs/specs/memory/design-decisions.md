@@ -255,7 +255,7 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   environment, so the console path stays as it was.
 - **Usage:**
   - options: `--disk-a`/`--disk-b` (prompt answers), `--tape-dir`, `--input` (`-` for stdin),
-    `--output`, `--max-instructions`; headless when one of them is given or stdin is not a
+    `--output`, `--max-instructions`, `--random-seed` (see below); headless when one of them is given or stdin is not a
     terminal, and piped stdin is typed as keys;
   - `ScriptedEnvironment` in `bc64_env.py` is one class built from the options; each feature
     is optional and independent;
@@ -263,7 +263,11 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - end of input is a clean stop with exit 0 and no memory dump; the dump stays on `KIL`;
   - exit codes: 0 halt or end of input, 1 exception, 2 usage error, 3 instruction limit;
   - `--max-instructions` switches to a limited run loop; without it `cpu.run()` is used as is;
-  - disk prompts are matched by their text (`Disk A name:`).
+  - disk prompts are matched by their text (`Disk A name:`);
+  - `--random-seed N` (int >= 0, decimal or hex, bad value exit 2) seeds the port `0x05`
+    `RandomGenerator`, so a test can get reproducible random numbers; without it the generator is
+    seeded from the system. It works in console and headless mode and does not by itself select
+    headless mode; `run_session(..., seed=N)` passes it.
 - **Trade-offs:** the console and headless paths must be kept in step; a halt and end of input
   both exit 0, so a script must check its output as well as the code; the limited run loop
   repeats the CPU's run loop in `bc64.py`, so a change to `cpu.run()` must be mirrored there;
@@ -597,3 +601,17 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - the loader stops at the first `0x00` or at the end of the file (format details in
     `docs/05-bdos.md`, TextEd file format).
 - **Trade-offs:** not a plain-text format for host tools, which expect `0x0a` line ends.
+
+### D7. Optional services are opt-in includes (#2)
+- **Purpose:** a bdio call any program may use, whose wrapper lives in its own include file, so
+  programs that do not use it do not grow.
+- **Rationale:** the compiler links every function of every included file, so a wrapper added to
+  `bdosh.b` or `std.b` grows every program (TEXTED has 2 bytes left in its disc slot). The RNG is
+  a bdos call (`BDIO_RANDOM` = `0x1a`), not a bcOS call: ROM growth would change the free-memory
+  line of every bcOS golden.
+- **Usage:**
+  - `#include bdosh.b`, then `#include random.b`; `random(max)` returns `0..max-1`, or the whole
+    16-bit word for `max` = 0;
+  - the include file contains no `#include` itself (duplicate definitions are build errors);
+  - tests seed the emulator RNG with `--random-seed N` (see E7).
+- **Trade-offs:** the caller must include the files in the right order; the modulo has a slight bias.

@@ -53,7 +53,7 @@ compiler's grammar notes.
 - Many sources use **CRLF** line endings (e.g. `bcos.basm`). Keep them when editing.
 - Headless runs: `--disk-a`/`--disk-b` answer the disk prompts, piped stdin (or `--input FILE`)
   is typed as keys, `--output FILE` captures the printer output, `--max-instructions N` bounds
-  the run and `--tape-dir DIR` sets the tape folder. `--no-floppy` starts bcOS with no floppy drive,
+  the run and `--tape-dir DIR` sets the tape folder. `--random-seed N` makes the port 0x05 random numbers reproducible. `--no-floppy` starts bcOS with no floppy drive,
   straight to the monitor; it can't be combined with `--disk-a`/`--disk-b`. Options and exit codes are in
   `docs/01-emulator.md`. A trace run writes `cpudebug.log` to the working directory; it grows
   to gigabytes, so delete it afterwards.

@@ -2,35 +2,17 @@
 #heap 0xf000
 
 #include std.b
-#include stdio.b
 #include stdmem.b
+#include bdosh.b
+#include random.b
 
 #define PINPUTBUFLEN 32
 #define MAXSTOPS 100
 
-word getRandomSeed(word PinputBuf, word maxValue)
-{
-    word rand;
-    word temp;
-
-    puts("What time is it? (hhmm) ");
-    readsn(PinputBuf, PINPUTBUFLEN);
-
-    rand <- parsedecw(PinputBuf, PINPUTBUFLEN);
-    rand <- rand * 5 + 1;
-    temp <- rand / 9887;
-    rand <- rand - temp * 9887;
-    rand <- rand * 3 + 1;
-    temp <- rand / maxValue;
-    rand <- rand - temp * maxValue;
-
-    return rand;
-}
-
-byte mainLoop(word PinputBuf, byte theodoreStopNumber)
+byte mainLoop(word PinputBuf, word theodoreStopNumber)
 {
     byte theodoreFound;
-    byte playerStop;
+    word playerStop;
     byte playerExit;
 
     theodoreFound <- 0;
@@ -40,9 +22,7 @@ byte mainLoop(word PinputBuf, byte theodoreStopNumber)
     while(!(theodoreFound + playerExit)) 
     {
         putsnl("Where is uncle Theodore?");
-        puts("Type train stop number (0..");
-        putdecw(MAXSTOPS);
-        puts("): ");
+        puts("Type train stop number (0..99) or 100 to quit: ");
 
         readsn(PinputBuf, PINPUTBUFLEN);
         playerStop <- parsedecw(PinputBuf, PINPUTBUFLEN);
@@ -78,11 +58,11 @@ byte main()
     word PinputBuf;
     word rand;
     
-    putsnl("Looking for ucle Theodore v1.0");
+    putsnl("Looking for uncle Theodore v1.1");
 
     PinputBuf <- malloc(PINPUTBUFLEN);
 
-    rand <- getRandomSeed(PinputBuf, MAXSTOPS);
+    rand <- random(MAXSTOPS);
 
     mainLoop(PinputBuf, rand);
     mfree(PinputBuf);

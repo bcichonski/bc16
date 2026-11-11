@@ -19,9 +19,10 @@ Sources are in `src/bdos/`:
 | `bdioh.b` | constants, memory addresses, error codes, call numbers |
 | `bdosh.b` | wrappers that user programs include to call bdio |
 | `bdostools.b` | `bdio_fnormalize` (converts `name.ext` to the catalog form) |
+| `random.b` | `random(max)`: opt-in wrapper for `BDIO_RANDOM` (`0x1a`); include it after `bdosh.b` |
 | `ls.b`, `cp.b`, `rm.b`, `cat.b`, `cha.b`, `format.b` | system utilities |
-| `helloworld.b`, `texted.b` | apps on the system disc |
-| `calc.b`, `theodore.b`, `fddtest.b`, `debug.b` | older or test programs, not on the disc |
+| `helloworld.b`, `texted.b`, `theodore.b` | apps on the system disc |
+| `calc.b`, `fddtest.b`, `debug.b` | older or test programs, not on the disc |
 | `bdos.md` | short design notes: disk format, bdio call list, memory map |
 
 For each program the repo also keeps generated files: `*.genb` (preprocessed), `*.basm`,
@@ -80,6 +81,7 @@ directories. Each file is one **contiguous** run of sectors.
 | 9 | `CAT.PRG` | 41/0 | 62 | S R X |
 | 10 | `TEXTED.PRG` | 45/0 | 112 | R X |
 | 11 | `TEST.B` | 52/0 | 2 | R W |
+| 12 | `THEODORE.PRG` | 53/0 | 38 | R X |
 
 The catalog itself is a file: `DISC.CAT`, from track 0 sector 1 to the end of track 1.
 
@@ -133,7 +135,13 @@ In B, `#include bdosh.b` and use the wrappers:
 | `0x17` | `bdio_fsetattr(Pname, attribs)` | change attributes | status |
 | `0x18` | `bdio_fbinbufread(h, Pbuf, bytes)` | buffered byte-count read (the length goes through `0x0d92`) | bytes copied, `1..length` (`0` = EOF, `length` 0, or not buffered) |
 | `0x19` | `bdio_fbinbufwrite(h, Pbuf, bytes)` | buffered byte-count write | bytes accepted (`length`; `0` = not buffered) |
+| `0x1a` | `random(max)` (`random.b`, needs `bdosh.b` first; see below) | hardware random number: reads port `0x05` twice (first byte high) | word in `0..max-1` (`max` = 0: the whole 16-bit word); never fails |
 
+- **`0x1a` random:** `BDIO_RANDOM` reads the emulator RNG port `0x05` twice and joins the bytes into a
+  16-bit word. The word modulo `max` is returned (slight modulo bias), or the whole word when
+  `max` = 0. It does not touch `BDIO_VAR_LASTERROR` or the disc. The wrapper `random(max)` lives in
+  `random.b`, not `bdosh.b`, so programs that do not include it do not grow. `random.b` includes
+  nothing itself, so put `#include bdosh.b` before it.
 - **File names:** `Pname` is the 11-character catalog form `NAME    EXT` (space-padded, no
   dot). `bdio_fnormalize` (bdostools.b) converts `name.ext` to that form.
 - **Handles:** there is 1 write descriptor (handle `0x10|n`) and 3 read descriptors
@@ -216,9 +224,9 @@ Use `-h` for help in each tool. File arguments accept a drive prefix: `[d:]name.
 | `format` | `format d: [-q]` | `-q` (quick) writes an empty `DISC.CAT` on a disc that already has the system layout. A full format makes the target a **system disc**: wipes it, copies the boot sector, creates the catalog and copies `BDOS.SYS`, `LS`, `CP`, `FORMAT`, … from the source system disc |
 | `hellowrd` | `hellowrd` | prints "Hello world!" and a number |
 | `texted` | `texted` | TextEd v1.2, a line editor: `i <n> <s>` insert lines from `n` in steps of `s`, `p <n> <m>` print, `d <n> <m>` delete, `l <file>` load (replaces the buffer; a missing file prints the bdio error and keeps it), `s <file>` save (a missing file name or number prints an error and does nothing), `m` memory stats, `h` help, `q` quit |
+| `theodore` | `theodore` | Looking for uncle Theodore v1.1, a guessing game: find uncle Theodore among train stops 0..99 with north/south hints; the start stop comes from the hardware random generator; 100 (or more) quits |
 
-`calc` (calculator), `theodore` (a "find uncle Theodore" guessing game), `fddtest` and
-`debug` are in the sources but are not built onto the disc.
+`calc` (calculator), `fddtest` and `debug` are in the sources but are not built onto the disc.
 
 ### TextEd file format
 
@@ -242,7 +250,7 @@ From `src/` (the scripts pick the interpreter themselves: `winpty python` on Git
 ```bash
 ./buildos      # bcOS ROM + boot loader + bdos shell
 ./buildtools   # ls cp format rm cha cat
-./buildapps    # helloworld texted
+./buildapps    # helloworld texted theodore
 ./makedisc     # convert each .btap to sectors, then write everything into a fresh os.bdd
 ./run          # start the emulator; enter "os.bdd" when asked for the disk name
 ```

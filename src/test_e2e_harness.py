@@ -47,6 +47,19 @@ class SessionRunnerTests(TempCase):
         h.assert_markers(out, [b"A>ls", b"HELLOWRD.PRG", b"bye!"])
         self.assertEqual(before, h.read_bytes(h.SMOKE_DISK))
 
+    def test_seed_is_passed_as_random_seed_flag(self):
+        session = self.session(b"ls\n")
+        commands = []
+        real_run = h.subprocess.run
+        def spy(cmd, *args, **kwargs):
+            commands.append(list(cmd))
+            return real_run(cmd, *args, **kwargs)
+        with mock.patch.object(h.subprocess, "run", spy):
+            h.run_session("seeded", session, no_floppy=True, seed=0x2a)
+            h.run_session("unseeded", session, no_floppy=True)
+        self.assertEqual(commands[0][commands[0].index("--random-seed") + 1], str(0x2a))
+        self.assertNotIn("--random-seed", commands[1])
+
     def test_other_nonzero_exit_reports_stderr(self):
         session = self.session(b"ls\n")
         with self.assertRaises(AssertionError) as caught:

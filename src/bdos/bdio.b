@@ -1119,6 +1119,33 @@ word bdio_fbinbufwrite(byte fhandle, word Pmembuf, word length)
     return result;
 }
 
+byte bdio_rngbyte()
+{
+    //reads one random byte from the rng port
+
+    BDIO_RNG_PORT;
+    asm "in a, #ci";
+    asm "mov ci, a";
+}
+
+word bdio_random(word max)
+{
+    //returns a random word (first byte high)
+    //max = 0: the whole word, otherwise word % max (0..max-1)
+
+    word hi;
+    word lo;
+    hi <- bdio_rngbyte();
+    lo <- bdio_rngbyte();
+    word value;
+    value <- (hi << 8) | lo;
+    if(max != 0)
+    {
+        value <- value % max;
+    }
+    return value;
+}
+
 word bdio_call()
 {
     asm "bdio_call: psh a";
@@ -1227,6 +1254,11 @@ word bdio_call()
     if(regA = BDIO_FBINBUFWRITE)
     {
         result <- bdio_fbinbufwrite(regCS, regDSDI, PmembufLen);
+    }
+    else
+    if(regA = BDIO_RANDOM)
+    {
+        result <- bdio_random(regCSCI);
     }
 
     return result;
