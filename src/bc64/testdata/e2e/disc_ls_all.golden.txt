@@ -1,0 +1,25 @@
+bcOS 1.2
+booting from FDDlding
+bDOS 1.1 shell
+9FF5 bytes free
+reading disc...
+A>ls -a
+.......
+listing files of drive A:
+BOOTSECT.BIN SR-- 0080 00 00 01
+DISC    .CAT SR-- 0F80 00 01 1F
+BDOS    .SYS SR-- 5000 02 00 A0
+LS      .PRG SR-X 1D00 0C 00 3A
+HELLOWRD.PRG -R-X 0700 0F 0A 0E
+CP      .PRG SR-X 1C80 10 08 39
+FORMAT  .PRG SR-X 2900 14 01 52
+RM      .PRG SR-X 1F80 19 03 3F
+CHA     .PRG SR-X 1C00 1D 02 38
+CAT     .PRG SR-X 1F00 20 0A 3E
+TEXTED  .PRG -R-X 3800 24 08 70
+TEST    .B   -RW- 0100 2B 08 02
+THEODORE.PRG -R-X 1300 2B 0A 26
+EA catalog entries free; 0120 sectors free...
+A>exit
+bye!
+

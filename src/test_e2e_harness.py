@@ -156,7 +156,7 @@ class CatalogTests(TempCase):
         for known in [("HELLOWRD", "PRG"), ("TEXTED", "PRG"), ("TEST", "B"), ("BDOS", "SYS")]:
             self.assertIn(known, names)
         hello = [r for r in rows if r.name == "HELLOWRD"][0]
-        self.assertEqual((0x11, 0, 15, 0x05), (hello.track, hello.sector, hello.length, hello.attributes))
+        self.assertEqual((0x0f, 0x0a, 14, 0x05), (hello.track, hello.sector, hello.length, hello.attributes))
 
     def test_disc_put_adds_entry_and_refuses_duplicate(self):
         disk = self.path("c.bdd")

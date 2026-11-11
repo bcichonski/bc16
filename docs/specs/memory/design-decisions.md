@@ -547,7 +547,7 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - it reads its arguments from `BDIO_CMDPROMPTADDR` (`upstring` + `strnextword`);
   - it supports `-h` for usage and `[d:]` drive prefixes on file arguments;
   - it ends with a normal return;
-  - it is added to `buildtools`/`buildapps`, `makedisc` and `fcat0800.sector`.
+  - it is added to `buildtools`/`buildapps`, `makedisc` (its `btap2bin` line) and `src/disc.bddmanifest`.
 - **Trade-offs:** every command loads from disk; no pipes or scripts yet (roadmap).
 
 ### D3. BFS: flat catalog, contiguous files, append-only allocation
@@ -615,3 +615,13 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - the include file contains no `#include` itself (duplicate definitions are build errors);
   - tests seed the emulator RNG with `--random-seed N` (see E7).
 - **Trade-offs:** the caller must include the files in the right order; the modulo has a slight bias.
+
+### D8. The system disc is built from a manifest by `ftool mkdisc` (#37)
+- **Purpose:** catalog lengths and start tracks come from the real files, and a disc that does not fit fails the build.
+- **Rationale:** the hand-made binary catalog drifted from the builds (`CP.PRG` was truncated, so `cp` failed). The tool places files back to back and checks every limit before it writes anything.
+- **Usage:**
+  - the manifest is `src/disc.bddmanifest`: one file per line, `NAME.EXT SOURCE ATTRIBS [OPTIONS]`, where the options are `role=boot|catalog|system` (the first three lines, in order), `at=T/S` (exact start) and `max=N` (a fixed slot of at most N sectors). The layout requirements of the system disc are stated there;
+  - `BDOS.SYS` covers the whole boot loader range, 160 sectors, zero after the bdos build;
+  - all 248 catalog entries are numbered, as `format` does; at most 247 are used, so the catalog is never full;
+  - all checks run before the output is written; a failed build writes no output file.
+- **Trade-offs:** a file that grows moves the files after it. Old discs copied before #37 number only entries 0–15, so a 17th file would overwrite `BOOTSECT.BIN`'s entry: re-make them (see `docs/05-bdos.md`).

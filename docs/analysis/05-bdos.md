@@ -10,8 +10,7 @@ Reference: [../05-bdos.md](../05-bdos.md). Decisions: D1–D5, G2, G7 in
   - an 18.5 KB shell plus bdio layer (in B) at `0x0f00`;
   - BFS: a flat catalog, contiguous files, buffered and sector I/O.
 - **The system disc `os.bdd`** holds `LS`, `CP`, `RM`, `CAT`, `CHA`, `FORMAT`, `HELLOWRD`
-  and `TEXTED`. It is built by `makedisc` with fixed tracks and the hand-made catalog
-  `src/fcat0800.sector`.
+  and `TEXTED`. It is built by `ftool mkdisc` from `src/disc.bddmanifest` (#37).
 - **In progress:** TextEd v1.2 load and save (#1); the Theodore game (#2).
 - **The disc is stale:** `BDOS.SYS` and `CAT.PRG` were built before the 2025-01-04 changes
   (#1 fixes this).
@@ -34,7 +33,7 @@ From the README and `bdos.md`:
 |---|---|---|---|---|
 | 1 | Stale system disc | `BDOS.SYS`/`CAT.PRG` built 2024-11-03; the sources changed on 2025-01-04 | the disc doesn't match the source (#1) | #1 |
 | 2 | **Disc geometry is hard-wired to 16 sectors per track** | the boot loader packs track and sector into one byte (`ci`: high nibble track, low nibble sector, range `0x20..0xbf`); `bdio_getfreesect` masks with `& 0x0f`; `FDD_SECTORS 0x10` | roadmap item 7 (32 sectors) needs a redesign of the boot loader and the bdio addressing, not just constants | #40 |
-| 3 | Hand-maintained disc build | `fcat0800.sector` is a binary edited by hand; `makedisc` hard-codes the start tracks | adding or growing a program is error-prone; nothing checks the sizes | #37 |
+| 3 | Hand-maintained disc build | before #37, `fcat0800.sector` was a binary edited by hand and `makedisc` hard-coded the start tracks | adding or growing a program is error-prone; nothing checks the sizes | #37 |
 | 4 | Allocation never reuses space | new data always goes after the last used sector; `rm` doesn't free anything | the disc fills up permanently; only a reformat recovers it | #41 |
 | 5 | File size limited to 255 sectors (32 KB) | the length is one byte in the catalog entry | `bdos.md` claimed 64 KB until now; large texts and bigger apps don't fit | #39 |
 | 6 | Colliding error codes | `BDIO_FOPEN_FDD_NOT_READY` is defined twice (`0xe1`, then `0xe5`; the last one wins); `0xe6` and `0xe7` each mean two things | wrong messages; `bdio_printexecres` can't tell the cases apart | #38 |

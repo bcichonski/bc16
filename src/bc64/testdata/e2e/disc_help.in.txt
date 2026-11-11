@@ -1,0 +1,7 @@
+ls -h
+cp -h
+format -h
+rm -h
+cha -h
+cat -h
+exit

@@ -10,12 +10,9 @@
   - files in continous block
 
 ### disk format
-track, sector - kind - description
-0, 0 - boot sector - 128 bytes that is a boot loader for the bDOS system (BOOTSECT.BIN)
-0, 1 .. 1, 15 - disk catalog table (DISC.CAT, 31 sectors)
-2, 0 .. 11, 15 - bdos shell + bdio (BDOS.SYS, boot loader reads sectors 0x20..0xbf to 0x0f00)
-12, 0 - data (on os.bdd system programs start at fixed tracks set in src/makedisc)
-53, 0 .. 55, 5 - THEODORE.PRG on os.bdd (38 sectors)
+The system disc layout and its requirements (boot sector, catalog, BDOS.SYS, where the data starts) are
+stated in `src/disc.bddmanifest`. `ftool mkdisc` builds the disc from it and checks them. `ls -a` shows the
+actual positions and lengths.
 
 ### disk catalog table
 max length = 31 sectors (track 0 sector 1 to the end of track 1)

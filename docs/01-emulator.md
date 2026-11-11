@@ -215,8 +215,6 @@ Known bugs are `expectedFailure` tests, so they show as expected failures, not f
 
 - `test_tape_round_trip` (`test_e2e_bcos.py`): `s` writes a tape file, but `l` reads past the end of
   the tape and the run stops with a Python `TypeError`. Issues #32 and #62.
-- `test_cp_then_cat_shows_same_text` (`test_e2e_bdos.py`): `cp` reads keys until the input runs out,
-  so `cat` and `exit` never run. Found by #49; the issue is not filed yet.
 
 When a fix lands, the test reports an unexpected success: remove its decorator then.
 

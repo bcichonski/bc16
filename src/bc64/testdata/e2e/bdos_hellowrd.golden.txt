@@ -4,7 +4,7 @@ bcOS 1.2
 9FF5 bytes free
 reading disc...
 A>hellowrd
-..
+.
 Hello world!
 10
 A>exit

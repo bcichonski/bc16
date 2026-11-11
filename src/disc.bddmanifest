@@ -1,0 +1,26 @@
+# System disc manifest, built by `./ftool mkdisc disc.bddmanifest os.bdd` (see ftool_mkdisc.py).
+# Columns: NAME.EXT  SOURCE  ATTRIBS  [OPTIONS]
+#   SOURCE  - file path relative to this manifest (- for DISC.CAT, which the tool generates)
+#   ATTRIBS - letters from R W X S (read, write, execute, system)
+#   OPTIONS - role=boot|catalog|system  the first three lines, in this order
+#             at=T/S                    exact start (decimal); default: right after the previous file's slot
+#             max=N                     the file may have at most N sectors and reserves an N-sector slot
+# Files without options follow back to back; the first one starts after BDOS.SYS's slot, at 12/0.
+
+# The boot ROM loads track 0 sector 0 (128 bytes, signature BD 05 01 01).
+BOOTSECT.BIN  bdos/boot.sector          SR   role=boot at=0/0 max=1
+# bdio's catalog v1 is fixed: 0/1 for 31 sectors (248 entries).
+DISC.CAT      -                         SR   role=catalog at=0/1 max=31
+# The boot loader reads sectors 0x20..0xbf (2/0..11/15, 160 sectors) to 0x0f00.
+BDOS.SYS      bdos/bdos.sector          SR   role=system at=2/0 max=160
+# The first sector after the loader range.
+LS.PRG        bdos/ls.sectors           SRX  at=12/0
+HELLOWRD.PRG  bdos/helloworld.sectors   RX
+CP.PRG        bdos/cp.sectors           SRX
+FORMAT.PRG    bdos/format.sectors       SRX
+RM.PRG        bdos/rm.sectors           SRX
+CHA.PRG       bdos/cha.sectors          SRX
+CAT.PRG       bdos/cat.sectors          SRX
+TEXTED.PRG    bdos/texted.sectors       RX
+TEST.B        bdos/testb.sectors        RW
+THEODORE.PRG  bdos/theodore.sectors     RX
