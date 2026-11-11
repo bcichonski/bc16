@@ -237,8 +237,9 @@ class MkdiscTestCase(FtoolTestCase):
     def write_manifest(self, *lines, header=True):
         body = []
         if header:
-            body.append('BOOTSECT.BIN boot.sector SR boot')
-            body.append('BDOS.SYS     sys.sector  SR system')
+            body.append('BOOTSECT.BIN boot.sector SR role=boot at=0/0 max=1')
+            body.append('DISC.CAT     -           SR role=catalog at=0/1 max=31')
+            body.append('BDOS.SYS     sys.sector  SR role=system at=2/0 max=160')
         body.extend(lines)
         return self.write_file('disc.manifest', ('\n'.join(body) + '\n').encode('ascii'))
 
@@ -343,7 +344,7 @@ class MkdiscLayoutTests(MkdiscTestCase):
         self.write_file('a.bin', bytes([1]) * 10)
         self.write_file('b.bin', bytes([2]) * (SECTOR_SIZE * 2))
         self.write_file('c.bin', bytes([3]) * 10)
-        self.write_manifest('A a.bin R', 'B b.bin R 20/15', 'C c.bin R')
+        self.write_manifest('A a.bin R', 'B b.bin R at=20/15', 'C c.bin R')
 
         image = self.build()
 
@@ -355,7 +356,7 @@ class MkdiscLayoutTests(MkdiscTestCase):
 
     def test_explicit_start_equal_to_next_free_sector_is_accepted(self):
         self.write_file('a.bin', bytes([1]))
-        self.write_manifest('A a.bin R 12/0', 'B a.bin R 12/1')
+        self.write_manifest('A a.bin R at=12/0', 'B a.bin R at=12/1')
 
         image = self.build()
 
@@ -397,7 +398,8 @@ class MkdiscLayoutTests(MkdiscTestCase):
             f.write(b'\x01')
         manifest = os.path.join(sub, 'disc.manifest')
         with open(manifest, 'w') as f:
-            f.write('BOOT.BIN boot.sector SR boot\nBDOS.SYS sys.sector SR system\n')
+            f.write('BOOT.BIN boot.sector SR role=boot at=0/0 max=1\nDISC.CAT - SR role=catalog at=0/1 max=31\n'
+                    'BDOS.SYS sys.sector SR role=system at=2/0 max=160\n')
 
         saved_cwd = os.getcwd()
         os.chdir(self.dir)
@@ -410,17 +412,17 @@ class MkdiscLayoutTests(MkdiscTestCase):
 class MkdiscErrorTests(MkdiscTestCase):
     def test_missing_source_file(self):
         self.write_manifest('A.PRG nothere.bin R')
-        self.assert_error(r'disc\.manifest:3: cannot read source file .*nothere\.bin')
+        self.assert_error(r'disc\.manifest:4: cannot read source file .*nothere\.bin')
 
     def test_empty_source_file(self):
         self.write_file('empty.bin', b'')
         self.write_manifest('A.PRG empty.bin R')
-        self.assert_error(r':3: source file .*empty\.bin is empty')
+        self.assert_error(r':4: source file .*empty\.bin is empty')
 
     def test_file_over_255_sectors(self):
         self.write_file('big.bin', bytes(SECTOR_SIZE * 255 + 1))
         self.write_manifest('BIG.PRG big.bin R')
-        self.assert_error(r':3: BIG\.PRG is 256 sectors, a file holds at most 255')
+        self.assert_error(r':4: BIG\.PRG is 256 sectors, a file holds at most 255')
 
     def test_file_of_exactly_255_sectors_is_accepted(self):
         self.write_file('big.bin', bytes([1]) * (SECTOR_SIZE * 255))
@@ -431,17 +433,17 @@ class MkdiscErrorTests(MkdiscTestCase):
     def test_system_file_over_160_sectors(self):
         self.write_file('sys.sector', bytes(160 * SECTOR_SIZE + 1))
         self.write_manifest()
-        self.assert_error(r':2: system file .* is 161 sectors, the boot loader range holds at most 160')
+        self.assert_error(r':3: BDOS\.SYS is 161 sectors, more than max=160')
 
     def test_file_past_end_of_disc(self):
         self.write_file('big.bin', bytes([1]) * (SECTOR_SIZE * 255))
         # 192 + 3 * 255 = 957; the fourth 255-sector file would end at 1212 > 1024
         self.write_manifest('A big.bin R', 'B big.bin R', 'C big.bin R', 'D big.bin R')
-        self.assert_error(r':6: D \(255 sectors from 59/13\) does not fit: it ends past sector 1024')
+        self.assert_error(r':7: D \(255 sectors from 59/13\) does not fit: it ends past sector 1024')
 
     def test_file_ending_exactly_at_end_of_disc_is_accepted(self):
         self.write_file('one.bin', b'\x01')
-        self.write_manifest('A one.bin R 63/15')
+        self.write_manifest('A one.bin R at=63/15')
         image = self.build()
         self.assertEqual(image[-SECTOR_SIZE], 1)
 
@@ -469,80 +471,88 @@ class MkdiscErrorTests(MkdiscTestCase):
         self.assert_error(r':1: boot file .* does not end with the signature BD 05 01 01')
 
     def test_first_line_not_boot(self):
-        self.write_manifest('BDOS.SYS sys.sector SR system', 'BOOT.BIN boot.sector SR boot', header=False)
-        self.assert_error(r':1: the first file must be the boot file')
+        self.write_manifest('BDOS.SYS sys.sector SR role=system at=2/0 max=160',
+                            'BOOT.BIN boot.sector SR role=boot at=0/0 max=1', header=False)
+        self.assert_error(r':1: file 1 of the manifest must have role=boot')
 
-    def test_second_line_not_system(self):
+    def test_second_line_not_catalog(self):
+        self.write_manifest('# header', 'BOOT.BIN boot.sector SR role=boot at=0/0 max=1',
+                            'BDOS.SYS sys.sector SR role=system at=2/0 max=160', header=False)
+        self.assert_error(r':3: file 2 of the manifest must have role=catalog')
+
+    def test_third_line_not_system(self):
         self.write_file('a.bin', b'x')
-        self.write_manifest('# header', 'BOOT.BIN boot.sector SR boot', 'A a.bin R', header=False)
-        self.assert_error(r':3: the second file must be the system file')
+        self.write_manifest('BOOT.BIN boot.sector SR role=boot at=0/0 max=1',
+                            'DISC.CAT - SR role=catalog at=0/1 max=31', 'A a.bin R', header=False)
+        self.assert_error(r':3: file 3 of the manifest must have role=system')
 
     def test_boot_used_again(self):
-        self.write_manifest('BOOT2.BIN boot.sector SR boot')
-        self.assert_error(r':3: "boot" is only allowed on the first file line')
+        self.write_manifest('BOOT2.BIN boot.sector SR role=boot at=0/0 max=1')
+        self.assert_error(r':4: role=boot is only allowed on line 1 of the file list')
 
     def test_system_used_again(self):
-        self.write_manifest('BDOS2.SYS sys.sector SR system')
-        self.assert_error(r':3: "system" is only allowed on the second file line')
+        self.write_manifest('BDOS2.SYS sys.sector SR role=system at=2/0 max=160')
+        self.assert_error(r':4: role=system is only allowed on line 3 of the file list')
 
     def test_manifest_without_system_line(self):
-        self.write_manifest('BOOT.BIN boot.sector SR boot', header=False)
-        self.assert_error(r'at least the boot and the system file')
+        self.write_manifest('BOOT.BIN boot.sector SR role=boot at=0/0 max=1',
+                            'DISC.CAT - SR role=catalog at=0/1 max=31', header=False)
+        self.assert_error(r'at least the boot, catalog and system file')
 
     def test_explicit_start_before_next_free_sector(self):
         self.write_file('a.bin', bytes(SECTOR_SIZE * 2))
-        self.write_manifest('A a.bin R', 'B a.bin R 12/1')
-        self.assert_error(r':4: start 12/1 is before the next free sector 12/2')
+        self.write_manifest('A a.bin R', 'B a.bin R at=12/1')
+        self.assert_error(r':5: start 12/1 is before the next free sector 12/2')
 
     def test_explicit_start_inside_loader_range(self):
         self.write_file('a.bin', b'x')
-        self.write_manifest('A a.bin R 5/0')
-        self.assert_error(r':3: start 5/0 is before the next free sector 12/0')
+        self.write_manifest('A a.bin R at=5/0')
+        self.assert_error(r':4: start 5/0 is before the next free sector 12/0')
 
     def test_explicit_start_outside_geometry(self):
         self.write_file('a.bin', b'x')
         for place in ('64/0', '12/16'):
             with self.subTest(place=place):
-                self.write_manifest('A a.bin R ' + place)
-                self.assert_error(r':3: start .* outside the disc')
+                self.write_manifest('A a.bin R at=' + place)
+                self.assert_error(r':4: start .* outside the disc')
 
-    def test_bad_place(self):
+    def test_bad_at_value(self):
         self.write_file('a.bin', b'x')
-        self.write_manifest('A a.bin R 12-0')
-        self.assert_error(r':3: bad place "12-0"')
+        self.write_manifest('A a.bin R at=12-0')
+        self.assert_error(r':4: bad value "12-0" for at')
 
     def test_bad_names(self):
         self.write_file('a.bin', b'x')
         for name in ('TOOLONGNM.PRG', 'A.PRGX', 'A-B.PRG', '.PRG', 'A.B.C'):
             with self.subTest(name=name):
                 self.write_manifest(name + ' a.bin R')
-                self.assert_error(r':3: bad name')
+                self.assert_error(r':4: bad name')
 
     def test_duplicate_name_after_upper_casing(self):
         self.write_file('a.bin', b'x')
         self.write_manifest('A.PRG a.bin R', 'a.prg a.bin R')
-        self.assert_error(r':4: duplicate name "A\.PRG" \(already on line 3\)')
+        self.assert_error(r':5: duplicate name "A\.PRG" \(already on line 4\)')
 
-    def test_disc_cat_is_reserved(self):
+    def test_disc_cat_listed_again(self):
         self.write_file('a.bin', b'x')
         self.write_manifest('disc.cat a.bin R')
-        self.assert_error(r':3: duplicate name "DISC\.CAT" \(reserved for the catalog\)')
+        self.assert_error(r':4: duplicate name "DISC\.CAT" \(already on line 2\)')
 
     def test_unknown_attribute_letter(self):
         self.write_file('a.bin', b'x')
         self.write_manifest('A a.bin RQ')
-        self.assert_error(r':3: unknown attribute "Q"')
+        self.assert_error(r':4: unknown attribute "Q"')
 
     def test_empty_attributes(self):
         # A missing ATTRIBS column leaves the line with too few columns.
         self.write_file('a.bin', b'x')
         self.write_manifest('A a.bin')
-        self.assert_error(r':3: malformed line')
+        self.assert_error(r':4: malformed line')
 
-    def test_malformed_line_with_too_many_columns(self):
+    def test_malformed_line_with_a_stray_word(self):
         self.write_file('a.bin', b'x')
-        self.write_manifest('A a.bin R 12/0 extra')
-        self.assert_error(r':3: malformed line')
+        self.write_manifest('A a.bin R extra')
+        self.assert_error(r':4: malformed option "extra"')
 
     def test_missing_manifest(self):
         self.assert_error(r'cannot read manifest')
@@ -557,6 +567,170 @@ class MkdiscErrorTests(MkdiscTestCase):
         self.assertEqual(self.read_file('out.bdd'), b'previous image')
         self.assertEqual(sorted(os.listdir(self.dir)),
                          ['boot.sector', 'disc.manifest', 'out.bdd', 'sys.sector'])
+
+class MkdiscOptionTests(MkdiscTestCase):
+    def test_max_reserves_the_slot_for_the_next_file(self):
+        self.write_file('a.bin', bytes([1]) * (SECTOR_SIZE * 2))
+        self.write_file('b.bin', b'x')
+        self.write_manifest('A a.bin R max=5', 'B b.bin R')
+
+        image = self.build()
+
+        self.assertEqual(self.entry(image, 3)[1:4], bytes([12, 0, 2]))  # catalog length = real size
+        self.assertEqual(self.entry(image, 4)[1:4], bytes([12, 5, 1]))
+
+    def test_max_equal_to_size_is_accepted(self):
+        self.write_file('a.bin', bytes([1]) * (SECTOR_SIZE * 2))
+        self.write_manifest('A a.bin R max=2')
+        self.assertEqual(self.entry(self.build(), 3)[1:4], bytes([12, 0, 2]))
+
+    def test_file_larger_than_max_is_an_error(self):
+        self.write_file('a.bin', bytes(SECTOR_SIZE * 3 + 1))
+        self.write_manifest('A.PRG a.bin R max=3')
+        self.assert_error(r':4: A\.PRG is 4 sectors, more than max=3')
+
+    def test_max_over_255_is_an_error(self):
+        self.write_file('a.bin', b'x')
+        self.write_manifest('A a.bin R max=256')
+        self.assert_error(r':4: max=256 is more than a file can hold \(255 sectors\)')
+
+    def test_bad_max_values_are_errors(self):
+        self.write_file('a.bin', b'x')
+        for value in ('0', 'x', '-1', '1.5'):
+            with self.subTest(value=value):
+                self.write_manifest('A a.bin R max=' + value)
+                self.assert_error(r':4: bad value "{}" for max'.format(value))
+
+    def test_slot_past_the_end_of_the_disc_is_an_error(self):
+        self.write_file('a.bin', b'x')
+        self.write_manifest('A a.bin R at=63/15 max=2')
+        self.assert_error(r':4: A \(2 sectors from 63/15\) does not fit')
+
+    def test_at_is_honoured_and_may_leave_a_gap(self):
+        self.write_file('a.bin', b'\x07')
+        self.write_manifest('A a.bin R at=30/4')
+        image = self.build()
+        self.assertEqual(self.entry(image, 3)[1:4], bytes([30, 4, 1]))
+        self.assertEqual(image[self.offset(30, 4)], 7)
+
+    def test_at_inside_the_previous_slot_is_an_error(self):
+        self.write_file('a.bin', b'x')
+        self.write_manifest('A a.bin R max=4', 'B a.bin R at=12/3')
+        self.assert_error(r':5: start 12/3 is before the next free sector 12/4')
+
+    def test_at_equal_to_the_end_of_the_previous_slot_is_accepted(self):
+        self.write_file('a.bin', b'x')
+        self.write_manifest('A a.bin R max=4', 'B a.bin R at=12/4')
+        self.assertEqual(self.entry(self.build(), 4)[1:4], bytes([12, 4, 1]))
+
+    def test_unknown_key_is_an_error(self):
+        self.write_file('a.bin', b'x')
+        self.write_manifest('A a.bin R size=3')
+        self.assert_error(r':4: unknown option "size"')
+
+    def test_malformed_options_are_errors(self):
+        self.write_file('a.bin', b'x')
+        for option in ('max', 'max=', '=3', 'role=other'):
+            with self.subTest(option=option):
+                self.write_manifest('A a.bin R ' + option)
+                self.assert_error(r':4: ')
+
+    def test_duplicate_key_is_an_error(self):
+        self.write_file('a.bin', b'x')
+        self.write_manifest('A a.bin R max=2 max=3')
+        self.assert_error(r':4: duplicate option "max"')
+
+    def test_old_positional_place_is_gone(self):
+        self.write_file('a.bin', b'x')
+        for place in ('12/0', 'boot', 'system'):
+            with self.subTest(place=place):
+                self.write_manifest('A a.bin R ' + place)
+                self.assert_error(r':4: malformed option')
+
+    def test_options_in_any_order(self):
+        self.write_file('a.bin', b'x')
+        self.write_manifest('A a.bin R max=3 at=14/2')
+        self.assertEqual(self.entry(self.build(), 3)[1:4], bytes([14, 2, 1]))
+
+
+class MkdiscRoleTests(MkdiscTestCase):
+    BOOT = 'BOOT.BIN boot.sector SR role=boot at=0/0 max=1'
+    CAT = 'DISC.CAT - SR role=catalog at=0/1 max=31'
+    SYS = 'BDOS.SYS sys.sector SR role=system at=2/0 max=160'
+
+    def manifest(self, boot=BOOT, cat=CAT, system=SYS):
+        self.write_manifest(boot, cat, system, header=False)
+
+    def test_reference_roles_are_accepted(self):
+        self.manifest()
+        self.assertEqual(self.entry(self.build(), 1)[:5], bytes([1, 0, 1, 31, 0x81]))
+
+    def test_boot_not_at_0_0(self):
+        self.manifest(boot='BOOT.BIN boot.sector SR role=boot at=0/2 max=1')
+        self.assert_error(r':1: role=boot needs at=0/0 max=1')
+
+    def test_boot_without_at(self):
+        self.manifest(boot='BOOT.BIN boot.sector SR role=boot max=1')
+        self.assert_error(r':1: role=boot needs at=0/0 max=1')
+
+    def test_boot_max_not_1(self):
+        self.manifest(boot='BOOT.BIN boot.sector SR role=boot at=0/0 max=2')
+        self.assert_error(r':1: role=boot needs at=0/0 max=1')
+
+    def test_catalog_not_at_0_1(self):
+        self.manifest(cat='DISC.CAT - SR role=catalog at=0/2 max=31')
+        self.assert_error(r':2: role=catalog needs at=0/1 max=31')
+
+    def test_catalog_max_not_31(self):
+        self.manifest(cat='DISC.CAT - SR role=catalog at=0/1 max=30')
+        self.assert_error(r':2: role=catalog needs at=0/1 max=31')
+
+    def test_catalog_with_a_source(self):
+        self.manifest(cat='DISC.CAT boot.sector SR role=catalog at=0/1 max=31')
+        self.assert_error(r':2: the source "-" is for \(and only for\) role=catalog')
+
+    def test_catalog_with_another_name(self):
+        self.manifest(cat='OTHER.CAT - SR role=catalog at=0/1 max=31')
+        self.assert_error(r':2: role=catalog is only for DISC\.CAT')
+
+    def test_disc_cat_without_role_catalog(self):
+        self.manifest(cat='DISC.CAT boot.sector SR')
+        self.assert_error(r':2: DISC\.CAT is the catalog: it needs role=catalog')
+
+    def test_source_dash_without_role_catalog(self):
+        self.write_manifest('A.PRG - R')
+        self.assert_error(r':4: the source "-" is for \(and only for\) role=catalog')
+
+    def test_system_not_at_2_0(self):
+        self.manifest(system='BDOS.SYS sys.sector SR role=system at=3/0 max=160')
+        self.assert_error(r':3: role=system needs at=2/0')
+
+    def test_system_max_over_160(self):
+        self.manifest(system='BDOS.SYS sys.sector SR role=system at=2/0 max=161')
+        self.assert_error(r':3: role=system needs max=N with N <= 160')
+
+    def test_system_without_max(self):
+        self.manifest(system='BDOS.SYS sys.sector SR role=system at=2/0')
+        self.assert_error(r':3: role=system needs max=N with N <= 160')
+
+    def test_system_catalog_length_is_max_and_next_file_follows_the_slot(self):
+        self.write_file('a.bin', b'x')
+        self.manifest(system='BDOS.SYS sys.sector SR role=system at=2/0 max=100')
+        self.write_manifest(self.BOOT, self.CAT, 'BDOS.SYS sys.sector SR role=system at=2/0 max=100',
+                            'A a.bin R', header=False)
+        image = self.build()
+        self.assertEqual(self.entry(image, 2)[1:4], bytes([2, 0, 100]))
+        self.assertEqual(self.entry(image, 3)[1:4], bytes([8, 4, 1]))  # 32 + 100 = linear 132
+
+    def test_role_on_a_later_line_is_an_error(self):
+        self.write_file('a.bin', b'x')
+        self.write_manifest('A a.bin R role=catalog')
+        self.assert_error(r':4: role=catalog is only allowed on line 2 of the file list')
+
+    def test_system_file_over_max_is_an_error(self):
+        self.write_file('sys.sector', bytes(SECTOR_SIZE * 11))
+        self.manifest(system='BDOS.SYS sys.sector SR role=system at=2/0 max=10')
+        self.assert_error(r':3: BDOS\.SYS is 11 sectors, more than max=10')
 
 
 class MkdiscMainTests(MkdiscTestCase):
@@ -581,7 +755,7 @@ class MkdiscMainTests(MkdiscTestCase):
             ftool.main()
 
         self.assertEqual(cm.exception.code, 1)
-        self.assertIn('disc.manifest:2', err.getvalue())
+        self.assertIn('disc.manifest:3', err.getvalue())
         self.assertIn('160', err.getvalue())
         self.assertFalse(os.path.exists(out))
 
