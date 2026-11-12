@@ -220,7 +220,7 @@ class DiscSourceHintTests(unittest.TestCase):
 
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            code = run_tests.main([], suites=self.E2E_SUITES, runner=runner, environ={},
+            code = run_tests.main(["--no-build"], suites=self.E2E_SUITES, runner=runner, environ={},
                                   manifest=manifest)
         return code, calls, out.getvalue()
 
@@ -254,12 +254,93 @@ class DiscSourceHintTests(unittest.TestCase):
 
     def test_e2e_runs_when_sources_present(self):
         with tempfile.TemporaryDirectory() as tmp:
-            touch(tmp, "bdos/a.sectors")
+            touch(tmp, "bdos/a.sectors", *run_tests.BUILT_OUTPUTS)
             manifest = self.write_manifest(tmp, ["bdos/a.sectors"])
             code, calls, out = self.run_main(manifest)
         self.assertEqual(code, 0)
         self.assertEqual(calls, ["e2e", "ftool"])
         self.assertIn("ALL PASSED", out)
+
+
+class BuildStepTests(unittest.TestCase):
+    SUITES = [("emulator", "unit", "src", ["tests.test_a"]), ("e2e", "e2e", "src", ["tests.test_x"]),
+              ("ftool", "unit", "src", ["tests.test_y"])]
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        touch(self.tmp.name, "bdos/a.sectors", *run_tests.BUILT_OUTPUTS)
+        self.manifest = DiscSourceHintTests.write_manifest(self.tmp.name, ["bdos/a.sectors"])
+
+    def run_main(self, argv, build_ok=True):
+        events = []
+
+        def runner(name, cwd, args):
+            events.append("suite:" + name)
+            return True, "Ran 1 test, OK", "Ran 1 test in 0s\n\nOK\n", 0
+
+        def build():
+            events.append("build")
+            if build_ok:
+                return True, "built", "", 0
+            return False, "exit code 2", "compiler exploded\n", 2
+
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            code = run_tests.main(argv, suites=self.SUITES, runner=runner, environ={},
+                                  manifest=self.manifest, build=build)
+        return code, events, out.getvalue()
+
+    def test_all_builds_once_before_the_suites(self):
+        code, events, out = self.run_main([])
+        self.assertEqual(code, 0)
+        self.assertEqual(events, ["build", "suite:emulator", "suite:e2e", "suite:ftool"])
+        self.assertIn("build      PASS", out)
+
+    def test_e2e_group_builds_once_before_e2e(self):
+        code, events, _out = self.run_main(["--group", "e2e"])
+        self.assertEqual(code, 0)
+        self.assertEqual(events, ["build", "suite:e2e"])
+
+    def test_unit_group_never_builds(self):
+        code, events, out = self.run_main(["--group", "unit"])
+        self.assertEqual(code, 0)
+        self.assertEqual(events, ["suite:emulator", "suite:ftool"])
+        self.assertNotIn("build", out)
+
+    def test_no_build_skips_the_build(self):
+        code, events, _out = self.run_main(["--no-build"])
+        self.assertEqual(code, 0)
+        self.assertNotIn("build", events)
+        self.assertIn("suite:e2e", events)
+
+    def test_build_failure_fails_e2e_but_other_suites_run(self):
+        code, events, out = self.run_main([], build_ok=False)
+        self.assertEqual(code, 1)
+        self.assertEqual(events, ["build", "suite:emulator", "suite:ftool"])
+        self.assertIn("build      FAIL", out)
+        self.assertIn("compiler exploded", out)
+        self.assertIn("e2e        FAIL: not run, the build failed", out)
+        self.assertIn("SOME SUITES FAILED", out)
+
+    def test_no_build_with_missing_output_names_path_and_build_command(self):
+        for missing in run_tests.BUILT_OUTPUTS:
+            with self.subTest(missing=missing):
+                os.remove(os.path.join(self.tmp.name, missing))
+                code, events, out = self.run_main(["--no-build"])
+                self.assertEqual(code, 1)
+                self.assertNotIn("suite:e2e", events)
+                self.assertIn("e2e        FAIL", out)
+                self.assertIn(missing, out)
+                self.assertIn(run_tests.PIPELINE, out)
+                touch(self.tmp.name, missing)
+
+    def test_no_build_with_missing_manifest_source_fails_e2e(self):
+        os.remove(os.path.join(self.tmp.name, "bdos/a.sectors"))
+        code, events, out = self.run_main(["--no-build"])
+        self.assertEqual(code, 1)
+        self.assertNotIn("suite:e2e", events)
+        self.assertIn("bdos/a.sectors", out)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""The manifest-built system disc (src/disc.bddmanifest): structure of os.bdd/smoke.bdd and a session on it."""
+"""The manifest-built system disc (src/disc.bddmanifest): structure of os.bdd and a session on it."""
 import os
 import unittest
 
@@ -63,9 +63,6 @@ class DiscStructureTests(unittest.TestCase):
     def test_os_bdd_matches_manifest(self):
         check_disc_structure(h.read_bytes(h.OS_DISK), self.planned)
 
-    def test_smoke_bdd_matches_manifest(self):
-        check_disc_structure(h.read_bytes(h.SMOKE_DISK), self.planned)
-
     def test_check_detects_a_corrupt_length(self):
         image = bytearray(h.read_bytes(h.OS_DISK))
         image[h.CAT_FIRST_SECTOR * SECTOR + 3 * h.ENTRY_SIZE + 3] += 1  # LS.PRG length
@@ -73,7 +70,7 @@ class DiscStructureTests(unittest.TestCase):
             check_disc_structure(bytes(image), self.planned)
 
     def test_check_detects_a_corrupt_source_byte(self):
-        image = bytearray(h.read_bytes(h.SMOKE_DISK))
+        image = bytearray(h.read_bytes(h.OS_DISK))
         row = [r for r in _catalog_rows(image) if r[5] == b"LS      PRG"][0]
         image[(row[1] * h.SECTORS_PER_TRACK + row[2]) * SECTOR] ^= 0xFF
         with self.assertRaises(AssertionError):
@@ -82,7 +79,7 @@ class DiscStructureTests(unittest.TestCase):
 
 class DiscSessionTests(unittest.TestCase):
     def run_scenario(self, scenario):
-        return h.run_session(scenario, h.golden_path(scenario, "in"), disks={"a": h.SMOKE_DISK},
+        return h.run_session(scenario, h.golden_path(scenario, "in"), disks={"a": h.OS_DISK},
                              max_instructions=LIMIT)
 
     def test_ls_all_lists_every_file(self):

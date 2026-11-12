@@ -29,7 +29,8 @@ Project process files:
   bc64.py emulator ◄── bcOS ROM at 0x0000 ──boots──► bdos from os.bdd ──runs──► .PRG at 0x6000
 ```
 
-Quick start (needs Python >= 3.10; in a venv run `pip install -e .` once from the repo root), from `src/`:
+Quick start (needs Python >= 3.10; in a venv run `pip install -e .` once from the repo root), from `src/`. The ROM and
+`os.bdd` are build outputs: build first (`./buildos && ./buildtools && ./buildapps && ./makedisc`) or use the bc64 Release zip:
 
 ```bash
 bc64 bc81asmc/bcOS/bcos_v1_2_0.b81              # at the "Disk A name:" prompt enter: os.bdd

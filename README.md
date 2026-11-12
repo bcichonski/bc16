@@ -17,13 +17,16 @@ bcc bdos/helloworld                             # build a program: helloworld.b 
 cd .. && python run_tests.py                    # run all the tests
 ```
 
-A fresh clone runs at once, because the ROM (`bcos_v1_2_0.b81`) and the disc (`src/os.bdd`) are committed.
-Everything else the build produces (`.basm`, `.btap`, `.sector(s)`, and `.genb` from `bc.py --verbose`) is ignored by git. To build
-anything, or to run the end-to-end tests, run the whole pipeline first:
+Only sources are committed. The ROM (`bcos_v1_2_0.b81`), the disc (`src/os.bdd`) and everything else the build
+produces (`.basm`, `.btap`, `.sector(s)`, and `.genb` from `bc.py --verbose`) are ignored by git. A fresh clone must
+build first, before `./run` or the tests (`./run` tells you so if something is missing):
 
 ```bash
 cd src && ./buildos && ./buildtools && ./buildapps && ./makedisc
 ```
+
+`python run_tests.py` builds the pipeline itself before the end-to-end tests (`--no-build` skips that). If you only
+want to run the machine, use the `bc64` zip from the Release page: it has the built ROM and `os.bdd`.
 
 `debug`, `fddtest` and the programs in `src/bc/code/` aren't part of the pipeline. Build them on demand with
 `./bcc <name>` (for example `./bcc bdos/debug`).
@@ -41,7 +44,7 @@ Every machine generation is a tagged GitHub Release with a zip. The tags are:
 
 What the zips contain:
 
-- **bc64** (`bc64-vX.Y.zip`, root folder `bc64-vX.Y/`): the tracked files of the emulator, the ROM, `src/os.bdd`, the
+- **bc64** (`bc64-vX.Y.zip`, root folder `bc64-vX.Y/`): the tracked files of the emulator, the built ROM and `src/os.bdd`, the
   toolchain (`bc`, `bc81asmc`, `bdos`, `ftool`, the shell scripts), `README.md`, `LICENSE`, `pyproject.toml` and the
   reference docs `docs/0*-*.md`. Tests, test data, CI files and planning docs are left out. Unpack it, then
   `cd bc64-vX.Y/src && ./run` starts the machine.

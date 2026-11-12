@@ -15,7 +15,6 @@ BC_PY = os.path.join(SRC, "bc", "bc.py")
 ASM_PY = os.path.join(SRC, "bc81asmc", "bc81asmc.py")
 FTOOL_PY = os.path.join(SRC, "ftool.py")
 BC64_PY = os.path.join(SRC, "bc64.py")
-ROM = os.path.join(SRC, "bc81asmc", "bcOS", "bcos_v1_2_0.b81")
 
 PROGRAM = "#code 0x6000\n#heap 0xf000\n\nbyte main()\n{\n    word a;\n    a <- 5;\n}\n"
 BAD_PROGRAM = "#code 0x6000\n#heap 0xf000\n\nbyte main()\n{\n    a <- <- ;\n}\n"
@@ -126,19 +125,6 @@ class ToolchainLauncherTests(unittest.TestCase):
         result = launch(self.tmp, "bc64", "--help")
         self.assertEqual(result.returncode, 0)
         self.assertIn(b"--no-floppy", result.stdout)
-
-    def test_bc64_headless_run_matches_the_script(self):
-        via_cmd, via_script = self.sub("cmd"), self.sub("script")
-        keys = os.path.join(self.tmp, "keys.txt")
-        with open(keys, "wb") as handle:
-            handle.write(b"q\n")
-        options = [ROM, "--no-floppy", "--input", keys, "--max-instructions", "100000000"]
-        direct = run(via_script, BC64_PY, *options, "--output", "out.txt")
-        result = launch(via_cmd, "bc64", *options, "--output", "out.txt")
-        self.assertEqual(result.returncode, direct.returncode)
-        self.assertIn(b"bcOS", read(os.path.join(via_cmd, "out.txt")))
-        self.assertEqual(read(os.path.join(via_cmd, "out.txt")), read(os.path.join(via_script, "out.txt")))
-        self.assertEqual(result.stdout, direct.stdout)
 
     def test_missing_source_tree_gives_the_install_hint_without_a_traceback(self):
         lonely = self.sub("lonely")

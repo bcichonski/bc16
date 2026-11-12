@@ -6,18 +6,21 @@ Usage (from any directory inside a full clone):
     python3 scripts/make_release.py legacy bc16|bc32 [--out DIR]
     python3 scripts/make_release.py notes bc64|bc16|bc32
 
-bc64    zips the tracked files of the current machine at HEAD (emulator, ROM, os.bdd,
-        toolchain, scripts, README, LICENSE, pyproject.toml, reference docs) into
-        DIR/NAME.zip with the single root folder NAME/. Tests, test data, CI and
-        planning docs are left out. File modes from git are kept.
+bc64    zips the tracked files of the current machine at HEAD (emulator, toolchain, scripts,
+        README, LICENSE, pyproject.toml, reference docs) plus the two built files, the
+        ROM (src/bc81asmc/bcOS/bcos_v1_2_0.b81) and src/os.bdd, into DIR/NAME.zip with the
+        single root folder NAME/. Tests, test data, CI and planning docs are left out.
+        File modes from git are kept; the built files (untracked build outputs) are read
+        from the working tree with mode 0644, so run the build first:
+        ./buildos && ./buildtools && ./buildapps && ./makedisc (in src/).
 legacy  zips a frozen earlier generation into DIR/<gen>-v1.0.zip (root <gen>-v1.0/):
         release/<gen>_v1.0/ as at LEGACY_COMMIT, plus rom/ (bc32: the bcOS 1.1.1 ROM of
         BC32_ROM_COMMIT, the release commit; bc16: bcOS 1.0 assembled from BC16_ROM_COMMIT with that commit's
         assembler), the run script with the interpreter pick of src/run, and RELEASE-NOTES.md.
 notes   prints the release notes: the README section of that generation.
 
-Everything is read from git objects (not from the working tree), so the output doesn't
-depend on line-ending settings and works after release/ is deleted. The default DIR is
+Everything but the two built files is read from git objects (not from the working tree),
+so the output doesn't depend on line-ending settings and works after release/ is deleted. The default DIR is
 dist/ in the repo root. Errors print one line and exit with code 1.
 Standard library only (Python >= 3.10). The bc16 ROM build also needs parsy.
 """
@@ -61,6 +64,9 @@ BC64_DOCS_RE = re.compile(r"^docs/0[^/]*-[^/]*\.md$")
 BC64_EXCLUDED_FILES = ("src/run_tests",)
 EXCLUDED_DIRS = ("tests", "testdata")
 EXCLUDED_PREFIXES = ("docs/specs/", "docs/analysis/", "docs/CHANGELOG.md", ".github/", "release/")
+# Build outputs (ignored, untracked): shipped from the working tree, not from git.
+BC64_BUILT_FILES = ("src/bc81asmc/bcOS/bcos_v1_2_0.b81", "src/os.bdd")
+BUILD_COMMAND = "./buildos && ./buildtools && ./buildapps && ./makedisc"
 TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
@@ -199,12 +205,28 @@ def bc64_files(root, commit="HEAD"):
     return [(path, blobs[blob], git_mode(mode)) for path, mode, blob in entries]
 
 
-def make_bc64(root, tag, out_dir):
+def built_files(built_root):
+    """Return [(path, bytes, 0644)] of the built files read from built_root."""
+    files = []
+    for path in BC64_BUILT_FILES:
+        full = os.path.join(built_root, *path.split("/"))
+        try:
+            with open(full, "rb") as handle:
+                files.append((path, handle.read(), 0o644))
+        except OSError:
+            raise ReleaseError("%s is missing: build first (in src/: %s)" % (path, BUILD_COMMAND))
+    return files
+
+
+def make_bc64(root, tag, out_dir, built_root=None):
+    """Write the bc64 zip; the built files come from built_root (default: root)."""
     if not TAG_RE.match(tag):
         raise ReleaseError("invalid zip name %r (letters, digits, '.', '_' and '-' only)" % tag)
-    files = bc64_files(root)
+    built = built_files(built_root or root)
+    # a built file replaces a tracked entry of the same path, never duplicates it
+    files = [entry for entry in bc64_files(root) if entry[0] not in BC64_BUILT_FILES] + built
     names = {path for path, _data, _mode in files}
-    for needed in ("src/bc64.py", "src/os.bdd", "src/bc81asmc/bcOS/bcos_v1_2_0.b81", "src/run"):
+    for needed in ("src/bc64.py", "src/run"):
         if needed not in names:
             raise ReleaseError("%s is not tracked at HEAD" % needed)
     return write_zip(os.path.join(out_dir, tag + ".zip"), tag, files, commit_time(root, "HEAD"))

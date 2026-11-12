@@ -11,7 +11,7 @@ SECTORS = os.path.join(h.SRC, "bdos", "theodore.sectors")
 
 
 def run(scenario, seed=SEED, inspect=None):
-    return h.run_session(scenario, h.golden_path(scenario, "in"), disks={"a": h.SMOKE_DISK},
+    return h.run_session(scenario, h.golden_path(scenario, "in"), disks={"a": h.OS_DISK},
                          max_instructions=LIMIT, inspect=inspect, seed=seed)
 
 
@@ -23,15 +23,14 @@ class TheodoreTests(unittest.TestCase):
     def test_catalog_entry_and_ls(self):
         self.assertEqual(os.path.getsize(SECTORS) > 0, True)
         count = sector_count()
-        for disk in (h.SMOKE_DISK, h.OS_DISK):
-            entries = [e for e in h.read_catalog(disk) if (e.name, e.ext) == ("THEODORE", "PRG")]
-            self.assertEqual(1, len(entries), disk)
-            entry = entries[0]
-            self.assertEqual(h.ATTR_RX, entry.attributes & (h.ATTR_R | h.ATTR_X))
-            self.assertEqual((0x2b, 0x0a, count), (entry.track, entry.sector, entry.length))
+        entries = [e for e in h.read_catalog(h.OS_DISK) if (e.name, e.ext) == ("THEODORE", "PRG")]
+        self.assertEqual(1, len(entries))
+        entry = entries[0]
+        self.assertEqual(h.ATTR_RX, entry.attributes & (h.ATTR_R | h.ATTR_X))
+        self.assertEqual((0x2b, 0x0a, count), (entry.track, entry.sector, entry.length))
 
     def test_ls_lists_theodore(self):
-        out = h.run_session("theodore_ls", h.golden_path("bdos_ls", "in"), disks={"a": h.SMOKE_DISK},
+        out = h.run_session("theodore_ls", h.golden_path("bdos_ls", "in"), disks={"a": h.OS_DISK},
                             max_instructions=LIMIT)
         line = b"THEODORE.PRG -R-X %04X 2B 0A %02X" % (sector_count() * h.SECTOR_SIZE, sector_count())
         h.assert_markers(out, [b"A>ls", line])

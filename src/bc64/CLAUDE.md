@@ -11,7 +11,7 @@ python3 -m unittest discover -s bc64/tests -t . -p "test_*.py"     # emulator pa
 python3 -m unittest bc64.tests.test_cpu.CpuTests.test_CLC16_opcodes   # a single test
 python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 [d]                # run; "d" (any 2nd arg) = per-instruction trace
 bc64 bc81asmc/bcOS/bcos_v1_2_0.b81 [d]                           # same via the console command (`pip install -e .`), any directory
-printf 'ls\nhellowrd\nexit\n' | python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 --disk-a os.bdd --output out.txt   # headless (keys from stdin); use a copy of os.bdd
+printf 'ls\nhellowrd\nexit\n' | python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 --disk-a os.bdd --output out.txt   # headless (keys from stdin); use a copy of os.bdd; ROM and os.bdd come from the build
 ```
 
 `src/bc81asmc/tests/bc81asmc_opcode_agreement_tests.py` checks the CPU against the assembler for every opcode form.
@@ -20,31 +20,30 @@ not failures. See `docs/01-emulator.md`, Known quirks.
 
 ## End-to-end (smoke) tests
 
-`src/tests/test_bc64_smoke.py` boots bdos headless. Its byte-exact test runs on a **frozen** disc,
-`src/bc64/testdata/smoke.bdd`, not on `src/os.bdd`, and the live-disc test checks only a few
-markers. So after `os.bdd` is rebuilt (bdos, utilities, apps), the e2e tests say little about
-the current system until the frozen disc is refreshed. **For now, to run the e2e tests
-meaningfully, refresh `smoke.bdd` and regenerate the transcript first** (from `src/`):
+`src/tests/test_bc64_smoke.py` boots bdos headless on a temp copy of the freshly built `src/os.bdd`. Its
+byte-exact test compares the session with `smoke_transcript.txt`, and the live test checks only a few
+markers. `os.bdd` and the ROM are not committed: build first (`cd src && ./buildos && ./buildtools &&
+./buildapps && ./makedisc`); `python3 run_tests.py` does that for the e2e suite unless `--no-build`.
+After an intended change in bcOS, bdos or the emulator, regenerate the transcript (from `src/`):
 
 ```bash
-cp os.bdd bc64/testdata/smoke.bdd
-d=$(mktemp -d) && cp bc64/testdata/smoke.bdd $d/os.bdd && (cd $d && \
+d=$(mktemp -d) && cp os.bdd $d/os.bdd && (cd $d && \
   python3 "$OLDPWD/bc64.py" "$OLDPWD/bc81asmc/bcOS/bcos_v1_2_0.b81" --disk-a os.bdd \
   --input "$OLDPWD/bc64/testdata/smoke_session.txt" --output "$OLDPWD/bc64/testdata/smoke_transcript.txt" \
   --max-instructions 200000000 < /dev/null); rm -rf $d   # runs in the temp dir: bc64.dmp lands there
 python3 -m unittest tests.test_bc64_smoke
 ```
 
-Check the transcript diff by eye: it should show only the intended changes. Commit `smoke.bdd` and
-`smoke_transcript.txt` together with the rebuilt `os.bdd`. The session runs on a temp copy, so
-`smoke.bdd` itself is never written by the emulator. CI's `e2e` job repeats this refresh on every run and
-fails if the committed `smoke.bdd` or transcript does not match, so commit them with every `os.bdd` rebuild.
+Check the transcript diff by eye: it should show only the intended changes, then commit
+`smoke_transcript.txt`. The session runs on a temp copy, so `os.bdd` itself is never written by the
+emulator. CI's `e2e` job builds, runs the tests on the fresh outputs and fails if the transcript or a golden
+differs or the tree is not clean. Tests that boot the real ROM are in `src/tests/test_e2e_rom.py`.
 
 ## End-to-end scenarios
 
 The e2e modules boot the emulator headless and compare the printer output with goldens:
-`src/tests/test_e2e_bcos.py` (monitor, `--no-floppy`), `src/tests/test_e2e_bdos.py` (shell on the frozen
-`smoke.bdd`), `src/tests/test_e2e_toolchain.py` (B program to disc and run, on a copy of the live `os.bdd`)
+`src/tests/test_e2e_bcos.py` (monitor, `--no-floppy`), `src/tests/test_e2e_bdos.py` (shell on a temp copy
+of the built `os.bdd`), `src/tests/test_e2e_toolchain.py` (B program to disc and run, on a copy of `os.bdd`)
 and `src/tests/test_e2e_harness.py` (harness self-tests). The harness is `src/tests/e2e_harness.py`, a plain module
 and not a test. Scripts and goldens are in `src/bc64/testdata/e2e/` (`<scenario>.in.txt`,
 `<scenario>.golden.txt`). Regenerate with `BC64_UPDATE_GOLDEN=1`, e.g. `cd src && BC64_UPDATE_GOLDEN=1

@@ -4,15 +4,18 @@
 Suites: emulator, ftool, assembler, compiler, release (group "unit") and e2e (group "e2e").
 
 Usage (from any directory):
-    python3 run_tests.py [--group unit|e2e|all]
+    python3 run_tests.py [--group unit|e2e|all] [--no-build]
 
 Each suite runs as a subprocess with the interpreter that started this script and
 with its own working directory, because the suites use flat imports.
 The src suites are chosen by rule (see select_src_modules), not by a fixed file list.
 When the environment variable GITHUB_STEP_SUMMARY names a file, a Markdown table
 of the results is appended to it.
-The e2e suite needs the build outputs named in src/disc.bddmanifest; when one is missing it
-is reported as FAIL with the pipeline command and is not run.
+Before the e2e suite (--group e2e or all) the runner builds the ROM and the discs from source
+(the pipeline below, run once in src/); --group unit never builds. --no-build skips the build; the
+e2e suite then needs the ROM, src/os.bdd and the sources named in src/disc.bddmanifest to exist, and
+when one is missing it is reported as FAIL with the missing path and the build command, and is not run.
+If the build fails, e2e is reported FAIL (not run) and the other suites still run.
 Exit code is 0 only if every selected suite passes. Standard library only.
 """
 
@@ -29,7 +32,10 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 GROUPS = ("unit", "e2e", "all")
 
 MANIFEST = os.path.join(ROOT, "src", "disc.bddmanifest")
-PIPELINE = "cd src && ./buildos && ./buildtools && ./buildapps && ./makedisc"
+BUILD_COMMAND = "./buildos && ./buildtools && ./buildapps && ./makedisc"
+PIPELINE = "cd src && " + BUILD_COMMAND
+# Built outputs the e2e suite needs besides the manifest sources, relative to src/.
+BUILT_OUTPUTS = ("bc81asmc/bcOS/bcos_v1_2_0.b81", "os.bdd")
 
 
 def missing_disc_source(manifest_path=MANIFEST):
@@ -51,6 +57,40 @@ def missing_disc_source(manifest_path=MANIFEST):
             if not os.path.exists(os.path.join(base, columns[1])):
                 return columns[1]
     return None
+
+
+def missing_build_output(manifest_path=MANIFEST):
+    """Return the first built file the e2e suite needs that doesn't exist, or None.
+
+    Checks the manifest sources first, then the boot ROM and os.bdd (paths relative to src/,
+    which is the manifest's folder).
+    """
+    missing = missing_disc_source(manifest_path)
+    if missing:
+        return missing
+    base = os.path.dirname(manifest_path)
+    for name in BUILT_OUTPUTS:
+        if not os.path.exists(os.path.join(base, name)):
+            return name
+    return None
+
+
+def run_build(root=ROOT):
+    """Build the ROM and the discs from source. Returns (passed, summary, output, returncode)."""
+    try:
+        completed = subprocess.run(
+            ["bash", "-c", BUILD_COMMAND],
+            cwd=os.path.join(root, "src"),
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            encoding="utf-8",
+            errors="replace",
+        )
+    except OSError as error:
+        return False, "could not start bash (%s)" % error, "", -1
+    summary = "built" if completed.returncode == 0 else "exit code %d" % completed.returncode
+    return completed.returncode == 0, summary, completed.stdout or "", completed.returncode
 
 
 def select_src_modules(src_dir):
@@ -189,10 +229,12 @@ def write_summary(results, path):
         handle.write("### Test results\n\n" + render_table(results) + "\n")
 
 
-def main(argv=None, suites=None, runner=run_suite, environ=None, manifest=MANIFEST):
+def main(argv=None, suites=None, runner=run_suite, environ=None, manifest=MANIFEST, build=run_build):
     parser = argparse.ArgumentParser(description="Run the component test suites.")
     parser.add_argument("--group", choices=GROUPS, default="all",
                         help="unit = emulator/ftool/assembler/compiler/release, e2e = end-to-end, all = both")
+    parser.add_argument("--no-build", action="store_true",
+                        help="don't build the ROM and discs before the e2e suite (they must already exist)")
     options = parser.parse_args(argv)
     environ = os.environ if environ is None else environ
 
@@ -208,10 +250,27 @@ def main(argv=None, suites=None, runner=run_suite, environ=None, manifest=MANIFE
 
     all_passed = True
     results = []
+    build_failed = False
+    if not options.no_build and any(suite[0] == "e2e" and suite[3] for suite in selected):
+        print("%-10s ..." % "build")
+        sys.stdout.flush()
+        passed, summary, output, returncode = build()
+        build_failed = not passed
+        print("%-10s %s: %s" % ("build", "PASS" if passed else "FAIL", summary))
+        if not passed and output:
+            sys.stdout.write(output)
+            if not output.endswith("\n"):
+                sys.stdout.write("\n")
+        sys.stdout.flush()
+        all_passed = passed
     for name, _group, rel_cwd, args in selected:
-        missing = missing_disc_source(manifest) if name == "e2e" and args else None
+        is_e2e = name == "e2e" and bool(args)
+        missing = missing_build_output(manifest) if is_e2e and not build_failed else None
         if not args:
             passed, summary, output, returncode = False, "no test modules found", "", -1
+        elif is_e2e and build_failed:
+            passed, output, returncode = False, "", -1
+            summary = "not run, the build failed"
         elif missing:
             passed, output, returncode = False, "", -1
             summary = "not run, %s is missing; build it first with: %s" % (missing, PIPELINE)

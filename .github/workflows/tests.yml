@@ -90,43 +90,18 @@ jobs:
       - name: Install dependencies
         run: pip install -e .
 
-      - name: Build the ignored intermediates
+      - name: E2E tests
+        run: python run_tests.py --group e2e < /dev/null
+
+      - name: Guard (the build and tests leave the checkout clean)
+        if: always()
         shell: bash
-        working-directory: src
         run: |
-          set -euo pipefail
-          ./buildos && ./buildtools && ./buildapps && ./makedisc
-          # the committed ROM and disc are restored, never compared
-          git checkout -- os.bdd bc81asmc/bcOS/bcos_v1_2_0.b81
           if [ -n "$(git status --porcelain)" ]; then
-            echo "::error::the build changed or left tracked/untracked files, so an output is not ignored"
+            echo "::error::the build or the tests left tracked/untracked changes, so an output is not ignored"
             git status --porcelain
             exit 1
           fi
-
-      - name: Refresh frozen smoke disc and transcript
-        shell: bash
-        working-directory: src
-        run: |
-          set -euo pipefail
-          src_dir="$PWD"
-          cp os.bdd bc64/testdata/smoke.bdd
-          tmp="$(mktemp -d)"
-          cp bc64/testdata/smoke.bdd "$tmp/os.bdd"
-          (
-            cd "$tmp"
-            python "$src_dir/bc64.py" "$src_dir/bc81asmc/bcOS/bcos_v1_2_0.b81" --disk-a os.bdd \
-              --input "$src_dir/bc64/testdata/smoke_session.txt" \
-              --output "$src_dir/bc64/testdata/smoke_transcript.txt" \
-              --max-instructions 200000000 < /dev/null
-          )
-          rm -rf "$tmp"
-
-      - name: Check the frozen smoke disc and transcript are current
-        run: git diff --exit-code src/bc64/testdata/
-
-      - name: E2E tests
-        run: python run_tests.py --group e2e < /dev/null
 
       - name: Regenerate goldens and collect patch
         if: failure()

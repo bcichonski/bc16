@@ -50,8 +50,6 @@ jobs:
         run: |
           set -euo pipefail
           ./buildos && ./buildtools && ./buildapps && ./makedisc
-          # the committed ROM and disc are restored, never compared
-          git checkout -- os.bdd bc81asmc/bcOS/bcos_v1_2_0.b81
           if [ -n "$(git status --porcelain)" ]; then
             echo "::error::the build changed or left tracked/untracked files, so an output is not ignored"
             git status --porcelain
@@ -59,7 +57,7 @@ jobs:
           fi
 
       - name: Tests
-        run: python run_tests.py < /dev/null
+        run: python run_tests.py --no-build < /dev/null
 
       - name: Build the zip and its notes
         shell: bash

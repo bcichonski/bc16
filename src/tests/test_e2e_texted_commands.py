@@ -1,4 +1,4 @@
-"""E2E: TextEd rejects missing or bad command arguments (headless emulator, frozen smoke.bdd copy).
+"""E2E: TextEd rejects missing or bad command arguments (headless emulator, built os.bdd copy).
 
 `strnextword` never returns 0 (it points at the terminating NUL), so TextEd treats an empty word
 as a missing argument. Each session ends with `q`, then `exit`, like test_e2e_texted.py.
@@ -22,7 +22,7 @@ def run_one(script, name):
         path = os.path.join(tmp, "session.txt")
         with open(path, "wb") as handle:
             handle.write(script)
-        return h.run_session(name, path, disks={"a": h.SMOKE_DISK}, max_instructions=LIMIT)
+        return h.run_session(name, path, disks={"a": h.OS_DISK}, max_instructions=LIMIT)
 
 
 def lines_between(out, start, end):

@@ -1,4 +1,4 @@
-"""E2E: TextEd save -> restart -> load on the headless emulator (frozen smoke.bdd, temp copies only).
+"""E2E: TextEd save -> restart -> load on the headless emulator (built os.bdd, temp copies only).
 
 Session 1 writes a file with texted and exits; its disc image is copied out and used as the disc
 of session 2, a fresh boot, which loads the file again (#47).
@@ -50,7 +50,7 @@ def run_two_sessions(save_script, load_script, name):
             with open(path, "wb") as handle:
                 handle.write(text)
             scripts.append(path)
-        first = h.run_session(name + "_save", scripts[0], disks={"a": h.SMOKE_DISK},
+        first = h.run_session(name + "_save", scripts[0], disks={"a": h.OS_DISK},
                               max_instructions=LIMIT, inspect=inspect)
         second = h.run_session(name + "_load", scripts[1], disks={"a": kept["disc"]},
                                max_instructions=LIMIT)
