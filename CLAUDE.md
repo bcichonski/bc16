@@ -23,7 +23,7 @@ per-component conventions) are recorded in `docs/specs/memory/design-decisions.m
 them, and record a new decision there when you make one. `docs/specs/plans/` (spec plans)
 and `docs/CHANGELOG.md` belong to the `/grind` workflow.
 
-Active development is on the `bc64`
+Active development is on the `master`
 branch. Earlier machine generations are frozen as tagged GitHub Releases with zips (`bc16-v1.0`,
 `bc32-v1.0`; the current machine is released as `bc64-v*`). There is no `release/` folder; see
 "Releases" in `README.md`. The zips are built by `scripts/make_release.py` (tests in
@@ -114,7 +114,7 @@ There is no linter. `python3 run_tests.py` is the local check; CI runs it on Git
 
 ## CI
 
-The `tests` workflow (`.github/workflows/tests.yml`) runs on every push and PR to `bc64`:
+The `tests` workflow (`.github/workflows/tests.yml`) runs on every push and PR to `master`:
 - both jobs install with `pip install -e .`; job `unit` also runs the four console commands from outside the checkout;
 - job `unit` checks out with `fetch-depth: 0` (the `release` suite reads the legacy release commits from
   history), then runs `python run_tests.py --group unit` on Python 3.10 and 3.14. Its guard step fails
