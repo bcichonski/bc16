@@ -19,7 +19,6 @@ BC64_PY = os.path.join(SRC, "bc64.py")
 ROM = os.path.join(SRC, "bc81asmc", "bcOS", "bcos_v1_2_0.b81")
 OS_DISK = os.path.join(SRC, "os.bdd")
 TESTDATA = os.path.join(SRC, "bc64", "testdata")
-SMOKE_DISK = os.path.join(TESTDATA, "smoke.bdd")
 GOLDEN_DIR = os.path.join(TESTDATA, "e2e")
 DEFAULT_MAX_INSTRUCTIONS = 200000000
 UPDATE_ENV = "BC64_UPDATE_GOLDEN"

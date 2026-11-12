@@ -31,21 +31,21 @@ class TempCase(unittest.TestCase):
 class SessionRunnerTests(TempCase):
     def test_tiny_instruction_limit_fails_clearly(self):
         session = self.session(b"ls\nexit\n")
-        before = h.read_bytes(h.SMOKE_DISK)
+        before = h.read_bytes(h.OS_DISK)
         with self.assertRaises(AssertionError) as caught:
-            h.run_session("limit-scenario", session, disks={"a": h.SMOKE_DISK}, max_instructions=1000)
+            h.run_session("limit-scenario", session, disks={"a": h.OS_DISK}, max_instructions=1000)
         message = str(caught.exception)
         self.assertIn("instruction limit", message)
         self.assertIn("1000", message)
         self.assertIn("limit-scenario", message)
-        self.assertEqual(before, h.read_bytes(h.SMOKE_DISK))
+        self.assertEqual(before, h.read_bytes(h.OS_DISK))
 
     def test_real_boot_returns_output_and_leaves_source_untouched(self):
         session = self.session(b"ls\nexit\n")
-        before = h.read_bytes(h.SMOKE_DISK)
-        out = h.run_session("boot", session, disks={"a": h.SMOKE_DISK})
+        before = h.read_bytes(h.OS_DISK)
+        out = h.run_session("boot", session, disks={"a": h.OS_DISK})
         h.assert_markers(out, [b"A>ls", b"HELLOWRD.PRG", b"bye!"])
-        self.assertEqual(before, h.read_bytes(h.SMOKE_DISK))
+        self.assertEqual(before, h.read_bytes(h.OS_DISK))
 
     def test_seed_is_passed_as_random_seed_flag(self):
         session = self.session(b"ls\n")
@@ -68,7 +68,7 @@ class SessionRunnerTests(TempCase):
 
     def test_disc_put_then_boot_shows_file_in_ls(self):
         disk = self.path("copy.bdd")
-        shutil.copyfile(h.SMOKE_DISK, disk)
+        shutil.copyfile(h.OS_DISK, disk)
         h.disc_put(disk, "newfile.txt", b"hello disc")
         session = self.session(b"ls\nexit\n")
         out = h.run_session("put", session, disks={"a": disk})
@@ -151,7 +151,7 @@ class SlowDecoratorTests(unittest.TestCase):
 
 class CatalogTests(TempCase):
     def test_reader_lists_known_files(self):
-        rows = h.read_catalog(h.SMOKE_DISK)
+        rows = h.read_catalog(h.OS_DISK)
         names = {(r.name, r.ext) for r in rows}
         for known in [("HELLOWRD", "PRG"), ("TEXTED", "PRG"), ("TEST", "B"), ("BDOS", "SYS")]:
             self.assertIn(known, names)
@@ -160,7 +160,7 @@ class CatalogTests(TempCase):
 
     def test_disc_put_adds_entry_and_refuses_duplicate(self):
         disk = self.path("c.bdd")
-        shutil.copyfile(h.SMOKE_DISK, disk)
+        shutil.copyfile(h.OS_DISK, disk)
         before = h.read_catalog(disk)
         end = max(r.track * 16 + r.sector + r.length for r in before)
         row = h.disc_put(disk, "abc.b", b"x" * 130)
@@ -178,7 +178,7 @@ class CatalogTests(TempCase):
 
     def test_disc_put_refuses_full_disc(self):
         disk = self.path("f.bdd")
-        shutil.copyfile(h.SMOKE_DISK, disk)
+        shutil.copyfile(h.OS_DISK, disk)
         with self.assertRaises(ValueError):
             h.disc_put(disk, "big.b", bytes(255 * 128 * 5))
         with self.assertRaises(ValueError):
@@ -186,7 +186,7 @@ class CatalogTests(TempCase):
 
     def test_disc_put_refuses_full_catalog(self):
         disk = self.path("n.bdd")
-        shutil.copyfile(h.SMOKE_DISK, disk)
+        shutil.copyfile(h.OS_DISK, disk)
         image = bytearray(h.read_bytes(disk))
         for index in range(248):
             offset = 128 + index * 16

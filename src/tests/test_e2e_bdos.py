@@ -1,4 +1,4 @@
-"""End-to-end bdos shell scenarios on the headless emulator (frozen smoke.bdd, temp copy only)."""
+"""End-to-end bdos shell scenarios on the headless emulator (built os.bdd, temp copy only)."""
 import unittest
 
 import e2e_harness as h
@@ -12,8 +12,8 @@ TEST_B_TEXT = [b"10 first line !ln", b"20 second line !ln"]
 
 
 def run(scenario, inspect=None):
-    """Run the scenario script on a temp copy of smoke.bdd; return the printer bytes."""
-    return h.run_session(scenario, h.golden_path(scenario, "in"), disks={"a": h.SMOKE_DISK},
+    """Run the scenario script on a temp copy of the built os.bdd; return the printer bytes."""
+    return h.run_session(scenario, h.golden_path(scenario, "in"), disks={"a": h.OS_DISK},
                          max_instructions=LIMIT, inspect=inspect)
 
 
@@ -40,7 +40,7 @@ class BdosShellTests(unittest.TestCase):
 
         def inspect(paths):
             seen["names"] = [(e.name, e.ext) for e in h.read_catalog(paths["a"])]
-            seen["before"] = [(e.name, e.ext) for e in h.read_catalog(h.SMOKE_DISK)]
+            seen["before"] = [(e.name, e.ext) for e in h.read_catalog(h.OS_DISK)]
 
         out = self.check("bdos_rm", [b"A>rm test.b", b"A>ls", b"HELLOWRD.PRG", b"TEXTED  .PRG"], inspect)
         self.assertNotIn(b"TEST    .B", out)

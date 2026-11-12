@@ -28,7 +28,7 @@ Sources are in `src/bdos/`:
 Building a program creates generated files next to it: `*.genb` (preprocessed), `*.basm`,
 `*.btap` and `*.sector(s)` (raw sectors). They are ignored by git and must be rebuilt after a fresh
 clone (the pipeline command is below). Only `boot.basm` (hand-written) and `testb.sectors` (sample
-data) are committed. The committed outputs are `os.bdd` and the ROM.
+data) are committed. `os.bdd` and the ROM are build outputs too and are not committed.
 
 ## Boot
 
@@ -102,7 +102,7 @@ first free catalog entry and the first free sector after the used area. New data
 allocated from that point onwards (`bdio_getfreesect`), and files are written
 append-only. Deleted space is not reused or compacted.
 
-**Discs made before #37.** `os.bdd` and `smoke.bdd` copied before #37 number only catalog entries 0–15, and entries 16–247 hold 0. bdio takes the first empty entry's number byte as the slot for a new file, so on such a disc the 17th file gets entry number 0 and overwrites the entry of `BOOTSECT.BIN`. The disc still boots, but its catalog is corrupted. Re-make the disc (`format` from a new system disc, or a copy of the new `os.bdd`), or keep it at 16 files or fewer. Discs made by `format` and the committed `src/os.bdd` number all 248 entries and are not affected.
+**Discs made before #37.** `os.bdd` discs copied before #37 number only catalog entries 0–15, and entries 16–247 hold 0. bdio takes the first empty entry's number byte as the slot for a new file, so on such a disc the 17th file gets entry number 0 and overwrites the entry of `BOOTSECT.BIN`. The disc still boots, but its catalog is corrupted. Re-make the disc (`format` from a new system disc, or a copy of the new `os.bdd`), or keep it at 16 files or fewer. Discs made by `format` and the `src/os.bdd` built now number all 248 entries and are not affected.
 
 ## bdio: the system call API
 
@@ -246,8 +246,9 @@ From `src/` (the scripts pick the interpreter themselves: `winpty python` on Git
 ./run          # start the emulator; enter "os.bdd" when asked for the disk name
 ```
 
-After a fresh clone run the whole pipeline once: `cd src && ./buildos && ./buildtools && ./buildapps && ./makedisc`.
-It recreates every ignored file that `disc.bddmanifest` uses, and rewrites the committed ROM and `os.bdd`.
+A fresh clone must build first. Run the whole pipeline once: `cd src && ./buildos && ./buildtools && ./buildapps && ./makedisc`.
+It recreates every ignored file that `disc.bddmanifest` uses, the ROM and `os.bdd`. `./run` prints this command
+when the ROM or `os.bdd` is missing. `python3 run_tests.py` runs it before the e2e tests.
 `debug`, `fddtest` and the programs in `src/bc/code/` are not part of the pipeline; build them on demand
 with `./bcc` (for example `./bcc bdos/debug`).
 
@@ -315,7 +316,7 @@ Any error stops the build with a message on stderr (`mkdisc: error: ...`), exit 
 ## Testing
 
 The shell is tested end to end in `src/tests/test_e2e_bdos.py`. The scripts `src/bc64/testdata/e2e/bdos_*.in.txt`
-boot a frozen copy of the system disc (`smoke.bdd`) and check the output of `ls`, `cat`, `hellowrd`, `rm`
+boot a temp copy of the freshly built system disc (`os.bdd`) and check the output of `ls`, `cat`, `hellowrd`, `rm`
 and the error messages. `cp` copies a file (`cp test.b copy.b`), and `cat` checks the copy. See `docs/01-emulator.md`,
 End-to-end tests.
 

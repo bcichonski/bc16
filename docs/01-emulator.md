@@ -115,7 +115,8 @@ From `src/`:
 printf 'ls\nhellowrd\nexit\n' | python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 --disk-a os.bdd --output out.txt
 ```
 
-This boots bcOS from the ROM, mounts `os.bdd` as drive A, runs `ls` and `hellowrd`, and exits.
+This boots bcOS from the ROM, mounts `os.bdd` as drive A, runs `ls` and `hellowrd`, and exits. The ROM and
+`os.bdd` come from the build (`cd src && ./buildos && ./buildtools && ./buildapps && ./makedisc`); they are not committed.
 `out.txt` then holds the printer output, including the typed commands:
 
 ```
@@ -151,7 +152,7 @@ printer output with a golden file. They are the `test_e2e_*.py` modules in `src/
 | Module | What it covers |
 | :--- | :--- |
 | `test_e2e_bcos.py` | bcOS monitor, with `--no-floppy` |
-| `test_e2e_bdos.py` | bdos shell (`ls`, `cat`, `hellowrd`, `rm`, error messages, `cp`) on a frozen disc |
+| `test_e2e_bdos.py` | bdos shell (`ls`, `cat`, `hellowrd`, `rm`, error messages, `cp`) on a temp copy of the built `os.bdd` |
 | `test_e2e_toolchain.py` | a B program compiled, assembled, put on a disc and run |
 | `test_e2e_harness.py` | self-tests of the harness |
 
@@ -164,12 +165,13 @@ The harness is `src/tests/e2e_harness.py`. For each scenario it:
 - checks that the marker strings appear in the output, so an empty output cannot pass;
 - compares the output with the golden byte for byte.
 
-Nothing is written into `src/`, and the committed discs are never changed.
+Nothing is written into `src/`, and the built `src/os.bdd` is never changed (each test boots a temp copy).
 
 ### Running them
 
 ```bash
-python3 run_tests.py < /dev/null              # from the repo root: all suites, e2e included
+python3 run_tests.py < /dev/null              # from the repo root: all suites; builds first, then e2e
+python3 run_tests.py --group e2e --no-build < /dev/null   # e2e only, no build (outputs must exist)
 cd src && python3 -m unittest tests.test_e2e_bdos   # one module
 ```
 
@@ -191,11 +193,12 @@ writes the same bytes.
 ### Discs
 
 - Monitor scenarios use `--no-floppy` and no disc.
-- Shell scenarios boot a temp copy of the frozen `src/bc64/testdata/smoke.bdd`, so the catalog and
-  the free space stay the same. Do not refresh `smoke.bdd` unless that is the goal.
-- The toolchain scenario boots a temp copy of the live `src/os.bdd`. It compares only the program
-  output, the section between `A>e2eprog` and the next `A>` prompt, so a rebuild of `os.bdd` does not
-  break it.
+- Shell scenarios boot a temp copy of the freshly built `src/os.bdd`. `os.bdd` is not committed, so
+  build it first (`python3 run_tests.py` does, unless `--no-build`). A change in bdos or a program shows
+  in the goldens.
+- The toolchain scenario also boots a temp copy of `src/os.bdd`. It compares only the program
+  output, the section between `A>e2eprog` and the next `A>` prompt.
+- Tests that boot the real ROM without a disc are in `test_e2e_rom.py`.
 
 ### Adding a scenario
 

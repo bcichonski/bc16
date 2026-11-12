@@ -1,6 +1,6 @@
 """E2E: TextEd start-up, insert/print/delete, save size and a large load after a restart.
 
-Headless emulator on temp copies of the frozen smoke.bdd. Sessions end with `q` then `exit`, like
+Headless emulator on temp copies of the built os.bdd. Sessions end with `q` then `exit`, like
 test_e2e_texted.py. Assertions only: `m` prints addresses that move with the code size.
 """
 import re

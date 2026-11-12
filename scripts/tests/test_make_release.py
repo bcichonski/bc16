@@ -95,9 +95,23 @@ class ZipChecks:
 class Bc64ZipTests(ZipChecks, unittest.TestCase):
     zip_root = "bc64-unittest"
 
+    # Stand-in build outputs: the ROM and os.bdd are untracked, so the tests never need a real build.
+    BUILT = {"src/bc81asmc/bcOS/bcos_v1_2_0.b81": b"stand-in ROM\r\n\x00\xff",
+             "src/os.bdd": b"stand-in os.bdd\x00\x01\r\n"}
+
+    @classmethod
+    def write_built(cls, work, files):
+        for name, data in files.items():
+            path = os.path.join(work, *name.split("/"))
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "wb") as handle:
+                handle.write(data)
+
     @classmethod
     def build(cls, out_dir):
-        return make_release.make_bc64(ROOT, cls.zip_root, out_dir)
+        work = os.path.join(out_dir, "work")
+        cls.write_built(work, cls.BUILT)
+        return make_release.make_bc64(ROOT, cls.zip_root, out_dir, built_root=work)
 
     def test_holds_what_is_needed_to_run_and_build(self):
         for name in ("src/bc64.py", "src/bc64/bc8183_cpu.py", "src/bc81asmc/bcOS/bcos_v1_2_0.b81",
@@ -119,7 +133,7 @@ class Bc64ZipTests(ZipChecks, unittest.TestCase):
             self.assertNotEqual(name, "run_tests.py")
 
     def test_no_ignored_file(self):
-        listing = "\n".join(self.names) + "\n"
+        listing = "\n".join(name for name in self.names if name not in self.BUILT) + "\n"
         completed = subprocess.run(["git", "-C", ROOT, "check-ignore", "--no-index", "--stdin"],
                                    input=listing, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE, encoding="utf-8")
@@ -130,11 +144,13 @@ class Bc64ZipTests(ZipChecks, unittest.TestCase):
     def test_only_files_tracked_at_head(self):
         tracked = set(git("ls-tree", "-r", "--name-only", "--full-tree", "HEAD")
                       .decode("utf-8").splitlines())
-        self.assertLessEqual(set(self.names), tracked)
+        self.assertLessEqual(set(self.names) - set(self.BUILT), tracked)
 
     def test_content_is_the_committed_blob(self):
-        for name in ("src/run", "src/bc81asmc/bcOS/bcos_v1_2_0.b81", "README.md"):
+        for name in ("src/run", "README.md"):
             self.assertEqual(self.read(name), git("show", "HEAD:" + name), name)
+        for name, data in self.BUILT.items():
+            self.assertEqual(self.read(name), data, name)
         self.assertNotIn(b"\r\n", self.read("src/run"))
 
     def test_modes_follow_git(self):
@@ -142,6 +158,22 @@ class Bc64ZipTests(ZipChecks, unittest.TestCase):
                      "src/ftool"):
             self.assertEqual(mode_of(self.info(name)), 0o755, name)
         self.assertEqual(mode_of(self.info("src/bc64.py")), 0o644)
+
+    def test_built_files_are_in_once_with_mode_0644(self):
+        for name in self.BUILT:
+            self.assertEqual(mode_of(self.info(name)), 0o644, name)
+            self.assertEqual(self.names.count(name), 1, name)
+
+    def test_missing_built_file_names_it_and_the_build_command(self):
+        for missing in self.BUILT:
+            with tempfile.TemporaryDirectory() as work:
+                self.write_built(work, {n: d for n, d in self.BUILT.items() if n != missing})
+                with self.assertRaises(make_release.ReleaseError) as caught:
+                    make_release.make_bc64(ROOT, "bc64-missing", os.path.join(work, "out"),
+                                           built_root=work)
+                self.assertIn(missing, str(caught.exception))
+                self.assertIn("./buildos && ./buildtools && ./buildapps && ./makedisc",
+                              str(caught.exception))
 
     def test_invalid_tag_is_refused(self):
         with self.assertRaises(make_release.ReleaseError):

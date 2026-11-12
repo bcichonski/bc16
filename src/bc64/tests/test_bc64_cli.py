@@ -251,19 +251,6 @@ class RunTests(unittest.TestCase):
         for option in (b"--disk-a", b"--disk-b", b"--tape-dir", b"--input", b"--output", b"--max-instructions"):
             self.assertIn(option, result.stdout)
 
-    def test_no_floppy_boots_the_real_rom_to_the_prompt(self):
-        rom = os.path.join(SRC, "bc81asmc", "bcOS", "bcos_v1_2_0.b81")
-        script = os.path.join(self.tmp, "keys.txt")
-        with open(script, "wb") as f:
-            f.write(b"h\n")
-        result = subprocess.run([sys.executable, BC64_PY, rom, "--no-floppy", "--input", script],
-                                cwd=self.tmp, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE, timeout=120)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn(b"type h for help", result.stdout)
-        self.assertNotIn(b"Disk A name", result.stdout)
-        self.assertEqual([n for n in os.listdir(self.tmp) if n.endswith(".bdd")], [])
-
     def test_output_file_is_flushed_when_the_limit_stops_the_run(self):
         # prints "Hi" then loops forever: the limit stops it and the file still holds the output
         rom = PRINT_HI[:-1] + bytes([0x6c, 0x0a])

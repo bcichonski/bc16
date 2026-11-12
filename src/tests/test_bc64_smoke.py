@@ -1,12 +1,11 @@
 """End-to-end smoke tests: boot bdos headless, type a session, check the printer output.
 
-Two tests, so that rebuilding src/os.bdd does not break the byte-exact check:
-- the transcript test boots a frozen copy of the system disc (bc64/testdata/smoke.bdd) and
-  compares the printer output byte for byte with bc64/testdata/smoke_transcript.txt. It checks
-  the emulator, bcOS and headless mode, not the current disc contents;
-- the live test boots the current src/os.bdd and checks only output that a rebuilt disc keeps
-  (banner, listing header, HELLOWRD, exit).
-Both run on a temporary copy of the disc, so the committed images are never written.
+Two tests, both on the freshly built src/os.bdd (build first: ./buildos && ./buildtools &&
+./buildapps && ./makedisc):
+- the transcript test boots os.bdd and compares the printer output byte for byte with
+  bc64/testdata/smoke_transcript.txt;
+- the live test checks only output that a rebuilt disc keeps (banner, listing header, HELLOWRD, exit).
+Both run on a temporary copy of the disc, so the built image is never written.
 """
 import difflib
 import os
@@ -21,7 +20,6 @@ BC64_PY = os.path.join(SRC, "bc64.py")
 ROM = os.path.join(SRC, "bc81asmc", "bcOS", "bcos_v1_2_0.b81")
 OS_DISK = os.path.join(SRC, "os.bdd")
 TESTDATA = os.path.join(SRC, "bc64", "testdata")
-SMOKE_DISK = os.path.join(TESTDATA, "smoke.bdd")
 SESSION = os.path.join(TESTDATA, "smoke_session.txt")
 TRANSCRIPT = os.path.join(TESTDATA, "smoke_transcript.txt")
 LIVE_SESSION = os.path.join(TESTDATA, "smoke_live_session.txt")
@@ -31,9 +29,9 @@ REGENERATE = (
     "If the change is intended (bcOS or emulator), regenerate the transcript in a scratch directory:\n"
     "  cp {disk} os.bdd && python3 {bc64} {rom} --disk-a os.bdd --input {session} "
     "--output {transcript} --max-instructions {limit} < /dev/null\n"
-    "then inspect the result by eye and commit it. The frozen disc {disk} does not follow "
-    "src/os.bdd rebuilds; refresh it only on purpose (and regenerate the transcript with it)."
-).format(disk=SMOKE_DISK, bc64=BC64_PY, rom=ROM, session=SESSION, transcript=TRANSCRIPT,
+    "then inspect the result by eye and commit it. {disk} is the freshly built disc "
+    "(rebuild it first if bcOS or the apps changed)."
+).format(disk=OS_DISK, bc64=BC64_PY, rom=ROM, session=SESSION, transcript=TRANSCRIPT,
          limit=MAX_INSTRUCTIONS)
 
 TRANSCRIPT_MARKERS = [b"bDOS 1.1 shell", b"A>ls", b"HELLOWRD.PRG", b"TEST    .B", b"sectors free",
@@ -66,9 +64,9 @@ class SmokeSessionTests(unittest.TestCase):
         self.assertEqual(disk_before, read_bytes(disk_image), disk_image + " was modified")
         return actual
 
-    def test_frozen_disc_session_matches_transcript(self):
+    def test_built_disc_session_matches_transcript(self):
         expected = read_bytes(TRANSCRIPT)
-        actual = self.run_session(SMOKE_DISK, SESSION)
+        actual = self.run_session(OS_DISK, SESSION)
         for marker in TRANSCRIPT_MARKERS:
             self.assertIn(marker, actual)
         if actual != expected:

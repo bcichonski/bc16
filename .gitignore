@@ -114,11 +114,6 @@ src/bc/code/*.basm
 *.sectors
 # sample data for TEST.B, not a build output
 !src/bdos/testb.sectors
-# ROMs: only the current one is committed
+# ROMs and discs are build outputs (run_tests.py builds them)
 *.b81
-!src/bc81asmc/bcOS/bcos_v1_2_0.b81
-# discs: only the shipped discs and frozen test fixtures are committed
 *.bdd
-!src/os.bdd
-!src/utils.bdd
-!src/bc64/testdata/*.bdd
