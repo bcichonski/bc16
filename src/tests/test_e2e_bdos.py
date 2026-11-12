@@ -5,9 +5,9 @@ import e2e_harness as h
 
 # ~10x the measured need (about 2M instructions for a handful of commands).
 LIMIT = 50000000
-CATALOG_LINES = [b"HELLOWRD.PRG -R-X 0700 0F 0A 0E", b"TEXTED  .PRG -R-X 3800 24 08 70",
-                 b"TEST    .B   -RW- 0100 2B 08 02",
-                 b"THEODORE.PRG -R-X 1300 2B 0A 26"]
+# Plain `ls` lines of the non-system files, derived from the manifest plan (not pinned numbers).
+CATALOG_LINES = [h.ls_line(h.planned_entry(name)).encode("latin-1")
+                 for name in ("HELLOWRD.PRG", "TEXTED.PRG", "TEST.B", "THEODORE.PRG")]
 TEST_B_TEXT = [b"10 first line !ln", b"20 second line !ln"]
 
 
@@ -20,7 +20,8 @@ def run(scenario, inspect=None):
 class BdosShellTests(unittest.TestCase):
     def check(self, scenario, markers, inspect=None):
         out = run(scenario, inspect)
-        h.check_golden(h.golden_path(scenario), out, markers=markers, scenario=scenario)
+        h.check_golden(h.golden_path(scenario), out, masks=h.DISC_MASKS, markers=markers,
+                      scenario=scenario)
         return out
 
     def test_boot_prompt_and_exit(self):

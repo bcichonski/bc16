@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [bc64]
+    branches: [master]
   pull_request:
-    branches: [bc64]
+    branches: [master]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -107,7 +107,7 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          (cd src && BC64_UPDATE_GOLDEN=1 python -m unittest tests.test_e2e_bcos tests.test_e2e_bdos tests.test_e2e_toolchain tests.test_e2e_bdio_buffered < /dev/null) || true
+          python run_tests.py --group e2e --no-build --update-golden < /dev/null || true
           git diff --binary src/bc64/testdata/ > "$RUNNER_TEMP/testdata.patch" || true
           ls -l "$RUNNER_TEMP/testdata.patch"
 

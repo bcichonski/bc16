@@ -90,7 +90,7 @@ class TextedRoundTripTests(unittest.TestCase):
         load = b"texted\nl note.txt\np 0 65535\nq\nexit\n"
         first, second = run_two_sessions(save, load, SCENARIO_OWNER)
         h.assert_markers(first, [b"texted>s note.txt", b"0003 lines saved", b"Bye!"])
-        h.check_golden(h.golden_path(SCENARIO_OWNER), second,
+        h.check_golden(h.golden_path(SCENARIO_OWNER), second, masks=h.DISC_MASKS,
                        markers=[b"texted>l note.txt", b"0003 lines loaded"] + OWNER_LINES,
                        scenario=SCENARIO_OWNER)
         self.assertEqual(OWNER_LINES, printed_lines(second))

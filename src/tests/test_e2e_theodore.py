@@ -27,12 +27,13 @@ class TheodoreTests(unittest.TestCase):
         self.assertEqual(1, len(entries))
         entry = entries[0]
         self.assertEqual(h.ATTR_RX, entry.attributes & (h.ATTR_R | h.ATTR_X))
-        self.assertEqual((0x2b, 0x0a, count), (entry.track, entry.sector, entry.length))
+        planned = h.planned_entry("THEODORE.PRG")
+        self.assertEqual((planned.track, planned.sector, count), (entry.track, entry.sector, entry.length))
 
     def test_ls_lists_theodore(self):
         out = h.run_session("theodore_ls", h.golden_path("bdos_ls", "in"), disks={"a": h.OS_DISK},
                             max_instructions=LIMIT)
-        line = b"THEODORE.PRG -R-X %04X 2B 0A %02X" % (sector_count() * h.SECTOR_SIZE, sector_count())
+        line = h.ls_line(h.planned_entry("THEODORE.PRG")).encode("latin-1")
         h.assert_markers(out, [b"A>ls", line])
 
     def test_seeded_game_north_south_found_bye(self):

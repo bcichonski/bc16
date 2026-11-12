@@ -4,32 +4,32 @@ bcOS 1.2
 9FF5 bytes free
 reading disc...
 A>ls -h
-.......
+<dots>
 lists files
 -a show all files
 -h print help
 A>cp -h
-.......
+<dots>
 copy file
 [d:]srcfname.ext
 [d:]dstfname.ext
 
 A>format -h
-..........
+<dots>
 format disc
 d: drive
 -q quick
 A>rm -h
-........
+<dots>
 remove file
 [-f] force
 [d:]srcfname.ext
 A>cha -h
-.......
+<dots>
 set file attributes
 [+-][SRWX] set or unset attrib
 A>cat -h
-.......
+<dots>
 print files
 -b binary
 -c characters

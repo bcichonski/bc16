@@ -13,6 +13,7 @@ emulator. The measurements below were taken on 2026-11-07.
 | bcOS ROM monitor | [04-bcos.md](04-bcos.md) |
 | bdos, utilities, apps | [05-bdos.md](05-bdos.md) |
 | Toolchain, build, tests, repository | [06-toolchain.md](06-toolchain.md) |
+| A B compiler, linker and `#include` running on the BC64 (roadmap item 9) | [07-self-hosted-compiler.md](07-self-hosted-compiler.md) |
 
 Each file has the same sections: current state, development direction, problems,
 proposals, and a modernisation verdict.

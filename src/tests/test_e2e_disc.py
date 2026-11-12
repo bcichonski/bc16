@@ -89,12 +89,14 @@ class DiscSessionTests(unittest.TestCase):
         for entry in sorted(planned, key=lambda e: e.number):
             markers.append((entry.name.ljust(8) + "." + entry.ext.ljust(3)).encode("ascii"))
         markers.append(CAT_NAME)
-        h.check_golden(h.golden_path("disc_ls_all"), out, markers=markers, scenario="disc_ls_all")
+        h.check_golden(h.golden_path("disc_ls_all"), out, masks=h.DISC_MASKS, markers=markers,
+                        scenario="disc_ls_all")
 
     def test_every_utility_prints_usage_and_returns_to_shell(self):
         out = self.run_scenario("disc_help")
         markers = [b"A>ls -h", b"A>cp -h", b"A>format -h", b"A>rm -h", b"A>cha -h", b"A>cat -h", b"A>exit", b"bye!"]
-        h.check_golden(h.golden_path("disc_help"), out, markers=markers, scenario="disc_help")
+        h.check_golden(h.golden_path("disc_help"), out, masks=h.DISC_MASKS, markers=markers,
+                        scenario="disc_help")
 
 
 if __name__ == "__main__":
