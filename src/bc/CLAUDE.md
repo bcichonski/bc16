@@ -6,13 +6,15 @@ Reference: `docs/03-compiler.md` covers the language, operators and libraries.
 ## Commands
 
 ```bash
-cd src && python3 bc/bc.py --verbose bdos/ls.b    # -> bdos/ls.basm, plus bdos/ls.genb (preprocessed source)
-cd src && ./bcc bdos/ls                           # compile + assemble -> bdos/ls.btap
+cd src && python3 bc/bc.py bdos/ls.b              # -> bdos/ls.basm, prints one summary line
+cd src && python3 bc/bc.py --verbose bdos/ls.b    # same, plus the trace and bdos/ls.genb (preprocessed source)
+cd src && ./bcc bdos/ls                           # compile + assemble -> bdos/ls.btap (no .genb, quiet compiler)
 bcc bdos/ls                                       # same via the console command (`pip install -e .`), any directory
 cd src/bc && python3 -m unittest discover -s tests -t . -p "*_tests.py"   # grammar and codegen tests
 ```
 
 `bcc` runs `winpty python` when `winpty` is on `PATH` (Git Bash) and `python3` otherwise.
+Compiler errors go to stderr as `<file>: error: <message>` with exit code 1; see `bc_log.py`.
 
 The compiler and its tests run on Linux, macOS and Windows with Python >= 3.10 (tested on
 3.10, 3.13 and 3.14); `parsy` is the only dependency. Internal compiler errors raise
@@ -22,6 +24,8 @@ outputs: ignored by git and never committed. Every `.basm` starts with `; genera
 
 ## How it works
 
+- `bc_log.py` is the compiler's only output channel: trace (stdout, `--verbose` only), the summary
+  line (stdout) and errors/warnings (stderr). `bc.py` and `bc_ast.py` never call `print` directly.
 - `bc.py preprocess()` handles `#include` (resolved relative to the **main** file's
   directory), `#define` (plain text replace, longer names first, applied inside strings and
   `asm` too), `#code` / `#heap` (module globals for the code and heap addresses), `#codelimit`

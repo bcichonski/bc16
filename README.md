@@ -18,7 +18,7 @@ cd .. && python run_tests.py                    # run all the tests
 ```
 
 A fresh clone runs at once, because the ROM (`bcos_v1_2_0.b81`) and the disc (`src/os.bdd`) are committed.
-Everything else the build produces (`.basm`, `.btap`, `.sector(s)`, `.genb`) is ignored by git. To build
+Everything else the build produces (`.basm`, `.btap`, `.sector(s)`, and `.genb` from `bc.py --verbose`) is ignored by git. To build
 anything, or to run the end-to-end tests, run the whole pipeline first:
 
 ```bash
