@@ -100,14 +100,15 @@ the tools in `src/` and the e2e tests; the release script's tests are in `script
 `python3 run_tests.py` runs the e2e suite by default (`src/tests/test_e2e_*.py` and `src/tests/test_bc64_smoke.py`, see
 `docs/01-emulator.md`), and `python3 run_tests.py --group e2e` runs only that suite. Both first build the
 pipeline (`buildos`, `buildtools`, `buildapps`, `makedisc`) so the tests run on the current sources;
-`--no-build` skips the build (the outputs must exist), and `--group unit` never builds. It is the check, also for `/grind`. After an intended change in bcOS or bdos output, regenerate the goldens with
-`cd src && BC64_UPDATE_GOLDEN=1 python3 -m unittest tests.test_e2e_bdos` (or another e2e module), then review them
-by eye before committing.
+`--no-build` skips the build (the outputs must exist), and `--group unit` never builds. It is the check, also for `/grind`. After an intended change in bcOS or bdos output, regenerate the goldens and the smoke transcript
+with `python3 run_tests.py --update-golden < /dev/null` (it builds first unless `--no-build`), then review the diff
+of `src/bc64/testdata/` by eye before committing. Goldens are stored masked (`DISC_MASKS`, see `docs/01-emulator.md`),
+so no disc position is pinned except by `test_e2e_disc`.
 
 Every e2e test boots a temp copy of the freshly built `src/os.bdd`. The smoke test,
 `src/tests/test_bc64_smoke.py`, compares the session byte for byte with a committed transcript
-(`src/bc64/testdata/smoke_transcript.txt`); regenerate it after an intended change as described in
-`src/bc64/CLAUDE.md`. The tests that boot the real ROM are in `src/tests/test_e2e_rom.py`.
+(`src/bc64/testdata/smoke_transcript.txt`); regenerate it after an intended change with the same
+`--update-golden` command (see `src/bc64/CLAUDE.md`). The tests that boot the real ROM are in `src/tests/test_e2e_rom.py`.
 
 There is no linter. `python3 run_tests.py` is the local check; CI runs it on GitHub (see CI below).
 
@@ -122,7 +123,8 @@ The `tests` workflow (`.github/workflows/tests.yml`) runs on every push and PR t
 - job `e2e` (Python 3.14, after `unit`) runs `python run_tests.py --group e2e`, which builds the pipeline and
   runs the e2e tests on the fresh outputs. Then it fails if `git status` is not clean (the build and the tests
   must change no tracked file; nothing is restored).
-  On failure it uploads the `e2e-golden-diff` artifact (regenerated goldens and their patch).
+  On failure it runs `run_tests.py --group e2e --no-build --update-golden` and uploads the `e2e-golden-diff`
+  artifact (regenerated goldens and their patch).
 
 The `release` workflow (`.github/workflows/release.yml`) runs on a pushed `bc64-v*` tag: it builds the
 pipeline, checks that the build left the tree clean, runs `run_tests.py --no-build`, builds the zip

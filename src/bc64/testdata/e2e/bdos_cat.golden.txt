@@ -4,7 +4,7 @@ bcOS 1.2
 9FF5 bytes free
 reading disc...
 A>cat -c test.b
-.......
+<dots>
 printing A:TEST    B   with options 10...
 10 first line !ln
 20 second line !ln

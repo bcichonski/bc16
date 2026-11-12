@@ -15,6 +15,10 @@ def write(path, data):
 
 class TempCase(unittest.TestCase):
     def setUp(self):
+        env = mock.patch.dict(os.environ)
+        env.start()
+        self.addCleanup(env.stop)
+        os.environ.pop(h.UPDATE_ENV, None)
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.tmp = self._tmp.name
@@ -132,6 +136,108 @@ class GoldenTests(TempCase):
         self.assertTrue(h.golden_path("x").endswith("x.golden.txt"))
 
 
+LS_HEAD = b"\rlisting files of drive A:\n"
+
+
+def ls_row(name, attrs="-R-X", numbers="0700 0F 0A 0E"):
+    return ("\r%s %s %s\n" % (name, attrs, numbers)).encode("latin-1")
+
+
+class DiscMasksTests(TempCase):
+    def golden_with(self, data):
+        path = self.path("m.golden.txt")
+        write(path, data)
+        return path
+
+    def check(self, golden_data, actual):
+        h.check_golden(self.golden_with(golden_data), actual, masks=h.DISC_MASKS)
+
+    def assert_differs(self, golden_data, actual):
+        with self.assertRaises(AssertionError):
+            self.check(golden_data, actual)
+
+    def test_masks_only_layout_numbers_of_an_ls_line(self):
+        masked = h.apply_masks(ls_row("HELLOWRD.PRG"), h.DISC_MASKS)
+        self.assertEqual(b"\rHELLOWRD.PRG -R-X SIZE TT SS LL\n", masked)
+        self.assertEqual(masked, h.apply_masks(masked, h.DISC_MASKS))
+
+    def test_masks_free_sector_figure_only(self):
+        line = b"\rEA catalog entries free; 0120 sectors free...\n"
+        self.assertEqual(b"\rEA catalog entries free; XXXX sectors free...\n",
+                         h.apply_masks(line, h.DISC_MASKS))
+
+    def test_masks_dot_only_lines(self):
+        self.assertEqual(b"\r<dots>\n", h.apply_masks(b"\r.......\n", h.DISC_MASKS))
+        self.assertEqual(b"\r<dots>\n\r<dots>\n", h.apply_masks(b"\r..\n\r.\n", h.DISC_MASKS))
+
+    def test_masks_leave_other_text_untouched(self):
+        text = (b"bcOS 1.2\nbooting from FDDlding\n\rbDOS 1.1 shell\n\r9FF5 bytes free\n"
+                b"\rwith options 10...\n\rA>ls -a\n\rlisting files of drive A:\n")
+        self.assertEqual(text, h.apply_masks(text, h.DISC_MASKS))
+
+    def test_equal_up_to_layout_numbers_passes(self):
+        a = LS_HEAD + ls_row("HELLOWRD.PRG") + b"\r..\n\rEA catalog entries free; 0120 sectors free...\n"
+        b = (LS_HEAD + ls_row("HELLOWRD.PRG", numbers="0F00 20 03 1E")
+             + b"\r.........\n\rEA catalog entries free; 0042 sectors free...\n")
+        self.check(a, b)
+
+    def test_missing_ls_line_fails(self):
+        two = LS_HEAD + ls_row("HELLOWRD.PRG") + ls_row("TEXTED  .PRG")
+        self.assert_differs(two, LS_HEAD + ls_row("HELLOWRD.PRG"))
+
+    def test_wrong_attribute_fails(self):
+        self.assert_differs(LS_HEAD + ls_row("HELLOWRD.PRG"),
+                            LS_HEAD + ls_row("HELLOWRD.PRG", attrs="SR-X"))
+
+    def test_renamed_file_fails(self):
+        self.assert_differs(LS_HEAD + ls_row("HELLOWRD.PRG"), LS_HEAD + ls_row("HELLOWR2.PRG"))
+
+    def test_changed_order_fails(self):
+        a = ls_row("HELLOWRD.PRG")
+        b = ls_row("TEXTED  .PRG")
+        self.assert_differs(LS_HEAD + a + b, LS_HEAD + b + a)
+
+    def test_removed_dot_line_fails(self):
+        self.assert_differs(b"\rA>ls -a\n\r.......\n" + LS_HEAD, b"\rA>ls -a\n" + LS_HEAD)
+
+    def test_changed_free_entries_count_fails(self):
+        self.assert_differs(b"\rEA catalog entries free; 0120 sectors free...\n",
+                            b"\rE9 catalog entries free; 0120 sectors free...\n")
+
+    def test_changed_untouched_text_fails(self):
+        self.assert_differs(b"\r9FF5 bytes free\n", b"\r9FF4 bytes free\n")
+
+
+class ManifestHelperTests(TempCase):
+    def test_planned_entries_follow_the_manifest(self):
+        entries = h.planned_entries()
+        names = [(e.name, e.ext) for e in entries]
+        self.assertEqual(("BOOTSECT", "BIN"), names[0])
+        self.assertIn(("THEODORE", "PRG"), names)
+        self.assertEqual([h.ls_line(e) for e in entries],
+                         [h.ls_line(e) for e in h.planned_entries(h.MANIFEST)])
+        with self.assertRaises(KeyError):
+            h.planned_entry("NOSUCH.FIL")
+
+    def test_ls_line_formats_known_entries(self):
+        from ftool_mkdisc import CatalogEntry as Planned
+        self.assertEqual("BOOTSECT.BIN SR-- 0080 00 00 01",
+                         h.ls_line(Planned(0, 0, 1, 0x81, "BOOTSECT", "BIN", None)))
+        self.assertEqual("LS      .PRG SR-X 1D00 0C 00 3A",
+                         h.ls_line(Planned(0, 12 * 16, 0x3A, 0x85, "LS", "PRG", None)))
+        self.assertEqual("TEST    .B   -RW- 0100 2B 08 02",
+                         h.ls_line(Planned(0, 43 * 16 + 8, 2, 0x03, "TEST", "B", None)))
+
+    def test_ls_line_of_every_planned_entry_is_in_a_real_ls_session(self):
+        session = h.golden_path("disc_ls_all", "in")
+        out = h.run_session("disc_ls_all", session, disks={"a": h.OS_DISK})
+        lines = out.decode("latin-1").split("\n")
+        for entry in h.planned_entries():
+            self.assertIn("\r" + h.ls_line(entry), lines)
+        listed = [l for l in lines if h.apply_masks(l.encode("latin-1"), h.DISC_MASKS).endswith(b"SIZE TT SS LL")]
+        self.assertEqual(len(h.planned_entries()), len(listed))
+
+
 class SlowDecoratorTests(unittest.TestCase):
     def test_skips_without_variable(self):
         @h.slow
@@ -156,7 +262,9 @@ class CatalogTests(TempCase):
         for known in [("HELLOWRD", "PRG"), ("TEXTED", "PRG"), ("TEST", "B"), ("BDOS", "SYS")]:
             self.assertIn(known, names)
         hello = [r for r in rows if r.name == "HELLOWRD"][0]
-        self.assertEqual((0x0f, 0x0a, 14, 0x05), (hello.track, hello.sector, hello.length, hello.attributes))
+        planned = h.planned_entry("HELLOWRD.PRG")
+        self.assertEqual((planned.track, planned.sector, planned.length, planned.attribs),
+                         (hello.track, hello.sector, hello.length, hello.attributes))
 
     def test_disc_put_adds_entry_and_refuses_duplicate(self):
         disk = self.path("c.bdd")
