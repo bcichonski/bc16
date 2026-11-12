@@ -158,13 +158,13 @@ class TestVariables(CodegenTestCase):
     def test_undeclared_variable_reported_by_context(self):
         context = Context(0x1000, 0x3000, False)
         ast = program.parse('byte main() { x <- 1; return 1; }')
-        with contextlib.redirect_stdout(io.StringIO()) as out:
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
             try:
                 ast.emit(context)
             except TypeError:
                 pass  # D7: the failed lookup returns None and the caller then indexes it
         self.assertTrue(any('Undeclared variable x' in e for e in context.errors))
-        self.assertIn('ERROR: Undeclared variable x', out.getvalue())
+        self.assertIn(': error: Undeclared variable x', err.getvalue())
 
 
 class TestControlFlow(CodegenTestCase):

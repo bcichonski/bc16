@@ -18,8 +18,8 @@ cd .. && python run_tests.py                    # run all the tests
 ```
 
 Only sources are committed. The ROM (`bcos_v1_2_0.b81`), the disc (`src/os.bdd`) and everything else the build
-produces (`.basm`, `.btap`, `.sector(s)`, `.genb`) are ignored by git. A fresh clone must build first, before
-`./run` or the tests (`./run` tells you so if something is missing):
+produces (`.basm`, `.btap`, `.sector(s)`, and `.genb` from `bc.py --verbose`) are ignored by git. A fresh clone must
+build first, before `./run` or the tests (`./run` tells you so if something is missing):
 
 ```bash
 cd src && ./buildos && ./buildtools && ./buildapps && ./makedisc

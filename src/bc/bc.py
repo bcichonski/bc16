@@ -1,7 +1,9 @@
 import argparse
 import os
 import sys
+import traceback
 from pathlib import Path
+import bc_log
 from bc_ast import *
 from bc_grammar import program
 from parsy import ParseError, line_info_at
@@ -17,22 +19,32 @@ def read_input_file(fname):
         return file_handle.read()
 
 def compile(ast, verbose):
+    bc_log.set_verbose(verbose)
     context = Context(codeSegment, heapSegment, False, codeLimit)
     
-    if(verbose):
-        print("{}".format(ast))
-    ast.emit(context)
+    bc_log.trace("{}".format(ast))
+    try:
+        ast.emit(context)
 
-    context.add_preamble()
-    context.add_data_segment()
-    context.add_stdlib()
+        context.add_preamble()
+        context.add_data_segment()
+        context.add_stdlib()
+    except Exception as ex:
+        if len(context.errors) > 0:
+            # a consequence of an error that was already reported when it was recorded
+            pass
+        elif isinstance(ex, CompilerError):
+            bc_log.error('internal error: {}'.format(ex))
+        else:
+            raise
+        if bc_log.is_verbose():
+            traceback.print_exc()
+        sys.exit(1)
     
     if len(context.errors) > 0:
-        for error in context.errors:
-            print('ERROR: {}'.format(error))
-        sys.exit('There were compilation errors.')
-    elif verbose:
-        print('No errors')
+        # every error was already reported by Context.add_error
+        sys.exit(1)
+    bc_log.trace('No errors')
     
     return context.basm
 
@@ -41,8 +53,8 @@ def save_output_file(fname, code):
         return file_handle.write(code)
 
 def preprocess(input, verbose, defaultdir):
-    if verbose:
-        print('Preprocessing file')
+    bc_log.set_verbose(verbose)
+    bc_log.trace('Preprocessing file')
 
     global codeLimit
     codeLimit = None  # #codelimit is per compile, unlike #code/#heap
@@ -67,8 +79,7 @@ def preprocess(input, verbose, defaultdir):
 
         if(newline.startswith('#include')):
             fname = newline[9:]
-            if verbose:
-                print('Including file {}'.format(fname))
+            bc_log.trace('Including file {}'.format(fname))
             content = read_input_file(os.path.join(defaultdir, fname))
             j = 1
             for contentline in content.splitlines():
@@ -80,7 +91,7 @@ def preprocess(input, verbose, defaultdir):
         if(newline.startswith('#codelimit')):
             addr = newline[11:]
             codeLimit = int(addr, 16)
-            print('Code limit was set to 0x{0:04x}'.format(codeLimit));
+            bc_log.trace('Code limit was set to 0x{0:04x}'.format(codeLimit))
             i += 1
             continue
 
@@ -88,7 +99,7 @@ def preprocess(input, verbose, defaultdir):
             addr = newline[6:]
             global codeSegment
             codeSegment = int(addr, 16)
-            print('Code segment was set to 0x{0:04x}'.format(codeSegment));
+            bc_log.trace('Code segment was set to 0x{0:04x}'.format(codeSegment))
             i += 1
             continue
         
@@ -96,7 +107,7 @@ def preprocess(input, verbose, defaultdir):
             addr = newline[6:]
             global heapSegment
             heapSegment = int(addr, 16)
-            print('Heap segment was set to 0x{0:04x}'.format(heapSegment));
+            bc_log.trace('Heap segment was set to 0x{0:04x}'.format(heapSegment))
             i += 1
             continue
 
@@ -115,6 +126,19 @@ def preprocess(input, verbose, defaultdir):
     return """
 """.join(newlines)
 
+def report_parse_error(input, ex, verbose):
+    (line, col) = line_info_at(input, ex.index)  # 0-based, in the preprocessed source
+    lines = input.splitlines()
+    expected = str(ex).rsplit(' at ', 1)[0]
+    bc_log.error('syntax error at preprocessed line {0}, column {1}: {2}'.format(line + 1, col + 1, expected))
+    bc_log.error_context(lines[line] if line < len(lines) else '', col + 1)
+    if verbose:
+        first = max(line - 2, 0)
+        for i, errLine in enumerate(lines[first:line + 20], first):
+            bc_log.stderr('ERR {0}: {1}'.format(i, errLine))
+        bc_log.stderr(str(ex))
+        traceback.print_exc()
+
 def main():
     parser = argparse.ArgumentParser(description='bc - b language compiler for bc8183 cpu v 1.3.1 (240927)')
     parser.add_argument('infile', type=str,
@@ -126,34 +150,30 @@ def main():
     args = parser.parse_args()
     infile = args.infile
     verbose = args.verbose
-    print('Reading input file {}'.format(infile))
+    bc_log.configure(verbose, infile)
+    bc_log.trace('Reading input file {}'.format(infile))
     input = read_input_file(infile)
     input = preprocess(input, verbose, os.path.dirname(infile))
     if(verbose):
         infilegen = Path(infile).with_suffix(".genb")
-        print('Saving generated input file to {0}'.format(infilegen))
+        bc_log.trace('Saving generated input file to {0}'.format(infilegen))
         save_output_file(infilegen, input)
-    print('Parsing code')
+    bc_log.trace('Parsing code')
     try:
         ast = program.parse(input)
     except ParseError as ex:
-        (line, col) = line_info_at(input, ex.index)
-        lines = input.splitlines()
-        errLines = lines[line-2:line+20]
-        i = line-2
-        for line in errLines:
-            print('ERR {0}: {1}'.format(i, line))
-            i += 1
-        print(ex)
-        raise
+        report_parse_error(input, ex, verbose)
+        sys.exit(1)
 
-    print('Generating code')
+    bc_log.trace('Generating code')
     output = compile(ast, verbose)
     outfile = Path(infile).with_suffix(".basm")
-    print('Saving output file {}'.format(outfile))
+    bc_log.trace('Saving output file {}'.format(outfile))
     header = "; generated by bc from {0} - do not edit\n".format(Path(infile).name)
     save_output_file(outfile, header + output)
-    print('Done!')
+    bc_log.trace('Done!')
+    if not verbose:
+        bc_log.info('bc: {0} -> {1}'.format(infile, outfile))
 
 if __name__ == "__main__":
     main()

@@ -78,6 +78,17 @@ class ToolchainLauncherTests(unittest.TestCase):
         self.assertEqual(launch(self.tmp, "bcc", "--help").returncode, 0)
         self.assertNotEqual(launch(self.tmp, "bcc").returncode, 0)
 
+    def test_bcc_compiler_prints_only_its_summary_line_and_writes_no_genb(self):
+        folder = self.sub("quiet")
+        write(os.path.join(folder, "prog.b"), PROGRAM)
+        result = launch(folder, "bcc", "prog")
+        self.assertEqual(result.returncode, 0, result.stderr.decode("latin-1"))
+        out = result.stdout.decode("latin-1")
+        self.assertIn("bc: prog.b -> prog.basm", out.splitlines())
+        self.assertNotIn("PUSH SCOPE", out)
+        self.assertNotIn("Reading input file prog.b", out.splitlines())
+        self.assertFalse(os.path.exists(os.path.join(folder, "prog.genb")))
+
     def test_bc81asmc_matches_the_script(self):
         via_cmd, via_script = self.sub("cmd"), self.sub("script")
         for folder in (via_cmd, via_script):

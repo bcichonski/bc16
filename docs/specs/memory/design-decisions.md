@@ -460,6 +460,23 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Trade-offs:** every program carries the whole of every included library; `#define`
   replaces text everywhere, including strings.
 
+### C6. Compiler output is quiet by default; trace only with `--verbose`, errors are `file: error:` lines on stderr
+- **Purpose:** a build of many programs should print one line per program, and a compile error
+  should be easy to find among the output.
+- **Rationale:** the trace was printed on every run (4,532 lines for `bdos.b`), so it buried
+  the one line that matters. Errors use the A6 `file:line:col: error:` form, so #28 only has to
+  add locations. They go to stderr with exit code 1, the same as the assembler (#14).
+- **Usage:**
+  - without flags, a successful compile prints one line on stdout, `bc: <infile> -> <outfile>`;
+  - `--verbose` prints the trace on stdout, as before, and writes `<name>.genb`;
+  - an error or warning is one stderr line, `<file>: error: <message>` (with `:<line>:<col>` once
+    known); the compile exits 1 and writes no `.basm`. A traceback is printed only with `--verbose`;
+  - a parse error gives the line and column in the preprocessed source, since mapping to the
+    original file is #28;
+  - `bcc` runs the compiler without `--verbose`, so it writes no `.genb`.
+- **Trade-offs:** `bcc` no longer leaves a `.genb` behind; `bc.py --verbose` gives one. The trace
+  keeps its old free-form text, so it is for people to read, not for tools to parse.
+
 ---
 
 ## bcOS (`src/bc81asmc/bcOS/`)

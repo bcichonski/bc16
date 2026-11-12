@@ -17,7 +17,7 @@ INSTALL_HINT = "install with 'pip install -e .' from a checkout of the repositor
 BCC_USAGE = "usage: bcc [-h] path/name\n"
 BCC_HELP = (BCC_USAGE +
             "\nCompile path/name.b with bc.py and assemble the result path/name.basm with bc81asmc.py,\n"
-            "writing name.basm, name.genb and name.btap next to the source. Give the path without the\n"
+            "writing name.basm and name.btap next to the source. Give the path without the\n"
             ".b extension, relative to the current directory.\n")
 
 
@@ -95,7 +95,7 @@ def bcc():
     except SourceTreeMissing as error:
         sys.stderr.write("%s\n" % error)
         return 1
-    code = _run_child(compiler, "--verbose", "--btap", args[0] + ".b")
+    code = _run_child(compiler, "--btap", args[0] + ".b")
     if code != 0:
         print("Error")
         return code
