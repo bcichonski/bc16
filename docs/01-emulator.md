@@ -115,8 +115,17 @@ From `src/`:
 printf 'ls\nhellowrd\nexit\n' | python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 --disk-a os.bdd --output out.txt
 ```
 
-This boots bcOS from the ROM, mounts `os.bdd` as drive A, runs `ls` and `hellowrd`, and exits. The ROM and
-`os.bdd` come from the build (`cd src && ./buildos && ./buildtools && ./buildapps && ./makedisc`); they are not committed.
+This boots bcOS from the ROM, mounts `os.bdd` as drive A, runs `ls` and `hellowrd`, and exits. The ROM,
+`os.bdd` and `utils.bdd` come from the build (`cd src && ./buildos && ./buildtools && ./buildapps && ./makedisc`); they are not committed.
+
+The default two-disc session mounts `utils.bdd` as drive B too. From `src/`, on copies of the discs:
+
+```bash
+printf 'b:\ntexted\nq\nexit\n' | python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 --disk-a os.bdd --disk-b utils.bdd --output out.txt
+```
+
+This boots from `os.bdd` in A, makes B the active drive with `b:`, runs TextEd from `utils.bdd`, quits it with `q`
+and stops the system. `--disk-b` answers the `Disk B name:` prompt the same way `--disk-a` answers the A prompt.
 `out.txt` then holds the printer output, including the typed commands:
 
 ```
@@ -153,6 +162,9 @@ printer output with a golden file. They are the `test_e2e_*.py` modules in `src/
 | :--- | :--- |
 | `test_e2e_bcos.py` | bcOS monitor, with `--no-floppy` |
 | `test_e2e_bdos.py` | bdos shell (`ls`, `cat`, `hellowrd`, `rm`, error messages, `cp`) on a temp copy of the built `os.bdd` |
+| `test_e2e_disc.py` | `os.bdd`: its catalog and positions against `disc.bddmanifest`, and a session on it |
+| `test_e2e_texted.py`, `test_e2e_texted_commands.py`, `test_e2e_texted_flows.py` | TextEd on the default A/B setup: `os.bdd` in A, a temp copy of `utils.bdd` in B, `b:` then `texted`. Save and load happen on B |
+| `test_e2e_utils_disc.py` | `utils.bdd`: its structure against `utils.bddmanifest`, its `BOOTSECT.BIN` and `BDOS.SYS` bytes equal to `os.bdd`'s, a reproducible build, and a solo boot in A |
 | `test_e2e_toolchain.py` | a B program compiled, assembled, put on a disc and run |
 | `test_e2e_harness.py` | self-tests of the harness |
 | `test_e2e_layout_shift.py` | the bdos scenarios and the smoke session on a disc with a grown `HELLOWRD.PRG`; proves layout changes need no golden edit |
@@ -233,6 +245,8 @@ So a program that changes size needs no test or golden edit.
 - Shell scenarios boot a temp copy of the freshly built `src/os.bdd`. `os.bdd` is not committed, so
   build it first (`python3 run_tests.py` does, unless `--no-build`). A change in bdos or a program shows
   in the goldens.
+- TextEd scenarios boot a temp copy of `src/os.bdd` in A and a temp copy of `src/utils.bdd` in B. They
+  run `b:` and then `texted`, so TextEd and its files are on B.
 - The toolchain scenario also boots a temp copy of `src/os.bdd`. It compares only the program
   output, the section between `A>e2eprog` and the next `A>` prompt.
 - Tests that boot the real ROM without a disc are in `test_e2e_rom.py`.
