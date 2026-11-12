@@ -1,7 +1,7 @@
 # BC64 documentation
 
 BC64 is an imaginary 8-bit computer that exists only as an emulator, with its own complete
-software stack, all in this repository. The pages below describe the current `bc64` branch.
+software stack, all in this repository. The pages below describe the current `master` branch.
 
 | Page | Covers |
 |---|---|

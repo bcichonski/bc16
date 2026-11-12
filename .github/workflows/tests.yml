@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [bc64]
+    branches: [master]
   pull_request:
-    branches: [bc64]
+    branches: [master]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
