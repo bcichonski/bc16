@@ -1,3 +1,4 @@
+import bc_log
 from bc_stdlib import stdlib_template
 from array import array
 from dataclasses import dataclass
@@ -140,7 +141,7 @@ class Context:
                 mov di, 0x{1:02x}""".format(hi(i16), lo(i16))
 
     def add_error(self, message):
-        print('ERROR: {0}'.format(message))
+        bc_log.error(message)
         self.errors.append(message)
 
     def add_variable(self, vartype, varname, funcparam = False, calltrace = ''):
@@ -192,7 +193,7 @@ class Context:
                     cal :stackheadroll
                     pop ci
                     pop cs""".format(self.load_csci(scopeoffset), scopeoffset, self.scope.depth))
-        print("PUSH SCOPE (startoffset={0}, depth={1}, caller={2})".format(self.scope.startoffset, self.scope.depth, caller))
+        bc_log.trace("PUSH SCOPE (startoffset={0}, depth={1}, caller={2})".format(self.scope.startoffset, self.scope.depth, caller))
 
     def pop_scope(self, caller):
         oldscope = self.scope
@@ -200,7 +201,7 @@ class Context:
         if self.scope is None:
             raise CompilerError('Scope none error')
         scopeoffset = oldscope.startoffset - self.scope.startoffset
-        print("POP SCOPE (startoffset={0}, offset={1}, diff={2}, depth={3}, caller={4})".format(self.scope.startoffset, self.scope.offset, scopeoffset, self.scope.depth, caller))
+        bc_log.trace("POP SCOPE (startoffset={0}, offset={1}, diff={2}, depth={3}, caller={4})".format(self.scope.startoffset, self.scope.offset, scopeoffset, self.scope.depth, caller))
         if scopeoffset < 0:
             raise CompilerError('Scope pop error')
         if scopeoffset > 0:
@@ -293,10 +294,10 @@ class EXPRESSION_TERM(Instruction):
         return "TERM({})".format(self.term)
 
     def emit(self, context: Context):
-        print('TERM {0}'.format(self.term))
+        bc_log.trace('TERM {0}'.format(self.term))
         if isinstance(self.term, str):
             var = context.get_variable(self.term)
-            print('TERM {0} IS VAR {1}'.format(self.term, var))
+            bc_log.trace('TERM {0} IS VAR {1}'.format(self.term, var))
             offset = var['offset']
 
             if abs(offset) < 127:
@@ -562,7 +563,7 @@ class VARIABLE_DECLARATION(Instruction):
         return '{0} {1};'.format(self.vartype, self.varname)
 
     def emit(self, context):
-        print('{0} {1};'.format(self.vartype, self.varname))
+        bc_log.trace('{0} {1};'.format(self.vartype, self.varname))
         context.add_variable(self.vartype, self.varname, 'VAR DECL')
 
 @dataclass
@@ -574,9 +575,9 @@ class VARIABLE_ASSIGNEMENT(Instruction):
         return '{0}={1};'.format(self.varname, self.expr)
 
     def emit(self, context: Context, funcCall = False):
-        print('{0}={1};'.format(self.varname, self.expr))
+        bc_log.trace('{0}={1};'.format(self.varname, self.expr))
         variable_def = context.get_variable(self.varname)
-        print('{0}'.format(variable_def))
+        bc_log.trace('{0}'.format(variable_def))
         offset = variable_def['offset']
 
         if(variable_def['type'] != 'word' and variable_def['type'] != 'byte'):
@@ -732,7 +733,7 @@ class EXPRESSION_CALL(Instruction):
             return
 
         context.push_scope('CALL')
-        print(function_data)
+        bc_log.trace(function_data)
         paramdata = function_data['params']
         paramstar = function_data['paramstar']
         funcname = function_data['name']

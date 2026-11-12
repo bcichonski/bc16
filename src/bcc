@@ -8,7 +8,7 @@ else
     PY="python"
 fi
 
-$PY ./bc/bc.py --verbose --btap $1.b
+$PY ./bc/bc.py --btap $1.b
 retVal=$?
 if [ $retVal -ne 0 ]; then
     echo "Error"
