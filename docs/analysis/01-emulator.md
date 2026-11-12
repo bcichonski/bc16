@@ -36,7 +36,7 @@ Reference: [../01-emulator.md](../01-emulator.md). Decisions: E1–E6, G8 in
 | 4 | Failing test | `test_CLR_opcodes` | the suite isn't green, so a regression can't be told apart from the known failure | #4 |
 | 5 | Opcode constants duplicated in the assembler | `bc8183_cpu.py` vs `bc81asmc_ast.py` | encoding drift between the CPU and the tools | #5 |
 | 6 | ~~**Memory was one byte short of 64 KB**~~ (done, #7) | `TOPMEM = 0xffff` was used as the size → `bytearray(0xffff)`; the stack starts at `0xfffe` | fixed: the memory is the full `0x0000–0xffff` (65,536 bytes) | #7 |
-| 7 | Release copies diverge | `release/bc32_v1.0/bc32/` contains a full older copy | fixes aren't shared (by design, G9), but confusing | |
+| 7 | ~~Release copies diverge~~ (done, #90) | the old `release/bc32_v1.0/bc32/` folder held a full older copy | the older generations are now zips of the tagged GitHub Releases (G9) | |
 
 ## Proposals
 

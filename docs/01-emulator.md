@@ -12,8 +12,8 @@ The BC64 is a made-up 8-bit computer that exists only as a Python emulator. It h
 | `bc64/bc64_io.py` | `IOBus` and the devices: keyboard, printer, tape recorder, clock, random generator, floppy drive |
 | `bc64/bc64_env.py` | host abstraction: console I/O (raw `getch`), files, debug log |
 
-Older generations are frozen in `release/bc16_v1.0` (bc8181/8182 CPU, 16 KB, tape only) and
-`release/bc32_v1.0` (bc8182 CPU, 32 KB, adds clock, random generator and floppy drive).
+Older generations are frozen as GitHub Releases, tagged `bc16-v1.0` (bc8181/8182 CPU, 16 KB, tape only) and
+`bc32-v1.0` (bc8182 CPU, 32 KB, adds clock, random generator and floppy drive). See "Releases" in the README.
 
 ## Running it
 
@@ -146,7 +146,7 @@ are written to the working directory too.
 ## End-to-end tests
 
 The e2e tests boot the whole system on the headless emulator, type a script, and compare the
-printer output with a golden file. They are the `test_e2e_*.py` modules in `src/`:
+printer output with a golden file. They are the `test_e2e_*.py` modules in `src/tests/`:
 
 | Module | What it covers |
 | :--- | :--- |
@@ -155,7 +155,7 @@ printer output with a golden file. They are the `test_e2e_*.py` modules in `src/
 | `test_e2e_toolchain.py` | a B program compiled, assembled, put on a disc and run |
 | `test_e2e_harness.py` | self-tests of the harness |
 
-The harness is `src/e2e_harness.py`. For each scenario it:
+The harness is `src/tests/e2e_harness.py`. For each scenario it:
 
 - reads the script `<scenario>.in.txt` and the golden `<scenario>.golden.txt` from `src/bc64/testdata/e2e/`;
 - copies the disc to a temp dir and runs `bc64.py` with `--input`, `--output` and `--max-instructions`;
@@ -170,18 +170,18 @@ Nothing is written into `src/`, and the committed discs are never changed.
 
 ```bash
 python3 run_tests.py < /dev/null              # from the repo root: all suites, e2e included
-cd src && python3 -m unittest test_e2e_bdos   # one module
+cd src && python3 -m unittest tests.test_e2e_bdos   # one module
 ```
 
 Long scenarios are marked `@h.slow` and are skipped unless `BC64_E2E_SLOW=1` is set, for example
-`cd src && BC64_E2E_SLOW=1 python3 -m unittest test_e2e_bdos`. No scenario is slow yet.
+`cd src && BC64_E2E_SLOW=1 python3 -m unittest tests.test_e2e_bdos`. No scenario is slow yet.
 
 ### Regenerating goldens
 
 After an intended change in output, regenerate the goldens of one module from `src/`:
 
 ```bash
-BC64_UPDATE_GOLDEN=1 python3 -m unittest test_e2e_bdos
+BC64_UPDATE_GOLDEN=1 python3 -m unittest tests.test_e2e_bdos
 ```
 
 With `BC64_UPDATE_GOLDEN=1` the test writes the golden and passes, so read the result before
@@ -206,7 +206,7 @@ writes the same bytes.
    the last command.
 2. Add a test method to the module for that area. Call `check_golden` with the marker strings the
    output must contain, e.g. `A>ls` or `Hello world!`.
-3. Generate the golden with `BC64_UPDATE_GOLDEN=1 python3 -m unittest <module>`, then read it.
+3. Generate the golden with `BC64_UPDATE_GOLDEN=1 python3 -m unittest tests.<module>`, then read it.
 4. Run the module again without the variable, then `python3 run_tests.py < /dev/null`.
 
 ### Known failures

@@ -99,38 +99,26 @@ ENV/
 
 # mypy
 .mypy_cache/
-*.b81
-*.dmp
-*.genb
-src/bc/code/*.basm
-src/bc16apps/*.basm
 *.bin
-src/bdos/bdos.basm
-src/bdos/bdos.btap
-src/bdos/bdos.sector
-src/bdos/boot.btap
-src/bdos/boot.sector
-src/bdos/cat.basm
-src/bdos/cat.btap
-src/bdos/cat.sectors
-src/bdos/cha.basm
-src/bdos/cha.btap
-src/bdos/cha.sectors
-src/bdos/cp.basm
-src/bdos/cp.btap
-src/bdos/cp.sectors
-src/bdos/format.basm
-src/bdos/format.btap
-src/bdos/format.sectors
-src/bdos/helloworld.basm
-src/bdos/helloworld.btap
-src/bdos/helloworld.sectors
-src/bdos/ls.basm
-src/bdos/ls.btap
-src/bdos/ls.sectors
-src/bdos/rm.basm
-src/bdos/rm.btap
-src/bdos/rm.sectors
-src/*.btap
-src/bdos/bdos.basm
+# --- bc toolchain build outputs (recreate with buildos/buildtools/buildapps/makedisc) ---
+*.genb
+*.dmp
+# compiler output: .basm written next to the .b source
+src/bdos/*.basm
+# hand-written boot loader source
+!src/bdos/boot.basm
+src/bc/code/*.basm
+# assembler and ftool intermediates
+*.btap
 *.sector
+*.sectors
+# sample data for TEST.B, not a build output
+!src/bdos/testb.sectors
+# ROMs: only the current one is committed
+*.b81
+!src/bc81asmc/bcOS/bcos_v1_2_0.b81
+# discs: only the shipped discs and frozen test fixtures are committed
+*.bdd
+!src/os.bdd
+!src/utils.bdd
+!src/bc64/testdata/*.bdd

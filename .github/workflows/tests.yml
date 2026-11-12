@@ -23,6 +23,9 @@ jobs:
         python-version: ["3.10", "3.14"]
     steps:
       - uses: actions/checkout@v5
+        with:
+          # the release suite reads the legacy release commits from history
+          fetch-depth: 0
 
       - uses: actions/setup-python@v6
         with:
@@ -47,19 +50,26 @@ jobs:
       - name: Unit tests
         run: python run_tests.py --group unit < /dev/null
 
-      - name: Guard (no cpudebug.log, release/ untouched)
+      - name: Guard (tracked files, generated files, no cpudebug.log)
         if: always()
         shell: bash
         run: |
           status=0
+          if [ -n "$(git ls-files -i -c --exclude-standard)" ]; then
+            echo "::error::tracked files match .gitignore (git rm --cached them)"
+            git ls-files -i -c --exclude-standard
+            status=1
+          fi
+          # a tracked X.basm beside a tracked X.b is compiler output and must not be committed
+          while IFS= read -r basm; do
+            if git ls-files --error-unmatch -- "${basm%.basm}.b" > /dev/null 2>&1; then
+              echo "::error::${basm} is generated from ${basm%.basm}.b and must not be tracked"
+              status=1
+            fi
+          done < <(git ls-files '*.basm')
           if [ -n "$(find . -name cpudebug.log -print)" ]; then
             echo "::error::cpudebug.log found in the checkout"
             find . -name cpudebug.log -print
-            status=1
-          fi
-          if [ -n "$(git status --porcelain -- release/)" ]; then
-            echo "::error::release/ has changes"
-            git status --porcelain -- release/
             status=1
           fi
           exit "$status"
@@ -79,6 +89,20 @@ jobs:
 
       - name: Install dependencies
         run: pip install -e .
+
+      - name: Build the ignored intermediates
+        shell: bash
+        working-directory: src
+        run: |
+          set -euo pipefail
+          ./buildos && ./buildtools && ./buildapps && ./makedisc
+          # the committed ROM and disc are restored, never compared
+          git checkout -- os.bdd bc81asmc/bcOS/bcos_v1_2_0.b81
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::the build changed or left tracked/untracked files, so an output is not ignored"
+            git status --porcelain
+            exit 1
+          fi
 
       - name: Refresh frozen smoke disc and transcript
         shell: bash
@@ -108,7 +132,7 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          (cd src && BC64_UPDATE_GOLDEN=1 python -m unittest test_e2e_bcos test_e2e_bdos test_e2e_toolchain test_e2e_bdio_buffered < /dev/null) || true
+          (cd src && BC64_UPDATE_GOLDEN=1 python -m unittest tests.test_e2e_bcos tests.test_e2e_bdos tests.test_e2e_toolchain tests.test_e2e_bdio_buffered < /dev/null) || true
           git diff --binary src/bc64/testdata/ > "$RUNNER_TEMP/testdata.patch" || true
           ls -l "$RUNNER_TEMP/testdata.patch"
 
@@ -122,7 +146,7 @@ jobs:
             src/bc64/testdata/
           if-no-files-found: warn
 
-      - name: Guard (no cpudebug.log, release/ untouched)
+      - name: Guard (no cpudebug.log)
         if: always()
         shell: bash
         run: |
@@ -130,11 +154,6 @@ jobs:
           if [ -n "$(find . -name cpudebug.log -print)" ]; then
             echo "::error::cpudebug.log found in the checkout"
             find . -name cpudebug.log -print
-            status=1
-          fi
-          if [ -n "$(git status --porcelain -- release/)" ]; then
-            echo "::error::release/ has changes"
-            git status --porcelain -- release/
             status=1
           fi
           exit "$status"

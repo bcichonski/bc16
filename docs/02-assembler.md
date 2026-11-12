@@ -10,7 +10,7 @@
 | `bc81asmc_grammar.py` | the parsy grammar (the real syntax reference) |
 | `bc81asmc_ast.py` | one dataclass per instruction/directive, each with its own `emit()`; opcode constants |
 | `bc81asmc_diag.py` | error records (`Diagnostic`, `AssemblerError`), the `file:line:col` formatter, parsy `ParseError` conversion |
-| `bc81asmc_tests.py` | unit tests (need `parsy`) |
+| `tests/bc81asmc_tests.py` | unit tests (need `parsy`) |
 | `grammar.txt` | early informal grammar sketch |
 | `examples/` | `hello.basm`, `first.basm` |
 | `bcOS/` | the bcOS source, see [04-bcos.md](04-bcos.md) |

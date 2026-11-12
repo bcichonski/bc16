@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run the component test suites and report one line per suite.
 
-Suites: emulator, ftool, assembler, compiler (group "unit") and e2e (group "e2e").
+Suites: emulator, ftool, assembler, compiler, release (group "unit") and e2e (group "e2e").
 
 Usage (from any directory):
     python3 run_tests.py [--group unit|e2e|all]
@@ -11,6 +11,8 @@ with its own working directory, because the suites use flat imports.
 The src suites are chosen by rule (see select_src_modules), not by a fixed file list.
 When the environment variable GITHUB_STEP_SUMMARY names a file, a Markdown table
 of the results is appended to it.
+The e2e suite needs the build outputs named in src/disc.bddmanifest; when one is missing it
+is reported as FAIL with the pipeline command and is not run.
 Exit code is 0 only if every selected suite passes. Standard library only.
 """
 
@@ -26,27 +28,52 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 
 GROUPS = ("unit", "e2e", "all")
 
+MANIFEST = os.path.join(ROOT, "src", "disc.bddmanifest")
+PIPELINE = "cd src && ./buildos && ./buildtools && ./buildapps && ./makedisc"
+
+
+def missing_disc_source(manifest_path=MANIFEST):
+    """Return the first SOURCE file named in the disc manifest that doesn't exist, or None.
+
+    The e2e tests read the build intermediates (.sector/.sectors) that the manifest names;
+    they are not committed, so a fresh clone has to build them first. Paths in the manifest
+    are relative to its own folder; "-" (the generated catalog) has no source.
+    """
+    base = os.path.dirname(manifest_path)
+    with open(manifest_path, encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            columns = line.split()
+            if len(columns) < 2 or columns[1] == "-":
+                continue
+            if not os.path.exists(os.path.join(base, columns[1])):
+                return columns[1]
+    return None
+
 
 def select_src_modules(src_dir):
     """Partition the test modules under src_dir into {suite name: [module names]}.
 
-    e2e:      test_e2e_*.py and test_bc64_smoke.py
-    ftool:    test_ftool.py
-    emulator: bc64/test_*.py and every other test_*.py
+    Tests live in a tests/ package of their tool:
+    e2e:      tests/test_e2e_*.py and tests/test_bc64_smoke.py
+    ftool:    tests/test_ftool.py
+    emulator: bc64/tests/test_*.py and every other tests/test_*.py
     Module names are importable with src_dir as the working directory.
     """
     e2e, ftool, emulator = [], [], []
-    for path in sorted(glob.glob(os.path.join(src_dir, "test_*.py"))):
-        module = os.path.splitext(os.path.basename(path))[0]
-        if module.startswith("test_e2e_") or module == "test_bc64_smoke":
+    for path in sorted(glob.glob(os.path.join(src_dir, "tests", "test_*.py"))):
+        module = "tests." + os.path.splitext(os.path.basename(path))[0]
+        if module.startswith("tests.test_e2e_") or module == "tests.test_bc64_smoke":
             e2e.append(module)
-        elif module == "test_ftool":
+        elif module == "tests.test_ftool":
             ftool.append(module)
         else:
             emulator.append(module)
     bc64 = [
-        "bc64." + os.path.splitext(os.path.basename(path))[0]
-        for path in sorted(glob.glob(os.path.join(src_dir, "bc64", "test_*.py")))
+        "bc64.tests." + os.path.splitext(os.path.basename(path))[0]
+        for path in sorted(glob.glob(os.path.join(src_dir, "bc64", "tests", "test_*.py")))
     ]
     return {"emulator": bc64 + emulator, "ftool": ftool, "e2e": e2e}
 
@@ -54,12 +81,13 @@ def select_src_modules(src_dir):
 def build_suites(root=ROOT):
     """Return [(name, group, cwd relative to root, unittest arguments)] in report order."""
     modules = select_src_modules(os.path.join(root, "src"))
-    discover = ["discover", "-s", ".", "-t", ".", "-p", "*_tests.py"]
+    discover = ["discover", "-s", "tests", "-t", ".", "-p", "*_tests.py"]
     return [
         ("emulator", "unit", "src", modules["emulator"]),
         ("ftool", "unit", "src", modules["ftool"]),
         ("assembler", "unit", os.path.join("src", "bc81asmc"), discover),
         ("compiler", "unit", os.path.join("src", "bc"), discover),
+        ("release", "unit", "scripts", ["discover", "-s", "tests", "-t", ".", "-p", "test_*.py"]),
         ("e2e", "e2e", "src", modules["e2e"]),
     ]
 
@@ -161,10 +189,10 @@ def write_summary(results, path):
         handle.write("### Test results\n\n" + render_table(results) + "\n")
 
 
-def main(argv=None, suites=None, runner=run_suite, environ=None):
+def main(argv=None, suites=None, runner=run_suite, environ=None, manifest=MANIFEST):
     parser = argparse.ArgumentParser(description="Run the component test suites.")
     parser.add_argument("--group", choices=GROUPS, default="all",
-                        help="unit = emulator/ftool/assembler/compiler, e2e = end-to-end, all = both")
+                        help="unit = emulator/ftool/assembler/compiler/release, e2e = end-to-end, all = both")
     options = parser.parse_args(argv)
     environ = os.environ if environ is None else environ
 
@@ -181,8 +209,12 @@ def main(argv=None, suites=None, runner=run_suite, environ=None):
     all_passed = True
     results = []
     for name, _group, rel_cwd, args in selected:
+        missing = missing_disc_source(manifest) if name == "e2e" and args else None
         if not args:
             passed, summary, output, returncode = False, "no test modules found", "", -1
+        elif missing:
+            passed, output, returncode = False, "", -1
+            summary = "not run, %s is missing; build it first with: %s" % (missing, PIPELINE)
         else:
             passed, summary, output, returncode = runner(name, rel_cwd, args)
         all_passed = all_passed and passed
