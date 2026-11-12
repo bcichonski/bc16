@@ -34,13 +34,20 @@ def numbered(lines, first=10, step=10):
     return [b"%d %s" % (first + i * step, line) for i, line in enumerate(lines)]
 
 
-def run_two_sessions(save_script, load_script, name):
-    """Run save_script, then load_script on the very same disc (a restart); return both outputs."""
+def run_two_sessions(save_script, load_script, name, catalogs=None):
+    """Run save_script, then load_script with session 1's B disc kept (a restart); return both outputs.
+
+    A is a fresh os.bdd copy each session, B (utils.bdd, where texted lives) carries the files.
+    catalogs: optional dict filled with the (name, ext) rows of A and B after session 1.
+    """
     kept = {}
 
     def inspect(paths):
         kept["disc"] = os.path.join(kept["tmp"], "restart.bdd")
-        shutil.copyfile(paths["a"], kept["disc"])
+        shutil.copyfile(paths["b"], kept["disc"])
+        if catalogs is not None:
+            catalogs["a"] = [(e.name, e.ext) for e in h.read_catalog(paths["a"])]
+            catalogs["b"] = [(e.name, e.ext) for e in h.read_catalog(paths["b"])]
 
     with tempfile.TemporaryDirectory() as tmp:
         kept["tmp"] = tmp
@@ -50,9 +57,9 @@ def run_two_sessions(save_script, load_script, name):
             with open(path, "wb") as handle:
                 handle.write(text)
             scripts.append(path)
-        first = h.run_session(name + "_save", scripts[0], disks={"a": h.OS_DISK},
+        first = h.run_session(name + "_save", scripts[0], disks={"a": h.OS_DISK, "b": h.UTILS_DISK},
                               max_instructions=LIMIT, inspect=inspect)
-        second = h.run_session(name + "_load", scripts[1], disks={"a": kept["disc"]},
+        second = h.run_session(name + "_load", scripts[1], disks={"a": h.OS_DISK, "b": kept["disc"]},
                                max_instructions=LIMIT)
     return first, second
 
@@ -67,7 +74,7 @@ def printed_lines(out):
     return section(out, b"texted>p 0 65535\n", b"texted>").replace(b"\r", b"").splitlines()
 
 
-def cat_records(out, marker=b"A>cat -c "):
+def cat_records(out, marker=b"A>cat -c b:"):
     """Text records of a `cat -c` output: wrap markers and line breaks removed, split at ` !ln`.
 
     Returns (records, tail); tail is whatever follows the last record (the sector's zero padding).
@@ -85,10 +92,13 @@ class TextedRoundTripTests(unittest.TestCase):
             self.assertNotIn(text, out)
 
     def test_save_restart_load_prints_same_lines(self):
-        save = b"texted\n" + insert_script([b"first line", b"second line", b"third line"]) + \
+        save = b"b:\ntexted\n" + insert_script([b"first line", b"second line", b"third line"]) + \
             b"s note.txt\nq\nexit\n"
-        load = b"texted\nl note.txt\np 0 65535\nq\nexit\n"
-        first, second = run_two_sessions(save, load, SCENARIO_OWNER)
+        load = b"b:\ntexted\nl note.txt\np 0 65535\nq\nexit\n"
+        catalogs = {}
+        first, second = run_two_sessions(save, load, SCENARIO_OWNER, catalogs)
+        self.assertIn(("NOTE", "TXT"), catalogs["b"])
+        self.assertNotIn(("NOTE", "TXT"), catalogs["a"])
         h.assert_markers(first, [b"texted>s note.txt", b"0003 lines saved", b"Bye!"])
         h.check_golden(h.golden_path(SCENARIO_OWNER), second, masks=h.DISC_MASKS,
                        markers=[b"texted>l note.txt", b"0003 lines loaded"] + OWNER_LINES,
@@ -100,8 +110,8 @@ class TextedRoundTripTests(unittest.TestCase):
     def test_file_over_one_sector_with_80_character_lines(self):
         expected = numbered(LONG_LINES)
         self.assertGreater(sum(len(line) + 1 for line in expected), 2 * h.SECTOR_SIZE)
-        save = b"texted\n" + insert_script(LONG_LINES) + b"s long.txt\nq\nexit\n"
-        load = b"texted\nl long.txt\np 0 65535\nq\nexit\n"
+        save = b"b:\ntexted\n" + insert_script(LONG_LINES) + b"s long.txt\nq\nexit\n"
+        load = b"b:\ntexted\nl long.txt\np 0 65535\nq\nexit\n"
         first, second = run_two_sessions(save, load, "texted_long")
         h.assert_markers(first, [b"%04d lines saved" % len(LONG_LINES)])
         h.assert_markers(second, [b"%04d lines loaded" % len(LONG_LINES)])
@@ -109,9 +119,9 @@ class TextedRoundTripTests(unittest.TestCase):
         self.assert_no_debug(second)
 
     def test_missing_file_prints_error_and_keeps_buffer(self):
-        save = b"texted\n" + insert_script([b"first line", b"second line", b"third line"]) + \
+        save = b"b:\ntexted\n" + insert_script([b"first line", b"second line", b"third line"]) + \
             b"s note.txt\nq\nexit\n"
-        load = b"texted\nl note.txt\np 0 65535\nl missing.txt\np 0 65535\nq\nexit\n"
+        load = b"b:\ntexted\nl note.txt\np 0 65535\nl missing.txt\np 0 65535\nq\nexit\n"
         _, second = run_two_sessions(save, load, "texted_missing")
         h.assert_markers(second, [b"texted>l missing.txt", b"error: E0 file not found"])
         self.assertEqual(1, second.count(b"error: E0 file not found"))
@@ -121,10 +131,10 @@ class TextedRoundTripTests(unittest.TestCase):
         self.assertEqual(OWNER_LINES, after.splitlines())
 
     def test_load_replaces_a_non_empty_buffer(self):
-        save = b"texted\n" + insert_script([b"first line", b"second line", b"third line"]) + \
+        save = b"b:\ntexted\n" + insert_script([b"first line", b"second line", b"third line"]) + \
             b"s note.txt\nq\nexit\n"
         # Lines 5 and 20 exist before the load: 5 is not in the file, 20 would be overwritten.
-        load = (b"texted\ni 5 15\nold five\nold twenty\nold thirty-five\nold fifty\n\n"
+        load = (b"b:\ntexted\ni 5 15\nold five\nold twenty\nold thirty-five\nold fifty\n\n"
                 b"p 0 65535\nl note.txt\np 0 65535\nq\nexit\n")
         _, second = run_two_sessions(save, load, "texted_replace")
         before = section(second, b"texted>p 0 65535\n", b"texted>l note.txt").replace(b"\r", b"")
@@ -144,10 +154,10 @@ class TextedRoundTripTests(unittest.TestCase):
             crossing += offset // h.SECTOR_SIZE != (end - 1) // h.SECTOR_SIZE
             offset = end
         self.assertGreaterEqual(crossing, 2, "the file must have records across sector boundaries")
-        save = b"texted\n" + insert_script(LONG_LINES) + b"s long.txt\nq\nexit\n"
-        load = b"cat -c long.txt\nexit\n"
+        save = b"b:\ntexted\n" + insert_script(LONG_LINES) + b"s long.txt\nq\nexit\n"
+        load = b"cat -c b:long.txt\nexit\n"
         _, second = run_two_sessions(save, load, "texted_cat")
-        h.assert_markers(second, [b"A>cat -c long.txt", b"printing A:LONG    TXT"])
+        h.assert_markers(second, [b"A>cat -c b:long.txt", b"printing B:LONG    TXT"])
         records, tail = cat_records(second)
         self.assertEqual(expected, records)
         for record in records:

@@ -16,10 +16,9 @@ bcOS 1.2
 RM      .PRG SR-X SIZE TT SS LL
 CHA     .PRG SR-X SIZE TT SS LL
 CAT     .PRG SR-X SIZE TT SS LL
-TEXTED  .PRG -R-X SIZE TT SS LL
 TEST    .B   -RW- SIZE TT SS LL
 THEODORE.PRG -R-X SIZE TT SS LL
-EA catalog entries free; XXXX sectors free...
+EB catalog entries free; XXXX sectors free...
 A>exit
 bye!
 

@@ -12,12 +12,12 @@ Needs Python 3.10 or newer. From the repo root:
 python3 -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e .                                # installs parsy and the bc64, bc81asmc, bcc and ftool commands
 cd src
-bc64 bc81asmc/bcOS/bcos_v1_2_0.b81              # run the emulator; at the "Disk A name:" prompt enter: os.bdd
+bc64 bc81asmc/bcOS/bcos_v1_2_0.b81              # run the emulator; at the "Disk A name:" prompt enter: os.bdd, at "Disk B name:" enter: utils.bdd
 bcc bdos/helloworld                             # build a program: helloworld.b -> .basm -> .btap
 cd .. && python run_tests.py                    # run all the tests
 ```
 
-Only sources are committed. The ROM (`bcos_v1_2_0.b81`), the disc (`src/os.bdd`) and everything else the build
+Only sources are committed. The ROM (`bcos_v1_2_0.b81`), the discs (`src/os.bdd`, `src/utils.bdd`) and everything else the build
 produces (`.basm`, `.btap`, `.sector(s)`, and `.genb` from `bc.py --verbose`) are ignored by git. A fresh clone must
 build first, before `./run` or the tests (`./run` tells you so if something is missing):
 

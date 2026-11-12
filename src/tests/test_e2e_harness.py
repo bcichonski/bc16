@@ -259,7 +259,7 @@ class CatalogTests(TempCase):
     def test_reader_lists_known_files(self):
         rows = h.read_catalog(h.OS_DISK)
         names = {(r.name, r.ext) for r in rows}
-        for known in [("HELLOWRD", "PRG"), ("TEXTED", "PRG"), ("TEST", "B"), ("BDOS", "SYS")]:
+        for known in [("HELLOWRD", "PRG"), ("THEODORE", "PRG"), ("TEST", "B"), ("BDOS", "SYS")]:
             self.assertIn(known, names)
         hello = [r for r in rows if r.name == "HELLOWRD"][0]
         planned = h.planned_entry("HELLOWRD.PRG")

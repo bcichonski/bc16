@@ -3,7 +3,8 @@ bcOS 1.2
 bDOS 1.1 shell
 9FF5 bytes free
 reading disc...
-A>texted
+A>b:
+B>texted
 <dots>
 TextEd v1.2
 type h for help
@@ -16,6 +17,6 @@ bcOS 1.2
 30 third line
 texted>q
 Bye!
-A>exit
+B>exit
 bye!
 

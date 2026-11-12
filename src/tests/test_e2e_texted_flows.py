@@ -36,16 +36,16 @@ class TextedFlowTests(unittest.TestCase):
             self.assertNotIn(text, out)
 
     def test_startup_banner(self):
-        out = run_one(b"texted\nq\nexit\n", "texted_flows_banner")
-        h.assert_markers(out, [b"A>texted", b"TextEd v1.2", b"texted>q", b"Bye!"])
+        out = run_one(b"b:\ntexted\nq\nexit\n", "texted_flows_banner")
+        h.assert_markers(out, [b"B>texted", b"TextEd v1.2", b"texted>q", b"Bye!"])
         self.assert_no_debug(out)
 
     def test_insert_print_delete_save_and_list(self):
         texts = [b"alpha", b"bravo", b"charlie", b"delta", b"echo", b"foxtrot"]
         all_lines = numbered(texts)
         remaining = [all_lines[0], all_lines[4], all_lines[5]]
-        script = (b"texted\n" + insert_script(texts) + b"p 0 65535\nd 20 40\np 0 65535\n"
-                  b"s flows.txt\nq\nls\nexit\n")
+        script = (b"b:\ntexted\n" + insert_script(texts) + b"p 0 65535\nd 20 40\np 0 65535\n"
+                  b"s flows.txt\nq\na:\nls b:\nexit\n")
         out = run_one(script, "texted_flows_edit")
         h.assert_markers(out, [b"texted>i 10 10", b"texted>d 20 40", b"3 lines removed",
                                b"flows.txt", b"0003 lines saved", b"Bye!"])
@@ -64,8 +64,8 @@ class TextedFlowTests(unittest.TestCase):
         texts = [b"%03d " % i + b"x" * 76 for i in range(BIG_COUNT)]
         records = numbered(texts, 10, 10)
         self.assertGreaterEqual(saved_sectors(records), 4)
-        save = b"texted\n" + insert_script(texts) + b"s big.txt\nq\nls\nexit\n"
-        load = (b"texted\nl big.txt\nm\np 10 30\nq\nexit\n")
+        save = b"b:\ntexted\n" + insert_script(texts) + b"s big.txt\nq\na:\nls b:\nexit\n"
+        load = (b"b:\ntexted\nl big.txt\nm\np 10 30\nq\nexit\n")
         first, second = run_two_sessions(save, load, "texted_flows_big")
         h.assert_markers(first, [b"%04X lines saved" % BIG_COUNT, b"Bye!"])
         entry = ls_entry(first.split(b"Bye!", 1)[1], b"BIG")

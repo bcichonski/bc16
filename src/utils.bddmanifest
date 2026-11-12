@@ -1,0 +1,12 @@
+# Utilities disc manifest, built by `./ftool mkdisc utils.bddmanifest utils.bdd` (see ftool_mkdisc.py).
+# A second bootable disc: the same boot, catalog and system files as disc.bddmanifest, then the
+# utility programs that are not on the system disc. Columns and options are explained in disc.bddmanifest.
+
+# The boot ROM loads track 0 sector 0 (128 bytes, signature BD 05 01 01).
+BOOTSECT.BIN  bdos/boot.sector          SR   role=boot at=0/0 max=1
+# bdio's catalog v1 is fixed: 0/1 for 31 sectors (248 entries).
+DISC.CAT      -                         SR   role=catalog at=0/1 max=31
+# The boot loader reads sectors 0x20..0xbf (2/0..11/15, 160 sectors) to 0x0f00.
+BDOS.SYS      bdos/bdos.sector          SR   role=system at=2/0 max=160
+# The first sector after the loader range.
+TEXTED.PRG    bdos/texted.sectors       RX   at=12/0

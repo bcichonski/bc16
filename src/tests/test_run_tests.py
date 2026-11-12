@@ -262,6 +262,41 @@ class DiscSourceHintTests(unittest.TestCase):
         self.assertIn("ALL PASSED", out)
 
 
+class UtilsDiscHintTests(unittest.TestCase):
+    """utils.bdd is a built output and utils.bddmanifest sources are checked next to disc.bddmanifest."""
+
+    @staticmethod
+    def write_utils_manifest(directory, sources):
+        path = os.path.join(directory, "utils.bddmanifest")
+        lines = ["# comment", "DISC.CAT  -  SR  role=catalog at=0/1"]
+        lines += ["%s.PRG  %s  RX" % (os.path.basename(s).upper(), s) for s in sources]
+        with open(path, "w") as handle:
+            handle.write("\n".join(lines) + "\n")
+
+    def test_utils_bdd_is_a_built_output(self):
+        self.assertIn("utils.bdd", run_tests.BUILT_OUTPUTS)
+
+    def test_missing_utils_bdd_is_named(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            touch(tmp, "bdos/a.sectors", *[n for n in run_tests.BUILT_OUTPUTS if n != "utils.bdd"])
+            manifest = DiscSourceHintTests.write_manifest(tmp, ["bdos/a.sectors"])
+            self.assertEqual(run_tests.missing_build_output(manifest), "utils.bdd")
+
+    def test_missing_utils_manifest_source_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            touch(tmp, "bdos/a.sectors", *run_tests.BUILT_OUTPUTS)
+            manifest = DiscSourceHintTests.write_manifest(tmp, ["bdos/a.sectors"])
+            self.write_utils_manifest(tmp, ["bdos/u.sectors"])
+            self.assertEqual(run_tests.missing_build_output(manifest), "bdos/u.sectors")
+
+    def test_nothing_missing_when_all_present(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            touch(tmp, "bdos/a.sectors", "bdos/u.sectors", *run_tests.BUILT_OUTPUTS)
+            manifest = DiscSourceHintTests.write_manifest(tmp, ["bdos/a.sectors"])
+            self.write_utils_manifest(tmp, ["bdos/u.sectors"])
+            self.assertIsNone(run_tests.missing_build_output(manifest))
+
+
 class BuildStepTests(unittest.TestCase):
     SUITES = [("emulator", "unit", "src", ["tests.test_a"]), ("e2e", "e2e", "src", ["tests.test_x"]),
               ("ftool", "unit", "src", ["tests.test_y"])]
