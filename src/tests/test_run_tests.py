@@ -343,5 +343,58 @@ class BuildStepTests(unittest.TestCase):
         self.assertIn("bdos/a.sectors", out)
 
 
+class UpdateGoldenTests(unittest.TestCase):
+    SUITES = BuildStepTests.SUITES
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        touch(self.tmp.name, "bdos/a.sectors", *run_tests.BUILT_OUTPUTS)
+        self.manifest = DiscSourceHintTests.write_manifest(self.tmp.name, ["bdos/a.sectors"])
+
+    def run_main(self, argv):
+        events, seen = [], {}
+
+        def runner(name, cwd, args, env=None):
+            events.append("suite:" + name)
+            seen[name] = None if env is None else env.get("BC64_UPDATE_GOLDEN")
+            return True, "Ran 1 test, OK", "Ran 1 test in 0s\n\nOK\n", 0
+
+        def build():
+            events.append("build")
+            return True, "built", "", 0
+
+        before = dict(os.environ)
+        with contextlib.redirect_stdout(io.StringIO()):
+            code = run_tests.main(argv, suites=self.SUITES, runner=runner, environ={},
+                                  manifest=self.manifest, build=build)
+        self.assertEqual(dict(os.environ), before)
+        return code, events, seen
+
+    def test_flag_sets_variable_for_e2e_only(self):
+        code, events, seen = self.run_main(["--update-golden"])
+        self.assertEqual(code, 0)
+        self.assertEqual(seen["e2e"], "1")
+        self.assertIsNone(seen["emulator"])
+        self.assertIsNone(seen["ftool"])
+        self.assertEqual(events[0], "build")
+
+    def test_without_flag_no_suite_gets_the_variable(self):
+        _code, _events, seen = self.run_main([])
+        self.assertEqual(seen, {"emulator": None, "e2e": None, "ftool": None})
+
+    def test_flag_respects_no_build(self):
+        code, events, seen = self.run_main(["--no-build", "--update-golden"])
+        self.assertEqual(code, 0)
+        self.assertNotIn("build", events)
+        self.assertEqual(seen["e2e"], "1")
+
+    def test_flag_in_help(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), self.assertRaises(SystemExit):
+            run_tests.main(["--help"])
+        self.assertIn("--update-golden", out.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -24,30 +24,29 @@ not failures. See `docs/01-emulator.md`, Known quirks.
 byte-exact test compares the session with `smoke_transcript.txt`, and the live test checks only a few
 markers. `os.bdd` and the ROM are not committed: build first (`cd src && ./buildos && ./buildtools &&
 ./buildapps && ./makedisc`); `python3 run_tests.py` does that for the e2e suite unless `--no-build`.
-After an intended change in bcOS, bdos or the emulator, regenerate the transcript (from `src/`):
-
-```bash
-d=$(mktemp -d) && cp os.bdd $d/os.bdd && (cd $d && \
-  python3 "$OLDPWD/bc64.py" "$OLDPWD/bc81asmc/bcOS/bcos_v1_2_0.b81" --disk-a os.bdd \
-  --input "$OLDPWD/bc64/testdata/smoke_session.txt" --output "$OLDPWD/bc64/testdata/smoke_transcript.txt" \
-  --max-instructions 200000000 < /dev/null); rm -rf $d   # runs in the temp dir: bc64.dmp lands there
-python3 -m unittest tests.test_bc64_smoke
-```
-
-Check the transcript diff by eye: it should show only the intended changes, then commit
-`smoke_transcript.txt`. The session runs on a temp copy, so `os.bdd` itself is never written by the
-emulator. CI's `e2e` job builds, runs the tests on the fresh outputs and fails if the transcript or a golden
-differs or the tree is not clean. Tests that boot the real ROM are in `src/tests/test_e2e_rom.py`.
+After an intended change in bcOS, bdos or the emulator, regenerate the transcript and the e2e goldens from
+the repo root with `python3 run_tests.py --update-golden < /dev/null`. It builds first (add `--no-build` to
+skip the build) and runs the e2e suite with `BC64_UPDATE_GOLDEN=1`, which also rewrites `smoke_transcript.txt`.
+Check the diff of `src/bc64/testdata/` by eye: it should show only the intended changes, then run
+`python3 run_tests.py` and commit the changed files. The transcript is stored with `DISC_MASKS` applied, so it
+holds no disc positions (see `docs/01-emulator.md`, "Masks and derived positions"). The session runs on a temp
+copy, so `os.bdd` itself is never written by the emulator. CI's `e2e` job builds, runs the tests on the fresh
+outputs and fails if the transcript or a golden differs or the tree is not clean. Tests that boot the real ROM
+are in `src/tests/test_e2e_rom.py`.
 
 ## End-to-end scenarios
 
 The e2e modules boot the emulator headless and compare the printer output with goldens:
 `src/tests/test_e2e_bcos.py` (monitor, `--no-floppy`), `src/tests/test_e2e_bdos.py` (shell on a temp copy
 of the built `os.bdd`), `src/tests/test_e2e_toolchain.py` (B program to disc and run, on a copy of `os.bdd`)
-and `src/tests/test_e2e_harness.py` (harness self-tests). The harness is `src/tests/e2e_harness.py`, a plain module
-and not a test. Scripts and goldens are in `src/bc64/testdata/e2e/` (`<scenario>.in.txt`,
-`<scenario>.golden.txt`). Regenerate with `BC64_UPDATE_GOLDEN=1`, e.g. `cd src && BC64_UPDATE_GOLDEN=1
-python3 -m unittest tests.test_e2e_bdos`, then review the diff. Long scenarios need `BC64_E2E_SLOW=1`. Scripts
+and `src/tests/test_e2e_harness.py` (harness self-tests). `src/tests/test_e2e_layout_shift.py` boots the same
+scenarios on a disc with a grown program, so a size change in a system-disc program is proven harmless. The
+harness is `src/tests/e2e_harness.py`, a plain module and not a test. Scripts and goldens are in
+`src/bc64/testdata/e2e/` (`<scenario>.in.txt`, `<scenario>.golden.txt`). Regenerate all of them with
+`python3 run_tests.py --update-golden` (see above), or one module with `BC64_UPDATE_GOLDEN=1`, e.g.
+`cd src && BC64_UPDATE_GOLDEN=1 python3 -m unittest tests.test_e2e_bdos`, then review the diff. Goldens of
+bdos sessions that load system-disc programs are compared under `DISC_MASKS` and never pin a track, sector or
+length. Long scenarios need `BC64_E2E_SLOW=1`. Scripts
 must not use `q` or a bad-argument command followed by more commands. `q` ends the session with
 `fatal error F0 at FF0C` and a bcOS `KIL` (exit 0); a bad-argument command such as `d 00` ends it with an
 empty-stack `RET` stop (exit 0, a stderr line). Either one may only be the last command. The known

@@ -14,10 +14,13 @@ import tempfile
 import unittest
 from collections import namedtuple
 
+import ftool_mkdisc
+
 SRC = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BC64_PY = os.path.join(SRC, "bc64.py")
 ROM = os.path.join(SRC, "bc81asmc", "bcOS", "bcos_v1_2_0.b81")
 OS_DISK = os.path.join(SRC, "os.bdd")
+MANIFEST = os.path.join(SRC, "disc.bddmanifest")
 TESTDATA = os.path.join(SRC, "bc64", "testdata")
 GOLDEN_DIR = os.path.join(TESTDATA, "e2e")
 DEFAULT_MAX_INSTRUCTIONS = 200000000
@@ -121,6 +124,43 @@ def apply_masks(data, masks=None):
             replacement = replacement.encode("latin-1")
         data = re.sub(pattern, replacement, data)
     return data
+
+
+# Standard masks for sessions that load programs from the system disc (os.bdd): they hide only
+# the layout numbers (size/track/sector/length of an `ls` line, the free-sector figure and the
+# number of progress dots), never names, attributes, order or presence of a line.
+DISC_MASKS = [
+    # `NAME    .EXT ATTR SIZE TT SS LL` -> keep name, extension and attributes.
+    (rb"(?m)^(\r?[A-Z0-9 ]{8}\.[A-Z0-9 ]{3} [S-][R-][W-][X-]) [0-9A-F]{4} [0-9A-F]{2} [0-9A-F]{2} [0-9A-F]{2}(?=\n|\Z)",
+     rb"\1 SIZE TT SS LL"),
+    # `NN catalog entries free; HHHH sectors free...` -> only the 4 hex digits.
+    (rb"(catalog entries free; )[0-9A-F]{4}( sectors free)", rb"\1XXXX\2"),
+    # a line of nothing but progress dots
+    (rb"(?m)^(\r?)\.+(?=\n|\Z)", rb"\1<dots>"),
+]
+
+
+def planned_entries(manifest=MANIFEST):
+    """All entries of the disc planned from the manifest (ftool_mkdisc.plan_disc), in order."""
+    return ftool_mkdisc.plan_disc(manifest)
+
+
+def planned_entry(name, manifest=MANIFEST):
+    """The planned entry called 'NAME.EXT' (case-insensitive); KeyError if it is not planned."""
+    base, _, ext = name.upper().partition(".")
+    for entry in planned_entries(manifest):
+        if entry.name == base and entry.ext == ext:
+            return entry
+    raise KeyError("no planned entry %r in %s" % (name, manifest))
+
+
+def ls_line(entry):
+    """The line `ls` prints for a planned entry (without the leading CR and trailing LF)."""
+    attributes = "".join(letter if entry.attribs & ftool_mkdisc.ATTRIBUTES[letter] else "-"
+                         for letter in "SRWX")
+    return "%-8s.%-3s %s %04X %02X %02X %02X" % (
+        entry.name, entry.ext, attributes, entry.length * SECTOR_SIZE,
+        entry.track, entry.sector, entry.length)
 
 
 def assert_markers(actual, markers):

@@ -6,7 +6,7 @@ bcOS 1.2
 A>foo
 error: E0 file not found
 A>cat -c nofile.txt
-.......
+<dots>
 printing A:NOFILE  TXT with options 10...
 error: E0 file not found
 

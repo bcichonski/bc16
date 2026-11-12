@@ -155,6 +155,7 @@ printer output with a golden file. They are the `test_e2e_*.py` modules in `src/
 | `test_e2e_bdos.py` | bdos shell (`ls`, `cat`, `hellowrd`, `rm`, error messages, `cp`) on a temp copy of the built `os.bdd` |
 | `test_e2e_toolchain.py` | a B program compiled, assembled, put on a disc and run |
 | `test_e2e_harness.py` | self-tests of the harness |
+| `test_e2e_layout_shift.py` | the bdos scenarios and the smoke session on a disc with a grown `HELLOWRD.PRG`; proves layout changes need no golden edit |
 
 The harness is `src/tests/e2e_harness.py`. For each scenario it:
 
@@ -180,7 +181,14 @@ Long scenarios are marked `@h.slow` and are skipped unless `BC64_E2E_SLOW=1` is 
 
 ### Regenerating goldens
 
-After an intended change in output, regenerate the goldens of one module from `src/`:
+After an intended change in output, regenerate all e2e goldens and the smoke transcript from the repo root:
+
+```bash
+python3 run_tests.py --update-golden < /dev/null
+```
+
+It builds first (add `--no-build` to skip the build) and runs the e2e suite with `BC64_UPDATE_GOLDEN=1`,
+so the variable is set for the e2e suite only. To regenerate one module, run it from `src/` with the variable set:
 
 ```bash
 BC64_UPDATE_GOLDEN=1 python3 -m unittest tests.test_e2e_bdos
@@ -188,7 +196,36 @@ BC64_UPDATE_GOLDEN=1 python3 -m unittest tests.test_e2e_bdos
 
 With `BC64_UPDATE_GOLDEN=1` the test writes the golden and passes, so read the result before
 committing: `git diff` for a changed golden, or the file itself for a new one. A run with no change
-writes the same bytes.
+writes the same bytes. Then run `python3 run_tests.py` again; it should be green.
+
+### Masks and derived positions
+
+A system disc's file positions (track, sector, length) change when a program changes size, so the e2e
+tests do not pin them:
+
+- `test_e2e_disc` is the only test that checks the exact track, sector and length of system-disc files,
+  against `plan_disc(src/disc.bddmanifest)`.
+- Every other check that needs a position or an `ls` line gets it from `plan_disc()` through the harness
+  (`planned_entry`, `ls_line` in `src/tests/e2e_harness.py`). `test_e2e_bdos` (`CATALOG_LINES`),
+  `test_e2e_theodore` and the harness self-tests work this way.
+- `DISC_MASKS` (in `e2e_harness.py`) is applied to both sides of each comparison for bdos sessions that load
+  system-disc programs: `test_e2e_bdos`, `test_e2e_disc` (`disc_ls_all`, `disc_help`), `test_e2e_texted`
+  (`texted_roundtrip`) and the smoke transcript in `test_bc64_smoke`. It masks:
+  - the `SIZE TT SS LL` columns of an `ls` entry line, which become the placeholder `SIZE TT SS LL`;
+  - the hex sector count in `; HHHH sectors free...`, which becomes `XXXX` (the entry count stays);
+  - a progress line made only of dots, which becomes `<dots>`.
+
+Names, attributes, the order of the lines and the presence of every line are never masked, so a missing
+or renamed file still fails. Goldens and `smoke_transcript.txt` are stored masked, so they never contain a
+position. Marker assertions run on the raw output, so they still check real positions. The bcos, toolchain
+and bdio-buffered goldens are not masked: their output does not come from a system disc.
+
+`test_e2e_layout_shift.py` checks the claim. It builds a disc whose `HELLOWRD.PRG` is grown by 8 sectors,
+which moves every later program and changes the dots of `HELLOWRD`. It then asserts that the plan really
+moved, runs the `ls`, `disc_ls_all`, `hellowrd` and smoke scenarios on that disc, and compares them with the
+committed goldens and transcript under `DISC_MASKS`. It also checks that the `ls` lines from the shifted plan
+appear in the output. The test only compares: it never writes a golden, even with `BC64_UPDATE_GOLDEN=1`.
+So a program that changes size needs no test or golden edit.
 
 ### Discs
 

@@ -4,7 +4,7 @@
 Suites: emulator, ftool, assembler, compiler, release (group "unit") and e2e (group "e2e").
 
 Usage (from any directory):
-    python3 run_tests.py [--group unit|e2e|all] [--no-build]
+    python3 run_tests.py [--group unit|e2e|all] [--no-build] [--update-golden]
 
 Each suite runs as a subprocess with the interpreter that started this script and
 with its own working directory, because the suites use flat imports.
@@ -16,6 +16,9 @@ Before the e2e suite (--group e2e or all) the runner builds the ROM and the disc
 e2e suite then needs the ROM, src/os.bdd and the sources named in src/disc.bddmanifest to exist, and
 when one is missing it is reported as FAIL with the missing path and the build command, and is not run.
 If the build fails, e2e is reported FAIL (not run) and the other suites still run.
+--update-golden sets BC64_UPDATE_GOLDEN=1 in the environment of the e2e suite only (never the unit
+suites, and never this process's own environment), so the e2e tests rewrite their goldens instead of
+comparing against them. It still builds first unless --no-build is given.
 Exit code is 0 only if every selected suite passes. Standard library only.
 """
 
@@ -183,14 +186,15 @@ def parse_counts(output, returncode):
     return counts
 
 
-def run_suite(name, rel_cwd, args):
-    """Run one suite. Returns (passed, summary, captured_output, returncode)."""
+def run_suite(name, rel_cwd, args, env=None):
+    """Run one suite; env, when given, is the child's full environment. Returns (passed, summary, captured_output, returncode)."""
     cwd = os.path.join(ROOT, rel_cwd)
     command = [sys.executable, "-m", "unittest"] + list(args)
     try:
         completed = subprocess.run(
             command,
             cwd=cwd,
+            env=env,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             encoding="utf-8",
@@ -235,6 +239,9 @@ def main(argv=None, suites=None, runner=run_suite, environ=None, manifest=MANIFE
                         help="unit = emulator/ftool/assembler/compiler/release, e2e = end-to-end, all = both")
     parser.add_argument("--no-build", action="store_true",
                         help="don't build the ROM and discs before the e2e suite (they must already exist)")
+    parser.add_argument("--update-golden", action="store_true",
+                        help="rewrite the e2e goldens: sets BC64_UPDATE_GOLDEN=1 for the e2e suite only "
+                             "(still builds first unless --no-build)")
     options = parser.parse_args(argv)
     environ = os.environ if environ is None else environ
 
@@ -275,7 +282,12 @@ def main(argv=None, suites=None, runner=run_suite, environ=None, manifest=MANIFE
             passed, output, returncode = False, "", -1
             summary = "not run, %s is missing; build it first with: %s" % (missing, PIPELINE)
         else:
-            passed, summary, output, returncode = runner(name, rel_cwd, args)
+            if options.update_golden and name == "e2e":
+                golden_env = dict(os.environ)
+                golden_env["BC64_UPDATE_GOLDEN"] = "1"
+                passed, summary, output, returncode = runner(name, rel_cwd, args, env=golden_env)
+            else:
+                passed, summary, output, returncode = runner(name, rel_cwd, args)
         all_passed = all_passed and passed
         results.append((name, passed, parse_counts(output, returncode), returncode))
         label = "PASS" if passed else "FAIL"

@@ -3,7 +3,8 @@
 Two tests, both on the freshly built src/os.bdd (build first: ./buildos && ./buildtools &&
 ./buildapps && ./makedisc):
 - the transcript test boots os.bdd and compares the printer output byte for byte with
-  bc64/testdata/smoke_transcript.txt;
+  bc64/testdata/smoke_transcript.txt, after the layout masks of e2e_harness.DISC_MASKS (disc positions
+  are not pinned); BC64_UPDATE_GOLDEN=1 (or `python3 run_tests.py --update-golden`) rewrites it;
 - the live test checks only output that a rebuilt disc keeps (banner, listing header, HELLOWRD, exit).
 Both run on a temporary copy of the disc, so the built image is never written.
 """
@@ -14,6 +15,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+
+import e2e_harness as h
 
 SRC = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BC64_PY = os.path.join(SRC, "bc64.py")
@@ -26,13 +29,10 @@ LIVE_SESSION = os.path.join(TESTDATA, "smoke_live_session.txt")
 MAX_INSTRUCTIONS = "200000000"
 
 REGENERATE = (
-    "If the change is intended (bcOS or emulator), regenerate the transcript in a scratch directory:\n"
-    "  cp {disk} os.bdd && python3 {bc64} {rom} --disk-a os.bdd --input {session} "
-    "--output {transcript} --max-instructions {limit} < /dev/null\n"
-    "then inspect the result by eye and commit it. {disk} is the freshly built disc "
-    "(rebuild it first if bcOS or the apps changed)."
-).format(disk=OS_DISK, bc64=BC64_PY, rom=ROM, session=SESSION, transcript=TRANSCRIPT,
-         limit=MAX_INSTRUCTIONS)
+    "If the change is intended (bcOS or emulator), regenerate the transcript with\n"
+    "  python3 run_tests.py --update-golden   (rebuilds the disc first; or set BC64_UPDATE_GOLDEN=1)\n"
+    "then inspect the git diff by eye and commit it."
+)
 
 TRANSCRIPT_MARKERS = [b"bDOS 1.1 shell", b"A>ls", b"HELLOWRD.PRG", b"TEST    .B", b"sectors free",
                       b"A>cat -c test.b", b"first line", b"A>hellowrd", b"Hello world!", b"A>exit",
@@ -65,10 +65,16 @@ class SmokeSessionTests(unittest.TestCase):
         return actual
 
     def test_built_disc_session_matches_transcript(self):
-        expected = read_bytes(TRANSCRIPT)
         actual = self.run_session(OS_DISK, SESSION)
         for marker in TRANSCRIPT_MARKERS:
             self.assertIn(marker, actual)
+        actual = h.apply_masks(actual, h.DISC_MASKS)
+        if os.environ.get(h.UPDATE_ENV) == "1":
+            with open(TRANSCRIPT, "wb") as handle:
+                handle.write(actual)
+            sys.stderr.write("[smoke] transcript written: %s (review the git diff)\n" % TRANSCRIPT)
+            return
+        expected = h.apply_masks(read_bytes(TRANSCRIPT), h.DISC_MASKS)
         if actual != expected:
             diff = "\n".join(difflib.unified_diff(
                 expected.decode("latin-1").splitlines(), actual.decode("latin-1").splitlines(),

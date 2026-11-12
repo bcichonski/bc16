@@ -4,7 +4,7 @@ bcOS 1.2
 9FF5 bytes free
 reading disc...
 A>texted
-..............
+<dots>
 TextEd v1.2
 type h for help
 texted>l note.txt
