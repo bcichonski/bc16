@@ -59,4 +59,8 @@ echo building os disc from disc.bddmanifest
 ./ftool mkdisc disc.bddmanifest os.bdd
 check_exit_code $?
 
+echo building utils disc from utils.bddmanifest
+./ftool mkdisc utils.bddmanifest utils.bdd
+check_exit_code $?
+
 echo done!

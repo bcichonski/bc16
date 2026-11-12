@@ -38,7 +38,7 @@ MANIFEST = os.path.join(ROOT, "src", "disc.bddmanifest")
 BUILD_COMMAND = "./buildos && ./buildtools && ./buildapps && ./makedisc"
 PIPELINE = "cd src && " + BUILD_COMMAND
 # Built outputs the e2e suite needs besides the manifest sources, relative to src/.
-BUILT_OUTPUTS = ("bc81asmc/bcOS/bcos_v1_2_0.b81", "os.bdd")
+BUILT_OUTPUTS = ("bc81asmc/bcOS/bcos_v1_2_0.b81", "os.bdd", "utils.bdd")
 
 
 def missing_disc_source(manifest_path=MANIFEST):
@@ -65,12 +65,18 @@ def missing_disc_source(manifest_path=MANIFEST):
 def missing_build_output(manifest_path=MANIFEST):
     """Return the first built file the e2e suite needs that doesn't exist, or None.
 
-    Checks the manifest sources first, then the boot ROM and os.bdd (paths relative to src/,
+    Checks the manifest sources first, then those of utils.bddmanifest next to it (if any),
+    then the boot ROM, os.bdd and utils.bdd (paths relative to src/,
     which is the manifest's folder).
     """
     missing = missing_disc_source(manifest_path)
     if missing:
         return missing
+    utils_manifest = os.path.join(os.path.dirname(manifest_path), "utils.bddmanifest")
+    if os.path.exists(utils_manifest):
+        missing = missing_disc_source(utils_manifest)
+        if missing:
+            return missing
     base = os.path.dirname(manifest_path)
     for name in BUILT_OUTPUTS:
         if not os.path.exists(os.path.join(base, name)):
