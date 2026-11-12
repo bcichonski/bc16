@@ -91,7 +91,7 @@ loader and the shell work from either disc. It has four entries:
 | `TEXTED.PRG` | `bdos/texted.sectors` | RX | 12/0 | 112 |
 
 The positions and lengths are those at the time of writing; `ls -a` shows the actual values. `TEXTED.PRG` has no
-`S` attribute and no `at=`, so it starts right after the BDOS slot.
+`S` attribute, and the manifest pins it with `at=12/0`, the first sector after the BDOS slot.
 
 A disc made from `utils.bddmanifest` can also boot alone in drive A. It then shows the bdos shell with `A>` and
 its built-in commands (`help`, `a:`, `b:`, `bcos`, `exit`), but none of the system utilities: `ls` gives
