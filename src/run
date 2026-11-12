@@ -1,2 +1,24 @@
 #!/bin/bash
-winpty python ./bc32.py ./bc81asmc/bcOS/bcos_v1_1_1.b81 $1
+# Launch the bc64 emulator on the bcOS ROM. Run from src/.
+# Needs the build outputs (ignored by git on a fresh clone): the ROM and os.bdd.
+ROM=./bc81asmc/bcOS/bcos_v1_2_0.b81
+BUILD_CMD="./buildos && ./buildtools && ./buildapps && ./makedisc"
+missing=0
+for f in "$ROM" ./os.bdd; do
+    if [ ! -f "$f" ]; then
+        echo "run: missing $f - build it first: $BUILD_CMD" >&2
+        missing=1
+    fi
+done
+if [ "$missing" -ne 0 ]; then
+    exit 1
+fi
+# Pick the Python interpreter: winpty python on Git Bash (Windows), else python3, else python.
+if command -v winpty >/dev/null 2>&1; then
+    PY="winpty python"
+elif command -v python3 >/dev/null 2>&1; then
+    PY="python3"
+else
+    PY="python"
+fi
+$PY ./bc64.py ./bc81asmc/bcOS/bcos_v1_2_0.b81 $1

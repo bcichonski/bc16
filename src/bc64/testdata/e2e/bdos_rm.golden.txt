@@ -1,0 +1,17 @@
+bcOS 1.2
+booting from FDDlding
+bDOS 1.1 shell
+9FF5 bytes free
+reading disc...
+A>rm test.b
+........
+A>ls
+.......
+listing files of drive A:
+HELLOWRD.PRG -R-X 0700 0F 0A 0E
+TEXTED  .PRG -R-X 3800 24 08 70
+THEODORE.PRG -R-X 1300 2B 0A 26
+EB catalog entries free; 0120 sectors free...
+A>exit
+bye!
+

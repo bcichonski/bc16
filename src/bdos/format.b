@@ -1,17 +1,17 @@
-#code 0x5000
-#heap 0x7000
+#code 0x6000
+#heap 0xf800
 
 #include std.b
 #include bdosh.b
 #include strings.b
 
-#define FILEBUFSECT_ADDR 0x7c00
-#define FILEBUFSECT_LEN 0x02
+#define FILEBUFSECT_ADDR 0xa000
+#define FILEBUFSECT_LEN 0x60
 #define DRIVEPRESENT 0x0100
 #define FORMATMODE_QUICK 0x10
 #define FORMATMODE_HELP 0x20
 
-#define CHECK_BDOS_SIG_OFFSET 0x0079
+#define CHECK_BDOS_SIG_OFFSET 0x007c
 #define CHECK_BDOS_SIG_PATTERN 0xbd05
 
 #define CHECKERROR_BOOTBINREADERROR 0xe0
@@ -90,7 +90,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
     result <- FALSE;
     nowritemask <- BDIO_FILE_ATTRIB_EXEC | BDIO_FILE_ATTRIB_SYSTEM | BDIO_FILE_ATTRIB_READ;
 
-    fHandleIn <- bdio_fbinopenr(Psourcefileext);
+    fHandleIn <- bdio_fbinopenr(Psourcefileext, BDIO_FOPEN_MODE_SECTOR);
     if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
     {
         Pfcatentry <- #(BDIO_VAR_FCAT_PLASTFOUND);
@@ -101,7 +101,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
         result <- bdio_fcreate(Ptargetfileext, fAttribsIn);
         if(!result)
         {
-            fHandleOut <- bdio_fbinopenw(Ptargetfileext);
+            fHandleOut <- bdio_fbinopenw(Ptargetfileext, BDIO_FOPEN_MODE_SECTOR);
 
             if(fHandleOut < BDIO_FOPEN_FNAME_NOTFOUND)
             {
@@ -200,7 +200,7 @@ byte checksourcedrive()
         //2. it must have BDOS.SYS present
         result <- CHECKERROR_NOBDOSSYS;
 
-        fhandle <- bdio_fbinopenr("BDOS    SYS");
+        fhandle <- bdio_fbinopenr("BDOS    SYS", BDIO_FOPEN_MODE_SECTOR);
         if(fhandle < BDIO_FOPEN_FNAME_NOTFOUND)
         {
             result <- CHECK_ALLOK;

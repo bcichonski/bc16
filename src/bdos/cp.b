@@ -1,14 +1,15 @@
-#code 0x5000
-#heap 0x7000
+#code 0x6000
+#heap 0xf000
 
 #include std.b
 #include bdosh.b
 #include strings.b
+#include bdostools.b
 
-#define FILEBUFSECT_ADDR 0x7500
-#define FILEBUFSECT_LEN 0x10
-#define INFILEBDIONAME_ADDR 0x74f0
-#define OUTFILEBDIONAME_ADDR 0x74e0
+#define FILEBUFSECT_ADDR 0xa000
+#define FILEBUFSECT_LEN 0x40
+#define INFILEBDIONAME_ADDR 0xf0f0
+#define OUTFILEBDIONAME_ADDR 0xf0e0
 #define DRIVEPRESENT 0x0100
 
 word getdrive(word Pargs)
@@ -58,7 +59,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
     currentDrive <- bdio_getdrive();
     currentDrive <- changeDriveIfNeeded(currentDrive, sourcedrive, FALSE);
 
-    fHandleIn <- bdio_fbinopenr(Psourcefileext);
+    fHandleIn <- bdio_fbinopenr(Psourcefileext, BDIO_FOPEN_MODE_SECTOR);
     if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
     {
         Pfcatentry <- #(BDIO_VAR_FCAT_PLASTFOUND);
@@ -69,7 +70,7 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
         result <- bdio_fcreate(Ptargetfileext, fAttribsIn);
         if(!result)
         {
-            fHandleOut <- bdio_fbinopenw(Ptargetfileext);
+            fHandleOut <- bdio_fbinopenw(Ptargetfileext, BDIO_FOPEN_MODE_SECTOR);
 
             if(fHandleOut < BDIO_FOPEN_FNAME_NOTFOUND)
             {
@@ -119,20 +120,6 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
     }
 }
 
-byte fnormalize(word Pfilenameext, word Pbdiofilename)
-{
-    byte length;
-
-    mfill(Pbdiofilename, BDIO_FCAT_ENTRY_NAMELEN, 0x20);
-    poke8(Pbdiofilename + BDIO_FCAT_ENTRY_NAMELEN, NULLCHAR);
-
-    length <- strnlen8(Pfilenameext, BDIO_FCAT_ENTRY_NAMELEN + 1);
-    strncpy(Pfilenameext + length - 3, Pbdiofilename + BDIO_FCAT_ENTRY_NAMELEN - 3, 3);
-
-    length <- strnposc(Pfilenameext, '.', BDIO_FCAT_ENTRY_NAMELEN);
-    strncpy(Pfilenameext, Pbdiofilename, length);
-}
-
 byte main()
 {
     word Pargs;
@@ -176,8 +163,8 @@ byte main()
         PtgtFileNameExt <- Pargs;
         targetdrv <- result;
 
-        fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
-        fnormalize(PtgtFileNameExt, OUTFILEBDIONAME_ADDR);
+        bdio_fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
+        bdio_fnormalize(PtgtFileNameExt, OUTFILEBDIONAME_ADDR);
 
         copy(sourcedrv, INFILEBDIONAME_ADDR, targetdrv, OUTFILEBDIONAME_ADDR);
     }

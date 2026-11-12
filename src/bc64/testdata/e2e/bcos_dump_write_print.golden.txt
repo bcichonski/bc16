@@ -1,0 +1,13 @@
+bcOS 1.2
+free F294 from 0D6A to FFFE
+type h for help
+> d 0000 0010
+0000 18 0B 14 6E 58 14 60 08 A8 0B 42 B0 03 C1 03 CE 
+> w 2000
+2000 hello
+2007 
+> d 2000 0008
+2000 68 65 6C 6C 6F 0A 0D 00 
+> p 2000 0005
+2000 hello
+> 

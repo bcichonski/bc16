@@ -47,42 +47,16 @@ echo converting cat to sectors...
 ./ftool btap2bin bdos/cat.btap bdos/cat.sectors
 check_exit_code $?
 
-
-echo creating empty floppy disk
-./ftool createbdd os.bdd
+echo converting texted to sectors...
+./ftool btap2bin bdos/texted.btap bdos/texted.sectors
 check_exit_code $?
 
-echo burning boot loader to track 0 sector 0
-./ftool importsector bdos/boot.sector os.bdd 0 0
+echo converting theodore to sectors...
+./ftool btap2bin bdos/theodore.btap bdos/theodore.sectors
 check_exit_code $?
 
-echo burning os disc file catalog
-./ftool importsector fcat0800.sector os.bdd 0 1
+echo building os disc from disc.bddmanifest
+./ftool mkdisc disc.bddmanifest os.bdd
 check_exit_code $?
-
-echo burning bdos shell to tracks 2-9
-./ftool importsector bdos/bdos.sector os.bdd 2 0
-check_exit_code $?
-
-echo burning ls
-./ftool importsector bdos/ls.sectors os.bdd 10 0
-
-echo burning cp
-./ftool importsector bdos/cp.sectors os.bdd 18 0
-
-echo burning hello world program
-./ftool importsector bdos/helloworld.sectors os.bdd 14 0
-
-echo burning format program
-./ftool importsector bdos/format.sectors os.bdd 22 0
-
-echo burning rm program
-./ftool importsector bdos/rm.sectors os.bdd 28 0
-
-echo burning cha program
-./ftool importsector bdos/cha.sectors os.bdd 34 0
-
-echo burning cat program
-./ftool importsector bdos/cat.sectors os.bdd 38 0
 
 echo done!

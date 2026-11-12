@@ -1,3 +1,5 @@
+(early design notes - current language reference is docs/03-compiler.md)
+
 b data types:
 
 word - 16bit unsigned number 0x0000 - 0xFFFF
@@ -9,8 +11,8 @@ expressions
 - constant byte 0-255
 - constant byte 'char'
 
-- unary operator & - gets value from address, ! - negate(logical) 
-- binary operators + - / * > < =
+- unary operator # - gets 16bit value from address, ! - negate(logical), ~ - binary not
+- binary operators + - * / % & | << >> && || < <= > >= = !=
 - parenthness ( )
 - variable value
 - function call  fn(params_expressions)
@@ -72,7 +74,7 @@ cal :mul16
 cal :add16
 -- result in csci
 
-&0xABCD
+#0xABCD
 
 .mv csci, 0xABCD
 mov a, #csci

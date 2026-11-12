@@ -1,13 +1,13 @@
-#code 0x5000
-#heap 0x7000
+#code 0x6000
+#heap 0xf000
 
 #include std.b
 #include bdosh.b
 #include strings.b
 
-#define CATBUFSECT_ADDR 0x7880
-#define FCATATTRIBSTRING_ADDR 0x7850
-#define FNAMESTRING_ADDR 0x7860
+#define CATBUFSECT_ADDR 0xf800
+#define FCATATTRIBSTRING_ADDR 0xf750
+#define FNAMESTRING_ADDR 0xf760
 #define FEXT_LEN 0x03
 #define FNAME_LEN 0x08
 #define MODE_SWITCH_SHOWALL 0x01
@@ -144,7 +144,7 @@ byte listCatalog(byte showall, byte targetdrive)
     activedrive <- bdio_getdrive();
     currentdrive <- changeDriveIfNeeded(activedrive, targetdrive, FALSE);
 
-    fHandle <- bdio_fbinopenr("DISC    CAT");
+    fHandle <- bdio_fbinopenr("DISC    CAT", BDIO_FOPEN_MODE_SECTOR);
     res <- TRUE;
     if(fHandle < BDIO_FOPEN_FNAME_NOTFOUND)
     {

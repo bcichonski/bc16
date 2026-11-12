@@ -10,10 +10,6 @@ check_exit_code()
     fi
 }
 
-echo building hello world program...
-./bcc ./bdos/helloworld
-check_exit_code $?
-
 echo building ls...
 ./bcc ./bdos/ls
 check_exit_code $?

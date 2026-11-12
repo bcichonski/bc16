@@ -1,0 +1,12 @@
+bcOS 1.2
+booting from FDDlding
+bDOS 1.1 shell
+9FF5 bytes free
+reading disc...
+A>hellowrd
+.
+Hello world!
+10
+A>exit
+bye!
+

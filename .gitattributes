@@ -1,0 +1,9 @@
+# Extensionless shell scripts must keep LF endings (run on Linux and Git Bash).
+src/buildos text eol=lf
+src/buildtools text eol=lf
+src/buildapps text eol=lf
+src/makedisc text eol=lf
+src/ftool text eol=lf
+src/run text eol=lf
+src/run_tests text eol=lf
+src/bcc text eol=lf

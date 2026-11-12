@@ -1,2 +1,10 @@
 #!/bin/bash
-winpty python ./ftool.py "$@"
+# Pick the Python interpreter: winpty python on Git Bash (Windows), else python3, else python.
+if command -v winpty >/dev/null 2>&1; then
+    PY="winpty python"
+elif command -v python3 >/dev/null 2>&1; then
+    PY="python3"
+else
+    PY="python"
+fi
+$PY ./ftool.py "$@"

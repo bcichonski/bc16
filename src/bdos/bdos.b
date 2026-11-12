@@ -1,12 +1,14 @@
 #code 0x0f00
-#heap 0x4f40
+#heap 0x5fd0
+// Code must end below BDIO_FDESCBUF_ADDR (0x5d00); checked at assembly time
+#codelimit 0x5d00
 
 #include std.b
 #include strings.b
 #include bdio.b
 
-#define BCOSMETA_BDOSCALLADDR 0x007e
-#define FNAMETEMP_ADDR 0x4f40
+#define BCOSMETA_BDOSCALLADDR 0x007a
+#define FNAMETEMP_ADDR 0x5fe0
 #define FNAMETEMP_SIZE 0x0b
 
 byte printdrive(byte drive)
@@ -117,7 +119,7 @@ byte main()
     asm ".mv dsdi, :bdiocalladdr";
     asm "cal :poke16";
 
-    printf("bDOS 1.0 shell%n%w bytes free%nreading disc...", bdio_freemem());
+    printf("%nbDOS 1.1 shell%n%w bytes free%nreading disc...", bdio_freemem());
 
     poke8(BDIO_VAR_ACTIVEDRV, 0xff);
     res <- bdio_setdrive(BDIO_DRIVEA, FALSE);

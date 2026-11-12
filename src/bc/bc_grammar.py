@@ -43,7 +43,7 @@ conststring = lexeme(quotedstr)\
     .desc("Constant string")
 
 unary_operator = lexeme(string('#') | string('!') | string('~'))
-binary_factor = lexeme(string('*') | string('/'))
+binary_factor = lexeme(string('*') | string('/') | string('%'))
 binary_sum = lexeme(string('+') | string('-'))
 binary_binop = lexeme(string('&') | string('|'))
 binary_bincal = lexeme(string('<<') | string('>>'))

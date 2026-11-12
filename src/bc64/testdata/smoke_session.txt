@@ -1,0 +1,4 @@
+ls
+cat -c test.b
+hellowrd
+exit

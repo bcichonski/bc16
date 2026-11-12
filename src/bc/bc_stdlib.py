@@ -1,5 +1,5 @@
 stdlib_template = """
-;>>>>>>>>>>COMPILER ASM STDLIB for BCOS v1.0 on BC16 v1.0<<<<<<<<<<<<<
+;>>>>>>>>>>COMPILER ASM STDLIB for BCOS v1.2 on BC64 v1.0<<<<<<<<<<<<<
             mov a, 0xff
             mov a, 0xff
             mov a, 0xff
@@ -14,13 +14,25 @@ stdlib_template = """
 ; IN:   a - error code
 ;   stack - as error address
 ; OUT:  KILL, messed stack
-            .def fatal, 0x04ea
+fatal:          psh ci
+                mov ci, 0x14
+                psh ci
+                pop f
+                pop ci
+                cal :os_metacall
+                ret
 ;=============
 ; PRINTHEX4(a) - prints hex number from 0 to f
 ; IN:    a - number to print
 ; OUT:   a - unchanged      10 -> 0 -> 41
 ;       cs - set to 1
-            .def printhex4, 0x0349
+printhex4:      psh ci
+                mov ci, 0x03
+                psh ci
+                pop f
+                pop ci
+                cal :os_metacall
+                ret
 ;=============
 ; PRINTHEX8(a) - prints hex number 
 ; IN:    a - number to print
@@ -43,27 +55,7 @@ printhex16:     mov a, 0x05
                 psh a
                 pop f
                 cal :os_metacall
-                ret 
-;=============
-; INC16(dsdi) - increase 16bit number correctly
-; IN:    dsdi - number 16bit, break if exceeds 16bit
-; OUT:   dsdi - add 1
-;           a - di + 1 or ds + 1
-inc16:          mov a, 0x06
-                psh a
-                pop f
-                cal :os_metacall
-                ret 
-;=============
-; DEC16(dsdi) - decrease 16bit number correctly
-; IN:    dsdi - number 16bit, break if lower than 0
-; OUT:   dsdi - sub 1
-;           a - di - 1 or ds - 1
-dec16:          mov a, 0x07
-                psh a
-                pop f
-                cal :os_metacall
-                ret  
+                ret
 ;=============
 ; POKE16(#dsdi, csci) - stores csci value under #dsdi address (2 bytes)
 ; IN:   dsdi - address to store
@@ -71,72 +63,20 @@ dec16:          mov a, 0x07
 ; OUT:  dsdi - address to store + 1
 ;       csci - unchanged
 ;       a    - rubbish
-poke16:         mov a, 0x09
-                psh a
-                pop f
-                cal :os_metacall
-                ret          
+poke16:        mov #dsdi, cs
+               inc dsdi
+               mov #dsdi, ci
+poke16_ok:     ret                    
 ;=============
 ; PEEK16(#dsdi) - returns value under dsdi address (2 bytes)
 ; IN:   dsdi - address to read
 ; OUT:  dsdi - address to read + 1
 ;       csci - value
 ;       a    - rubbish
-peek16:         mov a, 0x0a
-                psh a
-                pop f
-                cal :os_metacall
-                ret
-;=============
-; ADD16(csci,dsdi) - returns value
-;                    return os error 0x12 in case of overflow                
-; IN:   csci - argument 1
-;       dsdi - argument 2
-; OUT:  csci - sum of csci and dsdi
-;       a    - rubbish
-add16:          mov a, 0x0b
-                psh a
-                pop f
-                cal :os_metacall
-                ret
-;=============
-; SUB16(csci,dsdi) - returns value 
-;                    return os error 0x13 in case of overflow                
-; IN:   csci - argument 1
-;       dsdi - argument 2
-; OUT:  csci - substracts dsdi from csci
-;       a    - rubbish
-sub16:          mov a, 0x0c
-                psh a
-                pop f
-                cal :os_metacall
-                ret
-;=============
-; MUL16(csci,dsdi) - returns value 
-;                    return os error 0x12 in case of overflow                
-; IN:   csci - argument 1
-;       dsdi - argument 2
-; OUT:  csci - mutiplies csci by dsdi
-;       dsdi - unchanged
-;       a    - rubbish
-mul16:          mov a, 0x1f
-                psh a
-                pop f
-                cal :os_metacall
-                ret
-;=============
-; DIV16(csci,dsdi) - returns value 
-;                    return os error 0x13 in case of overflow                
-; IN:   csci - argument 1
-;       dsdi - argument 2
-; OUT:  csci - divides csci by dsdi
-;       dsdi - unchanged
-;       a    - rubbish
-div16:          mov a, 0x20
-                psh a
-                pop f
-                cal :os_metacall
-                ret
+peek16:        mov cs, #dsdi
+               inc dsdi
+               mov ci, #dsdi
+peek16_ok:     ret
 ;=============
 ; READSTR(#dsdi, ci) - reads characters to the buffer
 ; IN:   dsdi - buffer address for chars
@@ -302,16 +242,16 @@ stackoffscalc: psh a
                psh cs
                psh ci
                .mv dsdi, :{0}
-               cal :peek16
+               clr :peek16
                pop di
                pop ds
                pop a
                and a
                jmr nz, :stoffclc_sub
-               cal :add16
+               add csci, dsdi
                xor a
                jmr z, :stoffclc_end
-stoffclc_sub:  cal :sub16  
+stoffclc_sub:  sub csci, dsdi  
 stoffclc_end:  .mv dsdi, :{0}
                ret
 ;=============
@@ -325,20 +265,20 @@ stoffclc_end:  .mv dsdi, :{0}
 stackoffsclc8: psh a
                psh a
                .mv dsdi, :{0}
-               cal :peek16
+               clr :peek16
                pop a
                and 0x80
                jmr nz, :stoffcl8_sub
                mov ds, 0x00
                pop di
-               cal :add16
+               add csci, dsdi
                xor a
                jmr z, :stoffcl8_end
 stoffcl8_sub:  pop a
                and 0x7f
                mov di, a
                mov ds, 0x00
-               cal :sub16  
+               sub csci, dsdi 
 stoffcl8_end:  .mv dsdi, :{0}
                ret
 ;=============
@@ -349,8 +289,8 @@ stoffcl8_end:  .mv dsdi, :{0}
 ; OUT:csci - value of SYS_STACKHEAD
 ;     dsdi - address of SYS_STACKHEAD
 ;        a - rubbish
-stackheadroll: cal :stackoffscalc
-               cal :poke16
+stackheadroll: clr :stackoffscalc
+               clr :poke16
                .mv dsdi, :{0}
                ret
 ;=============
@@ -363,8 +303,8 @@ stackheadroll: cal :stackoffscalc
 ;        a - rubbish
 stackheadrll8: psh cs
                psh ci
-               cal :stackoffsclc8
-               cal :poke16
+               clr :stackoffsclc8
+               clr :poke16
                .mv dsdi, :{0}
                pop ci
                pop cs
@@ -380,7 +320,7 @@ stackheadrll8: psh cs
 ;        a - rubbish
 stackvarget8:  mov cs, ds
                mov ci, di
-               cal :stackoffscalc   
+               clr :stackoffscalc   
                mov a, #csci
                mov cs, 0x00
                mov ci, a
@@ -395,10 +335,10 @@ stackvarget8:  mov cs, ds
 ;        a - rubbish
 stackvarget16: mov cs, ds
                mov ci, di
-               cal :stackoffscalc
+               clr :stackoffscalc
                mov ds, cs
                mov di, ci   
-               cal :peek16
+               clr :peek16
                ret
 ;=============
 ; STACKVARSET8(ci,dsdi, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
@@ -412,7 +352,7 @@ stackvarget16: mov cs, ds
 stackvarset8:  psh ci
                mov cs, ds
                mov ci, di
-               cal :stackoffscalc   
+               clr :stackoffscalc   
                pop a
                mov #csci, a
                ret
@@ -429,12 +369,12 @@ stackvarset16: psh cs
                psh ci
                mov cs, ds
                mov ci, di
-               cal :stackoffscalc   
+               clr :stackoffscalc   
                mov ds, cs
                mov di, ci
                pop ci
                pop cs
-               cal :poke16
+               clr :poke16
                ret
 ;=============
 ; STACKVAR8GT8(a) - loads value of the variable of given offset a from SYS_STACKHEAD to csci
@@ -445,7 +385,7 @@ stackvarset16: psh cs
 ;       cs - set to 0
 ;     dsdi - address of SYS_STACKHEAD
 ;        a - same as ci
-stackvar8gt8:  cal :stackoffsclc8   
+stackvar8gt8:  clr :stackoffsclc8   
                mov a, #csci
                mov cs, 0x00
                mov ci, a
@@ -458,10 +398,10 @@ stackvar8gt8:  cal :stackoffsclc8
 ; OUT:csci - value of variable
 ;     dsdi - address of variable + 1
 ;        a - rubbish
-stackvar8gt16: cal :stackoffsclc8
+stackvar8gt16: clr :stackoffsclc8
                mov ds, cs
                mov di, ci   
-               cal :peek16
+               clr :peek16
                ret
 ;=============
 ; STACKVAR8ST8(ci, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
@@ -473,7 +413,7 @@ stackvar8gt16: cal :stackoffsclc8
 ;     dsdi - address of SYS_STACKHEAD
 ;        a - ci
 stackvar8st8:  psh ci
-               cal :stackoffsclc8   
+               clr :stackoffsclc8   
                pop a
                mov #csci, a
                ret
@@ -488,12 +428,12 @@ stackvar8st8:  psh ci
 ;        a - rubbish
 stackvar8st16: psh cs
                psh ci
-               cal :stackoffsclc8   
+               clr :stackoffsclc8   
                mov ds, cs
                mov di, ci
                pop ci
                pop cs
-               cal :poke16
+               clr :poke16
                ret
 ;=============
 ; MSEEK(csci) - finds address of first free block of given size
@@ -501,41 +441,41 @@ stackvar8st16: psh cs
 ; OUT:csci - address after which free memory begins
 ;     dsdi - address of the block after which is enough free memory
 mseek:      .mv dsdi, :sys_seektmp
-            cal :poke16
+            clr :poke16
             .mv dsdi, :{1}
-            cal :peek16
+            clr :peek16
             mov ds, cs
             mov di, ci
 mseek_loop: psh ds
             psh di
-            cal :peek16
+            clr :peek16
             psh cs
             psh ci
-            cal :inc16
-            cal :peek16
+            inc dsdi
+            clr :peek16
             pop f
             pop a
             psh cs
             psh ci
             psh a
             psh f
-            cal :inc16           
+            inc dsdi
             mov a, ci
             or cs
             jmr z, :mseek_end
-            cal :sub16
+            sub csci, dsdi
             pop di
             pop ds
-            cal :sub16
+            sub csci, dsdi
             psh cs
             psh ci
             .mv dsdi, :sys_seektmp
-            cal :peek16
+            clr :peek16
             mov ds, cs
             mov di, ci
             pop ci
             pop cs
-            cal :gteq16
+            clr :gteq16
             jmr nz, :mseek_ret
             pop di
             pop ds
@@ -562,29 +502,15 @@ mseek_ret:  pop di
 ; IN: csci - length
 ;     dsdi - address of memory
 ;        a - value to fill
-mfill:      psh a
-mfill_loop: mov a, cs
-            or ci
-            jmr z, :mfill_ret
-            pop a
-            psh a
-            mov #dsdi, a
-            cal :inc16
-            psh ds
-            psh di
-            mov ds, cs
-            mov di, ci
-            cal :dec16
-            mov cs, ds
-            mov ci, di
-            pop di
-            pop ds
-            xor a
-            jmr z, :mfill_loop
-mfill_ret:  pop a
-            ret
 ; OUT:csci - address after which free memory begins
 ;     dsdi - address of the block after which is enough free memory
+mfill:      psh a
+            mov a, 0x31
+            psh a
+            pop f
+            pop a
+            cal :os_metacall
+            ret
 ;=============
 ; MEM_CPY(csci,dsdi, af)  - copy block of memory from csci to dsdi for at most af bytes
 ; IN: dsdi - source  
@@ -592,43 +518,22 @@ mfill_ret:  pop a
 ;       af - length
 ; OUT: dsdi = destroyed
 ;      csci = desc + length + 1
-mem_cpy:    psh f
+mem_cpy:    psh cs
+            psh ci
             psh a
-mem_cpy_lop:pop a
-            pop f
             psh f
+            pop ci
+            pop cs
+            mov a, 0x08
             psh a
-            or f
-            jmr z, :mem_cpy_end
-            mov a, #dsdi
-            psh a
-            cal :inc16
-            pop a
-            psh ds
-            psh di
-            mov ds, cs
-            mov di, ci
-            mov #dsdi, a
-            cal :inc16
-            mov cs, ds
-            mov ci, di
             pop f
-            pop a
-            pop ds
-            pop di
-            psh f
+            cal :os_metacall
+            mov a, 0x32
             psh a
-            cal :dec16
-            mov a, ds
-            mov f, di
-            pop ds
-            pop di
-            psh f
-            psh a
-            xor a
-            jmr z, :mem_cpy_lop
-mem_cpy_end:pop a
             pop f
+            pop ci
+            pop cs
+            cal :os_metacall
             ret
 ;=============
 ; strncpy(csci,dsdi, a)  - copy string from dsdi to csci for at most a bytes, or end of string
@@ -637,30 +542,13 @@ mem_cpy_end:pop a
 ;        a - length
 ; OUT: dsdi = desc + length + 1
 ;      csci = source + length
-strncpy:    and a
-            jmr z, :strncpy_ret
-strncpy_lop:psh a
-            mov a, #dsdi
-            jmr z, :strncpy_end
+strncpy:    psh a
+            mov a, 0x33
             psh a
-            cal :inc16
+            pop f
             pop a
-            psh ds
-            psh di
-            mov #csci, a
-            mov ds, cs
-            mov di, ci
-            cal :inc16
-            mov cs, ds
-            mov ci, di
-            pop di
-            pop ds
-            pop a
-            dec a
-            jmr nz, :strncpy_lop
-            jmr z, :strncpy_ret
-strncpy_end:pop a
-strncpy_ret:ret
+            cal :os_metacall
+            ret
 ;=============
 ;SYS DATA
             .def var_promptbuf, 0x0bcf

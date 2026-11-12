@@ -1,8 +1,17 @@
 #!/bin/bash
-winpty python ./bc/bc.py --verbose --btap $1.b
+# Pick the Python interpreter: winpty python on Git Bash (Windows), else python3, else python.
+if command -v winpty >/dev/null 2>&1; then
+    PY="winpty python"
+elif command -v python3 >/dev/null 2>&1; then
+    PY="python3"
+else
+    PY="python"
+fi
+
+$PY ./bc/bc.py --btap $1.b
 retVal=$?
 if [ $retVal -ne 0 ]; then
     echo "Error"
     exit $retVal
 fi
-winpty python ./bc81asmc/bc81asmc.py --verbose --btap $1.basm
+$PY ./bc81asmc/bc81asmc.py --verbose --btap $1.basm

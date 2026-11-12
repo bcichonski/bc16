@@ -1,20 +1,22 @@
-#code 0x5000
-#heap 0x7000
+#code 0x6000
+#heap 0xa000
 
 #include std.b
 #include bdosh.b
 #include strings.b
+#include bdostools.b
 
 #define MODE_CHAR 0x10
 #define MODE_BIN 0x20
 #define MODE_HELP 0x40
 #define DRIVEPRESENT 0x0100
-#define INFILEBDIONAME_ADDR 0x7cf0
-#define INFILEBUF_ADDR 0x7d00
+#define INFILEBDIONAME_ADDR 0xa020
+#define INFILEBUF_ADDR 0xa100
 #define BINPERLINE 0x20
-#define CHARPERLINE 0x40
+#define CHARPERLINE 0x50
 #define CHAR_PRINTABLE_MIN 0x20
 #define CHAR_PRINTABLE_MAX 0x7e
+#define CHAR_LF 0x13
 
 word getdriveletter(byte drive)
 {
@@ -67,14 +69,11 @@ byte changeDriveIfNeeded(byte currentDrive, byte targetDrive, byte silent)
     return currentDrive;
 }
 
-word printchars(word Pstart, word len)
+word printchars(word Pstart, word len, word linelen)
 {
     byte char;
     word curr;
     curr <- len;
-    byte linelen;
-
-    linelen <- 0;
 
     while(curr)
     {
@@ -82,31 +81,39 @@ word printchars(word Pstart, word len)
 
         if((char >= CHAR_PRINTABLE_MIN) && (char <= CHAR_PRINTABLE_MAX))
         {
-            linelen <- linelen + 1;
-            if(linelen > CHARPERLINE)
+            if((linelen + 1) > CHARPERLINE)
             {
-                putnl();
+                putsnl(" !catln1");
                 linelen <- 0;
             }
 
+            linelen <- linelen + 1;
             putc(char);
         }
         else
         {
-            linelen <- linelen + 3;
-            if(linelen > CHARPERLINE)
+            if(char = CHAR_LF)
             {
-                putnl();
+                putsnl(" !ln");
                 linelen <- 0;
             }
-            printf("#%x", char);
+            else 
+            {
+                if((linelen + 3) > CHARPERLINE)
+                {
+                    putsnl(" !catln2");
+                    linelen <- 0;
+                }
+                linelen <- linelen + 3;
+                printf("#%x", char);
+            }
         }
 
         Pstart <- Pstart + 1;
         curr <- curr - 1;
     }
 
-    return len;
+    return linelen;
 }
 
 word printbins(word Pstart, word len, word Preladdr)
@@ -130,26 +137,28 @@ word printbins(word Pstart, word len, word Preladdr)
     return len;
 }
 
-byte printbuf(word Pmembuf, word Preladdr, byte options)
+word printbuf(word Pmembuf, word Preladdr, byte options, word linelen)
 {
     word Plast;
     word Pnext;
     Plast <- Pmembuf + BDIO_SECTBUF_LEN;
 
-    while(Pmembuf < Plast)
+    if(options & MODE_CHAR)
     {
-        if(options & MODE_CHAR)
-        {
-            Pnext <- printchars(Pmembuf, CHARPERLINE);
-        }
-        else
+        linelen <- printchars(Pmembuf, BDIO_SECTBUF_LEN, linelen);
+    }
+    else
+    {
+        while(Pmembuf < Plast)
         {
             Pnext <- printbins(Pmembuf, BINPERLINE, Preladdr);
-        }
 
-        Pmembuf <- Pmembuf + Pnext;
-        Preladdr <- Preladdr + Pnext;
+            Pmembuf <- Pmembuf + Pnext;
+            Preladdr <- Preladdr + Pnext;
+        }
     }
+
+    return linelen;
 }
 
 byte printfile(byte sourcedrive, word Psourcefileext, byte options)
@@ -159,24 +168,30 @@ byte printfile(byte sourcedrive, word Psourcefileext, byte options)
     byte fHandleIn;
     byte sectorsread;
     word reladdr;
+    word linelen;
 
-    //printf("printing %s:%s with options %x...%n", getdriveletter(sourcedrive), Psourcefileext, options);
+    printf("printing %s:%s with options %x...%n", getdriveletter(sourcedrive), Psourcefileext, options);
 
     activeDrive <- bdio_getdrive();
     currentDrive <- changeDriveIfNeeded(activeDrive, sourcedrive, FALSE);
 
-    fHandleIn <- bdio_fbinopenr(Psourcefileext);
+    fHandleIn <- bdio_fbinopenr(Psourcefileext, BDIO_FOPEN_MODE_SECTOR);
     if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
     {
         reladdr <- 0;
+        linelen <- 0;
         sectorsread <- bdio_fbinread(fHandleIn, INFILEBUF_ADDR, 0x01);
 
         while(sectorsread)
         {
-            printbuf(INFILEBUF_ADDR, reladdr, options);
+            linelen <- printbuf(INFILEBUF_ADDR, reladdr, options, linelen);
             reladdr <- reladdr + BDIO_SECTBUF_LEN;
 
             sectorsread <- bdio_fbinread(fHandleIn, INFILEBUF_ADDR, 0x01);
+            if((options & MODE_CHAR) = 0)
+            {
+                putnl();
+            }
         }
 
         bdio_fclose(fHandleIn);
@@ -188,20 +203,6 @@ byte printfile(byte sourcedrive, word Psourcefileext, byte options)
 
     poke8(BDIO_VAR_ACTIVEDRV, 0xff);//force cat refresh
     bdio_setdrive(activeDrive, FALSE);
-}
-
-byte fnormalize(word Pfilenameext, word Pbdiofilename)
-{
-    byte length;
-
-    mfill(Pbdiofilename, BDIO_FCAT_ENTRY_NAMELEN, 0x20);
-    poke8(Pbdiofilename + BDIO_FCAT_ENTRY_NAMELEN, NULLCHAR);
-
-    length <- strnlen8(Pfilenameext, BDIO_FCAT_ENTRY_NAMELEN + 1);
-    strncpy(Pfilenameext + length - 3, Pbdiofilename + BDIO_FCAT_ENTRY_NAMELEN - 3, 3);
-
-    length <- strnposc(Pfilenameext, '.', BDIO_FCAT_ENTRY_NAMELEN);
-    strncpy(Pfilenameext, Pbdiofilename, length);
 }
 
 byte getoptions(word Poptions)
@@ -272,8 +273,10 @@ byte main()
         PsrcFileNameExt <- Pargs;
         sourcedrv <- result;
 
-        fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
+        bdio_fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
 
         printfile(sourcedrv, INFILEBDIONAME_ADDR, options);
     }
+
+    putnl();
 }

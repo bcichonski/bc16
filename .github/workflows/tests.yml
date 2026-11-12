@@ -1,0 +1,134 @@
+name: tests
+
+on:
+  push:
+    branches: [bc64]
+  pull_request:
+    branches: [bc64]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.14"]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # the release suite reads the legacy release commits from history
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e .
+
+      - name: Console commands run from outside the checkout
+        shell: bash
+        working-directory: ${{ runner.temp }}
+        run: |
+          set -euo pipefail
+          bc64 --help < /dev/null
+          bc81asmc --help < /dev/null
+          bcc --help < /dev/null
+          ftool createbdd ci-check.bdd < /dev/null
+          test -s ci-check.bdd
+
+      - name: Unit tests
+        run: python run_tests.py --group unit < /dev/null
+
+      - name: Guard (tracked files, generated files, no cpudebug.log)
+        if: always()
+        shell: bash
+        run: |
+          status=0
+          if [ -n "$(git ls-files -i -c --exclude-standard)" ]; then
+            echo "::error::tracked files match .gitignore (git rm --cached them)"
+            git ls-files -i -c --exclude-standard
+            status=1
+          fi
+          # a tracked X.basm beside a tracked X.b is compiler output and must not be committed
+          while IFS= read -r basm; do
+            if git ls-files --error-unmatch -- "${basm%.basm}.b" > /dev/null 2>&1; then
+              echo "::error::${basm} is generated from ${basm%.basm}.b and must not be tracked"
+              status=1
+            fi
+          done < <(git ls-files '*.basm')
+          if [ -n "$(find . -name cpudebug.log -print)" ]; then
+            echo "::error::cpudebug.log found in the checkout"
+            find . -name cpudebug.log -print
+            status=1
+          fi
+          exit "$status"
+
+  e2e:
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install dependencies
+        run: pip install -e .
+
+      - name: E2E tests
+        run: python run_tests.py --group e2e < /dev/null
+
+      - name: Guard (the build and tests leave the checkout clean)
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::the build or the tests left tracked/untracked changes, so an output is not ignored"
+            git status --porcelain
+            exit 1
+          fi
+
+      - name: Regenerate goldens and collect patch
+        if: failure()
+        shell: bash
+        run: |
+          (cd src && BC64_UPDATE_GOLDEN=1 python -m unittest tests.test_e2e_bcos tests.test_e2e_bdos tests.test_e2e_toolchain tests.test_e2e_bdio_buffered < /dev/null) || true
+          git diff --binary src/bc64/testdata/ > "$RUNNER_TEMP/testdata.patch" || true
+          ls -l "$RUNNER_TEMP/testdata.patch"
+
+      - name: Upload golden patch and testdata
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-golden-diff
+          path: |
+            ${{ runner.temp }}/testdata.patch
+            src/bc64/testdata/
+          if-no-files-found: warn
+
+      - name: Guard (no cpudebug.log)
+        if: always()
+        shell: bash
+        run: |
+          status=0
+          if [ -n "$(find . -name cpudebug.log -print)" ]; then
+            echo "::error::cpudebug.log found in the checkout"
+            find . -name cpudebug.log -print
+            status=1
+          fi
+          exit "$status"

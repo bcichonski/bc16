@@ -99,9 +99,21 @@ ENV/
 
 # mypy
 .mypy_cache/
-*.b81
-*.dmp
-*.genb
-src/bc/code/*.basm
-src/bc16apps/*.basm
 *.bin
+# --- bc toolchain build outputs (recreate with buildos/buildtools/buildapps/makedisc) ---
+*.genb
+*.dmp
+# compiler output: .basm written next to the .b source
+src/bdos/*.basm
+# hand-written boot loader source
+!src/bdos/boot.basm
+src/bc/code/*.basm
+# assembler and ftool intermediates
+*.btap
+*.sector
+*.sectors
+# sample data for TEST.B, not a build output
+!src/bdos/testb.sectors
+# ROMs and discs are build outputs (run_tests.py builds them)
+*.b81
+*.bdd

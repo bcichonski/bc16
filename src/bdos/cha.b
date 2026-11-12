@@ -1,15 +1,16 @@
-#code 0x5000
-#heap 0x7000
+#code 0x6000
+#heap 0xa000
 
 #include std.b
 #include bdosh.b
 #include strings.b
+#include bdostools.b
 
 #define MODE_SET 0x10
 #define MODE_UNSET 0x20
 #define MODE_HELP 0x40
 #define DRIVEPRESENT 0x0100
-#define INFILEBDIONAME_ADDR 0x77f0
+#define INFILEBDIONAME_ADDR 0xa7f0
 
 word getdriveletter(byte drive)
 {
@@ -77,7 +78,7 @@ byte changeattributes(byte sourcedrive, word Psourcefileext, byte options)
     activeDrive <- bdio_getdrive();
     currentDrive <- changeDriveIfNeeded(activeDrive, sourcedrive, FALSE);
 
-    fHandleIn <- bdio_fbinopenr(Psourcefileext);
+    fHandleIn <- bdio_fbinopenr(Psourcefileext, BDIO_FOPEN_MODE_SECTOR);
     attrmask <- BDIO_FILE_ATTRIB_EXEC | BDIO_FILE_ATTRIB_READ | BDIO_FILE_ATTRIB_SYSTEM | BDIO_FBINWRITE;
 
     if(fHandleIn < BDIO_FOPEN_FNAME_NOTFOUND)
@@ -105,20 +106,6 @@ byte changeattributes(byte sourcedrive, word Psourcefileext, byte options)
 
     poke8(BDIO_VAR_ACTIVEDRV, 0xff);//force cat refresh
     bdio_setdrive(activeDrive, FALSE);
-}
-
-byte fnormalize(word Pfilenameext, word Pbdiofilename)
-{
-    byte length;
-
-    mfill(Pbdiofilename, BDIO_FCAT_ENTRY_NAMELEN, 0x20);
-    poke8(Pbdiofilename + BDIO_FCAT_ENTRY_NAMELEN, NULLCHAR);
-
-    length <- strnlen8(Pfilenameext, BDIO_FCAT_ENTRY_NAMELEN + 1);
-    strncpy(Pfilenameext + length - 3, Pbdiofilename + BDIO_FCAT_ENTRY_NAMELEN - 3, 3);
-
-    length <- strnposc(Pfilenameext, '.', BDIO_FCAT_ENTRY_NAMELEN);
-    strncpy(Pfilenameext, Pbdiofilename, length);
 }
 
 byte getoptions(word Poptions)
@@ -224,7 +211,7 @@ byte main()
         PsrcFileNameExt <- Pargs;
         sourcedrv <- result;
 
-        fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
+        bdio_fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
 
         changeattributes(sourcedrv, INFILEBDIONAME_ADDR, options);
     }

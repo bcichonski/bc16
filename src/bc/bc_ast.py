@@ -1,7 +1,10 @@
+import bc_log
 from bc_stdlib import stdlib_template
 from array import array
 from dataclasses import dataclass
-from msilib.schema import Error
+
+class CompilerError(Exception):
+    pass
 
 STACKHEAD = "sys_stackhead"
 HEAPHEAD = "sys_heaphead"
@@ -101,12 +104,13 @@ class Scope:
         return sum
 
 class Context:
-    def __init__(self, codeaddr = 0x0000, heapaddr = 0x3000, hardkill = True):
+    def __init__(self, codeaddr = 0x0000, heapaddr = 0x3000, hardkill = True, codelimit = None):
         self.data = ''
         self.basm = ''
         self.errors = []
         self.code_segment_addr = codeaddr
         self.heap_segment_addr = heapaddr
+        self.code_limit_addr = codelimit
         self.scope = Scope(self)
         self.nextident = 0
         self.function_dict = { }
@@ -137,7 +141,7 @@ class Context:
                 mov di, 0x{1:02x}""".format(hi(i16), lo(i16))
 
     def add_error(self, message):
-        print('ERROR: {0}'.format(message))
+        bc_log.error(message)
         self.errors.append(message)
 
     def add_variable(self, vartype, varname, funcparam = False, calltrace = ''):
@@ -172,7 +176,7 @@ class Context:
         if self.scope.prev_scope is not None:
             scopeoffset = scopeoffset - self.scope.prev_scope.startoffset
         if scopeoffset < 0:
-            raise Error('Scope push error')
+            raise CompilerError('Scope push error')
         if scopeoffset > 0:
             if scopeoffset < 127:
                 self.emit("""
@@ -189,17 +193,17 @@ class Context:
                     cal :stackheadroll
                     pop ci
                     pop cs""".format(self.load_csci(scopeoffset), scopeoffset, self.scope.depth))
-        print("PUSH SCOPE (startoffset={0}, depth={1}, caller={2})".format(self.scope.startoffset, self.scope.depth, caller))
+        bc_log.trace("PUSH SCOPE (startoffset={0}, depth={1}, caller={2})".format(self.scope.startoffset, self.scope.depth, caller))
 
     def pop_scope(self, caller):
         oldscope = self.scope
         self.scope = self.scope.prev_scope
         if self.scope is None:
-            raise Error('Scope none error')
+            raise CompilerError('Scope none error')
         scopeoffset = oldscope.startoffset - self.scope.startoffset
-        print("POP SCOPE (startoffset={0}, offset={1}, diff={2}, depth={3}, caller={4})".format(self.scope.startoffset, self.scope.offset, scopeoffset, self.scope.depth, caller))
+        bc_log.trace("POP SCOPE (startoffset={0}, offset={1}, diff={2}, depth={3}, caller={4})".format(self.scope.startoffset, self.scope.offset, scopeoffset, self.scope.depth, caller))
         if scopeoffset < 0:
-            raise Error('Scope pop error')
+            raise CompilerError('Scope pop error')
         if scopeoffset > 0:
             if scopeoffset < 127:
                 self.emit("""
@@ -239,6 +243,10 @@ class Context:
 
     def add_stdlib(self):
         self.emit(stdlib_template.format(STACKHEAD, HEAPHEAD, hi(self.heap_segment_addr), lo(self.heap_segment_addr)))
+        # End-of-image label on the first assert line (costs no bytes), then the optional #codelimit assert
+        self.emit('sys_codeend: .assert :sys_codeend < 0x{0:04x}\n'.format(self.heap_segment_addr))
+        if self.code_limit_addr is not None:
+            self.emit('.assert :sys_codeend < 0x{0:04x}\n'.format(self.code_limit_addr))
         
 class Instruction:
     def __str__(self):
@@ -286,10 +294,10 @@ class EXPRESSION_TERM(Instruction):
         return "TERM({})".format(self.term)
 
     def emit(self, context: Context):
-        print('TERM {0}'.format(self.term))
+        bc_log.trace('TERM {0}'.format(self.term))
         if isinstance(self.term, str):
             var = context.get_variable(self.term)
-            print('TERM {0} IS VAR {1}'.format(self.term, var))
+            bc_log.trace('TERM {0} IS VAR {1}'.format(self.term, var))
             offset = var['offset']
 
             if abs(offset) < 127:
@@ -343,29 +351,23 @@ class EXPRESSION_UNARY(Instruction):
             context.emit("""
                 mov a, cs
                 or  ci
-                mov a, f
-                and 0x01
-                mov cs,0x00
-                mov ci, a""")
+                mov ci, f
+                and csci, 0x0001""")
         elif self.operator == '~':
             self.operand.emit(context)
             context.emit("""
-                mov a, cs
-                not a
-                mov cs, a
-                mov a, ci
-                not a
-                mov ci, a""")
+                not csci""")
         else:
             context.add_error(
                 "Unknown unary operator '{0}'".format(self.operator))
 
 
 oper2lib = {
-    '+': 'add16',
-    '-': 'sub16',
-    '*': 'mul16',
-    '/': 'div16',
+    '+': 'add',
+    '-': 'sub',
+    '*': 'mul',
+    '/': 'div',
+    '%': 'mod',
     '=': None,
     '>=': None,
     '!=': None,
@@ -385,6 +387,7 @@ opercommutative = {
     '-': False,
     '*': True,
     '/': False,
+    '%': False,
     '=': True,
     '>=': False,
     '!=': True,
@@ -466,7 +469,7 @@ class EXPRESSION_BINARY(Instruction):
                         "Unknown binary operator '{0}'".format(self.operator))
                 continue
             context.emit("""
-                cal :{0}""".format(lib))
+                {0} csci, dsdi""".format(lib))
 
     def logic(self, context, oper, arg):
         if oper == '=':
@@ -531,88 +534,23 @@ class EXPRESSION_BINARY(Instruction):
             return True
         if oper == '||':
             context.emit("""
-                mov a, cs
-                or ds
-                mov cs, a
-                mov a, ci
-                or di
-                mov ci, a""")
+                or csci, dsdi""")
             return True
         if oper == '&':
             context.emit("""
-                mov a, cs
-                and ds
-                mov cs, a
-                mov a, ci
-                and di
-                mov ci, a""")
+                and csci, dsdi""")
             return True
         if oper == '|':
             context.emit("""
-                mov a, cs
-                or ds
-                mov cs, a
-                mov a, ci
-                or di
-                mov ci, a""")
+                or csci, dsdi""")
             return True
         if oper == '<<':
-            label1 = context.get_next_label()
-            label2 = context.get_next_label()
             context.emit("""
-                mov a, di
-                sub 0x08
-                jmr nn, :{0}
-                mov a, 0x08
-                sub di
-                mov ds, a
-                mov a, ci
-                shr ds
-                mov ds, a
-                mov a, cs
-                shl di
-                or  ds
-                mov cs, a
-                mov a, ci
-                shl di
-                mov ci, a
-                xor a
-                jmr z, :{1}
-{0}:            mov ds, a
-                mov a, ci
-                shl ds
-                mov cs, a
-                mov ci, 0x00 
-{1}:            nop""".format(label1, label2))
+                shl csci, dsdi""")
             return True
         if oper == '>>':
-            label1 = context.get_next_label()
-            label2 = context.get_next_label()
             context.emit("""
-                mov a, di
-                sub 0x08
-                jmr nn, :{0} 
-                mov a, 0x08
-                sub di
-                mov ds, a
-                mov a, cs
-                shl ds
-                mov ds, a
-                mov a, cs
-                shr di
-                mov cs, a
-                mov a, ci
-                shr di
-                or  ds
-                mov ci, a
-                xor a
-                jmr z, :{1}
-{0}:            mov ds, a
-                mov a, cs
-                shr ds
-                mov ci, a
-                mov cs, 0x00 
-{1}:            nop""".format(label1,label2))
+                shr csci, dsdi""")
             return True
         return False
 
@@ -625,7 +563,7 @@ class VARIABLE_DECLARATION(Instruction):
         return '{0} {1};'.format(self.vartype, self.varname)
 
     def emit(self, context):
-        print('{0} {1};'.format(self.vartype, self.varname))
+        bc_log.trace('{0} {1};'.format(self.vartype, self.varname))
         context.add_variable(self.vartype, self.varname, 'VAR DECL')
 
 @dataclass
@@ -637,9 +575,9 @@ class VARIABLE_ASSIGNEMENT(Instruction):
         return '{0}={1};'.format(self.varname, self.expr)
 
     def emit(self, context: Context, funcCall = False):
-        print('{0}={1};'.format(self.varname, self.expr))
+        bc_log.trace('{0}={1};'.format(self.varname, self.expr))
         variable_def = context.get_variable(self.varname)
-        print('{0}'.format(variable_def))
+        bc_log.trace('{0}'.format(variable_def))
         offset = variable_def['offset']
 
         if(variable_def['type'] != 'word' and variable_def['type'] != 'byte'):
@@ -715,8 +653,7 @@ class STATEMENT_IFELSE(Instruction):
         context.emit("""
                 mov a, cs
                 or ci
-                .mv csci, :{0}
-                jmp z, csci""".format(label))
+                jrx z, :{0}""".format(label))
         self.code.emit(context)
 
         if self.last is None:
@@ -726,8 +663,7 @@ class STATEMENT_IFELSE(Instruction):
             label2 = context.get_next_label()
             context.emit("""
                 xor a
-                .mv csci, :{0}
-                jmp z, csci""".format(label2))
+                jrx z, :{0}""".format(label2))
             context.emit("""
 {0}:      nop""".format(label))
             self.last.emit(context)
@@ -751,13 +687,11 @@ class STATEMENT_WHILE(Instruction):
         context.emit("""
                 mov a, cs
                 or ci
-                .mv csci, :{0}
-                jmp z, csci""".format(label2))
+                jrx z, :{0}""".format(label2))
         self.code.emit(context)
         context.emit("""
-                .mv csci, :{0}
                 xor a
-                jmp z, csci
+                jrx z, :{0}
 {1}:      nop""".format(label1, label2))
 
 @dataclass
@@ -799,7 +733,7 @@ class EXPRESSION_CALL(Instruction):
             return
 
         context.push_scope('CALL')
-        print(function_data)
+        bc_log.trace(function_data)
         paramdata = function_data['params']
         paramstar = function_data['paramstar']
         funcname = function_data['name']
@@ -942,7 +876,7 @@ class PROGRAM(Instruction):
                 .mv dsdi, :{1}
                 mov cs, 0x00
                 mov ci, 0x02
-                cal :add16
+                add csci, dsdi
                 .mv dsdi, :{1}
                 cal :poke16
 ;&HEAPHEAD <- {5}
