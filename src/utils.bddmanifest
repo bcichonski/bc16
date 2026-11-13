@@ -10,3 +10,6 @@ DISC.CAT      -                         SR   role=catalog at=0/1 max=31
 BDOS.SYS      bdos/bdos.sector          SR   role=system at=2/0 max=160
 # The first sector after the loader range.
 TEXTED.PRG    bdos/texted.sectors       RX   at=12/0
+CALC.PRG      bdos/calc.sectors         RX
+HELLOWRD.PRG  bdos/helloworld.sectors   RX
+THEODORE.PRG  bdos/theodore.sectors     RX

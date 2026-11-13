@@ -1,0 +1,6 @@
+b:
+calc
+q
+a:
+ls
+exit
