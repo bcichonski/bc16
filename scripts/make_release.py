@@ -7,8 +7,9 @@ Usage (from any directory inside a full clone):
     python3 scripts/make_release.py notes bc64|bc16|bc32
 
 bc64    zips the tracked files of the current machine at HEAD (emulator, toolchain, scripts,
-        README, LICENSE, pyproject.toml, reference docs) plus the two built files, the
-        ROM (src/bc81asmc/bcOS/bcos_v1_2_0.b81) and src/os.bdd, into DIR/NAME.zip with the
+        README, LICENSE, pyproject.toml, reference docs) plus the three built files, the
+        ROM (src/bc81asmc/bcOS/bcos_v1_2_0.b81), the system disc src/os.bdd and the utilities
+        disc src/utils.bdd (the default A/B setup), into DIR/NAME.zip with the
         single root folder NAME/. Tests, test data, CI and planning docs are left out.
         File modes from git are kept; the built files (untracked build outputs) are read
         from the working tree with mode 0644, so run the build first:
@@ -65,7 +66,7 @@ BC64_EXCLUDED_FILES = ("src/run_tests",)
 EXCLUDED_DIRS = ("tests", "testdata")
 EXCLUDED_PREFIXES = ("docs/specs/", "docs/analysis/", "docs/CHANGELOG.md", ".github/", "release/")
 # Build outputs (ignored, untracked): shipped from the working tree, not from git.
-BC64_BUILT_FILES = ("src/bc81asmc/bcOS/bcos_v1_2_0.b81", "src/os.bdd")
+BC64_BUILT_FILES = ("src/bc81asmc/bcOS/bcos_v1_2_0.b81", "src/os.bdd", "src/utils.bdd")
 BUILD_COMMAND = "./buildos && ./buildtools && ./buildapps && ./makedisc"
 TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 

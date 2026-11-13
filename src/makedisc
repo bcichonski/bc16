@@ -55,6 +55,10 @@ echo converting theodore to sectors...
 ./ftool btap2bin bdos/theodore.btap bdos/theodore.sectors
 check_exit_code $?
 
+echo converting calc to sectors...
+./ftool btap2bin bdos/calc.btap bdos/calc.sectors
+check_exit_code $?
+
 echo building os disc from disc.bddmanifest
 ./ftool mkdisc disc.bddmanifest os.bdd
 check_exit_code $?

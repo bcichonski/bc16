@@ -134,18 +134,14 @@ booting from FDDlding
 bDOS 1.1 shell
 9FF5 bytes free
 reading disc...
-A>ls
-........
-listing files of drive A:
-HELLOWRD.PRG -R-X 0780 11 00 0F
-TEXTED  .PRG -R-X 3200 2D 00 64
-TEST    .B   -RW- 0100 33 04 02
-EB catalog entries free; 00D6 sectors free...
-A>hellowrd
-..
-Hello world!
-10
-A>exit
+A>b:
+B>texted
+..............
+TextEd v1.2
+type h for help
+texted>q
+Bye!
+B>exit
 bye!
 ```
 
@@ -165,6 +161,8 @@ printer output with a golden file. They are the `test_e2e_*.py` modules in `src/
 | `test_e2e_disc.py` | `os.bdd`: its catalog and positions against `disc.bddmanifest`, and a session on it |
 | `test_e2e_texted.py`, `test_e2e_texted_commands.py`, `test_e2e_texted_flows.py` | TextEd on the default A/B setup: `os.bdd` in A, a temp copy of `utils.bdd` in B, `b:` then `texted`. Save and load happen on B |
 | `test_e2e_utils_disc.py` | `utils.bdd`: its structure against `utils.bddmanifest`, its `BOOTSECT.BIN` and `BDOS.SYS` bytes equal to `os.bdd`'s, a reproducible build, and a solo boot in A |
+| `test_e2e_calc.py` | calc, a bdos program on `utils.bdd`, on the default A/B setup: `b:` then `calc`. Its operations, the error messages, the wrapping arithmetic, `q` back to `B>`, and bdos still working from A afterwards |
+| `test_e2e_theodore.py` | theodore on `utils.bdd`, on the default A/B setup: `b:` then `theodore`. The game and quit paths, and `theodore` not found when only `os.bdd` is booted |
 | `test_e2e_toolchain.py` | a B program compiled, assembled, put on a disc and run |
 | `test_e2e_harness.py` | self-tests of the harness |
 | `test_e2e_layout_shift.py` | the bdos scenarios and the smoke session on a disc with a grown `HELLOWRD.PRG`; proves layout changes need no golden edit |
@@ -246,7 +244,7 @@ So a program that changes size needs no test or golden edit.
   build it first (`python3 run_tests.py` does, unless `--no-build`). A change in bdos or a program shows
   in the goldens.
 - TextEd scenarios boot a temp copy of `src/os.bdd` in A and a temp copy of `src/utils.bdd` in B. They
-  run `b:` and then `texted`, so TextEd and its files are on B.
+  run `b:` and then `texted`, so TextEd and its files are on B. The calc and theodore scenarios do the same, with `calc` or `theodore` in place of `texted`.
 - The toolchain scenario also boots a temp copy of `src/os.bdd`. It compares only the program
   output, the section between `A>e2eprog` and the next `A>` prompt.
 - Tests that boot the real ROM without a disc are in `test_e2e_rom.py`.

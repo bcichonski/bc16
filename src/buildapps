@@ -22,4 +22,8 @@ echo building theodore...
 ./bcc ./bdos/theodore
 check_exit_code $?
 
+echo building calc...
+./bcc ./bdos/calc
+check_exit_code $?
+
 echo done!

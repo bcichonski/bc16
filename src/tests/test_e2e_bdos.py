@@ -9,7 +9,7 @@ import e2e_harness as h
 LIMIT = 50000000
 # Plain `ls` lines of the non-system files, derived from the manifest plan (not pinned numbers).
 CATALOG_LINES = [h.ls_line(h.planned_entry(name)).encode("latin-1")
-                 for name in ("HELLOWRD.PRG", "TEST.B", "THEODORE.PRG")]
+                 for name in ("HELLOWRD.PRG", "TEST.B")]
 TEST_B_TEXT = [b"10 first line !ln", b"20 second line !ln"]
 
 
@@ -30,7 +30,7 @@ class BdosShellTests(unittest.TestCase):
         self.check("bdos_boot", [b"bDOS 1.1 shell", b"A>exit", b"bye!"])
 
     def test_ls_lists_catalog(self):
-        self.check("bdos_ls", [b"A>ls"] + CATALOG_LINES + [b"EB catalog entries free"])
+        self.check("bdos_ls", [b"A>ls"] + CATALOG_LINES + [b"EC catalog entries free"])
 
     def test_cat_prints_text_file(self):
         self.check("bdos_cat", [b"A>cat -c test.b"] + TEST_B_TEXT)
@@ -45,7 +45,7 @@ class BdosShellTests(unittest.TestCase):
             seen["names"] = [(e.name, e.ext) for e in h.read_catalog(paths["a"])]
             seen["before"] = [(e.name, e.ext) for e in h.read_catalog(h.OS_DISK)]
 
-        out = self.check("bdos_rm", [b"A>rm test.b", b"A>ls", b"HELLOWRD.PRG", b"THEODORE.PRG"], inspect)
+        out = self.check("bdos_rm", [b"A>rm test.b", b"A>ls", b"HELLOWRD.PRG"], inspect)
         self.assertNotIn(b"TEST    .B", out)
         self.assertIn(("TEST", "B"), seen["before"])
         self.assertNotIn(("TEST", "B"), seen["names"])

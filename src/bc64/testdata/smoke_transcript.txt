@@ -8,8 +8,7 @@ bcOS 1.2
 listing files of drive A:
 HELLOWRD.PRG -R-X SIZE TT SS LL
 TEST    .B   -RW- SIZE TT SS LL
-THEODORE.PRG -R-X SIZE TT SS LL
-EB catalog entries free; XXXX sectors free...
+EC catalog entries free; XXXX sectors free...
 A>cat -c test.b
 <dots>
 printing A:TEST    B   with options 10...
