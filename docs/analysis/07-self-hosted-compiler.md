@@ -1,4 +1,4 @@
-# A B compiler running on the BC64: feasibility and design (analysis, 2026-11-09, updated 2026-11-11)
+# A B compiler running on the BC64: feasibility and design (analysis, 2026-11-09, updated 2026-11-13)
 
 Roadmap item 9 is "compiler running on the BC64". This page checks how realistic that is on
 the machine as it is today (bcOS 1.2, bdos 1.1, 64 KB RAM, 128 KB discs), and proposes a
@@ -76,7 +76,7 @@ Separate compilation is needed anyway.
 
 **3. "The compiler reads some lines, emits tokens, stores metadata into `.o` files."**
 Agreed. It's the plan: a 3-pass compiler, where each pass is its own program, reads one
-file and writes one file. See [the compiler](#the-compiler-bcc1-bcc2-bcc3). Two
+file and writes one file. See [the compiler](#the-compiler-bcc-bcc2-bcc3). Two
 constraints shape it:
 - **One write handle.** Each pass writes exactly one file, so all the "metadata" a later
   pass needs must travel *inside* that file. For example, identifier names go into the
@@ -109,7 +109,7 @@ answers).
  drive A: development system disc            drive B: work disc
  ┌──────────────────────────────────┐        ┌──────────────────────────────┐
  │ BDOS.SYS, LS, CP, RM, TEXTED     │        │ HELLO.B   (texted)           │
- │ BCC1.PRG    lexer                │──────► │ HELLO.TOK (BCC1, temporary)  │
+ │ BCC.PRG     lexer                │──────► │ HELLO.TOK (BCC, temporary)   │
  │ BCC2.PRG    parser               │        │ HELLO.IR  (BCC2, temporary)  │
  │ BCC3.PRG    code generator       │        │ HELLO.O   (BCC3 output)      │
  │ BASM.PRG    assembler            │        │ HELLO.PRG (BLINK output)     │
@@ -121,15 +121,15 @@ answers).
 
  A>b:
  B>texted                 (write HELLO.B)
- B>bcc1 hello             HELLO.B (+ #include *.H) ──► HELLO.TOK
+ B>bcc hello              HELLO.B (+ #include *.H) ──► HELLO.TOK
  B>bcc2 hello             HELLO.TOK ──► HELLO.IR
  B>bcc3 hello             HELLO.IR  ──► HELLO.O     (deletes .TOK and .IR)
  B>blink hello            HELLO.O + A:RUNTIME.O + A:STD.O … ──► HELLO.PRG
  B>hello                  shell loads HELLO.PRG to 0x6000 and runs it
 ```
 
-With `bdio_chain` (phase 5), `bcc hello` runs the passes one after another. A pass chains
-to the next only when it succeeds.
+With `bdio_chain` (phase 5), `bcc hello` is the only command: each pass chains to the next
+when it succeeds.
 
 - The tools live on drive A and the work on drive B. The system disc has 190 free sectors,
   which isn't enough for the tools *and* their output. Repeated compiles also eat space,
@@ -151,53 +151,171 @@ to the next only when it succeeds.
 | `BLINK.PRG` | B, built on the host | BC64 | the linker |
 | `BASM.PRG` | B, built on the host | BC64 | the assembler: one assembly file in (texted format, extension `.BAS` because names are 8+3), one `.o` out. Not needed to compile B programs |
 | shared modules: `RDR` (texted-format reader), `PRE` (`#include`/`#define`), `BOFW` (object writer) | B | BC64 | written once for the compiler and linked into BASM too. The instruction encoder `ENC` belongs to BASM alone |
-| `BCC1.PRG`, `BCC2.PRG`, `BCC3.PRG` | B, built on the host | BC64 | the compiler, in three passes: `.b` → `.TOK` → `.IR` → `.o`. The last pass writes machine code for its templates directly and copies raw `asm` bytes. It contains no assembler |
+| `BCC.PRG`, `BCC2.PRG`, `BCC3.PRG` | B, built on the host | BC64 | the compiler, in three passes: `.b` → `.TOK` → `.IR` → `.o`. The last pass writes machine code for its templates directly and copies raw `asm` bytes. It contains no assembler |
 | `ftool importtext` / `exporttext` | Python | host | move text files between the host and texted format on a `.bdd` |
 
-### The compiler (BCC1, BCC2, BCC3)
+### The compiler (BCC, BCC2, BCC3)
 
-Three passes, each its own `.PRG`, each reading one file and writing one file:
+Three passes, each its own `.PRG`, each reading one file and writing one file. The first
+pass is named `BCC`, not `BCC1`: it's the command the user types, and with chaining
+(phase 5) it starts the other two.
 
 | Pass | Reads | Writes | Holds in memory | Does |
 |---|---|---|---|---|
-| **BCC1** lexer | `NAME.B` + `#include`d `.H` files (texted format) | `NAME.TOK` | `#define` table, include stack, one line | parses texted records, handles `#include`/`#define`/`//`, turns the text into tokens |
+| **BCC** lexer | `NAME.B` + `#include`d `.H` files (texted format) | `NAME.TOK` | `#define` table, include stack, one line | parses texted records, handles `#include`/`#define`/`//`, turns the text into tokens |
 | **BCC2** parser | `NAME.TOK` | `NAME.IR` | function table (names, parameter types), locals of the current function | recursive-descent parsing, scopes and frame offsets, checks declarations, writes stack-machine IR |
 | **BCC3** code generator | `NAME.IR` | `NAME.O` | external symbol list, local label counter | expands each IR operation into the host compiler's code template, copies raw `asm` bytes and their fixups, writes the object records |
 
-#### `.TOK`: token stream (BCC1 → BCC2)
+#### `.TOK`: token stream (BCC → BCC2)
 
-- One byte per token kind: keyword, operator, punctuation, number, string, identifier, and
-  `LINE n` markers (texted line numbers plus an include-file marker for errors).
-- Numbers are 2 bytes. `#define` values are already replaced: BCC2 never sees a `#define`.
-- **Identifiers are interned inside the stream.** The first time a name appears it's written
-  as `NEWID len text`, and after that as `ID n`. BCC2 rebuilds the same name table as it
-  reads. This puts the name table into the one file BCC1 is allowed to write, and keeps
-  the stream short.
-- Strings are written as `STR len bytes`. A raw `asm` statement needs no token kind of its
-  own: the keyword, numbers, `:name`, `hi`/`lo` and commas are ordinary tokens.
-- Expected size: about half of the source text.
+The source with everything the parser doesn't need removed: no comments, no blanks, no
+`#define`s, no `#include` lines, no texted record framing. What is left is one byte per
+token, and a few tokens with a payload. The file starts with `'T'` and a version byte.
+
+| Byte | Token | Payload | Notes |
+|---|---|---|---|
+| `00` | `EOF` | – | end of the stream |
+| `01` | `LINE` | `n(2)` | the tokens that follow are from texted line n. Written before the first token of every line that has tokens |
+| `02` | `FILE` | `len name` | the tokens that follow are from this file. Written at the start, when an `#include` is entered and when it ends; always followed by a `LINE` |
+| `03` | `LINK` | `len name` | a `#link name` line |
+| `08` | `ADDR` | `kind(1) value(2)` | a `#code` (kind 0), `#heap` (1) or `#codelimit` (2) line |
+| `04` | `NEWID` | `len text` | an identifier seen for the first time. It gets the next number (0, 1, 2…) and counts as a use |
+| `05` | `IDW` | `n(2)` | identifier number n, for n ≥ 128 |
+| `06` | `NUM` | `value(2)` | a number: decimal, hex or `'c'`. All constants are 16-bit in B, so the spelling isn't kept |
+| `07` | `STR` | `len bytes` | a string literal, without the quotes (B strings have no escapes) |
+| `10`–`16` | keywords | – | `word` `byte` `if` `else` `while` `return` `asm` |
+| `20`–`28` | punctuation | – | `(` `)` `{` `}` `,` `;` `:` `<-` `***` |
+| `30`–`32` | unary operators | – | `#` `!` `~` |
+| `40`–`4f` | binary operators | – | `*` `/` `%` `+` `-` `&` `\|` `<<` `>>` `<=` `>=` `>` `<` `&&` `\|\|` `=` `!=` |
+| `80`–`ff` | `ID` | – | identifier number (byte − `0x80`): the first 128 names take one byte per use |
+
+- **Identifiers are interned inside the stream.** BCC2 rebuilds the same name table from
+  the `NEWID` tokens as it reads. This puts the name table into the one file BCC is
+  allowed to write. Function names, parameters and locals are all just identifiers here:
+  BCC doesn't know which is which.
+- **`#define` values are already replaced.** BCC2 never sees a defined name, so those names
+  get no `NEWID`. The replacement is lexed like source text, so it can be any token.
+- **Prototypes from headers are in the stream** as ordinary tokens, with `FILE` and `LINE`
+  markers, so BCC2 reports an error in a header by its own file name and line.
+- **Raw `asm` needs no token of its own:** the keyword, numbers, `:` + identifier, `hi` /
+  `lo` (ordinary identifiers) and commas.
+- **`#code`, `#heap` and `#codelimit` are passed through** as `ADDR` tokens, like `#link`.
+  They describe the finished program, so only the linker can apply them.
+- **BCC's own errors:** a character that starts no token, an unterminated string or
+  `'c'`, an `#include` that isn't found or is nested too deep, a full `#define` table.
+
+`word main() { puts("hi"); return 0; }` on texted line 10 of `HELLO.B`:
+
+```
+54 01                   'T', version 1
+02 07 'HELLO.B'         FILE
+01 00 0a                LINE 10
+10                      word
+04 04 'main'            NEWID: identifier 0
+20 21 22                ( ) {
+04 04 'puts'            NEWID: identifier 1
+20 07 02 'hi' 21 25     ( "hi" ) ;
+15 06 00 00 25          return 0 ;
+23                      }
+00                      EOF
+```
+
+That is 44 bytes against 41 for the texted record: a one-line file gains nothing, because
+of the header, the file name and two new names. A later `puts` in the same file is the
+single byte `81`. Expected size for real sources: about half of the source text, because
+comments, indentation and repeated names go away.
 
 #### `.IR`: stack-machine IR (BCC2 → BCC3)
 
-The host compiler's code is already a stack machine: the result in `csci`, intermediate
-values pushed on the CPU stack, variables through `stackvar*` helpers. So the IR is a list
-of operations that each map to exactly one host template:
+The program after parsing: no names of variables, no types, no syntax. What is left is a
+list of operations, **each of which is exactly one code template of the host compiler**
+(`bc_ast.py`). BCC2 makes every decision; BCC3 only looks up a template, fills in a number
+and writes bytes. The file starts with `'I'` and a version byte, then one byte per
+operation plus a fixed payload.
+
+| Byte | Operation | Payload | Code it becomes (host template) |
+|---|---|---|---|
+| `00` | `END` | – | end of the file |
+| `01` | `SYM` | `len name` | no code. Declares B function symbol number k (0, 1, 2… in order): the object symbol `F_name`. Written when a function is first called or defined, so an unused prototype costs nothing |
+| `02` | `SYMA` | `len name` | no code. Declares an assembly label used by raw `asm` (`:poke16`), numbered in the same sequence |
+| `03` | `LINK` | `len name` | no code: becomes a `de` record |
+| `04` | `ADDR` | `kind(1) value(2)` | no code: becomes an `ad` record |
+| `10` | `FUNC` | `sym(2)` | starts a section with its global symbol; `nop` |
+| `11` | `ENDF` | – | `ret`, then the function's strings |
+| `12` | `RET` | – | `ret` |
+| `20` | `LDC` | `value(2)` | `mov cs, hi` + `mov ci, lo` |
+| `21` | `LDCD` | `value(2)` | the same into `dsdi`: a constant right operand of a commutative operator |
+| `22` | `LDS` | `len bytes` | `.mv csci, :string`; the bytes go to the string pool |
+| `23` | `LDSD` | `len bytes` | the same into `dsdi` |
+| `24` / `25` | `LDVB` / `LDVW` | `offset(2)` | load a byte / word variable: `mov a, off` + `cal :stackvar8gt8` / `…gt16`, or the long form through `stackvarget8` / `…16` when the offset is ±127 or more |
+| `26` / `27` | `STVB` / `STVW` | `offset(2)` | store `csci` into a byte / word variable (`stackvar8st*`, `stackvarset*`) |
+| `30` | `PUSH` | – | `psh cs` + `psh ci`: keep the left operand |
+| `31` | `POPD` | – | `pop di` + `pop ds`: left operand into `dsdi` (commutative operators) |
+| `32` | `SWAP` | – | `mov ds, cs` + `mov di, ci` + `pop ci` + `pop cs`: right operand into `dsdi`, left back into `csci` (the others) |
+| `40`–`4f` | `BIN` | – | the operator's code; the low digit is the operator, as in `.TOK` (`add csci, dsdi`, `cal :eq16` + …, …) |
+| `50`–`5f` | `BINZ` | – | the same operator when the right operand is the constant 0. The host has shorter code for `>= 0`, `!= 0` and `> 0` |
+| `60` | `DEREF` | – | `#`: `mov ds, cs` + `mov di, ci` + `cal :peek16` |
+| `61` | `NOT` | – | `!` |
+| `62` | `INV` | – | `~`: `not csci` |
+| `70` | `ENTER` | `n(2)` | before a call: move `sys_stackhead` forward by n (`stackheadrll8`, or the long form from 127) |
+| `71` | `LEAVE` | `n(2)` | after a call: move it back |
+| `72` | `CALL` | `sym(2)` | `cal :F_name` |
+| `80` | `LABEL` | `n(2)` | local label n is here; `nop` |
+| `81` | `JZ` | `n(2)` | `mov a, cs` + `or ci` + `jrx z, :n` |
+| `82` | `JMP` | `n(2)` | `xor a` + `jrx z, :n` |
+| `90` | `ASMB` | `count item…` | raw `asm`. An item is `00 byte`, or `01` / `02` / `03` + `sym(2)` for `:name` / `hi(:name)` / `lo(:name)` |
+
+What BCC2 has already done, so BCC3 doesn't have to:
+- **Variables are offsets.** Every local and parameter is an offset from `sys_stackhead`,
+  with its size in the operation (`LDVB` / `LDVW`). The offset is negative while the
+  arguments of a call are being evaluated, because `sys_stackhead` has moved by then.
+  Declarations leave nothing in the IR.
+- **A call is spelled out.** `f(a, b)` is `ENTER n`, then for each argument its expression
+  and a store into the callee's parameter slot, then `CALL`, then `LEAVE n`. n is the size
+  of the caller's locals declared so far; if it is 0, `ENTER` and `LEAVE` aren't written.
+  For a variadic function the argument count is stored first, as a constant.
+- **Operators are sequenced.** `a + b` is: a, `PUSH`, b, `POPD`, `BIN +`. `a - b` is: a,
+  `PUSH`, b, `SWAP`, `BIN -`. `a + 5` is: a, `LDCD 5`, `BIN +`. This is where the host's
+  constant shortcuts are decided, and the precedence quirks are in the order of the
+  operations.
+- **Control flow is labels and jumps.** `if` is the condition, `JZ n`, the block, `LABEL n`;
+  with `else` a `JMP` and a second label. `while` is `LABEL a`, the condition, `JZ b`, the
+  block, `JMP a`, `LABEL b`. Labels are numbered per module.
+- **All checks are done:** undeclared names, wrong argument counts, duplicate locals. BCC3
+  reports only its own limits.
+
+What is left for BCC3:
+- **Choosing the short or long form** of a variable access and of `ENTER` / `LEAVE`, from
+  the number in the payload.
+- **Jump offsets.** A `JMP` or `JZ` to a label already seen gets its final `jrx` offset; a
+  forward one gets a placeholder and a fix entry.
+- **Runtime helpers.** `stackvar8gt16`, `peek16`, `eq16` and the others aren't in the IR.
+  BCC3 knows which helper each template calls and writes an `ee` record at its first use.
+- **Strings.** BCC3 keeps the strings of the current function in memory and writes them at
+  `ENDF`, each with a local label. The limit is one function's strings, not the file's.
+- **Symbol numbers.** IR symbol numbers aren't object symbol numbers, because the object
+  also has the helpers. BCC3 keeps a small table from one to the other.
+
+`word main() { puts("hi"); return 0; }`:
 
 ```
-FUNC id frame-size            start of a function section (BCC2 knows the final frame size)
-LDV off size / STV off size   load / store a local (byte or word)
-LDC value                     constant
-PUSH / BINOP op / BINOPC op v binary operator; BINOPC = right operand is a constant (host shortcut)
-UNOP op                       # ! ~
-CALL id argc                  call; the parameter offsets were resolved by BCC2
-STR len bytes                 string literal: address of the string
-LABEL n / JZ n / JMP n        control flow, labels numbered per module
-ASMB n item…                  raw asm: n items, each a byte or a symbol (ABS16, HI8 or LO8)
-RET / END
+49 01              'I', version 1
+03 05 'STDIO'      LINK, from STDIO.H
+01 04 'main'       SYM 0
+10 00 00           FUNC 0
+01 04 'puts'       SYM 1, at its first call
+22 02 'hi'         LDS "hi"
+27 00 00           STVW 0        the string's address into puts' first parameter
+72 00 01           CALL 1        (no ENTER / LEAVE: main has no locals)
+20 00 00           LDC 0
+12                 RET
+11                 ENDF
+00                 END
 ```
 
-- BCC2 does all the name resolution: BCC3 gets offsets and symbol numbers, never names
-  of locals. Function names go into the IR once (`SYM id name`) for the linker.
+Expected size: 0.5–1 × the source text. The IR has no `LINE` markers: BCC3's few errors
+name the function.
+
 - BCC3 is almost table-driven: a template per operation, plus the object writer. That's
   the reason to split BCC2 from BCC3. The parser needs the symbol tables, the template
   expander doesn't, and the expander is where the byte-identical test is decided.
@@ -207,7 +325,7 @@ RET / END
 #### Rules shared by the passes
 
 - **Byte-identical output as the main test.** With the host's templates and constant
-  shortcuts, BCC1–3 on the emulator and `bc --obj` on the host should give the **same `.o`
+  shortcuts, BCC–BCC3 on the emulator and `bc --obj` on the host should give the **same `.o`
   bytes** for the same source. That's a much stronger test than comparing program output.
   It needs the host compiler's quirks fixed or frozen first; see
   [host prerequisites](#host-prerequisites). Each intermediate format can also be tested on
@@ -243,7 +361,7 @@ elimination.
 
 | Pass | B lines (estimate) | Own code | + libraries today | Data at run time | Total |
 |---|---|---|---|---|---|
-| BCC1 | reader 200 + preprocessor 150 + lexer 250 + driver 50 = **650** | 8 KB | + 4–6 KB | `#define` table 3–5 KB (a header the size of `bdioh.b`, 116 defines; all sources have 198, 26 B each on average), stacks 2 KB | **17–21 KB** |
+| BCC | reader 200 + preprocessor 150 + lexer 250 + driver 50 = **650** | 8 KB | + 4–6 KB | `#define` table 3–5 KB (a header the size of `bdioh.b`, 116 defines; all sources have 198, 26 B each on average), stacks 2 KB | **17–21 KB** |
 | BCC2 | expressions 350 + statements 300 + symbols 250 + IR writer 100 + driver 50 = **1,050** | 12.5 KB | + 4–6 KB | function table about 2.5 KB (126 different functions in `src/bdos`, names 11 chars on average), identifier table 1–2 KB, locals 0.5 KB, stacks 2–3 KB (recursion) | **23–27 KB** |
 | BCC3 | templates 200 + object writer 150 + raw `asm` 30 + driver 50 = **430** | 5 KB | + 4–6 KB | symbol list 1 KB, stacks 1 KB | **11–13 KB** |
 
@@ -255,7 +373,7 @@ For comparison, one single-pass program would be about 29 KB of code plus 8–12
   dead-code elimination (phase 1 of this plan: −4 KB of libraries). The second is splitting
   off an expression pass.
 - **Smaller tables** if needed: names in one string pool on the heap with no fixed-size
-  slots, and optionally precompiled headers (`bcc1 -h BDIOH.H` writes `BDIOH.HP`, a binary
+  slots, and optionally precompiled headers (`bcc -h BDIOH.H` writes `BDIOH.HP`, a binary
   `#define` table that loads with no parsing).
 - Roadmap item 5b (#17, inline variable access) makes code **faster, not smaller**: today a
   variable access is 5 bytes (`mov a, off` + `cal`), and an inline sequence can't be that
@@ -263,8 +381,8 @@ For comparison, one single-pass program would be about 29 KB of code plus 8–12
 
 ### Disc cost of a compile
 
-For a source of S bytes: `.TOK` is about 0.5 S, `.IR` about 0.5–1 S, and `.O` about the
-size of the code. A 20 KB source takes about 20–30 KB of temporary space at the peak, and
+For a source of S bytes: `.TOK` is about 0.5 S, `.IR` about 0.5–1 S, and `.O` about
+1.2–1.3 × the size of the code (see [object format](#object-file-format)). A 20 KB source takes about 20–30 KB of temporary space at the peak, and
 freed space isn't reused today. On a 128 KB work disc that's a handful of compiles before
 `pack` is needed. Phase 0 therefore includes `pack`. Deleting the *last* file on a disc
 already frees its space (the free pointer is computed from the live files, once the
@@ -281,11 +399,176 @@ program load per pass. Headers add to that on every compile (`bdioh.b` alone is 
 which is a reason for precompiled headers. Disc I/O is cheap (DMA, 128 B per command). For
 the e2e tests, the `--max-instructions` limits have to grow to tens of millions.
 
+## Working with the tools: discs, commands and steps
+
+### Which disc holds what
+
+There are two drives. **Drive A holds the development disc and is only read. Drive B holds
+the work disc, and everything a project reads or writes is on it:** sources, headers of
+the project, temporary files, `.O` files and the `.PRG`.
+
+| | Drive A: development disc | Drive B: work disc |
+|---|---|---|
+| Content | boot, `BDOS.SYS`, `LS`, `CP`, `RM`, `TEXTED`, `PACK`, `BCC`–`BCC3`, `BLINK`, library `.O` files, library `.H` files | `*.B`, the project's own `*.H`, `*.TOK` and `*.IR` (temporary), `*.O`, `*.PRG` |
+| Written during a build | never | always |
+| Free space | about 170 of 1,024 sectors after dead-code elimination | nearly the whole disc (about 125 KB) |
+
+Why this way, and not sources on the compiler disc or objects on a third disc:
+- **Space.** The development disc has about 21 KB free. One compile of a 20 KB source
+  needs 20–30 KB of temporary files plus the `.O`.
+- **Deleted space isn't reused.** Every build leaks sectors until `pack` runs. On B that
+  costs a `pack b:` now and then; on A it would slowly fill the system disc.
+- **One write handle** means one output file at a time, but it can be on either drive. So
+  nothing forces the output onto a different disc than the input.
+- **The program runs where it is built:** `B>hello`.
+- **The linker needs no disc of its own.** `BLINK` (about 110 sectors) and the libraries
+  are on the development disc. Only `BASM` goes on a separate assembler disc, used in
+  drive A when assembly modules are built.
+- **A finished program** is copied with `cp` to whatever disc should carry it.
+
+The rule the tools follow: **an output file goes to the drive of the main input file**. A
+file named without a drive is looked up on the active drive. `#include` files and library
+objects are searched on the main file's drive first, then on A.
+
+With the shell search path (phase 2) the user works on B and the tools are found on A:
+`B>bcc hello`. Without it the same works from A with a prefix: `A>bcc b:hello`.
+
+A project of two source files, start to finish:
+
+```
+B>texted                    write HELLO.B and UTIL.B (and UTIL.H)
+B>bcc util                  UTIL.B ──► UTIL.TOK
+B>bcc2 util                 UTIL.TOK ──► UTIL.IR
+B>bcc3 util                 UTIL.IR ──► UTIL.O
+B>bcc hello                 … the same three passes ──► HELLO.O
+B>bcc2 hello
+B>bcc3 hello
+B>blink hello               HELLO.O + what it needs (UTIL.O, libraries from A) ──► HELLO.PRG
+B>hello
+B>pack                      when the disc fills up
+```
+
+From phase 5, `bcc hello` alone runs the three passes.
+
+A very small program can be built on the development disc alone, in its free space. It's
+a fallback, not the way to work.
+
+### What the compiler does
+
+**Command line:** `bcc [drive:]name`, then `bcc2` and `bcc3` with the same argument. The
+name has no extension. One call compiles **one main file**, `NAME.B`. A project with
+several source files compiles each one separately and links the `.O` files.
+
+**Input:** `NAME.B` and the `.H` files it includes, all in texted format. Including is
+nested at most 3 levels deep, the main file counted (3 read handles).
+
+**Output:** `NAME.O` on the drive of `NAME.B`. `NAME.TOK` and `NAME.IR` exist only during
+the compile.
+
+BCC (lexer):
+1. Read the name from the command line. No name: print the usage line and stop.
+2. Open `NAME.B` for reading. Not found: error.
+3. Delete an old `NAME.TOK`, then create `NAME.TOK`.
+4. Read the source record by record. Keep the texted line number of each record.
+5. For `#include file.h`: open the file (main file's drive, then A), push it on the
+   include stack and continue reading from it. At its end, close it and continue the file
+   below. A fourth level is the error `include too deep`.
+6. For `#define NAME value`: store it in the table. Elsewhere, replace whole identifiers
+   that are in the table.
+   For `#link name`: write a `LINK name` token. BCC2 copies it into the IR and BCC3
+   writes it as a `de` record. `#code`, `#heap` and `#codelimit` travel the same way, as
+   `ADDR` tokens and `ad` records.
+7. Write every other line as tokens, with a `LINE` marker when the line or file changes.
+8. At the end of the main file: write the end token, close, print `ok`.
+
+BCC2 (parser):
+1. Open `NAME.TOK`; delete an old `NAME.IR` and create `NAME.IR`.
+2. Read tokens and rebuild the identifier table from the `NEWID` tokens.
+3. For a prototype: store the function's name and parameter sizes.
+4. For a function: parse it, give every local its frame offset, check that every called
+   function is declared, and write its IR.
+5. At the end: close both files, delete `NAME.TOK`, print `ok`.
+
+BCC3 (code generator):
+1. Open `NAME.IR`; delete an old `NAME.O` and create `NAME.O`; write the header record.
+2. For each function: write `SECT` and `GLOBL`, then expand each IR operation into its
+   template in the code buffer, with fix entries. A symbol used for the first time gets
+   its `ee` record then. Flush by the [writing rules](#object-file-format).
+3. Write the function's strings after its code, each with its local label.
+4. At the end: write `ed 00`, close, delete `NAME.IR`, print `ok` and the code size.
+
+On an error, every pass prints `FILE.EXT:line message`, closes and deletes its unfinished
+output, leaves its input in place, and stops. Nothing is chained after an error.
+
+### What the linker does
+
+**Command line:** `blink [drive:]name`. One name, without the extension: the main object,
+which also names the program. There are no address options: `#code`, `#heap` and
+`#codelimit` stay in the source and reach the linker inside the objects.
+The command line is too short for a list of objects, so **the linker finds the other
+objects from the content of the ones it reads.**
+
+**How it finds them: `#link`.** A source line `#link util` means "a program that contains
+this module also needs `UTIL.O`". The compiler and the assembler copy it into the object as
+a `de` (`NEED`) record. The line sits in the header, next to the prototypes it belongs to.
+**Every object is named by a `#link`; nothing is derived from a header's file name.**
+
+```
+// UTIL.H                         // STD.H
+#link util                        #link std        (the B bodies)
+word util_sum(word a, word b);    #link stda       (the assembly routines)
+                                  byte peek8(word Paddr);
+```
+
+- A program that includes `UTIL.H` gets the `NEED` without knowing which objects implement
+  the header. A header with only `#define`s (`BDIOH.H`) has no `#link`.
+- One header can name several objects (`STD.H`: a B module and an assembly module).
+- Needs are followed through: if `UTIL.O` needs `STRINGS.O`, the program gets it too.
+- A needed object that is missing is an error. One that is linked but not used costs only
+  link time: dead-code elimination drops its sections.
+- `RUNTIME.O` is always linked, first, without a `#link`.
+
+**Input:** `NAME.O`, `RUNTIME.O`, and every object reached through `NEED` records. Each is
+searched on the main object's drive, then on A.
+
+**Output:** one file, `NAME.PRG`, on the main object's drive. It is a raw image for
+`0x6000`, as today.
+
+1. Read the name from the command line. Start the module list with `RUNTIME` and `NAME`.
+2. **Pass 1.** Take the next module from the list that hasn't been read. Open its object
+   (not found: error naming the module that needs it), check the `b0` record and the
+   version, and read the records:
+   - `de`: add the module to the end of the list, unless it's there already;
+   - `ad`: store the address. A different value for one already stored is an error;
+   - store every section (size), every global (section, offset) and which symbols each
+     section refers to. Skip `CODE` contents.
+
+   Close it. Repeat until every module in the list has been read.
+3. Report a symbol defined twice, naming both modules.
+4. Mark the sections reachable from the runtime entry point and `F_main`. Report every
+   undefined symbol that a marked section uses, with the module that uses it.
+5. Give each marked section its address, from the `#code` address (default `0x6000`), in
+   list order. The runtime entry
+   section is first.
+6. **Check the size before writing anything:**
+   - the image is over 32,640 bytes (255 sectors, the file-system limit): error
+     `program too big`, with the size;
+   - the image reaches the `#heap` or `#codelimit` address, or leaves too little room for
+     the stacks: error;
+   - the output disc has fewer free sectors than the image needs: error `disc full`.
+7. Delete an old `NAME.PRG` and create `NAME.PRG`.
+8. **Pass 2.** For each module in the list again, for each marked section: read each
+   `CODE` record into the buffer, apply the fix records that follow it, and write the bytes.
+9. Close. Print the program size and how many sections were kept and dropped.
+
+All errors are found in steps 1–6, so a failed link never leaves a partial `.PRG`, and
+never deletes the old one. The module list costs 8 bytes per module.
+
 ## Mixing B and assembly
 
 ```
 .basm ──BASM (bc81asmc --obj on the host)──► .o ─┐
-.b    ──BCC1–3 (bc --obj on the host)──────► .o ─┼──BLINK (blink.py)──► .PRG
+.b    ──BCC–BCC3 (bc --obj on the host)────► .o ─┼──BLINK (blink.py)──► .PRG
 library .o files ────────────────────────────────┘
 ```
 
@@ -303,13 +586,15 @@ Today it's written down only as how the compiler happens to work (design decisio
 [../03-compiler.md](../03-compiler.md)). Assembly modules depend on it, so it becomes a
 frozen ABI, recorded as a new design decision:
 
-- **Arguments.** The caller moves `sys_stackhead` forward by its own frame size, stores the
+- **Arguments.** The caller moves `sys_stackhead` forward by the size of the locals it has
+  declared so far (`Context.push_scope` in `bc_ast.py`), stores the
   arguments as the callee's first locals, `cal`s, then moves `sys_stackhead` back. In the
   callee, an argument's offset is the sum of the sizes of the arguments before it (byte 1,
   word 2): `poke8(word Paddr, byte value)` finds `Paddr` at 0 and `value` at 2. An assembly
   routine reads them as the compiler does: `mov a, 0x02` + `cal :stackvar8gt8`.
-- **Variadic functions** (`printf(word PformatStr)***`): the extra arguments are words
-  after the fixed ones (offsets 2, 4, … for `printf`).
+- **Variadic functions** (`printf(word PformatStr)***`): a hidden word with the number of
+  arguments comes first (offset 0), then the fixed arguments, then the extra ones as
+  words. For `printf`: the count at 0, `PformatStr` at 2, the extra arguments at 4, 6, …
 - **Return value** in `csci`. A byte result is in `ci`, with `cs` = 0.
 - **Registers:** the callee may change all of them, `A` and `F` included. Callers keep live
   values on the CPU stack, as generated code already does. The CPU stack is balanced on
@@ -347,7 +632,7 @@ source of truth, BASM (and `bc81asmc`) accept `#include file.h` and `#define NAM
 lines with the same meaning as in B, and skip a header's prototype lines. A defined name
 can be used wherever an operand takes a number (`mov a, BDIO_FREAD`); the value is written
 in any form B accepts and sized by the operand. Without this, the constants would be
-copied by hand into `.def` lines and drift. BCC1 and BASM share this code (`PRE`).
+copied by hand into `.def` lines and drift. BCC and BASM share this code (`PRE`).
 
 <a id="raw-asm-in-b"></a>
 ### Raw `asm` in B
@@ -423,7 +708,7 @@ one assembly source and writes one `.o`, in the same object format as the compil
 assembly and B modules link together.
 
 - **One pass.** A reference to a label already defined (behind) gets its final value
-  straight away. A forward reference writes a placeholder plus a `FIX` record, and the
+  straight away. A forward reference writes a placeholder plus a fix entry, and the
   linker patches it. The assembler needs a label name table, but no second read of the
   source.
 - **The syntax is easy to parse in B:** lowercase mnemonics, hex-only immediates with a
@@ -489,7 +774,7 @@ assembly text for a whole program is far bigger than the disc (see the short ans
   The host build keeps working during the transition: `bc` without `--obj` can still paste
   bodies until the assembly parts move to `.basm` modules. From then on, every program is
   linked.
-- **`#define` semantics.** BCC1 replaces whole identifiers only (#19), in code but not
+- **`#define` semantics.** BCC replaces whole identifiers only (#19), in code but not
   inside string literals. That's simpler to write in B than substring replacement. With no
   `asm` text left, there's no exception to make. BASM applies the same rule to its operands.
   The host preprocessor must change to the same rule first, so both compilers stay
@@ -499,23 +784,91 @@ assembly text for a whole program is far bigger than the disc (see the short ans
 
 ### Object file format
 
-A proposal, "BOF v1". It is a record stream in a normal BFS file, written through the
-buffered write call. All 16-bit values are big-endian (design decision G6).
+A proposal, "BOF v1" (record layout decided 2026-11-13). It is a record stream in a normal
+BFS file, written through the buffered write call and read strictly in order: there is no
+index, because bdos has no seek and the writer can't know sizes before it writes. All
+16-bit values are big-endian (design decision G6).
+
+**Every record is `tag(1) length(1) content[length]`**, so the content is at most 255
+bytes. A reader that doesn't need a record skips it by its length.
+
+| Tag | Record | Content | Meaning |
+|---|---|---|---|
+| `b0` | header | `version(1) module-name` | always the first record, so the tag is also the magic number |
+| `ee` | `EXTRN` | `name` | declares symbol number k (k = 0, 1, 2… in order of the `ee` records). The symbol may be defined in another module or in this one |
+| `de` | `NEED` | `module-name` | from `#link module-name`: `module-name.O` must be linked too; missing is an error |
+| `ad` | `ADDR` | `kind(1) value(2)` | from `#code` (kind 0), `#heap` (1) or `#codelimit` (2): an address of the finished program |
+| `5e` | `SECT` | `flags(1) name` | starts a section: one function, plus its strings. The section offset starts at 0 |
+| `91` | `GLOBL` | `name` | the global symbol `name` is at the current section offset |
+| `c0` | `CODE` | `bytes` | code/data bytes appended to the current section, placeholders included |
+| `1a` | `LABEL` | `n(2)` | local label n is at the current section offset |
+| `ab` | `ABS` | `value(2) name` | an absolute global symbol (from `.def`) |
+| `f1` | fix `ABS16` | `offset(1)…` | 16-bit absolute address at each offset; the target is in the placeholder |
+| `f2` | fix `REL15` | `offset(1)…` | 15-bit relative offset (`jrx`, `clr`); the target is in the placeholder |
+| `f8` | fix `HI8` | `(offset(1) target(2))…` | high byte of the target's address |
+| `f9` | fix `LO8` | `(offset(1) target(2))…` | low byte of the target's address |
+| `fa` | fix `REL7` | `(offset(1) target(2))…` | 7-bit relative offset (`jmr`) |
+| `fb` | fix `HILO` | `(offset(1) target(2))…` | high byte at `offset`, low byte at `offset + 2`: the two `mov`s of `.mv csci, :x` (`18 hh 14 ll`) in one entry |
+| `ed` | `END` | – | end of the module: `ed 00` |
+
+A name is the rest of its record, so it carries no length of its own.
+
+**Fix records.** They don't interrupt the code. A `CODE` record holds up to 255 bytes, and
+the fix records that follow it patch bytes inside it; each `offset` is a position in that
+`CODE` record.
+- **Target encoding:** a 16-bit value. Top bit clear = symbol number k (from an `ee`
+  record); top bit set = local label n in the low 15 bits.
+- **16-bit kinds** (`f1`, `f2`) keep the target in the two placeholder bytes, so an entry is
+  only the offset: 1 byte per call or jump.
+- **8-bit kinds** (`f8`, `f9`, `fa`) have a 1-byte placeholder, which can't hold a target,
+  so the entry carries it. `fb` does a `.mv` in 3 bytes instead of 6. `f8` and `f9` remain for
+  a lone `hi(:name)` or `lo(:name)` in raw `asm`.
+- There is no addend: the assembler has no `:label+n` expressions.
+
+**Writing rules.** They make the output deterministic, which the byte-identical test needs.
+- The writer flushes the `CODE` record when it is full, before a `LABEL`, `GLOBL`, `SECT`
+  or `END`, and before a template (or raw `asm` item) that wouldn't fit whole. A
+  placeholder never straddles two records.
+- The fix records follow their `CODE` record directly, in tag order (`f1`, `f2`, `f8`,
+  `f9`, `fa`, `fb`), with offsets ascending. Empty lists aren't written. A list longer than
+  255 bytes continues in another record with the same tag.
+- Every symbol a fix refers to is declared by an `ee` record before the `CODE` record that
+  uses it. `91` only defines a name; it doesn't allocate a number. A call to a function in
+  the same module therefore also goes through an `ee` record, and the linker resolves it by
+  name like any other.
+
+- A `de` record is written for every `#link` line and an `ad` record for every `#code`,
+  `#heap` or `#codelimit` line, where they appear, repeats included. The linker ignores a
+  module it already has.
+- An `ee` record also flushes the `CODE` record, so symbols can be declared at their
+  first use.
+
+`word main() { puts("hi"); return 0; }` with `#include stdio.h` gives roughly:
 
 ```
-header   'B' 'O' version  module-name[8]
-records  one tag byte, then fields:
-  SECT  name-len name flags          start a section: one function, plus its strings
-  CODE  len(1) bytes[len]            code/data bytes appended to the current section
-  LABEL n(2)                         local label n is at the current offset
-  GLOBL name-len name                a global symbol is at the current offset
-  EXTRN name-len name                declare external symbol number k (k = 0, 1, 2… in order)
-  ABS   name-len name value(2)       an absolute global symbol (from .def)
-  FIX   kind(1) target(2) [addend]   patch the bytes just emitted:
-                                     kind = ABS16 | REL15 | REL7 | HI8 | LO8,
-                                     target = local label n, or external symbol k
-  END
+b0 06 01 'HELLO'               header, version 1
+de 05 'STDIO'                  from '#link stdio' in STDIO.H
+ee 06 'F_puts'                 symbol 0
+ee 0d 'stackheadrll8'          symbol 1 (runtime helpers are symbols too)
+5e 07 00 'F_main'              section
+91 06 'F_main'                 global at offset 0
+c0 nn  … 18 00 14 00 …         .mv csci, <string>
+       … a8 00 00 …            cal F_puts: the placeholder holds symbol 0
+       … a8 00 01 … ret        cal stackheadrll8: the placeholder holds symbol 1
+f1 02  oo oo                   two ABS16 fixes: just their offsets
+fb 03  oo 80 00                HILO fix to local label 0
+1a 02 00 00                    local label 0 = the string
+c0 03 68 69 00                 "hi"
+ed 00
 ```
+
+**Size.** A variable access is 5 bytes of code (`mov a, off` + `cal`) plus 1 fix byte. With
+one fix record per patch it would be 11–12 bytes, because each fix would also split the
+`CODE` record. The estimate for a whole `.o` is about 1.2–1.3 × the code size, to be
+measured in phase 1.
+
+**Still open:** the `SECT` flags. At least "always keep" (the runtime entry point) and
+"absolute at address X" (the `.org` boot sector) are needed.
 
 - **One section per function.** That makes dead-code elimination exact: the linker keeps a
   section only if something it keeps refers to it, starting from `main`.
@@ -525,10 +878,13 @@ records  one tag byte, then fields:
 - **Local labels** are numbered per module (a module like `bdos` has 181). The linker keeps
   them in an array of `2 × n` bytes while it handles that module.
 - **Symbols the linker defines:** `__end` (the end of the image: today's `sys_stackhead`
-  sits there and the variable stack grows from it) and `__heap` (from a `-h F000` option,
-  replacing `#heap`). `#code 0x6000` becomes the linker's default base.
-- **Libraries.** First version: plain `.o` files listed on the linker command line, or a
-  fixed default set. Later: `LIBB.L`, the concatenated objects with an index of their
+  sits there and the variable stack grows from it) and `__heap` (the `#heap` address).
+- **Program addresses** come from the `ad` records of all linked objects: `#code` is the
+  base address (default `0x6000`), `#heap` the heap address, `#codelimit` an upper limit
+  for the end of the image. Two objects that give different values for the same one are a
+  link error naming both modules.
+- **Libraries.** First version: plain `.o` files on the development disc, found through
+  `NEED` records. Later: `LIBB.L`, the concatenated objects with an index of their
   global names at the start, so the linker reads only the members it needs.
 
 ### Linker algorithm (BLINK)
@@ -542,7 +898,7 @@ records  one tag byte, then fields:
    the reference lists. Report undefined symbols that are reachable.
 3. **Lay out** the live sections from `0x6000` in order. Each one gets its address.
 4. **Pass 2, emit.** For each object, read it again. For each live section, keep its local
-   label offsets (the module's array from pass 1), apply each `FIX`, and write the bytes to
+   label offsets (the module's array from pass 1), apply the fix records, and write the bytes to
    the single write handle. The output is today's `.PRG` format: a raw image loaded at
    `0x6000`. The shell needs no change.
 
@@ -571,9 +927,9 @@ stacks). Three ways past them, from simplest:
 
 <a id="chaining"></a>
 **1. Chaining: several programs, run one after another.** This is how the toolchain itself
-works (BCC1, BCC2, BCC3, then BLINK, then the program). Data passes between them in disc files.
+works (BCC, BCC2, BCC3, then BLINK, then the program). Data passes between them in disc files.
 - **What's missing:** a program can't start another one. The proposal is a new bdio call,
-  `bdio_chain(Pcmdline)` (`0x1a`). It copies a command line into a small *next command*
+  `bdio_chain(Pcmdline)` (`0x1b`; `0x1a` is `random` now). It copies a command line into a small *next command*
   buffer and returns. When the current program returns to the shell, the shell runs that
   command line as if it had been typed.
 - No stack tricks are needed: the program ends normally, and only the shell loop changes.
@@ -642,7 +998,12 @@ So these host changes come first:
    - #20, `return` anywhere: simpler for BCC2 to implement correctly than to copy the bug;
    - #18, precedence: **don't** change it before BCC. Keeping today's quirks is cheaper
      than migrating all the sources;
-   - raw-byte `asm` added; `asm "…"` removed once the libraries are moved.
+   - raw-byte `asm` added; `asm "…"` removed once the libraries are moved;
+   - `#link name` added, in `bc` and in `bc81asmc`;
+   - the `nop` the host writes at every label and function start removed (176 bytes in
+     `texted`, 220 in `bdos`). The assembler must first accept a label on a line of its
+     own. BCC3's `LABEL` and `FUNC` templates follow the host, so the outputs stay
+     byte-identical.
 2. **Object output on the host:** `.global` / `.extern` / `.sect`, `#include` / `#define`
    and `--obj` in `bc81asmc`; external references for prototypes and `F_name` symbols in
    `bc`. Move the runtime from `bc_stdlib.py` into `runtime.basm`, so the host and BASM
@@ -662,10 +1023,10 @@ So these host changes come first:
 | 0 | disc bugs 1–2, `pack` (3), `ftool importtext` | e2e: `rm` then create keeps other files intact; `pack` reclaims space |
 | 1 | BOF format, `bc81asmc --obj` with `.global`/`.extern`/`.sect` and `#include`/`#define`, `bc --obj` with `F_name` symbols and raw `asm`, `runtime.basm`, `blink.py`; the ABI design decision; today's `asm` moved into `.basm` modules; library split | every disc program built through `blink.py` from B and `.basm` modules runs its e2e scenarios unchanged; no `asm "…"` left in `src/bdos`; sizes recorded per program |
 | 2 | `BLINK.PRG` (B, built on the host), development disc layout, shell search path | e2e: host-built `HELLO.O` + libraries linked **on the BC64** gives the same bytes as `blink.py` |
-| 3 | first a spike: BCC1 built and measured. Then `BCC1`–`BCC3`: the B 1.4 language with raw `asm`, without globals; the shared modules `RDR`, `PRE`, `BOFW`; host `bc --tok`/`--ir` to test each format | e2e: `.TOK`, `.IR` and `.o` byte-identical to the host's for `helloworld`, `ls`, `cp`, `rm`, `cha`, `cat`, `texted` and the B parts of the libraries; linked with the host-built assembly objects, the programs run |
+| 3 | first a spike: BCC built and measured. Then `BCC`–`BCC3`: the B 1.4 language with raw `asm`, without globals; the shared modules `RDR`, `PRE`, `BOFW`; host `bc --tok`/`--ir` to test each format | e2e: `.TOK`, `.IR` and `.o` byte-identical to the host's for `helloworld`, `ls`, `cp`, `rm`, `cha`, `cat`, `texted` and the B parts of the libraries; linked with the host-built assembly objects, the programs run |
 | 4 | `BASM.PRG`: `ENC` and the label table, on top of the shared modules from phase 3 | e2e: `runtime.basm` and every library `.basm` module assembled **on the BC64** give `.o` files byte-identical to `bc81asmc --obj`; an assembly program goes texted → `basm` → `blink` → run. From here the whole library set can be rebuilt on the BC64 |
-| 5 | `bdio_chain` + chained commands in the shell, `bcc NAME` runs all passes and the linker | one command from source to a running program |
-| 6 (optional) | self-hosting: BASM, BCC1–3 and BLINK build their own sources on the BC64; overlays in the linker | the tools built on the BC64 are byte-identical to the host-built ones |
+| 5 | `bdio_chain` + chained commands in the shell, `bcc NAME` chains through `bcc2`, `bcc3` and the linker | one command from source to a running program |
+| 6 (optional) | self-hosting: BASM, BCC–BCC3 and BLINK build their own sources on the BC64; overlays in the linker | the tools built on the BC64 are byte-identical to the host-built ones |
 
 Phases 0–2 are worth doing even if the BC64 compiler is never finished. They fix a
 data-loss bug, deliver roadmap item 5a (#16) and free about 20 KB on the system disc.
@@ -673,7 +1034,7 @@ data-loss bug, deliver roadmap item 5a (#16) and free about 20 KB on the system 
 ## Risks and open questions
 
 - **The pass sizes are estimates.** BLINK (phase 2) is the first real measurement of a B
-  tool's size. The first step of phase 3 is a spike: BCC1 (reader, lexer and `#define`
+  tool's size. The first step of phase 3 is a spike: BCC (reader, lexer and `#define`
   table) built and measured, before the parser is written. If it's far
   over 8 KB of own code, BCC2's estimate is wrong too: plan a fourth pass from the start.
 - **Byte-identical output** means BCC3 and BASM must copy every host code-generation and
@@ -681,7 +1042,7 @@ data-loss bug, deliver roadmap item 5a (#16) and free about 20 KB on the system 
   constant shortcuts, the order of operands for commutative operators). If that proves too
   costly, fall back to comparing program output, which is a weaker test.
 - **Disc space for the development disc.** Boot, catalog and `BDOS.SYS` take 184 sectors;
-  `LS`, `CP`, `RM`, `TEXTED` and `CAT` 358 more; BCC1–3 about 335 (about 42 KB of code
+  `LS`, `CP`, `RM`, `TEXTED` and `CAT` 358 more; BCC–BCC3 about 335 (about 42 KB of code
   with today's libraries); BASM about 165; BLINK about 110; libraries and headers about
   150. That's about 1,300 sectors: **well over** a 1,024-sector disc. After phase 1,
   dead-code elimination removes about 4 KB of libraries from each tool and about 20 KB from
@@ -703,6 +1064,16 @@ data-loss bug, deliver roadmap item 5a (#16) and free about 20 KB on the system 
     `F_name` symbols for B functions;
   - the compiler keeps only a raw-byte `asm` statement and contains no assembler;
   - BASM runs on the BC64 as its own phase, after the compiler.
+- **Decided (2026-11-13):** the object format is a stream of `tag, length, content`
+  records of at most 255 content bytes, with no index. Fixes are offset lists after each
+  `CODE` record, one tag per kind, with 16-bit targets kept in the placeholder and a
+  combined `HILO` kind for `.mv`. See [object format](#object-file-format).
+- **Decided (2026-11-13):** work discs: drive A holds the tools and libraries and is only
+  read; sources, objects and the program are all on drive B. `blink` takes one name; the
+  other objects come from `#link` lines, stored as `NEED` records. Every object needs a
+  `#link`; a header's name implies nothing.
+- **Decided (2026-11-13):** `#code`, `#heap` and `#codelimit` stay in the source and are
+  passed through the compiler to the linker (`ad` records). `blink` has no address options.
 - **Decisions still open for the owner:**
   1. Is texted's record format the official source format (recommended: yes, and the
      reader also accepts plain lines)?
