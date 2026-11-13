@@ -213,7 +213,8 @@ class ManifestHelperTests(TempCase):
         entries = h.planned_entries()
         names = [(e.name, e.ext) for e in entries]
         self.assertEqual(("BOOTSECT", "BIN"), names[0])
-        self.assertIn(("THEODORE", "PRG"), names)
+        self.assertIn(("CAT", "PRG"), names)
+        self.assertNotIn(("THEODORE", "PRG"), names)
         self.assertEqual([h.ls_line(e) for e in entries],
                          [h.ls_line(e) for e in h.planned_entries(h.MANIFEST)])
         with self.assertRaises(KeyError):
@@ -259,7 +260,7 @@ class CatalogTests(TempCase):
     def test_reader_lists_known_files(self):
         rows = h.read_catalog(h.OS_DISK)
         names = {(r.name, r.ext) for r in rows}
-        for known in [("HELLOWRD", "PRG"), ("THEODORE", "PRG"), ("TEST", "B"), ("BDOS", "SYS")]:
+        for known in [("HELLOWRD", "PRG"), ("CAT", "PRG"), ("TEST", "B"), ("BDOS", "SYS")]:
             self.assertIn(known, names)
         hello = [r for r in rows if r.name == "HELLOWRD"][0]
         planned = h.planned_entry("HELLOWRD.PRG")

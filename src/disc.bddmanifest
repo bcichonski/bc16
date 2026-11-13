@@ -22,4 +22,3 @@ RM.PRG        bdos/rm.sectors           SRX
 CHA.PRG       bdos/cha.sectors          SRX
 CAT.PRG       bdos/cat.sectors          SRX
 TEST.B        bdos/testb.sectors        RW
-THEODORE.PRG  bdos/theodore.sectors     RX
