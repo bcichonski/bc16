@@ -49,7 +49,7 @@ compiler's grammar notes.
   `cd src && ./buildos && ./buildtools && ./buildapps && ./makedisc`. `./run` prints this command and exits 1
   when the ROM or `os.bdd` is missing. `./makedisc` builds `os.bdd` and `utils.bdd` both. `run_tests.py` builds it for the e2e suite itself (see Testing), and
   with `--no-build` it reports the e2e suite as FAIL and prints this command when an output is missing.
-  People who only want to run the machine use the bc64 Release zip, which holds the built ROM and `os.bdd`. `debug`,
+  People who only want to run the machine use the bc64 Release zip, which holds the built ROM, `os.bdd` and `utils.bdd`. `debug`,
   `fddtest` and `src/bc/code/*` are not part of the pipeline: build them on demand with `./bcc`.
 - **Shell scripts:** all of them live in `src/` and must be run from there (`bcc`,
   `buildos`, `buildtools`, `buildapps`, `makedisc`, `run`, `run_tests`, `ftool`; `run_tests` only wraps the root `run_tests.py`). The ones that call
@@ -106,7 +106,7 @@ with `python3 run_tests.py --update-golden < /dev/null` (it builds first unless 
 of `src/bc64/testdata/` by eye before committing. Goldens are stored masked (`DISC_MASKS`, see `docs/01-emulator.md`),
 so no disc position is pinned except by `test_e2e_disc`.
 
-Every e2e test boots a temp copy of the freshly built `src/os.bdd`; the TextEd tests also boot a temp copy of `src/utils.bdd` in B. The smoke test,
+Every e2e test boots a temp copy of the freshly built `src/os.bdd`; the TextEd, calc and theodore tests also boot a temp copy of `src/utils.bdd` in B. The smoke test,
 `src/tests/test_bc64_smoke.py`, compares the session byte for byte with a committed transcript
 (`src/bc64/testdata/smoke_transcript.txt`); regenerate it after an intended change with the same
 `--update-golden` command (see `src/bc64/CLAUDE.md`). The tests that boot the real ROM are in `src/tests/test_e2e_rom.py`.
@@ -129,7 +129,7 @@ The `tests` workflow (`.github/workflows/tests.yml`) runs on every push and PR t
 
 The `release` workflow (`.github/workflows/release.yml`) runs on a pushed `bc64-v*` tag: it builds the
 pipeline, checks that the build left the tree clean, runs `run_tests.py --no-build`, builds the zip
-(with the built ROM and `os.bdd`) with `scripts/make_release.py bc64 --tag <tag>` and creates
+(with the built ROM, `os.bdd` and `utils.bdd`) with `scripts/make_release.py bc64 --tag <tag>` and creates
 the GitHub Release. `workflow_dispatch` is a dry run that uploads the zip as an artifact; GitHub offers it
 only for workflow files on the default branch (`master`).
 

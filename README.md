@@ -26,7 +26,7 @@ cd src && ./buildos && ./buildtools && ./buildapps && ./makedisc
 ```
 
 `python run_tests.py` builds the pipeline itself before the end-to-end tests (`--no-build` skips that). If you only
-want to run the machine, use the `bc64` zip from the Release page: it has the built ROM and `os.bdd`.
+want to run the machine, use the `bc64` zip from the Release page: it has the built ROM, `os.bdd` and `utils.bdd`. Run it with disk A `os.bdd`, and answer `utils.bdd` at the `Disk B name:` prompt for the default two-disc session.
 
 `debug`, `fddtest` and the programs in `src/bc/code/` aren't part of the pipeline. Build them on demand with
 `./bcc <name>` (for example `./bcc bdos/debug`).
@@ -44,10 +44,10 @@ Every machine generation is a tagged GitHub Release with a zip. The tags are:
 
 What the zips contain:
 
-- **bc64** (`bc64-vX.Y.zip`, root folder `bc64-vX.Y/`): the tracked files of the emulator, the built ROM and `src/os.bdd`, the
+- **bc64** (`bc64-vX.Y.zip`, root folder `bc64-vX.Y/`): the tracked files of the emulator, the built ROM, `src/os.bdd` and `src/utils.bdd`, the
   toolchain (`bc`, `bc81asmc`, `bdos`, `ftool`, the shell scripts), `README.md`, `LICENSE`, `pyproject.toml` and the
   reference docs `docs/0*-*.md`. Tests, test data, CI files and planning docs are left out. Unpack it, then
-  `cd bc64-vX.Y/src && ./run` starts the machine.
+  `cd bc64-vX.Y/src && ./run` starts the machine. At the prompts enter `os.bdd` for disk A and `utils.bdd` for disk B.
 - **bc16** and **bc32** (`bc16-v1.0.zip`, `bc32-v1.0.zip`): the frozen `bc16_v1.0` / `bc32_v1.0` folders that used
   to live in `release/` (emulator, assembler, tapes or discs), plus a `rom/` folder with the bcOS ROM and a
   `RELEASE-NOTES.md`. The bc32 ROM is bcOS 1.1.1. The bc16 ROM (bcOS 1.0) is assembled at release time from
@@ -355,7 +355,7 @@ full and current reference: [docs/02-assembler.md](docs/02-assembler.md)
 ### software
 external assembler bc81asmc up to 1.1 (240317) - currently v1.3 (240914) for bc8183
 external compiler bc of b language for bc8181-bc8182 cpu v 1.0.0 (240317) - currently v1.3.1 (240927) for bc8183
-calc - basic calculator
-texted - basic line editor
-theodore - simple game (v1.1, on the bdos system disc)
+calc - basic calculator (v1.0, a bdos app on `utils.bdd`, so run `b:` first)
+texted - basic line editor (on `utils.bdd`)
+theodore - simple game (v1.1, on `utils.bdd`, so run `b:` first)
 

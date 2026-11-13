@@ -21,8 +21,9 @@ Sources are in `src/bdos/`:
 | `bdostools.b` | `bdio_fnormalize` (converts `name.ext` to the catalog form) |
 | `random.b` | `random(max)`: opt-in wrapper for `BDIO_RANDOM` (`0x1a`); include it after `bdosh.b` |
 | `ls.b`, `cp.b`, `rm.b`, `cat.b`, `cha.b`, `format.b` | system utilities |
-| `helloworld.b`, `texted.b`, `theodore.b` | apps on the system disc |
-| `calc.b`, `fddtest.b`, `debug.b` | older or test programs, not on the disc |
+| `helloworld.b` | app on both discs: `HELLOWRD.PRG` is the smoke program on `os.bdd`, and the same build is on `utils.bdd` |
+| `texted.b`, `theodore.b`, `calc.b` | apps on the utilities disc (`utils.bdd`, run `b:` first) |
+| `fddtest.b`, `debug.b` | older or test programs, not on the disc |
 | `bdos.md` | short design notes: disk format, bdio call list, memory map |
 
 Building a program creates generated files next to it: `*.genb` (preprocessed), `*.basm`,
@@ -71,8 +72,27 @@ directories. Each file is one **contiguous** run of sectors.
 
 The layout of the system disc and its requirements are stated in `src/disc.bddmanifest`, and
 `ftool mkdisc` enforces them. `ls -a` lists the actual positions and lengths. The system disc holds the
-system, the system utilities (`LS`, `CP`, `FORMAT`, `RM`, `CHA`, `CAT`) and the sample programs `HELLOWRD.PRG`,
-`TEST.B` and `THEODORE.PRG`. The application `TEXTED.PRG` is on the utilities disc (below).
+system, the system utilities (`LS`, `CP`, `FORMAT`, `RM`, `CHA`, `CAT`) and the sample programs `HELLOWRD.PRG`
+and `TEST.B`. `HELLOWRD.PRG` is also on the utilities disc, from the same build. The applications `TEXTED.PRG`,
+`CALC.PRG` and `THEODORE.PRG` are on the utilities disc (below), not on this one.
+
+It has eleven entries:
+
+| File | Source | Attributes | Start (track/sector) | Length (sectors) |
+|---|---|---|---|---|
+| `BOOTSECT.BIN` | `bdos/boot.sector` | SR | 0/0 | 1 |
+| `DISC.CAT` | (written by the tool) | SR | 0/1 | 31 |
+| `BDOS.SYS` | `bdos/bdos.sector` | SR | 2/0 | 160 |
+| `LS.PRG` | `bdos/ls.sectors` | SRX | 12/0 | 58 |
+| `HELLOWRD.PRG` | `bdos/helloworld.sectors` | RX | 15/10 | 14 |
+| `CP.PRG` | `bdos/cp.sectors` | SRX | 16/8 | 57 |
+| `FORMAT.PRG` | `bdos/format.sectors` | SRX | 20/1 | 82 |
+| `RM.PRG` | `bdos/rm.sectors` | SRX | 25/3 | 63 |
+| `CHA.PRG` | `bdos/cha.sectors` | SRX | 29/2 | 56 |
+| `CAT.PRG` | `bdos/cat.sectors` | SRX | 32/10 | 62 |
+| `TEST.B` | `bdos/testb.sectors` | RW | 36/8 | 2 |
+
+The positions and lengths are those of a build at the time of writing; `ls -a` shows the actual values.
 
 The catalog itself is a file: `DISC.CAT`, from track 0 sector 1 to the end of track 1.
 
@@ -81,7 +101,7 @@ The catalog itself is a file: `DISC.CAT`, from track 0 sector 1 to the end of tr
 The utilities disc holds the applications and games that are not on the system disc. As for `os.bdd`, the
 layout and its requirements are stated in `src/utils.bddmanifest`, which is the authority, and `ftool mkdisc`
 enforces them. Its first three entries are the same boot, catalog and system files as on `os.bdd`, so the boot
-loader and the shell work from either disc. It has four entries:
+loader and the shell work from either disc. It has seven entries:
 
 | File | Source | Attributes | Start (track/sector) | Length (sectors) |
 |---|---|---|---|---|
@@ -89,13 +109,17 @@ loader and the shell work from either disc. It has four entries:
 | `DISC.CAT` | (written by the tool) | SR | 0/1 | 31 |
 | `BDOS.SYS` | `bdos/bdos.sector` | SR | 2/0 | 160 |
 | `TEXTED.PRG` | `bdos/texted.sectors` | RX | 12/0 | 112 |
+| `CALC.PRG` | `bdos/calc.sectors` | RX | 19/0 | 50 |
+| `HELLOWRD.PRG` | `bdos/helloworld.sectors` | RX | 22/2 | 14 |
+| `THEODORE.PRG` | `bdos/theodore.sectors` | RX | 23/0 | 38 |
 
-The positions and lengths are those at the time of writing; `ls -a` shows the actual values. `TEXTED.PRG` has no
-`S` attribute, and the manifest pins it with `at=12/0`, the first sector after the BDOS slot.
+The positions and lengths are those of a build at the time of writing; `ls -a` shows the actual values. The
+application and game entries have no `S` attribute. Only `TEXTED.PRG` is pinned, with `at=12/0`, the first sector
+after the BDOS slot; the others follow it back to back. `HELLOWRD.PRG` is the same build as on `os.bdd`.
 
 A disc made from `utils.bddmanifest` can also boot alone in drive A. It then shows the bdos shell with `A>` and
 its built-in commands (`help`, `a:`, `b:`, `bcos`, `exit`), but none of the system utilities: `ls` gives
-`error: E0 file not found`. `texted` runs from it.
+`error: E0 file not found`. The applications and games on it (`texted`, `calc`, `hellowrd`, `theodore`) run from it.
 
 #### Default session: `--disk-a os.bdd --disk-b utils.bdd`
 
@@ -104,8 +128,8 @@ The default session has the system disc in A and the utilities disc in B. In hea
 
 1. The system boots from A and shows the `A>` prompt.
 2. `b:` makes B the active drive, and the prompt becomes `B>`.
-3. `texted` runs TextEd from B. Its `s` and `l` save and load files on B, so a file saved in one session is
-   loaded from B in the next one.
+3. `texted`, `calc`, `theodore` and `hellowrd` run from B, and each returns to the `B>` prompt. TextEd's `s` and
+   `l` save and load files on B, so a file saved in one session is loaded from B in the next one.
 4. After `b:`, `ls` and the other utilities are **not found** (`error: E0 file not found`). The shell looks a
    `.PRG` up only on the active drive, and the system utilities are on A. This is by design: there is no shell
    change for running programs across drives. Go back with `a:`.
@@ -241,7 +265,7 @@ and adds `PRG`. It then:
 The program returns to the shell with `ret`. The whole command line stays in the buffer at
 `0x0dd2`, and programs parse it with `strnextword(BDIO_CMDPROMPTADDR)`.
 
-## Programs on the system disc
+## Programs and the discs they are on
 
 Use `-h` for help in each tool. File arguments accept a drive prefix: `[d:]name.ext`.
 
@@ -253,11 +277,12 @@ Use `-h` for help in each tool. File arguments accept a drive prefix: `[d:]name.
 | `cat` | `cat [-b\|-c] [d:]name.ext` | print a file as a hex dump (`-b`) or as characters (`-c`) |
 | `cha` | `cha [+-][SRWX] [d:]name.ext` | set or clear attributes |
 | `format` | `format d: [-q]` | `-q` (quick) writes an empty `DISC.CAT` on a disc that already has the system layout. A full format makes the target a **system disc**: wipes it, copies the boot sector, creates the catalog and copies `BDOS.SYS`, `LS`, `CP`, `FORMAT`, … from the source system disc |
-| `hellowrd` | `hellowrd` | prints "Hello world!" and a number |
+| `hellowrd` | `hellowrd` | prints "Hello world!" and a number. On `os.bdd` and on `utils.bdd` (same build) |
 | `texted` | `texted` | TextEd v1.2 (on `utils.bdd`, so run `b:` first), a line editor: `i <n> <s>` insert lines from `n` in steps of `s`, `p <n> <m>` print, `d <n> <m>` delete, `l <file>` load (replaces the buffer; a missing file prints the bdio error and keeps it), `s <file>` save (a missing file name or number prints an error and does nothing), `m` memory stats, `h` help, `q` quit |
-| `theodore` | `theodore` | Looking for uncle Theodore v1.1, a guessing game: find uncle Theodore among train stops 0..99 with north/south hints; the start stop comes from the hardware random generator; 100 (or more) quits |
+| `theodore` | `theodore` | On `utils.bdd`, so run `b:` first. Looking for uncle Theodore v1.1, a guessing game: find uncle Theodore among train stops 0..99 with north/south hints; the start stop comes from the hardware random generator; 100 (or more) quits |
+| `calc` | `calc` | On `utils.bdd`, so run `b:` first. Calculator v1.0, a bdos program: `h` help, `q` quit, and `+`, `-`, `*`, `/` on two operands (asked for with `1>` and `2>`, the result is printed after `res>`). An operand is a decimal number from 0 to 65535; anything else prints `error: bad number` and the operation stops there. Results are unsigned 16-bit and wrap modulo 65536 (`3-5` gives 65534), and `/` truncates (`100/7` gives 14). Dividing by 0 prints `error: division by zero`. Any other command prints `error: unknown command, type h for help` |
 
-`calc` (calculator), `fddtest` and `debug` are in the sources but are not built onto the disc.
+`fddtest` and `debug` are in the sources but are not built onto the disc.
 
 ### TextEd file format
 
@@ -281,7 +306,7 @@ From `src/` (the scripts pick the interpreter themselves: `winpty python` on Git
 ```bash
 ./buildos      # bcOS ROM + boot loader + bdos shell
 ./buildtools   # ls cp format rm cha cat
-./buildapps    # helloworld texted theodore
+./buildapps    # helloworld texted theodore calc
 ./makedisc     # convert each .btap to sectors, then build a fresh os.bdd (src/disc.bddmanifest) and utils.bdd (src/utils.bddmanifest)
 ./run          # start the emulator; enter "os.bdd" when asked for the disk name
 ```
@@ -363,7 +388,12 @@ and the error messages. `cp` copies a file (`cp test.b copy.b`), and `cat` check
 End-to-end tests.
 
 The TextEd tests (`src/tests/test_e2e_texted*.py`) boot `os.bdd` in A with a temp copy of `utils.bdd` in B, and
-run `b:` then `texted`, so the save and load happen on B. The utilities disc is tested in
+run `b:` then `texted`, so the save and load happen on B.
+
+The calculator and theodore tests (`src/tests/test_e2e_calc.py`, `src/tests/test_e2e_theodore.py`) use the same
+setup: `os.bdd` in A, a temp copy of `utils.bdd` in B, and `b:` before the program.
+
+The utilities disc is tested in
 `src/tests/test_e2e_utils_disc.py`: its structure against `utils.bddmanifest`, that its `BOOTSECT.BIN` and
 `BDOS.SYS` bytes equal those on `os.bdd`, that the build is reproducible, and that it boots alone in A.
 
