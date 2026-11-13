@@ -95,9 +95,10 @@ class ZipChecks:
 class Bc64ZipTests(ZipChecks, unittest.TestCase):
     zip_root = "bc64-unittest"
 
-    # Stand-in build outputs: the ROM and os.bdd are untracked, so the tests never need a real build.
+    # Stand-in build outputs: the ROM and both discs are untracked, so the tests never need a real build.
     BUILT = {"src/bc81asmc/bcOS/bcos_v1_2_0.b81": b"stand-in ROM\r\n\x00\xff",
-             "src/os.bdd": b"stand-in os.bdd\x00\x01\r\n"}
+             "src/os.bdd": b"stand-in os.bdd\x00\x01\r\n",
+             "src/utils.bdd": b"stand-in utils.bdd\x00\x02\r\n"}
 
     @classmethod
     def write_built(cls, work, files):
@@ -178,6 +179,30 @@ class Bc64ZipTests(ZipChecks, unittest.TestCase):
     def test_invalid_tag_is_refused(self):
         with self.assertRaises(make_release.ReleaseError):
             make_release.make_bc64(ROOT, "../evil", self.tmp)
+
+
+class Bc64UtilsDiscTests(unittest.TestCase):
+    """The release zip ships src/utils.bdd (D9), and release.yml builds it before packaging."""
+
+    def test_missing_utils_bdd_is_refused_with_the_build_hint(self):
+        with tempfile.TemporaryDirectory() as work:
+            for name, data in Bc64ZipTests.BUILT.items():
+                if name != "src/utils.bdd":
+                    Bc64ZipTests.write_built(work, {name: data})
+            with self.assertRaises(make_release.ReleaseError) as caught:
+                make_release.make_bc64(ROOT, "bc64-no-utils", os.path.join(work, "out"),
+                                       built_root=work)
+        self.assertIn("src/utils.bdd", str(caught.exception))
+        self.assertIn(make_release.BUILD_COMMAND, str(caught.exception))
+
+    def test_release_workflow_runs_makedisc_before_packaging(self):
+        with open(os.path.join(ROOT, ".github", "workflows", "release.yml"), encoding="utf-8") as handle:
+            lines = handle.read().splitlines()
+        makedisc = [i for i, line in enumerate(lines) if "./makedisc" in line]
+        package = [i for i, line in enumerate(lines) if "make_release.py bc64" in line]
+        self.assertTrue(makedisc, "release.yml does not run ./makedisc")
+        self.assertTrue(package, "release.yml does not run make_release.py bc64")
+        self.assertLess(makedisc[0], package[0])
 
 
 class LegacyZipMixin:
