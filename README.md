@@ -355,7 +355,7 @@ full and current reference: [docs/02-assembler.md](docs/02-assembler.md)
 ### software
 external assembler bc81asmc up to 1.1 (240317) - currently v1.3 (240914) for bc8183
 external compiler bc of b language for bc8181-bc8182 cpu v 1.0.0 (240317) - currently v1.3.1 (240927) for bc8183
-calc - basic calculator (v1.0, a bdos app on `utils.bdd`, so run `b:` first)
+calc - basic calculator (v1.1, a bdos app on `utils.bdd`, so run `b:` first)
 texted - basic line editor (on `utils.bdd`)
 theodore - simple game (v1.1, on `utils.bdd`, so run `b:` first)
 

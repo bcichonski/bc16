@@ -4,7 +4,7 @@
 
 **Story Type**: `Internal`
 
-**Plan Revision**: `A0`
+**Plan Revision**: `A1`
 
 > This plan captures **what** to build and **why**. The implementation agent discovers the **how** against live code.
 
@@ -98,7 +98,7 @@ Default session: boot bdos from A, then `b:`. `bdio_execute` searches the active
 *   **D5 — Division by zero.** When the operator is `/` and the second operand is 0, calc prints `error: division by zero` and no `res>` line, then goes back to `calc>`. It must never execute a division by zero, because that stops the emulator.
 *   **D6 — Results are unsigned 16-bit, modulo 65536** (the machine's word arithmetic, unchanged from v1.0). `/` truncates. Tests pin: `12+30` → 42, `3-5` → 65534, `300*500` → 18928, `100/7` → 14.
 *   **D7 — Unknown command**: any command other than `h q + - * /` prints `error: unknown command, type h for help` and asks for no operands. v1.0 instead asked for two numbers and printed the first, which was a bug.
-*   **D8 — Help text** keeps the v1.0 lines, with one fix: "`- for deletion`" becomes "`- for subtraction`". The banner stays `calc v1.0` followed by `type h for help`. The version stays 1.0 because the issue AC names `calc v1.0`.
+*   **D8 — Help text** keeps the v1.0 lines, with one fix: "`- for deletion`" becomes "`- for subtraction`". The banner is `calc v1.1` followed by `type h for help`. *Amended in: A1* — the owner asked for 1.1 because the port improves the program (input validation, error messages); this deliberately overrides the AC's `calc v1.0` banner wording.
 *   **D9 — Release zip**: `BC64_BUILT_FILES` gains `src/utils.bdd`. It follows the same rules as the other built files: read from the working tree, mode 0644, and a missing file is a `ReleaseError` naming `BUILD_COMMAND`. `release.yml` is unchanged (it already builds first).
 *   **D10 — Base**: branch from `origin/master` (`3fc35bb`, #85 merged), and open the PR into `master` (the owner's instruction for this run).
 
@@ -109,7 +109,7 @@ Default session: boot bdos from A, then `b:`. `bdio_execute` searches the active
 | HELLOWRD on os.bdd | kept (copy, same build) | D1 | `disc.bddmanifest` |
 | utils.bdd order | TEXTED (12/0), CALC, HELLOWRD, THEODORE | manifest order; only TEXTED pinned | `utils.bddmanifest` |
 | Attributes of moved/ported programs | `RX` | issue | `utils.bddmanifest` |
-| calc banner | `calc v1.0` / `type h for help` | AC | `calc.b` |
+| calc banner | `calc v1.1` / `type h for help` | owner (A1) | `calc.b` |
 | calc prompts | `calc>`, `1>`, `2>`, result `res>` | v1.0 | `calc.b` |
 | calc quit text | `bye` | v1.0 | `calc.b` |
 | Bad number message | `error: bad number` | D4 | `calc.b` |
@@ -147,7 +147,7 @@ Every task must leave `python3 run_tests.py < /dev/null` (from the repo root; it
     *   `./buildapps` builds calc, and the build's memory asserts pass. `./makedisc` converts `calc.btap` and puts `CALC.PRG` on utils.bdd after TEXTED.
     *   No build output of calc is tracked or left untracked (`git status --porcelain` is clean after a build).
 *   **Tests expected** (new, e.g. `src/tests/test_e2e_calc.py` with `calc_*.in.txt` scripts in `src/bc64/testdata/e2e/`; markers, optional golden). All run os.bdd in A and a temp copy of utils.bdd in B, starting with `b:`:
-    *   banner (`calc v1.0`, `type h for help`); `h` prints all six help lines, including `- for subtraction`.
+    *   banner (`calc v1.1`, `type h for help`); `h` prints all six help lines, including `- for subtraction`.
     *   One of each operation, with the D6 values: `12+30=42`, `3-5=65534`, `300*500=18928`, `100/7=14`.
     *   `/` with divisor 0 prints `error: division by zero` and no `res>`, and the session continues.
     *   Bad numbers (`abc`, empty, `65536`) print `error: bad number`. After a bad first operand there is no `2>` prompt. `65535` is accepted (e.g. `65535+0=65535`).
@@ -232,3 +232,4 @@ Every task must leave `python3 run_tests.py < /dev/null` (from the repo root; it
 
 | Amendment | Request | Decision | Plan changes |
 | :--- | :--- | :--- | :--- |
+| A1 | Owner (PR #101 review, 2026-11-13): raise calc's version to 1.1, as the port improves it (e.g. number parsing) | accepted — owner decision, overrides the AC's `calc v1.0` banner text | D8, §3.1 banner row, T1 test expectation: `calc v1.1` |

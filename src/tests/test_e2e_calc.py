@@ -17,7 +17,7 @@ def run(scenario):
 class CalcTests(unittest.TestCase):
     def test_banner_and_help(self):
         out = run("help")
-        h.assert_markers(out, [b"B>calc", b"calc v1.0\ntype h for help\ncalc>h\n",
+        h.assert_markers(out, [b"B>calc", b"calc v1.1\ntype h for help\ncalc>h\n",
                                b"+ for addition\n- for subtraction\n* for multiplication\n"
                                b"/ for division\nh for help\nq for quit\ncalc>"])
         self.assertNotIn(b"deletion", out)

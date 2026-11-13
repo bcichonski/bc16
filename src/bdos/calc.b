@@ -5,7 +5,7 @@
 #include stdmem.b
 #include bdosh.b
 
-// calc v1.0: a four-function calculator for bdos (CALC.PRG on utils.bdd).
+// calc v1.1: a four-function calculator for bdos (CALC.PRG on utils.bdd).
 // Numbers are unsigned 16-bit words (1..5 decimal digits, up to 65535); results wrap modulo 65536.
 // The input buffer comes from malloc; nothing below 0x6000 is touched.
 
@@ -218,7 +218,7 @@ byte main()
     word Pbuf;
     byte again;
 
-    putsnl("calc v1.0");
+    putsnl("calc v1.1");
     putsnl("type h for help");
 
     Pbuf <- malloc(CALCBUFLEN);
