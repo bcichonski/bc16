@@ -14,6 +14,7 @@ emulator. The measurements below were taken on 2026-11-07.
 | bdos, utilities, apps | [05-bdos.md](05-bdos.md) |
 | Toolchain, build, tests, repository | [06-toolchain.md](06-toolchain.md) |
 | A B compiler, linker and `#include` running on the BC64 (roadmap item 9) | [07-self-hosted-compiler.md](07-self-hosted-compiler.md) |
+| Self-hosted toolchain: delivery order, step by step with issues (roadmap items 8 and 9) | [08-self-hosted-roadmap.md](08-self-hosted-roadmap.md) |
 
 Each file has the same sections: current state, development direction, problems,
 proposals, and a modernisation verdict.
