@@ -1,4 +1,4 @@
-# A B compiler running on the BC64: feasibility and design (analysis, 2026-11-09, updated 2026-11-13)
+# A B compiler running on the BC64: feasibility and design (analysis, 2026-11-09, updated 2026-11-19)
 
 Roadmap item 9 is "compiler running on the BC64". This page checks how realistic that is on
 the machine as it is today (bcOS 1.2, bdos 1.1, 64 KB RAM, 128 KB discs), and proposes a
@@ -18,15 +18,16 @@ Related pages: [03-compiler.md](03-compiler.md) (host compiler analysis),
 | Is `#include` feasible? | **Yes.** bdos has 3 buffered read handles, so the main file plus two nested levels can be open at once. The real problem is that today's `#include` pastes whole library *bodies*. On the machine that means compiling about 6 KB of library code and about 200 `#define`s for every program. Split them: headers (`.h`, declarations and `#define`s) are included as text; bodies are compiled once to `.o` files and linked. |
 | Can programs be longer than user memory? | **Not today, and not by much without work.** The catalog stores a file's length in one byte, so a `.PRG` is at most 255 sectors (32,640 bytes): *less* than user memory. Plan A keeps the file system as it is: bigger programs use overlays (the linker writes extra files, each under 32 KB, that the runtime loads into a fixed area) or chaining (one program asks the shell to run the next). Both work with today's file API plus one small bdos addition. Plan B, only if plan A isn't enough, is a 2-byte file length in catalog v2. |
 | What about linking? | **It is the easiest part, and the most useful.** A two-pass linker over object files needs a few KB of tables. It can also drop unused functions, which is roadmap item 5a ("drop unused code", #16), and that shrinks every program on the disc, not only the compiled ones. Build it on the host first (Python), then port it to B. |
-| Does the "reads lines, emits tokens to disc" model work? | **Yes, it's plan A.** bdos has only **one write handle**, so the rule is: each pass reads one intermediate file and writes exactly one. The cost is disc space for intermediate files. Deleted space isn't reused today, so a `pack` utility (or reuse of freed space) becomes part of the plan; see [disc prerequisites](#disc-and-bdos-prerequisites). |
+| Does the "reads lines, emits tokens to disc" model work? | **Yes, it's plan A.** bdos has only **one write handle**, so the rule is: each pass reads one intermediate file and writes exactly one. The cost is disc space for intermediate files. Deleted space isn't reused today, so reuse of freed space (#41) becomes part of the plan; see [disc prerequisites](#disc-and-bdos-prerequisites). |
 | Should the compiler write assembly text, like the host one? | **No.** `texted.basm` is 208 KB and `bdos.basm` 256 KB, both bigger than a whole disc (128 KB). The compiler writes machine code for its own templates directly: it uses only about 30 fixed instruction templates. An assembler still runs on the machine, as a separate tool (next row). |
-| How is assembly code handled, and is there an assembler on the BC64? | **Assembly lives in its own modules** (decided 2026-11-11). `.basm` → assembler → `.o` and `.b` → compiler → `.o` write the same object format, and the linker joins them. Assembly routines follow the B calling convention, so B calls them like B functions, and they can call B. The compiler keeps only a **raw-byte `asm`** statement for a few inline instructions (`asm 0xa8, :poke16;`), so it contains no assembler. `BASM` runs on the BC64 as its own tool, **after** the compiler. See [mixing B and assembly](#mixing-b-and-assembly) and [the assembler](#the-assembler-basm). |
+| How is assembly code handled, and is there an assembler on the BC64? | **Assembly lives in its own modules** (decided 2026-11-11). `.basm` → assembler → `.o` and `.b` → compiler → `.o` write the same object format, and the linker joins them. Assembly routines follow the B calling convention, so B calls them like B functions, and they can call B. The compiler keeps only a **raw-byte `asm`** statement for a few inline instructions (`asm 0xa8, :poke16;`), so it contains no assembler. `BASM` runs on the BC64 as its own tool, **before** the linker and the compiler (order changed 2026-11-19). See [mixing B and assembly](#mixing-b-and-assembly) and [the assembler](#the-assembler-basm). |
 
 **Verdict:** a B compiler and linker on the BC64 are feasible on today's machine, without
-hardware or file-system changes, as a 3-pass compiler, a 2-pass linker and an assembler. The order that makes it work is: fix
-the disc allocation bug → object format, linker and the move of library assembly into
-`.basm` modules on the host → linker on the BC64 → compiler on the BC64 → assembler on the
-BC64. The
+hardware or file-system changes, as a 3-pass compiler, a 2-pass linker and an assembler. The order that makes it work (changed on
+2026-11-19) is: fixes in the emulator, assembler, compiler and bdos → object files from the
+host assembler and a reference linker → assembler on the BC64 → B objects and split
+libraries on the host, then the linker on the BC64 → compiler on the BC64. The step-by-step
+list with issue numbers is [08-self-hosted-roadmap.md](08-self-hosted-roadmap.md). The
 [phases](#phased-plan) below have exit criteria for each step. Self-hosting (the compiler
 compiling its own source on the BC64) is a later, optional step.
 
@@ -82,7 +83,7 @@ constraints shape it:
   pass needs must travel *inside* that file. For example, identifier names go into the
   token stream the first time they appear, not into a separate name file.
 - **Disc space.** Intermediate files cost space while the compile runs. Freed space isn't
-  reused today, so a `pack` utility is part of phase 0.
+  reused today, so reusing it (#41) is part of phase 0.
 
 **4. "A separate linker assembles the full executable straight on the disc."** Yes. Use a
 two-pass design: read all objects once for symbols, then read them again and stream the
@@ -146,11 +147,11 @@ when it succeeds.
 | `bc81asmc --obj` | Python | host | assembles `.basm` to `.o`; new directives `.global`, `.extern` and `.sect`; reads `#include`d `.h` files for their `#define`s |
 | `bc --obj` | Python | host | compiles one `.b` to `.o` (through `.basm` and the assembler); a declaration without a body becomes an external reference; functions get stable `F_name` symbols; raw-byte `asm` |
 | `blink.py` | Python | host | the reference linker: the same algorithm as BLINK, used to test the format, the libraries and dead-code elimination |
-| `RUNTIME.O`, `STD.O`, `STDIO.O`, `STRINGS.O`, `STDMEM.O`, `BDOSH.O`, `BDOSTOOLS.O` | B for the B parts, `.basm` modules for the assembly parts (`runtime.basm` from `bc_stdlib.py`, `printf` and the `peek`/`poke`/`put*` routines, …) | – | the libraries: built on the host first. On the BC64 the B parts can be rebuilt from phase 3 (compiler), the assembly parts from phase 4 (BASM) |
+| `RUNTIME.O`, `STD.O`, `STDIO.O`, `STRINGS.O`, `STDMEM.O`, `BDOSH.O`, `BDOSTOOLS.O` | B for the B parts, `.basm` modules for the assembly parts (`runtime.basm` from `bc_stdlib.py`, `printf` and the `peek`/`poke`/`put*` routines, …) | – | the libraries: built on the host first. On the BC64 the B parts can be rebuilt from phase 4 (compiler), the assembly parts from phase 2 (BASM) |
 | `*.H` | B | – | declarations (`#define`s and prototypes) split out of the library sources; read by the compiler and by the assembler |
 | `BLINK.PRG` | B, built on the host | BC64 | the linker |
 | `BASM.PRG` | B, built on the host | BC64 | the assembler: one assembly file in (texted format, extension `.BAS` because names are 8+3), one `.o` out. Not needed to compile B programs |
-| shared modules: `RDR` (texted-format reader), `PRE` (`#include`/`#define`), `BOFW` (object writer) | B | BC64 | written once for the compiler and linked into BASM too. The instruction encoder `ENC` belongs to BASM alone |
+| shared modules: `RDR` (texted-format reader), `PRE` (`#include`/`#define`), `BOFW` (object writer) | B | BC64 | written once for BASM (phase 2) and reused by the compiler passes. The instruction encoder `ENC` belongs to BASM alone |
 | `BCC.PRG`, `BCC2.PRG`, `BCC3.PRG` | B, built on the host | BC64 | the compiler, in three passes: `.b` → `.TOK` → `.IR` → `.o`. The last pass writes machine code for its templates directly and copies raw `asm` bytes. It contains no assembler |
 | `ftool importtext` / `exporttext` | Python | host | move text files between the host and texted format on a `.bdd` |
 
@@ -342,7 +343,7 @@ name the function.
   the rule today already. Prototypes come from the `.H` files.
 - **Assembly:** only the raw-byte `asm` statement. Real assembly code lives in `.basm`
   modules; see [mixing B and assembly](#mixing-b-and-assembly).
-- **No globals in phase 3**, unless they turn out to be cheap. A top-level `word x;` is an
+- **No globals in phase 4**, unless they turn out to be cheap. A top-level `word x;` is an
   error, like any unsupported feature.
 - **Errors:** every pass prints `file:line message` from the `LINE` markers, stops at the
   first error, and doesn't chain to the next pass. Don't try to recover: on this machine
@@ -370,7 +371,7 @@ For comparison, one single-pass program would be about 29 KB of code plus 8–12
 37–41 KB, too close to both limits to plan on.
 
 - **BCC2 is the biggest.** If the spike shows it larger than estimated, the first lever is
-  dead-code elimination (phase 1 of this plan: −4 KB of libraries). The second is splitting
+  dead-code elimination (#16 in phase 0, then the linker: −4 KB of libraries). The second is splitting
   off an expression pass.
 - **Smaller tables** if needed: names in one string pool on the heap with no fixed-size
   slots, and optionally precompiled headers (`bcc -h BDIOH.H` writes `BDIOH.HP`, a binary
@@ -384,14 +385,16 @@ For comparison, one single-pass program would be about 29 KB of code plus 8–12
 For a source of S bytes: `.TOK` is about 0.5 S, `.IR` about 0.5–1 S, and `.O` about
 1.2–1.3 × the size of the code (see [object format](#object-file-format)). A 20 KB source takes about 20–30 KB of temporary space at the peak, and
 freed space isn't reused today. On a 128 KB work disc that's a handful of compiles before
-`pack` is needed. Phase 0 therefore includes `pack`. Deleting the *last* file on a disc
+the disc is full. Phase 0 therefore makes bdos reuse freed space (#41: a new file goes into
+the largest free gap). Deleting the *last* file on a disc
 already frees its space (the free pointer is computed from the live files, once the
 allocation bug is fixed). That doesn't help here: `.O` is written after `.TOK` and `.IR`,
-so deleting them leaves a hole in front of it.
+so deleting them leaves a hole in front of it. With #41 the next compile's temporary files
+go into that hole.
 
 ### Speed
 
-An estimate, to be measured in phase 3. The passes, compiled by today's `bc`, spend most of
+An estimate, to be measured in phase 4. The passes, compiled by today's `bc`, spend most of
 their time in runtime helper calls (every variable access is a call). Assume
 1,000–3,000 instructions per source line over all passes. A 700-line file like `texted.b`
 is then 0.7–2.1 M instructions, which is **5–16 seconds** at 130k instructions/s, plus a
@@ -409,15 +412,15 @@ the project, temporary files, `.O` files and the `.PRG`.
 
 | | Drive A: development disc | Drive B: work disc |
 |---|---|---|
-| Content | boot, `BDOS.SYS`, `LS`, `CP`, `RM`, `TEXTED`, `PACK`, `BCC`–`BCC3`, `BLINK`, library `.O` files, library `.H` files | `*.B`, the project's own `*.H`, `*.TOK` and `*.IR` (temporary), `*.O`, `*.PRG` |
+| Content | boot, `BDOS.SYS`, `LS`, `CP`, `RM`, `TEXTED`, `BCC`–`BCC3`, `BLINK`, library `.O` files, library `.H` files | `*.B`, the project's own `*.H`, `*.TOK` and `*.IR` (temporary), `*.O`, `*.PRG` |
 | Written during a build | never | always |
 | Free space | about 170 of 1,024 sectors after dead-code elimination | nearly the whole disc (about 125 KB) |
 
 Why this way, and not sources on the compiler disc or objects on a third disc:
 - **Space.** The development disc has about 21 KB free. One compile of a 20 KB source
   needs 20–30 KB of temporary files plus the `.O`.
-- **Deleted space isn't reused.** Every build leaks sectors until `pack` runs. On B that
-  costs a `pack b:` now and then; on A it would slowly fill the system disc.
+- **Builds create and delete files all the time.** With #41 freed space is reused, but it
+  leaves gaps; they belong on a work disc, and A stays as it was shipped.
 - **One write handle** means one output file at a time, but it can be on either drive. So
   nothing forces the output onto a different disc than the input.
 - **The program runs where it is built:** `B>hello`.
@@ -430,7 +433,7 @@ The rule the tools follow: **an output file goes to the drive of the main input 
 file named without a drive is looked up on the active drive. `#include` files and library
 objects are searched on the main file's drive first, then on A.
 
-With the shell search path (phase 2) the user works on B and the tools are found on A:
+With the shell search path (#128, phase 3) the user works on B and the tools are found on A:
 `B>bcc hello`. Without it the same works from A with a prefix: `A>bcc b:hello`.
 
 A project of two source files, start to finish:
@@ -445,7 +448,6 @@ B>bcc2 hello
 B>bcc3 hello
 B>blink hello               HELLO.O + what it needs (UTIL.O, libraries from A) ──► HELLO.PRG
 B>hello
-B>pack                      when the disc fills up
 ```
 
 From phase 5, `bcc hello` alone runs the three passes.
@@ -672,7 +674,7 @@ asm 0x18, hi(:bdio_call), 0x14, lo(:bdio_call);  // .mv csci, :bdio_call
 | bdio entry: `bdio_call` (`bdio`) | 1 | 17 | an assembly stub `bdio_call:` saves A, CSCI and DSDI, builds a frame and calls B's `bdio_dispatch(regA, regCSCI, regDSDI)`. The dispatcher is plain B |
 | device and program control: `bdio_iosec`, `bdio_setdrive`, `bdio_execute`, the shell `main`, `putdecwnl` | 5 | 22 | small assembly helpers, or raw `asm` for one or two instructions (for example the shell installing `bdio_call` in slot `0x37`) |
 
-The move is done on the host in phase 1, with the host tools, and the e2e scenarios must
+The move is done on the host in phase 3, with the host tools, and the e2e scenarios must
 pass unchanged. The linker's dead-code elimination works per section, so splitting the
 routines into sections costs nothing in the programs that don't use them.
 
@@ -703,7 +705,8 @@ That was the 2026-11-10 plan. Compared with it:
 
 ## The assembler (BASM)
 
-A separate program, roadmap item 8, and a phase of its own **after** the compiler. It reads
+A separate program, roadmap item 8, and a phase of its own (phase 2), **before** the linker
+and the compiler on the BC64. It reads
 one assembly source and writes one `.o`, in the same object format as the compiler, so
 assembly and B modules link together.
 
@@ -724,8 +727,8 @@ assembly and B modules link together.
   [shared constants](#shared-constants).
 - **`.org`** is accepted only as the first line, and makes the whole file an absolute
   section at that address (the boot sector, `0x0e00`). Elsewhere it's an error.
-- **Known quirks:** `out #r, imm` is broken on the host (#11) and unused. BASM rejects it,
-  instead of copying the broken encoding.
+- **Known quirks:** `out #r, imm` is broken on the host and unused. The owner decided in #11
+  to fix the encoder; that is done in phase 0, and BASM encodes it the fixed way.
 - **Size estimate:** reader 200 (shared `RDR`) + `#include`/`#define` 150 (shared `PRE`) +
   operand parser 250 + encoder 400 (`ENC`) + label table 100 + object writer 150 (shared
   `BOFW`) + driver 50 = about **1,300 lines**, 15.5 KB of code + 4–6 KB of libraries +
@@ -734,15 +737,18 @@ assembly and B modules link together.
   levers are precompiled headers (see the [memory budget](#memory-budget-of-the-compiler))
   or a split into a parser pass and an encoder pass.
 - **Test:** for the same source, `BASM` on the emulator gives `.o` bytes identical to
-  `bc81asmc --obj` on the host. The inputs are `runtime.basm` and every library `.basm`
-  module from phase 1.
+  `bc81asmc --obj` on the host. The inputs are `runtime.basm` (phase 1) and, once they
+  exist, the library `.basm` modules (phase 3).
 
-**Why after the compiler.** The compiler doesn't need it. The assembly library modules are
-built on the host and copied to the disc as `.o` files, like the B ones. The compiler phase
-builds and tests the reader, `PRE` and the object writer, so BASM then adds only the
-encoder and the label table. Until BASM exists, assembly modules are written on the host;
-once it exists, the whole library set can be rebuilt on the BC64. BASM also doesn't have to
-be on the development disc for B work, which is the tightest space number in this plan.
+**Why before the linker and the compiler** (decided 2026-11-19; the earlier plan had it
+last). BASM needs only the object format and `runtime.basm`, both from phase 1, and its
+byte-exact reference `bc81asmc --obj` exists by then. Building it first tests the shared
+modules (`RDR`, `PRE`, `BOFW`) on the simplest tool, and assembly programs can be built on
+the machine before any B object exists. The cost: BASM becomes the first B tool to be
+measured, and it's the biggest (25–30 KB against the 32,640-byte file limit). That's why
+dead-code elimination in the host `bc` (#16) is a phase 0 prerequisite, and why BASM starts
+with a size spike. BASM still doesn't have to be on the development disc for B work, which
+is the tightest space number in this plan.
 
 **Why not inside the compiler's pipeline.** The compiler doesn't write assembly text for
 BASM to read. Its own code is about 30 fixed templates that BCC3 writes as bytes, and
@@ -767,7 +773,7 @@ assembly text for a whole program is far bigger than the disc (see the short ans
   | Today | After the split |
   |---|---|
   | `bdioh.b` (only `#define`s) | `BDIOH.H`, unchanged content |
-  | `std.b`, `stdio.b`, `strings.b`, `stdmem.b`, `bdostools.b` | `X.H` (`#define`s + prototypes) + `X.B` (B bodies) + `X.BAS` (assembly routines, where it has any) → `.O` files, built on the host first and on the BC64 from phases 3 and 4 |
+  | `std.b`, `stdio.b`, `strings.b`, `stdmem.b`, `bdostools.b` | `X.H` (`#define`s + prototypes) + `X.B` (B bodies) + `X.BAS` (assembly routines, where it has any) → `.O` files, built on the host first and on the BC64 from phases 2 and 4 |
   | `bdosh.b` (`#include bdioh.b` + wrappers) | `BDOSH.H`; `bdio_call` moves to an assembly module and the B wrappers stay B; both are linked in |
   | a program `#include`s the `.b` files | the program `#include`s the `.h` files; the linker adds the `.o` files |
 
@@ -979,19 +985,22 @@ creates and deletes files on every run makes them much worse.
 
 | # | Problem | Evidence | Fix |
 |---|---|---|---|
-| 1 | **A new file overwrites an existing file after `rm`** | Reproduced on a copy of `os.bdd`: `rm hellowrd.prg`, then texted `s new.txt`. `NEW.TXT` is allocated at 34/00, the start of `TEST.B`, and `cat -c test.b` then shows the new text. `rm` moves the last catalog entry into the hole, and `bdio_fcat_scanmem` then computes a free pointer that goes *backwards*. One cause found by reading the code: the free position is read back as `(freetrack << 4) \| freesector` (`bdio.b:192`), while `bdio_tracksector_add` uses `track << 8 \| sector`. From the second catalog sector on, the comparison uses mixed encodings. | file a bug; fix the free-pointer computation and add an e2e test (rm, then create, then cat the old file). **This blocks everything else here** |
-| 2 | `ls` reports 4 sectors too many free | `(FDD_TRACKS - freeTrack) * FDD_SECTORS + freeSector` (`ls.b:186`) adds the sector; it should subtract it. 52/02 shows `00C2` (194) free; 190 is right | one-character fix |
-| 3 | Deleted space is never reused | allocation always continues after the last file | a `pack` utility that moves files down and rewrites the catalog (simple, because files are contiguous). Every edit–compile–link cycle leaks space until then |
+| 1 | **A new file overwrites an existing file after `rm`** | Reproduced on a copy of `os.bdd`: `rm hellowrd.prg`, then texted `s new.txt`. `NEW.TXT` is allocated at 34/00, the start of `TEST.B`, and `cat -c test.b` then shows the new text. `rm` moves the last catalog entry into the hole, and `bdio_fcat_scanmem` then computes a free pointer that goes *backwards*. One cause found by reading the code: the free position is read back as `(freetrack << 4) \| freesector` (`bdio.b:192`), while `bdio_tracksector_add` uses `track << 8 \| sector`. From the second catalog sector on, the comparison uses mixed encodings. | #111: fix the free-pointer computation and add an e2e test (rm, then create, then cat the old file). **This blocks everything else here** |
+| 2 | `ls` reports 4 sectors too many free | `(FDD_TRACKS - freeTrack) * FDD_SECTORS + freeSector` (`ls.b:186`) adds the sector; it should subtract it. 52/02 shows `00C2` (194) free; 190 is right | one-character fix, in #111 |
+| 3 | Deleted space is never reused | allocation always continues after the last file | #41: first-fit allocation. A new file goes into the largest free gap, and writing past its end is `disc full` (decided 2026-11-19; it replaces a `pack` utility). A defragmenting utility is a later option |
 | 4 | Only one write handle, and only one growing file at a time | `BDIO_FDESCRIPTOR_WRITE_MAX 0x00` | **keep it**: the design above writes one file per program. Raise it only if a later tool truly needs two |
-| 5 | A program can't start another program | `bdio_execute` is shell-only and uses `cal` | the `bdio_chain` call ([chaining](#chaining)) |
-| 6 | Programs run only from the active drive | the shell looks up `NAME.PRG` in the current catalog | a search path: active drive, then A |
-| 7 | The `CP.PRG` catalog entry is 56 sectors, the build 57 | known since #47 | fix it when #49's cp bug is fixed |
+| 5 | A program can't start another program | `bdio_execute` is shell-only and uses `cal` | the `bdio_chain` call ([chaining](#chaining)), #132 |
+| 6 | Programs run only from the active drive | the shell looks up `NAME.PRG` in the current catalog | a search path: active drive, then A (#128) |
+| 7 | The `CP.PRG` catalog entry is 56 sectors, the build 57 | known since #47 | fix it with the cp bug #73 |
 
 ## Host prerequisites
 
 The BC64 compiler must match the host compiler, and the host compiler is the test oracle.
-So these host changes come first:
+So these host changes come first. The full ordered list, with the emulator, assembler and
+bdos fixes, is in [08-self-hosted-roadmap.md](08-self-hosted-roadmap.md).
 
+0. **Golden tests (#15), then dead-code elimination in `bc` (#16).** BASM and BLINK are built
+   by `bc`, and BASM's estimate is close to the file limit.
 1. **Freeze the language as "B 1.4" for both compilers.** Fix the issues that would
    otherwise be implemented twice, or implemented differently on the BC64:
    - #19, token-based `#define`: whole identifiers, not inside strings;
@@ -1013,28 +1022,33 @@ So these host changes come first:
 4. **The ABI and symbol names** written down as a design decision, then
    [today's `asm` moved](#moving-todays-asm) into `.basm` modules.
 5. **Split the libraries** into `.h` + `.b` / `.basm` → `.o`.
-6. **`ftool importtext` / `exporttext`**, so tests can put B sources on a disc in texted
+6. **`ftool importtext` / `exporttext`** (#112), so tests can put B sources on a disc in texted
    format.
 
 ## Phased plan
 
 | Phase | Content | Exit criterion |
 |---|---|---|
-| 0 | disc bugs 1–2, `pack` (3), `ftool importtext` | e2e: `rm` then create keeps other files intact; `pack` reclaims space |
-| 1 | BOF format, `bc81asmc --obj` with `.global`/`.extern`/`.sect` and `#include`/`#define`, `bc --obj` with `F_name` symbols and raw `asm`, `runtime.basm`, `blink.py`; the ABI design decision; today's `asm` moved into `.basm` modules; library split | every disc program built through `blink.py` from B and `.basm` modules runs its e2e scenarios unchanged; no `asm "…"` left in `src/bdos`; sizes recorded per program |
-| 2 | `BLINK.PRG` (B, built on the host), development disc layout, shell search path | e2e: host-built `HELLO.O` + libraries linked **on the BC64** gives the same bytes as `blink.py` |
-| 3 | first a spike: BCC built and measured. Then `BCC`–`BCC3`: the B 1.4 language with raw `asm`, without globals; the shared modules `RDR`, `PRE`, `BOFW`; host `bc --tok`/`--ir` to test each format | e2e: `.TOK`, `.IR` and `.o` byte-identical to the host's for `helloworld`, `ls`, `cp`, `rm`, `cha`, `cat`, `texted` and the B parts of the libraries; linked with the host-built assembly objects, the programs run |
-| 4 | `BASM.PRG`: `ENC` and the label table, on top of the shared modules from phase 3 | e2e: `runtime.basm` and every library `.basm` module assembled **on the BC64** give `.o` files byte-identical to `bc81asmc --obj`; an assembly program goes texted → `basm` → `blink` → run. From here the whole library set can be rebuilt on the BC64 |
+| 0 | fixes: the allocation bug (#111), reuse of freed space (#41), emulator flags and encodings, assembler bugs (#64, #65, #103, …), `#define` (#19), `return` (#20), label `nop`s (#104), golden tests (#15) and dead-code elimination in `bc` (#16), `ftool importtext` (#112) | e2e: `rm` then create keeps other files intact and reuses the space; every program smaller after #16, sizes recorded |
+| 1 | BOF format and the ABI as design decisions, `bc81asmc --obj` with `.global`/`.extern`/`.sect` and `#include`/`#define`, `runtime.basm`, `blink.py` | an assembly-only program assembled with `--obj` and linked by `blink.py` runs |
+| 2 | `BASM.PRG` and the shared modules `RDR`, `PRE`, `BOFW` | e2e: `runtime.basm` assembled **on the BC64** is byte-identical to `bc81asmc --obj`; an assembly program goes texted → `basm` → `blink.py` → run |
+| 3 | raw `asm` and `#link` in `bc`, `bc --obj` with `F_name` symbols, today's `asm` moved into `.basm` modules, library split, every disc program linked through `blink.py`, no `asm "…"` left; shell search path, development disc; `BLINK.PRG` | every disc program runs its e2e scenarios unchanged when linked; e2e: host-built `HELLO.O` + libraries linked **on the BC64** give the same bytes as `blink.py` |
+| 4 | first a spike: BCC built and measured. Then `BCC`–`BCC3`: the B 1.4 language with raw `asm`, without globals; host `bc --tok`/`--ir` to test each format | e2e: `.TOK`, `.IR` and `.o` byte-identical to the host's for `helloworld`, `ls`, `cp`, `rm`, `cha`, `cat`, `texted` and the B parts of the libraries; linked, the programs run |
 | 5 | `bdio_chain` + chained commands in the shell, `bcc NAME` chains through `bcc2`, `bcc3` and the linker | one command from source to a running program |
 | 6 (optional) | self-hosting: BASM, BCC–BCC3 and BLINK build their own sources on the BC64; overlays in the linker | the tools built on the BC64 are byte-identical to the host-built ones |
 
-Phases 0–2 are worth doing even if the BC64 compiler is never finished. They fix a
-data-loss bug, deliver roadmap item 5a (#16) and free about 20 KB on the system disc.
+Phases 0 and 1 are worth doing even if the BC64 tools are never finished. They fix a
+data-loss bug, deliver roadmap item 5a (#16) and make disc space reusable; linking in phase
+3 frees about 20 KB more on the system disc.
+
+The phases were reordered on 2026-11-19 (BASM moved from last to phase 2, `blink.py` into
+phase 1, #16 and #41 into phase 0). The issue for each step is in
+[08-self-hosted-roadmap.md](08-self-hosted-roadmap.md).
 
 ## Risks and open questions
 
-- **The pass sizes are estimates.** BLINK (phase 2) is the first real measurement of a B
-  tool's size. The first step of phase 3 is a spike: BCC (reader, lexer and `#define`
+- **The pass sizes are estimates.** BASM (phase 2) is the first real measurement of a B
+  tool's size, and it starts with a spike. The first step of phase 4 is a spike too: BCC (reader, lexer and `#define`
   table) built and measured, before the parser is written. If it's far
   over 8 KB of own code, BCC2's estimate is wrong too: plan a fourth pass from the start.
 - **Byte-identical output** means BCC3 and BASM must copy every host code-generation and
@@ -1044,13 +1058,13 @@ data-loss bug, deliver roadmap item 5a (#16) and free about 20 KB on the system 
 - **Disc space for the development disc.** Boot, catalog and `BDOS.SYS` take 184 sectors;
   `LS`, `CP`, `RM`, `TEXTED` and `CAT` 358 more; BCC–BCC3 about 335 (about 42 KB of code
   with today's libraries); BASM about 165; BLINK about 110; libraries and headers about
-  150. That's about 1,300 sectors: **well over** a 1,024-sector disc. After phase 1,
+  150. That's about 1,300 sectors: **well over** a 1,024-sector disc. After #16 (phase 0) and linking (phase 3),
   dead-code elimination removes about 4 KB of libraries from each tool and about 20 KB from
   the utilities, giving about 980 sectors: it **only just fits**. BASM isn't needed to
   compile B, so it can go on a separate assembler disc: the development disc is then about
   850 sectors after dead-code elimination, with room to spare. Leaving `CAT` off (62
   sectors) gives a little more. The bigger discs of roadmap item 7 would remove the problem.
-  Each tool and pass carries its own copy of the libraries, so phase 1 matters a lot here.
+  Each tool and pass carries its own copy of the libraries, so dead-code elimination matters a lot here.
 - **Decided (2026-11-09):**
   - the compiler may have 2 or more passes, whatever keeps each one well under 32 KB;
   - the file system isn't extended for this plan. A 2-byte file length (catalog v2) is
@@ -1063,7 +1077,7 @@ data-loss bug, deliver roadmap item 5a (#16) and free about 20 KB on the system 
   - assembly routines follow the B calling convention, which becomes a frozen ABI, with
     `F_name` symbols for B functions;
   - the compiler keeps only a raw-byte `asm` statement and contains no assembler;
-  - BASM runs on the BC64 as its own phase, after the compiler.
+  - BASM runs on the BC64 as its own phase, after the compiler (replaced on 2026-11-19, below).
 - **Decided (2026-11-13):** the object format is a stream of `tag, length, content`
   records of at most 255 content bytes, with no index. Fixes are offset lists after each
   `CODE` record, one tag per kind, with 16-bit targets kept in the placeholder and a
@@ -1074,6 +1088,12 @@ data-loss bug, deliver roadmap item 5a (#16) and free about 20 KB on the system 
   `#link`; a header's name implies nothing.
 - **Decided (2026-11-13):** `#code`, `#heap` and `#codelimit` stay in the source and are
   passed through the compiler to the linker (`ad` records). `blink` has no address options.
+- **Decided (2026-11-19):** the order of delivery is fixes → host assembler writes `.o` (with
+  `blink.py`) → BASM on the BC64 → B objects on the host and BLINK on the BC64 → compiler
+  passes. Dead-code elimination in the host `bc` (#16) is a prerequisite. Freed disc space
+  is reused by bdos (#41, largest gap first) instead of a `pack` utility. `out #r, imm` is
+  fixed, as decided in #11. The list is
+  [08-self-hosted-roadmap.md](08-self-hosted-roadmap.md).
 - **Decisions still open for the owner:**
   1. Is texted's record format the official source format (recommended: yes, and the
      reader also accepts plain lines)?
