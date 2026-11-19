@@ -268,20 +268,27 @@ class Bc8183:
         addr = (hi << 8) | lo
         return addr
 
-    def set_flags(self, regno, val=None):
+    def set_flags(self, regno, val=None, raw_zn=False):
+        # Z/N describe the stored (8-bit) value; C/O use the raw val (#54).
+        # raw_zn keeps the legacy Z/N of shl/shr untouched (#55).
         if regno == Bc8183.A:
             if val is None:
-                val = self.a.get()
-            self.f.set_flag(FlagsRegister.ZERO, int(val == 0))
+                zn = self.a.get()
+            elif raw_zn:
+                zn = val
+            else:
+                zn = val & 0xff
+            self.f.set_flag(FlagsRegister.ZERO, int(zn == 0))
             self.f.set_flag(FlagsRegister.NEGATIVE,
-                            int(val & 0x80 == 0x80))
+                            int(zn & 0x80 == 0x80))
         if val is not None:
             self.f.set_flag(FlagsRegister.CARRY, int(val > 0xff))
             self.f.set_flag(FlagsRegister.OVERFLOW, int(val > 0xff or val < 0))
 
     def set_flags16(self, val):
-        self.f.set_flag(FlagsRegister.ZERO, int(val == 0))
-        self.f.set_flag(FlagsRegister.NEGATIVE, int(val & 0x8000 == 0x8000))
+        stored = val & 0xffff
+        self.f.set_flag(FlagsRegister.ZERO, int(stored == 0))
+        self.f.set_flag(FlagsRegister.NEGATIVE, int(stored & 0x8000 == 0x8000))
         self.f.set_flag(FlagsRegister.CARRY, int(val > 0xffff))
         self.f.set_flag(FlagsRegister.OVERFLOW, int(val > 0xffff or val < 0))
 
@@ -597,12 +604,12 @@ class Bc8183:
 
     def alu_shl(self, arg1, arg2):
         val = arg1 << arg2
-        self.set_flags(Bc8183.A, val & 0x100)
+        self.set_flags(Bc8183.A, val & 0x100, raw_zn=True)
         self.a.set(val)
 
     def alu_shr(self, arg1, arg2):
         val = arg1 >> arg2
-        self.set_flags(Bc8183.A, -(val & 0x1))
+        self.set_flags(Bc8183.A, -(val & 0x1), raw_zn=True)
         self.a.set(val)
 
     def alu_not(self, arg1, arg2):

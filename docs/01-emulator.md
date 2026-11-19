@@ -320,10 +320,12 @@ accepts only the implied pair as the second operand (`add csci, dsdi`, `add dsdi
 
 | Bit | Flag | Set when |
 |---|---|---|
-| 0 | `Z` zero | result == 0 (`Z` is 1 after reset) |
+| 0 | `Z` zero | stored result (`A` or the destination pair) == 0 (`Z` is 1 after reset) |
 | 1 | `C` carry | result > 0xff (or > 0xffff for 16-bit ops) |
-| 2 | `N` negative | bit 7 (or bit 15 for 16-bit ops) of the result |
+| 2 | `N` negative | bit 7 (bit 15 for 16-bit ops) of the stored result |
 | 3 | `O` overflow | result > max **or result < 0**. A subtraction that borrows sets `O`, not `C` |
+
+`C` and `O` are still computed from the unwrapped result, before the register wraps (#54). The 8-bit `shl`/`shr` flags are still the old definition (#55).
 
 Bits 4–7 exist but the CPU doesn't use them. `MOV` into `A` also updates `Z` and `N`.
 `OUT #r, r2` sets `C`/`O` from the value it sends.

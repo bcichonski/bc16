@@ -329,6 +329,25 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   confirms them (#136). A program that ignores `O` gets a plausible-looking result. A clean stop hides
   the problem from the running program, but the stderr line and the dump show it.
 
+### E11. `Z` and `N` describe the stored result; `C` and `O` still use the unwrapped result
+- **Purpose:** a program can test "the register became zero" with `jmp z` after an operation that wraps
+  (for example `add a, 0x01` on `0xff`), as it can after any other operation.
+- **Rationale:** `Z` used to come from the raw result, before the register is masked. So `add a, 0x01` on
+  `0xff` left `A = 0x00` with `Z = 0`. The owner's "Expected" in #53 is that `Z` and `N` describe the value
+  stored in the destination. `C` and `O` (carry, borrow, signed overflow) need an owner decision on their
+  meaning (#54), so they keep their values. The 8-bit `shl`/`shr` flags wait for #55.
+- **Usage:**
+  - 8-bit ops with destination `A`: `Z` = stored `A` == 0, `N` = bit 7 of stored `A`;
+  - every 16-bit ALU op with destination pair: `Z` = stored pair == 0, `N` = bit 15 of stored pair;
+  - `C` and `O` are computed from the unwrapped result, as before (#54);
+  - 8-bit `shl` and `shr` keep their old flags (#55);
+  - 16-bit `div` and `mod` by zero are unchanged (E10).
+- **Trade-offs:** `N` gives the same result as before, because the sign bit of the raw value is the sign bit
+  of the stored one. `Z` changes for a wrap to zero. The dependency audit of the built programs (bcOS, bdos,
+  apps, the compiler runtime) found no `jmp`/`jrx`/`clr`/`cal` on `z` or `nz` that follows a wrapping op,
+  so no program relied on the old `Z`. Until #54 is decided, `C` and `O` after a wrap still describe the
+  unwrapped result, and the two flags can disagree with `Z`.
+
 ---
 
 ## Assembler (`src/bc81asmc/`)
