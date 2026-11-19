@@ -104,6 +104,36 @@ class TestEmitAndOverflow(unittest.TestCase):
         self.assertEqual(list(compile_source(".org 0xffff\nnop\n").bytes), [0x00])
 
 
+class TestSixteenBitPairs(unittest.TestCase):
+    def test_wrong_second_pair(self):
+        for text, implied, first in (('add csci,csci', 'dsdi', 'csci'), ('add dsdi,dsdi', 'csci', 'dsdi'),
+                                     ('add af,dsdi', 'csci', 'af'), ('add af,af', 'csci', 'af'),
+                                     ('shl csci,csci', 'dsdi', 'csci')):
+            with self.subTest(text):
+                errs = errors_of("nop\n  " + text + "\n")
+                self.assertEqual(len(errs), 1)
+                self.assertEqual(errs[0][:2], (2, 3))
+                self.assertTrue(errs[0][2].startswith("cannot encode '" + text + "':"))
+                self.assertIn("second operand must be " + implied, errs[0][2])
+
+    def test_unknown_pair(self):
+        for text, name in (('add csci,sssi', 'sssi'), ('add sssi,csci', 'sssi'),
+                           ('add sssi,0x0001', 'sssi'), ('inc sssi', 'sssi')):
+            with self.subTest(text):
+                errs = errors_of("nop\n  " + text + "\n")
+                self.assertEqual(len(errs), 1)
+                self.assertEqual(errs[0][:2], (2, 3))
+                self.assertIn("'" + name + "' is not a 16-bit pair", errs[0][2])
+
+    def test_all_bad_lines_reported(self):
+        errs = errors_of("add csci,csci\nnop\nadd sssi,0x0001\ninc sssi\nadd af,dsdi\n")
+        self.assertEqual([e[:2] for e in errs], [(1, 1), (3, 1), (4, 1), (5, 1)])
+
+    def test_valid_pairs_still_encode(self):
+        self.assertEqual(list(compile_source("add csci,dsdi\nadd dsdi,csci\nadd af,csci\n").bytes),
+                         [0x5f, 0xa8, 0x89, 0x5f, 0xa8, 0x98, 0x5f, 0xa8, 0x18])
+
+
 class TestValidProgram(unittest.TestCase):
     def test_no_diagnostics(self):
         context = compile_source(".org 0x0100\nstart: jmr z, :end\nnop\nend: cal :start\n.db :end\n")

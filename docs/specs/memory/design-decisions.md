@@ -395,6 +395,21 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   the build until it is renamed. The renamed first definition of `strnextword` is kept as dead
   code rather than deleted, because deleting it would change the size of every program.
 
+### A7. 16-bit register-pair ops take an implied second pair; the assembler enforces it
+- **Purpose:** a 16-bit register-register instruction must not suggest that it adds a pair it does not add.
+- **Rationale:** the encoding `5F k8 pq` carries two pairs, but the CPU reads only the first (`p`)
+  and derives the second: `csci` → `dsdi`, `dsdi` → `csci`, `af` → `csci`. The owner decided
+  (#57, 2026-11-19) to keep the CPU as it is: the implied pair is part of the ISA. Before this,
+  `add csci, af` assembled silently and added `dsdi`. The assembler now requires the written
+  second operand to be the implied pair, so the source says what the CPU does.
+- **Usage:**
+  - write the implied pair: `add csci, dsdi`, `sub dsdi, csci`, `add af, csci`;
+  - any other second operand, and any unknown pair name in a 16-bit form, is a `cannot encode`
+    diagnostic with no bytes emitted (`docs/02-assembler.md`, Errors);
+  - BASM's encoder must apply the same rule when it exists (`docs/analysis/08-self-hosted-roadmap.md`, step 8).
+- **Trade-offs:** the second nibble is now redundant, and a program that wrote `add csci, af`
+  to mean `dsdi` must be changed to `add csci, dsdi`. No CPU change, so no emulator behaviour moves.
+
 ---
 
 ## Compiler (`src/bc/`)

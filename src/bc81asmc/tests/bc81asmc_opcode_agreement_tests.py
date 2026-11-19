@@ -476,11 +476,12 @@ class PinnedFindingsTests(unittest.TestCase):
     Production code is not changed in this story: today's behaviour is pinned."""
 
     def test_16bit_rr_second_operand_is_ignored_by_cpu(self):
-        # D7: the assembler encodes both register pairs of `add csci, csci`, but the CPU
-        # derives the second operand from the first (CS -> DS, DS -> CS, A -> CS).
-        run_case(self, Case('add csci,csci', 'mADD16r', ['add csci, csci'], 3,
-                            regs={'csci': 0x0123, 'dsdi': 0x0005},
-                            out_regs={'csci': 0x0128}))
+        # The CPU derives the second operand from the first (CS -> DS, DS -> CS, A -> CS);
+        # this is now the specified convention and the assembler rejects any other second
+        # pair. Hand-encoded `add csci` with a (redundant) second nibble of csci still adds dsdi.
+        code = bytes([0x5F, 0xA8, 0x88])
+        cpu, _, _ = execute(code, 0, {}, 3, {'csci': 0x0123, 'dsdi': 0x0005}, {}, {}, {})
+        self.assertEqual(_get_reg(cpu, 'csci'), 0x0128)
 
     def test_inc_and_dec_of_af_cannot_be_parsed(self):
         # D7: mINC/mDEC are tried before mINC16/mDEC16 and succeed on `inc a`,
