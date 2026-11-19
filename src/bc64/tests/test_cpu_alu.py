@@ -3,9 +3,11 @@
 Every test executes encoded bytes on the CPU and asserts the result, the
 flags and the instruction length (PC ends on the KIL after the code).
 
-Flags are asserted exactly as the CPU defines them today. Several of those
-definitions look wrong (see the "PINNED" comments); they are pinned, not
-fixed (story #48, D7).
+Flags are asserted exactly as the CPU defines them. Z and N describe the
+stored result (A or the destination pair, story #53). C and O are still
+computed from the raw, unwrapped result, and the 8-bit SHL/SHR flags are
+odd; those definitions look wrong (see the "PINNED" comments, #54 and #55)
+and are pinned, not fixed.
 """
 import contextlib
 import io
@@ -26,7 +28,9 @@ def flags_of(cpu):
 
 
 def flags_from_raw(v, bits=8):
-    """The CPU's flag definition applied to the raw (unmasked) result."""
+    """C and O from the raw (unmasked) result (pinned, #54). Z is computed
+    from the raw value too, so for a result that wraps to 0 pass the expected
+    flags explicitly: the CPU sets Z from the stored value (#53)."""
     top = 1 << bits
     sign = top >> 1
     return (v == 0, v >= top, (v & sign) == sign, v >= top or v < 0)
@@ -72,8 +76,8 @@ class Alu8Tests(AluTestBase):
         self.check([0x50, 0x00], 0x00, 0x00, 0x00)
 
     def test_add_imm_wrap_at_0xff(self):
-        # PINNED: A wraps to 0 but Z is 0 (flags use the unmasked sum 0x100)
-        self.check([0x50, 0x01], 0xff, 0x00, 0x100, (False, True, False, True))
+        # Z describes the stored A (#53); PINNED (#54): C and "overflow" use the raw sum 0x100
+        self.check([0x50, 0x01], 0xff, 0x00, 0x100, (True, True, False, True))
 
     def test_add_imm_sign_bit_no_overflow(self):
         # PINNED: 0x7f + 1 = 0x80 sets N, "overflow" is only unsigned overflow
@@ -173,8 +177,8 @@ class Alu8Tests(AluTestBase):
         self.check([0x57], 0x00, 0xff, -1, (False, False, True, True))
 
     def test_not_ff_gives_zero(self):
-        # PINNED: A = 0 but Z = 0 and N = 0 (raw value is -256)
-        self.check([0x57], 0xff, 0x00, -256, (False, False, False, True))
+        # Z describes the stored A (#53); PINNED (#54): "overflow" set because the raw value is -256
+        self.check([0x57], 0xff, 0x00, -256, (True, False, False, True))
 
     # --- INC / DEC ---------------------------------------------------
     def test_inc(self):
@@ -184,8 +188,8 @@ class Alu8Tests(AluTestBase):
         self.check([0x5d], 0x7f, 0x80, 0x80)
 
     def test_inc_wrap_at_0xff(self):
-        # PINNED: A = 0, Z = 0, C and "overflow" set
-        self.check([0x5d], 0xff, 0x00, 0x100, (False, True, False, True))
+        # Z describes the stored A (#53); PINNED (#54): C and "overflow" set by the raw 0x100
+        self.check([0x5d], 0xff, 0x00, 0x100, (True, True, False, True))
 
     def test_dec(self):
         self.check([0x5e], 0x42, 0x41, 0x41)
@@ -232,9 +236,9 @@ class Alu16Tests(AluTestBase):
         self.check16(self.imm(0xa, 0x0, 0x80, 0x0001), 0x00ff, 0x0100, 0x0100)
 
     def test_add16_wrap_at_0xffff(self):
-        # PINNED: pair wraps to 0 but Z = 0 (raw sum 0x10000)
+        # Z describes the stored pair (#53); PINNED (#54): C and "overflow" use the raw sum 0x10000
         self.check16(self.imm(0xa, 0x0, 0x80, 0x0001), 0xffff, 0x0000,
-                     0x10000, (False, True, False, True))
+                     0x10000, (True, True, False, True))
 
     def test_add16_into_sign_bit(self):
         self.check16(self.imm(0xa, 0x0, 0x80, 0x0001), 0x7fff, 0x8000, 0x8000)
@@ -272,9 +276,9 @@ class Alu16Tests(AluTestBase):
         self.check16(self.imm(0xa, 0x2, 0x80, 0x0003), 0x0101, 0x0303, 0x0303)
 
     def test_mul16_overflow(self):
-        # PINNED: pair = 0 but Z = 0, C and "overflow" set
+        # Z describes the stored pair (#53); PINNED (#54): C and "overflow" set by the raw 0x10000
         self.check16(self.imm(0xa, 0x2, 0x80, 0x0100), 0x0100, 0x0000,
-                     0x10000, (False, True, False, True))
+                     0x10000, (True, True, False, True))
 
     def test_mul16_by_zero(self):
         self.check16(self.imm(0xa, 0x2, 0x80, 0x0000), 0x1234, 0x0000, 0)
@@ -368,9 +372,9 @@ class Alu16Tests(AluTestBase):
         self.check16([0x5f, 0xad, 0x80], 0x00ff, 0x0100, 0x0100)
 
     def test_inc16_wrap_at_0xffff(self):
-        # PINNED: pair = 0 but Z = 0
+        # Z describes the stored pair (#53); PINNED (#54): C and "overflow" use the raw 0x10000
         self.check16([0x5f, 0xad, 0x80], 0xffff, 0x0000, 0x10000,
-                     (False, True, False, True))
+                     (True, True, False, True))
 
     def test_inc16_ds_pair(self):
         cpu = self.run_code([0x5f, 0xad, 0x90], ds=0x12, di=0xff)
@@ -420,7 +424,7 @@ class Alu16Tests(AluTestBase):
         self.check16(self.imm(0xb, 0x5, 0x80, 0x0004), 0x0001, 0x0010, 0x0010)
 
     def test_shl16_carry_out(self):
-        # PINNED: shifted-out bit lands in raw bit 16: pair 0x0002, C set, Z = 0
+        # PINNED (#55): shifted-out bit lands in raw bit 16: pair 0x0002, C set
         self.check16(self.imm(0xb, 0x5, 0x80, 0x0001), 0x8001, 0x0002,
                      0x10002, (False, True, False, True))
 
@@ -447,9 +451,9 @@ class Alu16Tests(AluTestBase):
                      (False, False, True, True))
 
     def test_not16_ffff(self):
-        # PINNED: pair = 0 but Z = 0, N = 0 (raw value -65536)
+        # Z describes the stored pair (#53); PINNED (#54): "overflow" set because the raw value is -65536
         self.check16([0x5f, 0xb7, 0x80], 0xffff, 0x0000, -65536,
-                     (False, False, False, True))
+                     (True, False, False, True))
 
     def test_not16_ds_pair(self):
         cpu = self.run_code([0x5f, 0xb7, 0x90], ds=0x0f, di=0xf0)
@@ -466,6 +470,37 @@ class Alu16Tests(AluTestBase):
     def test_add16_reg_on_a_f_pair_uses_cs_ci(self):
         cpu = self.run_code([0x5f, 0xa8, 0x10], a=0x01, cs=0x02, ci=0x00)
         self.assertEqual(cpu.a.get(), 0x03)
+
+    def test_shl16_wrap_to_zero_sets_z(self):
+        # 0x8000 << 1 = pair 0x0000: Z describes the stored pair (#53); C/O from the raw 0x10000 (#54/#55)
+        self.check16(self.imm(0xb, 0x5, 0x80, 0x0001), 0x8000, 0x0000,
+                     0x10000, (True, True, False, True))
+
+
+class JumpOnZeroAfterWrapTests(AluTestBase):
+    """`jmp z` is taken after an operation whose result wraps to zero (#53).
+    Not taken: MOV DI,0x11 then KIL. Taken: lands on MOV DI,0x22."""
+
+    def check_taken(self, op_code, target, **regs):
+        code = list(op_code) + [0x68, target, 0x15, 0x11, KIL]
+        code += [0x00] * (target - len(code))
+        code += [0x15, 0x22]
+        cpu = self.run_code(code, **regs)
+        self.assertEqual(cpu.di.get(), 0x22)
+        return cpu
+
+    def test_jmp_z_taken_after_add_wrap(self):
+        self.check_taken([0x50, 0x01], 0x08, a=0xff)
+
+    def test_jmp_z_taken_after_inc_wrap(self):
+        self.check_taken([0x5d], 0x07, a=0xff)
+
+    def test_jmp_z_taken_after_add16_wrap(self):
+        # CS becomes 0 with the wrap, so the short jump target is 0x00:imm8
+        self.check_taken([0x5f, 0xa0, 0x80, 0x00, 0x01], 0x0d, cs=0xff, ci=0xff)
+
+    def test_jmp_z_taken_after_inc16_wrap(self):
+        self.check_taken([0x5f, 0xad, 0x80], 0x0b, cs=0xff, ci=0xff)
 
 
 if __name__ == '__main__':
