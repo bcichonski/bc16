@@ -26,7 +26,7 @@ that BCC3 copies.
 | 5 | #54 | emulator | overflow/carry semantics, borrow | same |
 | 6 | #55 | emulator | `shl`/`shr` flags | same |
 | 7 | #56 | emulator + assembler | register forms of `shl`/`shr` | an encoding decision BASM must copy |
-| 8 | #57 | emulator + assembler | 16-bit pair ops ignore the second operand | same |
+| 8 | #57 | emulator + assembler | 16-bit pair ops ignore the second operand. **Decided (2026-11-19):** the CPU keeps the implied second pair (`csci`→`dsdi`, `dsdi`→`csci`, `af`→`csci`) and the assembler enforces it; BASM must apply the same rule | same |
 | 9 | #58 | emulator + assembler | 16-bit results in `A:F` | same |
 | 10 | #59 | emulator | confirm `RET` behaviour with push frames | before the ABI is frozen |
 | 11 | #64 | assembler | a label at address `0x0000` is "not defined" | **blocker for `--obj`**: every section starts at offset 0 |
@@ -129,7 +129,7 @@ Steps 38–45 don't depend on phase 2 and can run in parallel with it.
 
 | Where | Decision | Needed before |
 |---|---|---|
-| #54, #56, #57, #58 | flag meanings, which encodings exist | step 31 (the ABI and the encoder are frozen there) |
+| #54, #56, #58 | flag meanings, which encodings exist | step 31 (the ABI and the encoder are frozen there) |
 | #136 | `div`/`mod` by zero: keep the destination and set `O` (decided in #4, E10; the owner confirms it), and whether the B `/` and `%` check `O` | step 31 |
 | #113 | `SECT` flags | step 33 |
 | #41 | placement of a new file (proposed: largest gap; writing past it is `disc full`); defrag later | step 25 |

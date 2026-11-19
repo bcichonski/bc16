@@ -117,6 +117,7 @@ cal :nowhere
 | relative range, 15-bit | `label ':name' too far away for relative 15bit jump (n bytes)` | the `:` of the target | `jrx` and `clr` (±32767 bytes) |
 | overflow | `code exceeds the 64 KB address space (past 0xffff)` | the first non-blank character of the line that crosses the limit | reported once per run |
 | unencodable line | `cannot encode 'line': reason` | the first non-blank character of the line | the line contributes no bytes and assembly goes on (e.g. `clr af`) |
+| implied pair | `cannot encode 'line': second operand must be dsdi when the first is csci`, or `cannot encode 'line': 'sssi' is not a 16-bit pair (use csci, dsdi or af)` | the first non-blank character of the line | 16-bit ops only (`add`, `sub`, `mul`, `div`, `mod`, `and`, `or`, `xor`, `shl`, `shr` in register form, and `inc`, `dec`, `not`). The second operand of the register form must be the implied pair. No bytes are emitted |
 | assertion failed | `assertion failed: <left> <op> <right> (0xLLLL <op> 0xRRRR)`, e.g. `assertion failed: :os_metacall = 0x0008 (0x0009 = 0x0008)` | the first non-blank character of the `.assert` line | the operands as written, then their resolved values. Every failed assert is reported. An undefined operand gives `undefined label` at its `:` instead, and that assert is not evaluated |
 
 Pass 1 and pass 2 keep going after an error and report every problem they find, sorted by
@@ -186,10 +187,19 @@ Results are truncated to 16 bits and set `Z/N/C/O` from the 16-bit value. A zero
 `mod` leaves the destination unchanged and sets `O` = 1 (`Z/N/C` unchanged), and the CPU goes on; see
 [01-emulator.md](01-emulator.md).
 
-> **In the register form the CPU ignores the written second operand and picks it from the
-> first one:** `csci` always combines with `dsdi`, while `dsdi` and `af` combine with
-> `csci`. So `add csci, dsdi` and `sub dsdi, csci` do what they say, but `add csci, af`
-> actually adds `dsdi`.
+The register form has an implied second pair. The CPU reads only the first pair and derives the
+second one from it, so the second operand must be written as the implied pair:
+
+| First operand | Second operand (the only one accepted) |
+|---|---|
+| `csci` | `dsdi` |
+| `dsdi` | `csci` |
+| `af` | `csci` |
+
+So `add csci, dsdi`, `sub dsdi, csci` and `add af, csci` are the valid forms. Any other second
+operand (`add csci, csci`, `add csci, af`) is an assembler error and no bytes are emitted; see
+the `implied pair` row in [Errors](#errors). An unknown pair name in any 16-bit form
+(`add csci, sssi`, `inc sssi`) is an error too.
 
 ### Jumps and calls
 

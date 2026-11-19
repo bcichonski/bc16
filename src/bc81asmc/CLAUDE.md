@@ -60,3 +60,4 @@ The diagnostics tests are `tests/bc81asmc_diag_tests.py` (records, formatter, pa
   instruction layout has to keep label operands byte-aligned.
 - Known broken and unused: `out #r, imm`. It emits `D0 rH`, but the CPU expects `Dr HH` (#11). The `CLC_A_IMM` 16-bit branch is
   dead code.
+- The register-register 16-bit forms take an implied second pair (`csci`→`dsdi`, `dsdi`→`csci`, `af`→`csci`). `emit` rejects any other second operand; the CPU ignores the written one. Keep that check (see `docs/02-assembler.md`, Errors).
