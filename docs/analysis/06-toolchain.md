@@ -75,10 +75,7 @@ the root `CLAUDE.md`.
    5. `git diff --exit-code` (committed outputs must match the sources, G3);
    6. later, an end-to-end boot test with the emulator's headless mode (see
       [01-emulator.md](01-emulator.md)).
-   _Status:_ #50 added the `tests` workflow covering items 1–3 and 6; items 4–5 and the code-size report remain open.
-
-   Optionally publish per-program code sizes as a job summary, to track compiler
-   optimisations.
+   _Status:_ #50 added the `tests` workflow covering items 1–3 and 6; items 4–5 remain open. The code-size report is done in #15 (`scripts/code_size.py`, published to the job summary).
 4. **`.gitattributes`:**
    - `*.btap *.bdd *.b81 *.sector *.sectors binary`;
    - an explicit choice for text: either keep CRLF for `*.basm`/`*.b` with `eol=crlf`, or

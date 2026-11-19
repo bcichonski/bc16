@@ -7,3 +7,4 @@ src/ftool text eol=lf
 src/run text eol=lf
 src/run_tests text eol=lf
 src/bcc text eol=lf
+src/bc/code_size.csv text eol=lf

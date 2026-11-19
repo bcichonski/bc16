@@ -11,10 +11,19 @@ cd src && python3 bc/bc.py --verbose bdos/ls.b    # same, plus the trace and bdo
 cd src && ./bcc bdos/ls                           # compile + assemble -> bdos/ls.btap (no .genb, quiet compiler)
 bcc bdos/ls                                       # same via the console command (`pip install -e .`), any directory
 cd src/bc && python3 -m unittest discover -s tests -t . -p "*_tests.py"   # grammar and codegen tests
+python3 scripts/code_size.py                      # code size of every program: Markdown table vs src/bc/code_size.csv
+python3 scripts/code_size.py --check              # optional, local: exit 1 if a program differs from its latest CSV row
+python3 scripts/code_size.py --record             # after an intended codegen change: append the changed rows to the CSV
 ```
 
 `bcc` runs `winpty python` when `winpty` is on `PATH` (Git Bash) and `python3` otherwise.
 Compiler errors go to stderr as `<file>: error: <message>` with exit code 1; see `bc_log.py`.
+
+`src/bc/code_size.csv` is the committed code-size log: header `date,program,start,bytes,basm_sha`, append-only,
+and the latest row per program is its expected state. `basm_sha` is a hash of the generated `.basm`, so a change of
+the same size is recorded too. Metrics only: nothing fails on a change; no test compares the programs with the CSV
+(`scripts/tests/test_code_size.py` tests the script on temp trees). When a codegen change is intended, running `--record`
+(it prints old -> new sizes) and committing the appended rows with the change is recommended. No golden `.basm` files are tracked.
 
 The compiler and its tests run on Linux, macOS and Windows with Python >= 3.10 (tested on
 3.10, 3.13 and 3.14); `parsy` is the only dependency. Internal compiler errors raise
@@ -61,6 +70,8 @@ outputs: ignored by git and never committed. Every `.basm` starts with `; genera
 - Changing the code model or the runtime changes every program. Afterwards, rebuild bdos
   and all programs (`./buildos && ./buildtools && ./buildapps && ./makedisc`), boot
   `os.bdd`, and smoke-test `ls`, `cat` and `texted`.
+- An intended change to the generated code should be recorded in `src/bc/code_size.csv` in the same commit
+  (`python3 scripts/code_size.py --record`); this is recommended, not enforced.
 - Language quirks to keep in mind, both when writing B and when changing the grammar:
   - comparisons bind looser than `&&`/`||`;
   - a unary operator applies to the whole rest of the expression;

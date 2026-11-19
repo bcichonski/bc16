@@ -50,6 +50,11 @@ jobs:
       - name: Unit tests
         run: python run_tests.py --group unit < /dev/null
 
+      - name: Code size (3.14 only, informational)
+        if: matrix.python-version == '3.14'
+        continue-on-error: true
+        run: python scripts/code_size.py < /dev/null
+
       - name: Guard (tracked files, generated files, no cpudebug.log)
         if: always()
         shell: bash
