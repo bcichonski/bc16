@@ -10,7 +10,6 @@ for exactly one instruction on the emulated CPU.  The test checks that the CPU
 
 Known disagreements are handled as follows (plan 48, D2/D7):
   * `out #r, imm` encodes wrongly (#11)            -> expectedFailure
-  * negated `jrx` never negates in the CPU (#4)    -> expectedFailure (+ decode-only test)
   * other findings are pinned in `PinnedFindingsTests` with a D7 comment.
 """
 import contextlib
@@ -262,7 +261,7 @@ def _flags(test, taken):
     return {flag: want if taken else 1 - want}
 
 
-def jump_cases(include_negated_jrx=False):
+def jump_cases():
     """JMP / JMR / JRX in every test and operand form, taken and not taken."""
     cases = []
     for test in LOGIC_TESTS:
@@ -291,8 +290,6 @@ def jump_cases(include_negated_jrx=False):
                 go('jmr reg', 'mJMR', f'jmr {test}, ci', 2, template, {'ci': rel}, direction)
 
                 # jrx: 15 bit offset; the register form is relative to instruction address + 1
-                if test in NEGATED and not include_negated_jrx:
-                    continue
                 go('jrx label', 'mJRX', f'jrx {test}, :tgt', 4, template, direction=direction)
                 if direction == ' fwd':
                     jrel = lambda lb, s, n: lb['tgt'] - s - 1                            # noqa: E731
@@ -418,11 +415,10 @@ class GrammarCoverageGuardTests(unittest.TestCase):
 
 
 class NegatedJrxTests(unittest.TestCase):
-    """`jrx nz/nc/nn/no` never negates in the CPU (#4 item 2): op_EXT tests bit 2 of the
-    EXT sub-opcode instead of the test code."""
+    """`jrx nz/nc/nn/no` (#4 item 2): op_EXT takes the negation bit from the test code."""
 
     def negated_cases(self):
-        return [c for c in jump_cases(include_negated_jrx=True)
+        return [c for c in jump_cases()
                 if c.parser == 'mJRX' and c.name.split()[2] in NEGATED]
 
     def test_negated_jrx_decodes_with_the_right_length(self):
@@ -438,8 +434,7 @@ class NegatedJrxTests(unittest.TestCase):
                 # decode only: lands either after the instruction or on the target
                 self.assertIn(cpu.pc.get(), (start + case.n, labels['tgt']))
 
-    # Known bug #4 (item 2, decided): a negated condition must jump when the flag is clear.
-    @unittest.expectedFailure
+    # a negated condition must jump when the flag is clear (#4 item 2).
     def test_negated_jrx_jumps_only_when_condition_negated_holds(self):
         for case in self.negated_cases():
             with self.subTest(case.name):

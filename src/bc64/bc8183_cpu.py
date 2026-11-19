@@ -492,6 +492,12 @@ class Bc8183:
 
     def op_EXT(self):
         opcode = lo(self.nextbyte)
+        if opcode not in (0x01, 0x02):
+            mesg = 'EXT at {0:04x}: unknown sub-opcode 0x{1:x}, CPU stopped'.format(self.pc.get(), opcode)
+            print(mesg, file=sys.stderr)
+            self.print_debug(mesg)
+            self.kill = True
+            return
         self.inc_pc(1)
         if(opcode == 0x01):
             testcode = hi(self.nextbyte)
@@ -507,7 +513,7 @@ class Bc8183:
             self.inc_pc(1)
 
         regno = testcode & 0x3
-        neg = opcode & 0x4 == 0x4
+        neg = testcode & 0x4 == 0x4
         test = self.f.get_flag(regno)
         if neg:
             test = not test
@@ -644,12 +650,23 @@ class Bc8183:
         val *= arg
         self.alu_setval16(reg, val)
 
+    def alu_zero_divisor16(self):
+        # div/mod by zero: destination and Z/N/C stay as they are, the
+        # OVERFLOW flag is set for the program to test (jmp/jrx o).
+        self.f.set_flag(FlagsRegister.OVERFLOW, 1)
+
     def alu_div16(self, reg, arg, reg2):
+        if arg == 0:
+            self.alu_zero_divisor16()
+            return
         val = self.alu_getval16(reg)
         val //= arg
         self.alu_setval16(reg, val)
 
     def alu_mod16(self, reg, arg, reg2):
+        if arg == 0:
+            self.alu_zero_divisor16()
+            return
         val = self.alu_getval16(reg)
         val %= arg
         self.alu_setval16(reg, val)

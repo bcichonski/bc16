@@ -266,12 +266,13 @@ class FloppyDriveTests(TempDirTestCase):
         self.send(fdd, FDD.CMD_PING)
         self.assertEqual(fdd.read_byte(), FDD.STATE_READY | FDD.STATE_FDDV1)
 
-    def test_commands_are_ignored_while_in_failure_state(self):
-        # pinned: a read command is only accepted in STATE_READY
+    def test_read_command_in_failure_state_is_a_drive_failure(self):
+        # issue #4 item 4 / D5: READSECT is unhandled outside STATE_READY; the write_byte
+        # fall-through now sets STATE_DRIVE_FAILURE instead of ignoring the byte
         fdd, env, mem = self.create_fdd()
         self.read_sector(fdd, FDD.TRACKS, 0)
         self.send(fdd, FDD.CMD_READSECT)
-        self.assertEqual(fdd.read_byte(), FDD.STATE_READ_FAILURE)
+        self.assertEqual(fdd.read_byte(), FDD.STATE_DRIVE_FAILURE)
 
     def test_write_without_active_drive_is_a_drive_failure(self):
         fdd, env, mem = self.create_fdd()
@@ -280,14 +281,14 @@ class FloppyDriveTests(TempDirTestCase):
         self.write_sector(fdd, 0, 0)
         self.assertEqual(fdd.read_byte(), FDD.STATE_DRIVE_FAILURE)
 
-    def test_read_without_active_drive_stays_in_command_state(self):
-        # pinned (D7 finding): unlike write, read has no drive-failure branch, and the fall-through
-        # assigns the typo'd attribute "setate" (see FDD unknown command), so the state never changes.
+    def test_read_without_active_drive_is_a_drive_failure(self):
+        # D7/D5: read has no drive-failure branch of its own; the write_byte fall-through
+        # sets STATE_DRIVE_FAILURE instead of leaving the state in RD2.
         fdd, env, mem = self.create_fdd()
         fdd.active_drive = None
         self.configure_dma(fdd, 0x100)
         self.read_sector(fdd, 0, 0)
-        self.assertEqual(fdd.read_byte(), FDD.STATE_RD2)
+        self.assertEqual(fdd.read_byte(), FDD.STATE_DRIVE_FAILURE)
 
     def test_eject_without_active_drive_is_a_drive_failure(self):
         fdd, env, mem = self.create_fdd()
@@ -351,19 +352,24 @@ class FloppyDriveTests(TempDirTestCase):
             self.write_sector(fdd, 0, 0)
         self.assertEqual(str(ctx.exception), "Disk write error")
 
-    @unittest.expectedFailure
     def test_unknown_command_sets_drive_failure_state(self):
-        # #4 item 4: the code assigns "self.setate", so the state does not change
         fdd, env, mem = self.create_fdd()
         self.send(fdd, 0x99)
         self.assertEqual(fdd.read_byte(), FDD.STATE_DRIVE_FAILURE)
 
-    def test_unknown_command_leaves_state_unchanged_today(self):
-        # pinned today's behaviour, owned by #4
+    def test_ping_after_drive_failure_recovers(self):
         fdd, env, mem = self.create_fdd()
         self.send(fdd, 0x99)
+        self.assertEqual(fdd.read_byte(), FDD.STATE_DRIVE_FAILURE)
+        self.send(fdd, FDD.CMD_PING)
+        self.assertEqual(fdd.read_byte(), FDD.STATE_READY | FDD.STATE_FDDV1)
+
+    def test_setdrva_after_drive_failure_recovers(self):
+        fdd, env, mem = self.create_fdd()
+        self.send(fdd, 0x99)
+        self.assertEqual(fdd.read_byte(), FDD.STATE_DRIVE_FAILURE)
+        self.send(fdd, FDD.CMD_SETDRVA)
         self.assertEqual(fdd.read_byte(), FDD.STATE_READY)
-        self.assertEqual(fdd.setate, FDD.STATE_DRIVE_FAILURE)
 
 
 class TapeRecorderTests(TempDirTestCase):

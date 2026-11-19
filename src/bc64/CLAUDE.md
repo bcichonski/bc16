@@ -89,12 +89,10 @@ failure (tape round trip) is an `expectedFailure` test; see `docs/01-emulator.md
   extend `src/bc81asmc/tests/bc81asmc_opcode_agreement_tests.py` so the assembler and the CPU agree on it.
 - Port numbers, FDD commands and status codes are part of bcOS and bdos code
   (`bcos.basm`, `bdioh.b`); changing them breaks booting.
-- Known latent bugs that existing code depends on not hitting:
-  - `op_EXT` checks the `JRX` negation bit in the wrong nibble;
-  - the `OUT` immediate form is broken;
-  - `FloppyDriveV1.write_byte` sets `self.setate` (a typo).
+- Known latent bug that existing code depends on not hitting:
+  - the `OUT` immediate form is broken.
 
-  If you fix one, check that the assembler and compiler output still matches.
+  If you fix it, check that the assembler and compiler output still matches.
 - Memory is 65,536 bytes (`0x0000–0xffff`): `MEMORY_SIZE = 0x10000`, `TOP_ADDRESS = 0xffff`
   holds `KIL` (written by `Bc64.write_top_kil()` after the ROM load), `STACK_TOP = 0xfffe`. A stack access
   outside memory stops the CPU like `KIL` (stderr line, exit 0); floppy DMA wraps with `& 0xffff`.

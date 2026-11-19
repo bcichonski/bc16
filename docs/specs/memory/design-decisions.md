@@ -310,6 +310,25 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Trade-offs:** goldens follow the emulator and bcOS, so an intended change means regenerating them;
   each scenario costs seconds of run time, and the e2e run needs a build first (#92).
 
+### E10. A zero divisor sets `O` and the CPU goes on; an unknown EXT sub-opcode stops it cleanly
+- **Purpose:** a program can see a division by zero and branch on it, and a bad byte stops the
+  emulator with one readable line instead of a Python traceback.
+- **Rationale:** the old behaviour (a Python `ZeroDivisionError` out of the CPU) ended the whole run.
+  The owner chose a flag for division by zero in #4 (decision D8), so the program uses the same test
+  as for overflow. An unknown EXT sub-opcode is a clean stop like a stack fault (D3), as in #7.
+- **Usage:**
+  - 16-bit `div` and `mod` by zero (`csci` or `dsdi`, immediate or register form): the destination
+    pair is unchanged, `O` = 1, `Z`/`N`/`C` are unchanged, nothing is printed and execution goes on;
+  - a `div` or `mod` with a non-zero divisor sets `O` from its result, so it clears a set `O`;
+  - test it right after the operation with `jrx o` or `jmp o`;
+  - an unknown `EXT` sub-opcode prints one stderr line, `EXT at XXXX: unknown sub-opcode 0xN, CPU stopped`,
+    changes nothing and stops the CPU; a headless run writes `bc64.dmp` and exits 0;
+  - code that divides must test `O` itself. The B compiler's `/` and `%` do not check it today, so
+    `x / 0` gives `x` in B (#136).
+- **Trade-offs:** the unchanged destination and the choice of `O` are provisional until the owner
+  confirms them (#136). A program that ignores `O` gets a plausible-looking result. A clean stop hides
+  the problem from the running program, but the stderr line and the dump show it.
+
 ---
 
 ## Assembler (`src/bc81asmc/`)
