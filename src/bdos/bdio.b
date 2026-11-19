@@ -189,7 +189,7 @@ byte bdio_fcat_scanmem(word PsectorBuf)
     freetrack <- peek8(BDIO_VAR_FCAT_FREETRACK);
     freesector <- peek8(BDIO_VAR_FCAT_FREESECT);
 
-    freetracksector <- (freetrack << 4) | freesector;
+    freetracksector <- (freetrack << 8) | freesector;
 
     Pentry <- PsectorBuf;
     PlastAddr <- PsectorBuf + BDIO_SECTBUF_LEN;
