@@ -159,10 +159,22 @@ The default session has the system disc in A and the utilities disc in B. In hea
 
 ### Allocation
 
-When the catalog is read (`bdio_fcat_read`, run on every drive change), bdio remembers the
-first free catalog entry and the first free sector after the used area. New data is always
-allocated from that point onwards (`bdio_getfreesect`), and files are written
-append-only. Deleted space is not reused or compacted.
+When the catalog is read (`bdio_fcat_read`, run on every drive change), bdio finds two things:
+
+- **First free entry:** the first catalog entry with length 0. The scan stops there. `rm` keeps
+  the catalog compact by moving the last entry into the hole, so the first empty entry is the end.
+- **First free sector:** the maximum of start + length over all used entries, in linear sectors
+  (track × 16 + sector), whatever the catalog order (after `rm` it is not disc order). bdio keeps
+  it as track/sector bytes and compares the values as `track << 8 | sector` words, the same
+  encoding as `bdio_tracksector_add`.
+
+New data is always allocated from the first free sector onwards (`bdio_getfreesect`), and files
+are written append-only. Gaps are not reused (#41). Removing the file that ends last frees its
+space again, because the maximum is recomputed on the next catalog read.
+
+`ls` prints free sectors as 1024 − (track × 16 + sector), using the same linear position. Example:
+free position 36/10 gives 1024 − 586 = 438 (`01B6`). On the layout where the last file ends at
+52/02 the figure is 190 (`00BE`).
 
 **Discs made before #37.** `os.bdd` discs copied before #37 number only catalog entries 0–15, and entries 16–247 hold 0. bdio takes the first empty entry's number byte as the slot for a new file, so on such a disc the 17th file gets entry number 0 and overwrites the entry of `BOOTSECT.BIN`. The disc still boots, but its catalog is corrupted. Re-make the disc (`format` from a new system disc, or a copy of the new `os.bdd`), or keep it at 16 files or fewer. Discs made by `format` and the `src/os.bdd` built now number all 248 entries and are not affected.
 
