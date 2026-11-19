@@ -474,5 +474,5 @@ class FloppyDriveV1(IODevice):
             self.state = FloppyDriveV1.STATE_DRIVE_FAILURE
             return
         
-        self.setate = FloppyDriveV1.STATE_DRIVE_FAILURE
+        self.state = FloppyDriveV1.STATE_DRIVE_FAILURE
          

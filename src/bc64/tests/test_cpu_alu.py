@@ -300,31 +300,65 @@ class Alu16Tests(AluTestBase):
     def test_mod16_reg(self):
         self.check16([0x5f, 0xac, 0x80], 0x1235, 0x0001, 0x0001, ds=0x00, di=0x04)
 
-    def run_expecting_zero_division(self, code, **regs):
+    # Div/mod by zero (#4 item 3, D8): no exception, the CPU keeps running.
+    # The destination pair and Z/N/C stay as they were, O is set.
+    def check_zero_divisor(self, code, flag_state, **regs):
+        flags = dict(zip((bc8183_cpu.FlagsRegister.ZERO, bc8183_cpu.FlagsRegister.CARRY,
+                          bc8183_cpu.FlagsRegister.NEGATIVE, bc8183_cpu.FlagsRegister.OVERFLOW),
+                         flag_state))
         out = io.StringIO()
         with contextlib.redirect_stdout(out):
-            with self.assertRaises(ZeroDivisionError):
-                self.run_code(code, **regs)
-        return out.getvalue()
+            cpu = self.run_code(list(code) + [0x15, 0x55], cs=0x12, ci=0x34, flags=flags, **regs)
+        self.assertEqual(out.getvalue(), "")
+        self.assertEqual(self.pair(cpu), 0x1234)
+        z, c, n, _ = flag_state
+        self.assertEqual(flags_of(cpu), (z, c, n, 1))
+        # the CPU went on: the trailing "mov di" ran, run_code checked PC
+        self.assertEqual(cpu.di.get(), 0x55)
+        return cpu
 
-    # PINNED (#4 item 3, behaviour undecided): div/mod by zero raises a Python
-    # ZeroDivisionError out of the CPU after printing "exception at ..." and
-    # the CPU stack dump to stdout.
-    def test_div16_imm_by_zero_is_pinned(self):
-        out = self.run_expecting_zero_division(self.imm(0xa, 0x3, 0x80, 0), cs=0x01)
-        self.assertIn("exception at", out)
+    FLAG_STATES = [(0, 0, 0, 0), (1, 0, 1, 0), (0, 1, 0, 1), (1, 1, 1, 1)]
 
-    def test_mod16_imm_by_zero_is_pinned(self):
-        out = self.run_expecting_zero_division(self.imm(0xa, 0x4, 0x80, 0), cs=0x01)
-        self.assertIn("exception at", out)
+    def test_div16_imm_by_zero_sets_overflow_only(self):
+        for state in self.FLAG_STATES:
+            with self.subTest(flags=state):
+                self.check_zero_divisor(self.imm(0xa, 0x3, 0x80, 0), state)
 
-    def test_div16_reg_by_zero_is_pinned(self):
-        out = self.run_expecting_zero_division([0x5f, 0xab, 0x80], cs=0x01, ds=0, di=0)
-        self.assertIn("exception at", out)
+    def test_mod16_imm_by_zero_sets_overflow_only(self):
+        for state in self.FLAG_STATES:
+            with self.subTest(flags=state):
+                self.check_zero_divisor(self.imm(0xa, 0x4, 0x80, 0), state)
 
-    def test_mod16_reg_by_zero_is_pinned(self):
-        out = self.run_expecting_zero_division([0x5f, 0xac, 0x80], cs=0x01, ds=0, di=0)
-        self.assertIn("exception at", out)
+    def test_div16_reg_by_zero_sets_overflow_only(self):
+        for state in self.FLAG_STATES:
+            with self.subTest(flags=state):
+                self.check_zero_divisor([0x5f, 0xab, 0x80], state, ds=0, di=0)
+
+    def test_mod16_reg_by_zero_sets_overflow_only(self):
+        for state in self.FLAG_STATES:
+            with self.subTest(flags=state):
+                self.check_zero_divisor([0x5f, 0xac, 0x80], state, ds=0, di=0)
+
+    def test_nonzero_div_mod_clear_a_previously_set_overflow(self):
+        o = {bc8183_cpu.FlagsRegister.OVERFLOW: 1}
+        for code in (self.imm(0xa, 0x3, 0x80, 2), self.imm(0xa, 0x4, 0x80, 5),
+                     [0x5f, 0xab, 0x80], [0x5f, 0xac, 0x80]):
+            with self.subTest(code=code):
+                cpu = self.run_code(code, cs=0x00, ci=0x0a, ds=0, di=3, flags=o)
+                self.assertEqual(flags_of(cpu)[3], 0)
+
+    def test_div_by_zero_then_jrx_o_reaches_the_error_branch(self):
+        # div cs, 0 ; jrx o -> error ; ok: mov di,0x11 ; kil ; error: mov di,0x22 ; kil
+        code = self.imm(0xa, 0x3, 0x80, 0) + [0xe1, 0x30, 0x00, 0x04] + [0x15, 0x11, KIL, 0x00] + [0x15, 0x22, KIL]
+        env = bc64_env.Environment(False)
+        mem = bc64_mem.MemBus(env, 0x0100)
+        for i, b in enumerate(code):
+            mem.write_byte(i, b)
+        cpu = bc8183_cpu.Bc8183(mem, None, False)
+        cpu.cs.set(0x01)
+        cpu.run()
+        self.assertEqual(cpu.di.get(), 0x22)
+        self.assertEqual(self.pair(cpu), 0x0100)
 
     # --- INC / DEC ---------------------------------------------------
     def test_inc16(self):

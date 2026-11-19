@@ -10,8 +10,7 @@ Conventions used by the CPU (see docs/01-emulator.md):
   4 bytes), register form target = instruction address + offset + 1 (2 bytes);
   offset is sign-magnitude 15 bit;
 * the negation bit of ``jrx`` is assembled into the high nibble of the test byte
-  (``TEST_NZ = 0x4``) but the CPU reads it from the opcode nibble: negated
-  ``jrx`` never negates (issue #4, item 2).
+  (``TEST_NZ = 0x4``) and the CPU reads it from there (issue #4, item 2).
 
 The CPU debug trace is off, so nothing is printed and no cpudebug.log is created.
 """
@@ -401,17 +400,37 @@ class JrxTests(ControlTestBase):
         cpu.run_next_opcode()
         self.assertEqual(cpu.pc.get(), 0x0d)
 
-    def test_JRX_unknown_ext_opcode_is_not_handled_pinned(self):
-        # pinned (D7): EXT sub-opcodes other than 1 and 2 leave 'testcode' unset
-        cpu = self.build([0xe3, 0x00, KIL])
-        cpu.inc_pc(0)
-        with contextlib.redirect_stdout(io.StringIO()):   # the CPU dumps its stack on an exception
-            with self.assertRaises(UnboundLocalError):
-                cpu.run_next_opcode()
+    def test_JRX_unknown_ext_opcode_stops_cpu_cleanly(self):
+        for sub in (0x0, 0x3, 0x4, 0x5, 0xf):
+            with self.subTest(sub=sub):
+                cpu = self.build([0xe0 | sub, 0x00, KIL])
+                cpu.inc_pc(0)
+                before = (cpu.a.get(), cpu.di.get(), cpu.ci.get(), cpu.ss.get(), cpu.si.get(),
+                          cpu.f.get_flag(FLAG_Z), cpu.membus.read_byte(2))
+                err = io.StringIO()
+                with contextlib.redirect_stderr(err):
+                    cpu.run_next_opcode()
+                self.assertTrue(cpu.kill)
+                self.assertEqual(cpu.pc.get(), 0)
+                self.assertEqual(err.getvalue().count('\n'), 1)
+                self.assertIn('EXT at 0000: unknown sub-opcode 0x%x, CPU stopped' % sub, err.getvalue())
+                after = (cpu.a.get(), cpu.di.get(), cpu.ci.get(), cpu.ss.get(), cpu.si.get(),
+                         cpu.f.get_flag(FLAG_Z), cpu.membus.read_byte(2))
+                self.assertEqual(before, after)
 
-    # --- negated jrx: decided behaviour (#4 item 2), currently never negates ----------------
+    def test_JRX_negated_taken_and_not_taken_pc_each_flag_both_forms(self):
+        for flag, name in FLAG_NAMES.items():
+            for flag_set in (False, True):
+                with self.subTest(test='n' + name, flag_set=flag_set):
+                    code = self.address_form(flag | 0x4, 0x000c) + [0x15, 0x11, KIL] + [0x00] * 8 + [0x15, 0x22, KIL]
+                    cpu = self.run_code(code, flags={name: flag_set})
+                    self.assertEqual((cpu.di.get(), cpu.pc.get()), (0x11, 0x06) if flag_set else (0x22, 0x11))
+                    code = self.register_form(flag | 0x4, 0x8) + [0x15, 0x11, KIL] + [0x00] * 8 + [0x15, 0x22, KIL]
+                    cpu = self.run_code(code, flags={name: flag_set}, ci=0x0c)
+                    self.assertEqual((cpu.di.get(), cpu.pc.get()), (0x11, 0x04) if flag_set else (0x22, 0x0f))
 
-    @unittest.expectedFailure   # issue #4: negated jrx never negates
+    # --- negated jrx: the negation bit comes from the test code (#4 item 2) -----------------
+
     def test_JRX_address_form_negated_jumps_when_flag_clear(self):
         for flag, name in FLAG_NAMES.items():
             code = self.address_form(flag | 0x4, 0x000c) + [0x15, 0x11, KIL] + [0x00] * 8 + [0x15, 0x22, KIL]
@@ -420,7 +439,6 @@ class JrxTests(ControlTestBase):
             cpu = self.run_code(code, flags={name: True})
             self.assertEqual(cpu.di.get(), 0x11, 'jrx n' + name + ' with flag set')
 
-    @unittest.expectedFailure   # issue #4: negated jrx never negates
     def test_JRX_register_form_negated_jumps_when_flag_clear(self):
         for flag, name in FLAG_NAMES.items():
             code = self.register_form(flag | 0x4, 0x8) + [0x15, 0x11, KIL] + [0x00] * 8 + [0x15, 0x22, KIL]
