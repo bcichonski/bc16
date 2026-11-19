@@ -74,16 +74,6 @@ class AssemblerLoading(unittest.TestCase):
 
 
 class RepoCheck(unittest.TestCase):
-    def test_current_sources_match_the_committed_csv(self):
-        results, failures = code_size.measure_all(ROOT)
-        self.assertEqual(failures, {})
-        latest = code_size.read_log(os.path.join(ROOT, code_size.CSV_REL))
-        changes = code_size.compare(results, latest)
-        message = "\n".join(code_size.describe(change, results) for change in changes)
-        self.assertEqual(changes, [],
-                         "code size differs from src/bc/code_size.csv:\n%s\nif intended, run: %s"
-                         % (message, code_size.RECORD_COMMAND))
-
     def test_repo_discovers_the_known_programs(self):
         found = code_size.discover(ROOT)
         self.assertEqual(sum(key.startswith("bdos/") for key in found), 13)

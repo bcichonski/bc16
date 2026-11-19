@@ -94,7 +94,7 @@ cd src/bc81asmc && python3 -m unittest discover -s tests -t . -p "*_tests.py"   
 cd src/bc && python3 -m unittest discover -s tests -t . -p "*_tests.py"         # one suite: compiler
 cd scripts && python3 -m unittest discover -s tests -t . -p "test_*.py"         # one suite: release (scripts/make_release.py)
 python3 scripts/code_size.py                             # code size of every program vs src/bc/code_size.csv (report)
-python3 scripts/code_size.py --check                     # exit 1 when a program differs from its latest CSV row (also a release-suite test)
+python3 scripts/code_size.py --check                     # optional, local: exit 1 when a program differs from its latest CSV row
 python3 scripts/code_size.py --record                    # after an intended codegen change: append the changed rows to the CSV
 cd src && python3 -m unittest bc64.tests.test_cpu.CpuTests.test_CLC16_opcodes   # one test (same form elsewhere)
 ```
@@ -125,7 +125,7 @@ The `tests` workflow (`.github/workflows/tests.yml`) runs on every push and PR t
   if a tracked file matches `.gitignore` (`git ls-files -i -c --exclude-standard`), if a tracked `X.basm`
   sits beside a tracked `X.b`, or if a `cpudebug.log` exists;
 - on Python 3.14 the `unit` job also runs `python scripts/code_size.py` (informational, `continue-on-error`), which
-  appends the code-size table to the job summary; the check that fails CI is the unit suite's `test_code_size`;
+  appends the code-size table to the job summary. It is metrics only: nothing fails CI on a size or code change;
 - job `e2e` (Python 3.14, after `unit`) runs `python run_tests.py --group e2e`, which builds the pipeline and
   runs the e2e tests on the fresh outputs. Then it fails if `git status` is not clean (the build and the tests
   must change no tracked file; nothing is restored).

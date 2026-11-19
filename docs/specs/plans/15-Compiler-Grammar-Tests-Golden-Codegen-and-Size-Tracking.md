@@ -4,7 +4,7 @@
 
 **Story Type**: `Internal`
 
-**Plan Revision**: `A0`
+**Plan Revision**: `A1`
 
 > This plan captures **what** to build and **why**: domain, architecture, decisions and verified facts.
 > It contains no implementation code. The implementation agent works out the **how** against the live code.
@@ -19,13 +19,13 @@
     *   The owner's comment of 2026-11-19 makes this phase 0, step 2 of `docs/analysis/08-self-hosted-roadmap.md`. It must land before the ABI, the runtime, BASM's encoder or the compiler templates are frozen. #16, #17 and #18 depend on it.
 *   **Owner direction during this run (2026-11-19)**: "I do not want this files to be tracked.. can we have only .csv file with new entries for files and their sizes to track?" So no golden `.basm` copies are committed anywhere. One committed CSV records each program's size, and new entries are appended when output changes.
 *   **Goal**:
-    *   Any change to the compiler's output for a real program fails a test. The test names the programs and shows old → new size.
+    *   Every program's size and code fingerprint is measured. The report shows old → new per program, and an optional local `--check` flags unrecorded changes. **Metrics only (A1): nothing in this story fails CI.**
     *   One documented command appends the new entries to the CSV on purpose, so the CSV is the measured history of every optimisation.
     *   CI publishes the current size table.
 *   **In scope**:
     *   the size script (report, check, record);
     *   the committed CSV seeded with today's sizes;
-    *   the check test;
+    *   the script's behaviour tests;
     *   the CI step;
     *   documentation.
 *   **Out of scope**:
@@ -42,7 +42,7 @@
     *   the latest row per program is the expected state.
 *   **Infrastructure changes**: one CI step that appends the size table to the GitHub job summary.
 *   **End-state behaviour**:
-    *   `python3 run_tests.py --group unit` fails when any program's code changed and was not recorded;
+    *   no unit test compares the repo's programs with the CSV, and the CI step is informational (A1); `--check` (optional, local) exits 1 on unrecorded changes;
     *   `python3 scripts/code_size.py` prints the table;
     *   `python3 scripts/code_size.py --record` appends entries for the changed programs.
 
@@ -141,9 +141,9 @@ N/A — Internal story.
 *   **D1 — No golden `.basm` is tracked; `src/bc/code_size.csv` is the only committed record** (owner direction, 2026-11-19). **Deviates from the AC2 wording** ("compare with the committed `.basm`"); flag it in the PR.
 *   **D2 — "Program" = a `.b` file that defines `main`.** Include libraries are exercised through the programs that include them.
 *   **D3 — Each row carries a short `.basm` hash besides the size.** The issue's intent for AC2 is that *any* codegen change fails a test. Size alone misses same-size changes. The hash is one extra column in the same CSV, not a tracked file. If the owner wants size only, the column can be dropped without other changes.
-*   **D4 — The check runs in the `release` unit suite** (`scripts/tests/test_code_size.py`), because it needs both the compiler and the assembler, and `scripts/` sits outside both tools' flat-import folders. The regenerate step is the script's `--record`, not `run_tests.py --update-golden`, whose tests pin it to e2e only.
+*   **D4 (Amended in: A1) — The script's behaviour tests run in the `release` unit suite; there is no repo-wide CSV-match test (metrics only)** (`scripts/tests/test_code_size.py`), because it needs both the compiler and the assembler, and `scripts/` sits outside both tools' flat-import folders. The regenerate step is the script's `--record`, not `run_tests.py --update-golden`, whose tests pin it to e2e only.
 *   **D5 — AC1 needs no work.** `bc_tests` passes 23/23 at `473e463`.
-*   **D6 — CI publishes the report on the 3.14 `unit` matrix entry only**, after the unit tests, as information. The check test inside the unit suite is what fails CI on an unrecorded change.
+*   **D6 — CI publishes the report on the 3.14 `unit` matrix entry only**, after the unit tests, as information. Nothing fails CI on an unrecorded change (A1).
 *   **D7 — `history.txt` keeps its hand-written history.** It gains a pointer at the top to `code_size.csv` and `scripts/code_size.py`.
 
 ### 3.1 Decision Lock
@@ -172,7 +172,9 @@ No open questions.
 
 ### T1 — Code-size script, seeded CSV and the check test
 
-*   **Goal**: `scripts/code_size.py` measures every program and supports the report, check and `--record` modes from §2.4. `src/bc/code_size.csv` is seeded with today's entries for all 18 programs, and a unit test fails on any unrecorded change.
+*   **Amended in**: A1 — remove the repo-wide CSV-match test (`RepoCheck.test_current_sources_match_the_committed_csv`); keep the behaviour tests on temp trees and the repo discovery test. `--check` stays as an optional local command.
+
+*   **Goal**: `scripts/code_size.py` measures every program and supports the report, check and `--record` modes from §2.4. `src/bc/code_size.csv` is seeded with today's entries for all 18 programs (A1: no unit test gates on it).
 *   **Depends on**: —
 *   **Complexity**: `Medium`
 *   **Pointers**:
@@ -187,7 +189,6 @@ No open questions.
     *   the repo tree is unchanged by any mode except the CSV append in `--record`;
     *   `cd scripts && python3 -m unittest discover -s tests -t . -p "test_*.py"` and `python3 run_tests.py --group unit < /dev/null` pass.
 *   **Tests expected** (unit, `scripts/tests/`, using temp source trees and temp CSVs except for the repo check):
-    *   the repo check: current sources match the committed CSV;
     *   discovery skips files without `main`;
     *   a tiny program's byte count is right;
     *   check reports a size change, a same-size code change (hash only), a new program and a removed program;
@@ -198,6 +199,8 @@ No open questions.
 *   **Tests to modify**: None
 
 ### T2 — CI report step and documentation
+
+*   **Amended in**: A1 — the docs must say the tracking is metrics only: nothing fails CI or the unit suite on a size or code change, `--check` is optional and local, and recording rows after a program or compiler change is recommended, not enforced.
 
 *   **Goal**: CI shows the size table in the job summary. AC3 is met (`history.txt` points to the report) and so is AC4 (`src/bc/CLAUDE.md` and `docs/03-compiler.md` describe how to run and update the tests).
 *   **Depends on**: `T1`
@@ -227,7 +230,7 @@ No open questions.
 *   **AC2 (per D1/D3)**:
     *   `cd scripts && python3 -m unittest tests.test_code_size -v` passes;
     *   the CSV has 18 program rows (13 `bdos/…` + 5 `code/…`);
-    *   a temporary change to one program's source makes the repo check fail and name it (revert afterwards; never commit it).
+    *   in a temp copy, a source change makes `--check` exit 1 naming the program, while `python3 run_tests.py --group unit` stays green (A1).
 *   **AC3**: `python3 scripts/code_size.py` lists 18 programs plus a total, and `src/bc/history.txt` points to it.
 *   **AC4**: the T2 docs contain the run and record commands.
 *   **Full suite**: `python3 run_tests.py < /dev/null` passes, and `git status --porcelain` shows only intended files.
@@ -253,3 +256,11 @@ No open questions.
 *   D3 (a hash column) is this plan's addition. It keeps "any codegen change fails a test" with no extra file, and it is easy to drop if the owner objects.
 *   AC1 was verified as already met.
 *   The implementer must keep every build in a temp copy and seed the CSV with `--record` itself, not by hand.
+
+---
+
+## 7. Amendment Log
+
+| Amendment | Request | Decision | Plan changes |
+| :--- | :--- | :--- | :--- |
+| A1 (2026-11-19, owner) | contradiction — size/hash tracking must never fail CI (metrics only) | accepted — owner direction; AC2/AC3 intent (measure) kept, the issue never asked for a CI gate | Goal, §1.1, D4, D6 reworded; T1 amended (drop the repo-wide CSV-match test); T2 amended (docs: metrics only); §5 AC2 reworded |

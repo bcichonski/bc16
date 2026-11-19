@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
 """Measure the code size of every B program and track it in src/bc/code_size.csv.
 
+Code-size tracking is metrics only: it never fails CI or the unit suite. Sizes are reported and
+recorded; the only non-zero exits are for a program that fails to build (or the optional --check).
+
 Usage (from any directory):
     python3 scripts/code_size.py            report: a Markdown table of program, start, bytes,
                                             hex size and the change against the CSV. Also appended
                                             to $GITHUB_STEP_SUMMARY when that is set. Exit 0 even
                                             when sizes differ from the CSV; exit 1 only if a
                                             program fails to build (its name goes to stderr).
-    python3 scripts/code_size.py --check    like the report, but exit 1 when any program differs
-                                            from its latest CSV row (size or code), has no row, or
-                                            a row names a program that no longer exists.
+    python3 scripts/code_size.py --check    optional local command, not run by CI or the unit suite: like
+                                            the report, but exit 1 when any program differs from its
+                                            latest CSV row (size or code), has no row, or a row names a
+                                            program that no longer exists.
     python3 scripts/code_size.py --record   append a row for every changed or new program (and an
                                             empty-bytes row for a removed one) dated today (UTC).
                                             Nothing is appended when nothing changed.
@@ -263,7 +267,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Measure and track the code size of the B programs.")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--check", action="store_true",
-                      help="exit 1 when a program differs from its latest CSV row")
+                      help="optional local check: exit 1 when a program differs from its latest CSV row")
     mode.add_argument("--record", action="store_true",
                       help="append rows for the changed, new and removed programs")
     parser.add_argument("--csv", help="the size log (default: %s)" % CSV_REL)

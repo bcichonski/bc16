@@ -13,7 +13,7 @@ written in B.
 | `bc_stdlib.py` | assembly runtime library appended to every program |
 | `bc_dbg.py`, `tests/bc_tests.py` | debug helper, unit tests |
 | `grammar.txt`, `history.txt`, `bugs.txt` | design notes, code-size optimisation history, known bugs |
-| `code_size.csv` | committed code-size log per program (date, program, start, bytes, `.basm` hash), checked by `scripts/code_size.py` |
+| `code_size.csv` | committed code-size log per program (date, program, start, bytes, `.basm` hash), reported by `scripts/code_size.py` |
 | `code/` | small test programs (`declarations.b`, `functions.b`, `funrec.b`, `stdmemtest.b`, …) |
 
 ## Usage
@@ -226,7 +226,7 @@ From `bc/history.txt`:
   native 16-bit instructions.
 
 Current sizes are in `src/bc/code_size.csv` (append-only; the latest row per program wins).
-`python3 scripts/code_size.py` prints them; `--check` exits 1 when a program's code differs from its
-latest row, and the release-suite test `scripts/tests/test_code_size.py` runs that check. After an intended
-codegen change, run `python3 scripts/code_size.py --record` and commit the appended rows with the change.
+`python3 scripts/code_size.py` prints them; `--check` (optional, local) exits 1 when a program's code differs from its
+latest row. Metrics only: nothing fails CI or the unit suite on a size change. After an intended
+codegen change, running `python3 scripts/code_size.py --record` and committing the appended rows with the change is recommended.
 The CI unit job on Python 3.14 adds the table to the job summary.
