@@ -1,3 +1,7 @@
+Current code sizes: src/bc/code_size.csv (append-only, latest row per program wins).
+scripts/code_size.py prints the table; the CI unit job on Python 3.14 adds it to the job summary.
+Below is the hand-written history.
+
 bc v 0.5.0 (240128)
 calc v1.0
 code length 5459 (0x1553)
