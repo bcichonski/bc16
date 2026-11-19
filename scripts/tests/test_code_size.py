@@ -58,6 +58,21 @@ class TempTree(unittest.TestCase):
             return handle.read().splitlines()
 
 
+class AssemblerLoading(unittest.TestCase):
+    def test_measuring_works_with_src_on_the_python_path(self):
+        # an editable install puts src/ on sys.path, where the package bc81asmc
+        # would shadow the module bc81asmc.py
+        env = dict(os.environ)
+        env["PYTHONPATH"] = os.path.join(ROOT, "src")
+        code = ("import code_size; asm, grammar = code_size.load_assembler(); "
+                "assert hasattr(asm, 'compile'); "
+                "print(code_size.assemble('.org 0x6000\\nkil\\n'))")
+        result = subprocess.run([sys.executable, "-c", code], cwd=SCRIPTS, env=env,
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                universal_newlines=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+
 class RepoCheck(unittest.TestCase):
     def test_current_sources_match_the_committed_csv(self):
         results, failures = code_size.measure_all(ROOT)

@@ -32,6 +32,7 @@ import csv
 import datetime
 import hashlib
 import importlib
+import importlib.util
 import io
 import os
 import re
@@ -80,11 +81,23 @@ def basm_sha(text):
     return hashlib.sha256(text.replace("\r\n", "\n").encode("utf8")).hexdigest()[:12]
 
 
+_ASSEMBLER = None
+
+
 def load_assembler():
     folder = os.path.join(ROOT, "src", "bc81asmc")
     if folder not in sys.path:
         sys.path.append(folder)
-    return importlib.import_module("bc81asmc"), importlib.import_module("bc81asmc_grammar")
+    # Load bc81asmc.py by path: with src/ on sys.path (editable install) the package
+    # src/bc81asmc/__init__.py would shadow the module of the same name.
+    global _ASSEMBLER
+    if _ASSEMBLER is None:
+        spec = importlib.util.spec_from_file_location(
+            "_code_size_bc81asmc", os.path.join(folder, "bc81asmc.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _ASSEMBLER = module
+    return _ASSEMBLER, importlib.import_module("bc81asmc_grammar")
 
 
 def assemble(basm_text):
