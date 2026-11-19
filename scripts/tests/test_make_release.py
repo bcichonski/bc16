@@ -3,6 +3,7 @@ only to temp folders. Run from scripts/: python3 -m unittest discover -s tests -
 """
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -394,6 +395,47 @@ class ErrorTests(unittest.TestCase):
             env = dict(os.environ, GIT_CEILING_DIRECTORIES=os.path.dirname(tmp))
             completed = run_script(copy, "legacy", "bc32", "--out", tmp, cwd=tmp, env=env)
         self.assert_one_line_error(completed, make_release.LEGACY_COMMIT)
+
+
+class Bc64ReleaseNotesTests(unittest.TestCase):
+    """The bc64-v0.1 release notes are the README's BC64 section (D1), read from the working tree (D2)."""
+
+    PROGRAMS = ("ls", "cp", "rm", "format", "cha", "cat", "hellowrd", "texted", "calc", "theodore")
+    PINNED_TEXT = ("bc64-v0.1", "os.bdd", "utils.bdd", "Disk B name:", "b:", "#73")
+
+    @staticmethod
+    def working_tree_readme():
+        with open(os.path.join(ROOT, "README.md"), encoding="utf-8") as handle:
+            return handle.read()
+
+    @classmethod
+    def missing_notes_pins(cls, section):
+        """Return what the release notes must name but the text lacks; an empty list when complete."""
+        missing = [text for text in cls.PINNED_TEXT if text.lower() not in section.lower()]
+        missing += [name for name in cls.PROGRAMS
+                    if not re.search(r"\b%s\b" % re.escape(name), section, re.IGNORECASE)]
+        if not re.search(r"^#+[ \t]*known limitations\b", section, re.IGNORECASE | re.MULTILINE):
+            missing.append("known limitations heading")
+        return missing
+
+    def test_bc64_notes_name_the_release_discs_programs_and_limits(self):
+        section = make_release.readme_section(self.working_tree_readme(), "BC64")
+        self.assertEqual(self.missing_notes_pins(section), [])
+
+    def test_release_notes_come_before_the_roadmap(self):
+        section = make_release.readme_section(self.working_tree_readme(), "BC64")
+        roadmap_at = section.find("\n## roadmap")
+        self.assertNotEqual(roadmap_at, -1)
+        notes = section[:roadmap_at]
+        self.assertIn("\n## release notes", notes)
+        self.assertEqual(self.missing_notes_pins(notes), [])
+
+    def test_releases_section_names_the_v01_tag(self):
+        releases = make_release.readme_section(self.working_tree_readme(), "Releases")
+        self.assertIn("bc64-v0.1", releases)
+
+    def test_bc64_v01_is_a_valid_zip_name(self):
+        self.assertIsNotNone(make_release.TAG_RE.match("bc64-v0.1"))
 
 
 if __name__ == "__main__":

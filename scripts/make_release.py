@@ -385,7 +385,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="Build the GitHub Release zips and notes.")
     commands = parser.add_subparsers(dest="command", required=True)
     bc64 = commands.add_parser("bc64", help="zip the current machine")
-    bc64.add_argument("--tag", required=True, help="zip name and root folder, e.g. bc64-v1.0")
+    bc64.add_argument("--tag", required=True, help="zip name and root folder, e.g. bc64-v0.1")
     bc64.add_argument("--out", help="output folder (default: dist/ in the repo root)")
     legacy = commands.add_parser("legacy", help="zip a frozen generation")
     legacy.add_argument("generation", help="bc16 or bc32")

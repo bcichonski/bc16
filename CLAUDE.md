@@ -25,7 +25,7 @@ and `docs/CHANGELOG.md` belong to the `/grind` workflow.
 
 Active development is on the `master`
 branch. Earlier machine generations are frozen as tagged GitHub Releases with zips (`bc16-v1.0`,
-`bc32-v1.0`; the current machine is released as `bc64-v*`). There is no `release/` folder; see
+`bc32-v1.0`; the current machine is released as `bc64-v*`, the first being the `bc64-v0.1` preview). There is no `release/` folder; see
 "Releases" in `README.md`. The zips are built by `scripts/make_release.py` (tests in
 `scripts/tests/`, the `release` suite of `run_tests.py`). Publishing a release (pushing tags,
 `gh release create`) is the repo owner's step. The top-level `bc/grammar.txt` is an old copy of the
