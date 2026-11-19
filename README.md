@@ -39,7 +39,7 @@ Every machine generation is a tagged GitHub Release with a zip. The tags are:
 |---|---|---|
 | `bc16-v1.0` | BC16 (tape only) | `bd2498a` |
 | `bc32-v1.0` | BC32 (adds clock, random generator, floppy drive) | `6304761` |
-| `bc64-v*` | BC64 (the current machine, `bc64-v1.0` and later) | the tagged commit |
+| `bc64-v0.1` | BC64 preview (the current machine; bc64 tags start at `v0.1`, and pre-1.0 means in progress) | the merge commit of #109, tagged by the owner |
 | `bc-v0.5` | an early tag that already existed | |
 
 What the zips contain:
@@ -57,7 +57,7 @@ What the zips contain:
 anywhere). Output goes to `dist/` unless `--out DIR` is given:
 
 ```bash
-python3 scripts/make_release.py bc64 --tag bc64-v1.0      # dist/bc64-v1.0.zip, from HEAD
+python3 scripts/make_release.py bc64 --tag bc64-v0.1      # dist/bc64-v0.1.zip, from HEAD
 python3 scripts/make_release.py legacy bc16               # dist/bc16-v1.0.zip
 python3 scripts/make_release.py legacy bc32               # dist/bc32-v1.0.zip
 python3 scripts/make_release.py notes bc16                # prints the release notes (the README "# BC16" section)
@@ -70,6 +70,14 @@ builds the zip and creates the GitHub Release with the zip attached. Running the
 (`workflow_dispatch`, input: zip name) does the same without publishing and uploads the zip as a workflow artifact.
 GitHub only offers `workflow_dispatch` for a workflow file on the default branch (`master`), so the dry run is
 available only after the file is there.
+
+The bc64 release is published by the repo owner. Optional dry run, then tag a `master` commit and push the tag:
+
+```bash
+gh workflow run release.yml -f name=bc64-v0.1
+git tag bc64-v0.1 <master commit>
+git push origin bc64-v0.1
+```
 
 The two legacy releases are published once, by the repo owner:
 
@@ -86,6 +94,29 @@ gh release create bc32-v1.0 dist/bc32-v1.0.zip --title bc32-v1.0 --notes-file di
 ```
 
 # BC64
+## release notes: bc64-v0.1 (first preview)
+`bc64-v0.1` is the first, preview release of the BC64. Pre-1.0 means the machine, the OS and the toolchain are still changing.
+
+### Running it
+Unpack the zip, then `cd bc64-v0.1/src && ./run` (Python 3.10 or later is needed). At the `Disk A name:` prompt enter
+`os.bdd`, and at the `Disk B name:` prompt enter `utils.bdd`. Type `b:` to switch to the apps disc.
+
+### What is on the discs
+- `os.bdd` (drive A): bcOS 1.2 boot and bdos (`BDOS.SYS`), the system utilities `ls`, `cp`, `rm`, `format`, `cha` and `cat`,
+  the `hellowrd` sample and the sample file `TEST.B`.
+- `utils.bdd` (drive B, also bootable on its own): the apps `texted` (text editor), `calc`, `hellowrd` and `theodore`.
+
+### Toolchain
+The zip also holds the B compiler (`bc`, `bcc`), the assembler (`bc81asmc`), `ftool` (disc images) and the build scripts.
+Building from source needs `pip install -e .` (it installs `parsy`). The reference docs are listed in `docs/README.md`.
+
+### Known limitations
+- `cp` reads keys until the input runs out and never creates the copy (#73).
+- Files only grow on a disc: free space is not reused (#41).
+- For people writing programs: `strnextword` in `strings.b` never returns 0 (#82), CPU flag and ALU issues (#53, #54, #55, #56, #57, #58), the compiler has no `return`
+  anywhere in a function (#20) and crashes on an undeclared variable (#68), and the assembler has issues with labels at
+  address 0 (#64), labels after a second `.org` (#65), `inc af`/`dec af` (#66) and `clr af` (#67).
+
 ## roadmap
 0. memory increased to 64kb
 1. cpu 16bit arithmetic and binary operations, long relative jumps? improved cpu stack frames
