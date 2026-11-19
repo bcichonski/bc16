@@ -30,7 +30,8 @@ python bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81 d      # any 2nd argument turns on 
   `./ftool btap2bin <in.btap> <out.b81>`.
 - With trace on, the CPU appends the registers after every instruction to `cpudebug.log` in
   the current directory. This file grows very large very fast.
-- When the CPU halts (`KIL`, or a stack access outside memory, see Memory), the whole memory is
+- When the CPU halts (`KIL`, a stack access outside memory, see Memory, or an unknown `EXT`
+  sub-opcode, see The bc8183 CPU), the whole memory is
   written to `bc64.dmp`, 65,536 bytes.
 - On a terminal, keyboard input reads one character at a time with no echo (`msvcrt.getch` on
   Windows, `termios` raw mode elsewhere). In headless mode the keys come from the input instead
@@ -102,7 +103,7 @@ All options are optional and can be combined.
 
 | Code | Meaning |
 |---|---|
-| 0 | the CPU halted (`KIL`, or a stack access outside memory; memory is dumped to `bc64.dmp`), or the input ended (no dump) |
+| 0 | the CPU halted (`KIL`, a stack access outside memory, or an unknown `EXT` sub-opcode; memory is dumped to `bc64.dmp`), or the input ended (no dump) |
 | 1 | an exception in the emulator (the CPU prints the address and stack, Python the traceback) |
 | 2 | usage error (argparse message, e.g. `--max-instructions 0`) |
 | 3 | `--max-instructions` reached without a halt (message on stderr, no dump) |
@@ -291,6 +292,10 @@ There are no interrupts. Instructions are 1–5 bytes long. The high nibble of t
 is the opcode. The full instruction set and its encoding are in
 [02-assembler.md](02-assembler.md).
 
+An unknown `EXT` sub-opcode (`JRX` uses 0x1 and 0x2) stops the CPU like a stack fault: one line
+on stderr (`EXT at XXXX: unknown sub-opcode 0xN, CPU stopped`), nothing is changed and the PC stays
+on the instruction.
+
 ### Registers
 
 | No. | Name | Width | Purpose |
@@ -322,6 +327,12 @@ accepts only the implied pair as the second operand (`add csci, dsdi`, `add dsdi
 
 Bits 4–7 exist but the CPU doesn't use them. `MOV` into `A` also updates `Z` and `N`.
 `OUT #r, r2` sets `C`/`O` from the value it sends.
+
+16-bit `div` and `mod` by zero leave the destination pair unchanged and set `O`; `Z`, `N` and `C`
+keep their values. Nothing is printed and execution goes on. A `div` or `mod` with a non-zero
+divisor sets `O` from its result (so clears it). Programs test the result with `jrx o` or `jmp o`
+right after. This is decided in [E10](specs/memory/design-decisions.md); that the destination
+is left unchanged is still for the owner to confirm (#136).
 
 ### Stack frames
 
@@ -436,10 +447,4 @@ correct behaviour and is marked `expectedFailure`, so it reports as an expected 
 until the fix lands. Where the behaviour is still undecided, a test pins today's behaviour
 and names the issue.
 
-- In `JRX` (`op_EXT`) the CPU checks the negation bit in the wrong nibble, so
-  `jrx nz/nc/nn/no` behave like `jrx z/c/n/o`. Only `jrx z` is used anywhere, so nothing
-  breaks today (#4).
-- `div`/`mod` by zero raises a Python exception, which stops the emulator (#4; behaviour
-  undecided, pinned by a test).
-- `FloppyDriveV1.write_byte` sets `self.setate` (a typo) on an unknown command, so the
-  failure state is never actually set (#4).
+No emulator quirk is open. The assembler's are in [02-assembler.md](02-assembler.md).

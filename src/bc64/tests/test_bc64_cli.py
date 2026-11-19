@@ -187,6 +187,16 @@ class RunTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(self.dump_exists())
 
+    def test_div_by_zero_sets_overflow_and_exits_zero(self):
+        # div cs,0 ; jrx o,+4 ; kil (ok) ; nop nop ; print "Hi" ; kil (error branch)
+        rom = bytes([0x5f, 0xa3, 0x80, 0x00, 0x00, 0xe1, 0x30, 0x00, 0x04, 0xf0, 0x00, 0x00]) + PRINT_HI
+        result = self.run_bc64(self.rom(rom))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, b"Hi")
+        self.assertNotIn(b"ZeroDivisionError", result.stdout + result.stderr)
+        self.assertNotIn(b"exception", result.stdout + result.stderr)
+        self.assertNotIn(b"Traceback", result.stderr)
+
     def test_end_of_input_exits_zero_without_dump(self):
         result = self.run_bc64(self.rom(ECHO), stdin=b"ab")
         self.assertEqual(result.returncode, 0, result.stderr)

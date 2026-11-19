@@ -183,7 +183,9 @@ way to clear `A` and set `Z`.
 
 The register form sets bit 3 of the operation nibble.
 
-Results are truncated to 16 bits and set `Z/N/C/O` from the 16-bit value.
+Results are truncated to 16 bits and set `Z/N/C/O` from the 16-bit value. A zero divisor in `div` or
+`mod` leaves the destination unchanged and sets `O` = 1 (`Z/N/C` unchanged), and the CPU goes on; see
+[01-emulator.md](01-emulator.md).
 
 The register form has an implied second pair. The CPU reads only the first pair and derives the
 second one from it, so the second operand must be written as the implied pair:
@@ -245,6 +247,5 @@ msg:            .db 'Hello!', 0x0a, 0x0d, 0x00
 
 ## Known quirks
 
-- `out #r, imm` and `jrx` with a negated condition don't work (see above and
-  [01-emulator.md](01-emulator.md)).
+- `out #r, imm` doesn't work (see above).
 - `CLC_A_IMM` has a leftover branch for 16-bit opcodes that the grammar never reaches.

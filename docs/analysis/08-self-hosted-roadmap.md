@@ -129,7 +129,8 @@ Steps 38–45 don't depend on phase 2 and can run in parallel with it.
 
 | Where | Decision | Needed before |
 |---|---|---|
-| #4, #54, #56, #58 | division by zero, flag meanings, which encodings exist | step 31 (the ABI and the encoder are frozen there) |
+| #54, #56, #58 | flag meanings, which encodings exist | step 31 (the ABI and the encoder are frozen there) |
+| #136 | `div`/`mod` by zero: keep the destination and set `O` (decided in #4, E10; the owner confirms it), and whether the B `/` and `%` check `O` | step 31 |
 | #113 | `SECT` flags | step 33 |
 | #41 | placement of a new file (proposed: largest gap; writing past it is `disc full`); defrag later | step 25 |
 | #127 | drop `asm "…"` (recommended) or keep it host-only | step 45 |
