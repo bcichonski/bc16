@@ -17,3 +17,5 @@ date,program,start,bytes,basm_sha
 2026-11-19,code/funrec,0x1000,645,34ac63ff5fc1
 2026-11-19,code/stdmemtest,0x1000,817,932263fabcbe
 2026-11-19,code/strings,0x1000,680,b675dc36d609
+2026-11-19,bdos/bdos,0x0f00,17598,9d05a89f4051
+2026-11-19,bdos/ls,0x6000,7416,1157674fa2df
