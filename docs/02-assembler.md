@@ -187,6 +187,10 @@ Results are truncated to 16 bits and set `Z/N/C/O` from the 16-bit value. A zero
 `mod` leaves the destination unchanged and sets `O` = 1 (`Z/N/C` unchanged), and the CPU goes on; see
 [01-emulator.md](01-emulator.md).
 
+With destination `af`, the 16-bit input is `A:F` (`F` is the low byte). The result's high byte goes to `A`
+and the low byte is dropped: `F` gets the `Z/N/C/O` flags of the op. `af` is accepted, but it is not
+meant for 16-bit arithmetic; use `csci` or `dsdi` ([E12](specs/memory/design-decisions.md)).
+
 The register form has an implied second pair. The CPU reads only the first pair and derives the
 second one from it, so the second operand must be written as the implied pair:
 
