@@ -48,7 +48,7 @@ label:   mnemonic operands   ; comment
 
 - **Mnemonics and register names must be lowercase.**
 - A label is an identifier followed by `:` at the start of a line. To refer to a label,
-  prefix it with a colon: `:label`.
+  prefix it with a colon: `:label`. A label or `.def` may resolve to 0x0000.
 - Immediates are **hex only** and the digit count is fixed (a wider value is a syntax error, see [Errors](#errors)):
   - `0xHH`: 8-bit
   - `0xHHHH`: 16-bit
@@ -110,7 +110,7 @@ cal :nowhere
 | Class | Message (abridged) | Column points at | Notes |
 | :--- | :--- | :--- | :--- |
 | syntax | `syntax error: expected ...` or `syntax error: unexpected '...'` | the first character the parser cannot accept | only the first syntax error is reported; parsing stops and nothing is assembled |
-| undefined label | `undefined label ':name'` | the `:` of the reference | every use is reported, not every name |
+| undefined label | `undefined label ':name'` | the `:` of the reference | every use is reported, not every name. Only a name defined neither as a label nor as a `.def` is undefined; a label or `.def` at 0x0000 is defined |
 | duplicate label | `duplicate label 'name' (first defined at line n)` | the first character of the repeated name | one per repeated definition; the first definition is not reported |
 | duplicate symbol | `duplicate symbol 'name' (first defined at line n)` | the first character of the repeated name | `.def` names and labels share one namespace, so a `.def` and a label with the same name clash |
 | relative range, 7-bit | `label ':name' too far away for relative 7bit jump (n bytes)` | the `:` of the target | `jmr` only (±127 bytes) |
