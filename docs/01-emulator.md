@@ -321,11 +321,20 @@ accepts only the implied pair as the second operand (`add csci, dsdi`, `add dsdi
 | Bit | Flag | Set when |
 |---|---|---|
 | 0 | `Z` zero | stored result (`A` or the destination pair) == 0 (`Z` is 1 after reset) |
-| 1 | `C` carry | result > 0xff (or > 0xffff for 16-bit ops) |
+| 1 | `C` carry / borrow (unsigned) | `add`, `inc`, `mul`: unwrapped result > 0xff (> 0xffff for 16-bit ops). `sub`, `dec`: unwrapped result < 0 (a borrow). `and`, `or`, `xor`, `not` clear it |
 | 2 | `N` negative | bit 7 (bit 15 for 16-bit ops) of the stored result |
-| 3 | `O` overflow | result > max **or result < 0**. A subtraction that borrows sets `O`, not `C` |
+| 3 | `O` signed overflow (two's complement) | `add`, `inc`: both operands have the same sign and the result's sign differs. `sub`, `dec`: the operands' signs differ and the result's sign differs from the first operand's. 16-bit `mul` sets it like `C`. `and`, `or`, `xor`, `not` clear it |
 
-`C` and `O` are still computed from the unwrapped result, before the register wraps (#54).
+Examples (8-bit):
+
+| Operation | Result | `O` | `C` |
+|---|---|---|---|
+| `0x7f + 1` | `0x80` | 1 | 0 |
+| `0xff + 1` | `0x00` | 0 | 1 |
+| `0x00 - 1` | `0xff` | 0 | 1 |
+| `0x80 - 1` | `0x7f` | 1 | 0 |
+
+`C` is the unsigned carry or borrow, so an unsigned comparison by subtraction is tested with `jmr c` / `jmp c`. `O` is the signed overflow: it tells whether the two's-complement result is out of range. This is decided in [E13](specs/memory/design-decisions.md) (#54).
 
 The shift flags (8-bit `shl`/`shr` and 16-bit `shl16`/`shr16`) are decided in [E12](specs/memory/design-decisions.md).
 `w` is the width (8 or 16), `n` the shift count and `v` the operand:
@@ -335,16 +344,16 @@ The shift flags (8-bit `shl`/`shr` and 16-bit `shl16`/`shr16`) are decided in [E
 | `Z` | stored result == 0 | same |
 | `N` | top bit of the stored result (bit 7, or bit 15) | same |
 | `C` | last bit shifted out: bit `w - n` of `v` | last bit shifted out: bit `n - 1` of `v` |
-| `O` | `1` if a 1 bit was shifted out, else `0` | `0` |
+| `O` | `1` if a 1 bit was shifted out, else `0` (not a signed overflow, see E13) | `0` |
 
 `C` is 0 for a shift by 0 or by more than the width. A shift by 0 also clears `O`.
 
 Bits 4–7 exist but the CPU doesn't use them. `MOV` into `A` also updates `Z` and `N`.
-`OUT #r, r2` sets `C`/`O` from the value it sends.
+`OUT #r, r2` leaves `C` and `O` at 0 (the value it sends is 0..0xff).
 
 16-bit `div` and `mod` by zero leave the destination pair unchanged and set `O`; `Z`, `N` and `C`
 keep their values. Nothing is printed and execution goes on. A `div` or `mod` with a non-zero
-divisor sets `O` from its result (so clears it). Programs test the result with `jrx o` or `jmp o`
+divisor clears `C` and `O`. Programs test the result with `jrx o` or `jmp o`
 right after. This is decided in [E10](specs/memory/design-decisions.md); that the destination
 is left unchanged is still for the owner to confirm (#136).
 

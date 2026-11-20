@@ -282,12 +282,41 @@ class Bc8183:
             self.f.set_flag(FlagsRegister.CARRY, int(val > 0xff))
             self.f.set_flag(FlagsRegister.OVERFLOW, int(val > 0xff or val < 0))
 
-    def set_flags16(self, val):
+    def set_flags16(self, val, carry=None, overflow=None):
+        # carry/overflow None: legacy C/O of shl16/shr16, kept as is (#55).
         stored = val & 0xffff
         self.f.set_flag(FlagsRegister.ZERO, int(stored == 0))
         self.f.set_flag(FlagsRegister.NEGATIVE, int(stored & 0x8000 == 0x8000))
-        self.f.set_flag(FlagsRegister.CARRY, int(val > 0xffff))
-        self.f.set_flag(FlagsRegister.OVERFLOW, int(val > 0xffff or val < 0))
+        if carry is None:
+            carry = int(val > 0xffff)
+            overflow = int(val > 0xffff or val < 0)
+        self.f.set_flag(FlagsRegister.CARRY, carry)
+        self.f.set_flag(FlagsRegister.OVERFLOW, overflow)
+
+    def set_flags_alu(self, val, carry, overflow):
+        # 8-bit arithmetic/logic into A (#54): Z/N from the stored value,
+        # C = unsigned carry/borrow, O = signed overflow, both given.
+        stored = val & 0xff
+        self.f.set_flag(FlagsRegister.ZERO, int(stored == 0))
+        self.f.set_flag(FlagsRegister.NEGATIVE, int(stored & 0x80 == 0x80))
+        self.f.set_flag(FlagsRegister.CARRY, carry)
+        self.f.set_flag(FlagsRegister.OVERFLOW, overflow)
+
+    @staticmethod
+    def add_flags(a, b, r, mask):
+        # C, O of the sum r = a + b for operands within mask (0xff / 0xffff)
+        sign = (mask + 1) >> 1
+        carry = int(r > mask)
+        overflow = int((a & sign) == (b & sign) and (r & sign) != (a & sign))
+        return carry, overflow
+
+    @staticmethod
+    def sub_flags(a, b, r, mask):
+        # C (borrow), O of the difference r = a - b
+        sign = (mask + 1) >> 1
+        carry = int(r < 0)
+        overflow = int((a & sign) != (b & sign) and (r & sign) != (a & sign))
+        return carry, overflow
 
     def op_JMP(self):
         opcode = lo(self.nextbyte)
@@ -576,27 +605,27 @@ class Bc8183:
 
     def alu_add(self, arg1, arg2):
         val = arg1 + arg2
-        self.set_flags(Bc8183.A, val)
+        self.set_flags_alu(val, *self.add_flags(arg1, arg2, val, 0xff))
         self.a.set(val)
 
     def alu_sub(self, arg1, arg2):
         val = arg1 - arg2
-        self.set_flags(Bc8183.A, val)
+        self.set_flags_alu(val, *self.sub_flags(arg1, arg2, val, 0xff))
         self.a.set(val)
 
     def alu_and(self, arg1, arg2):
         val = arg1 & arg2
-        self.set_flags(Bc8183.A, val)
+        self.set_flags_alu(val, 0, 0)
         self.a.set(val)
 
     def alu_or(self, arg1, arg2):
         val = arg1 | arg2
-        self.set_flags(Bc8183.A, val)
+        self.set_flags_alu(val, 0, 0)
         self.a.set(val)
 
     def alu_xor(self, arg1, arg2):
         val = arg1 ^ arg2
-        self.set_flags(Bc8183.A, val)
+        self.set_flags_alu(val, 0, 0)
         self.a.set(val)
 
     @staticmethod
@@ -637,23 +666,23 @@ class Bc8183:
 
     def alu_not(self, arg1, arg2):
         val = ~arg1
-        self.set_flags(Bc8183.A, val)
+        self.set_flags_alu(val, 0, 0)
         self.a.set(val)
 
     def alu_inc(self, arg1, arg2):
         val = arg1 + 1
-        self.set_flags(Bc8183.A, val)
+        self.set_flags_alu(val, *self.add_flags(arg1, 1, val, 0xff))
         self.a.set(val)
 
     def alu_dec(self, arg1, arg2):
         val = arg1 - 1
-        self.set_flags(Bc8183.A, val)
+        self.set_flags_alu(val, *self.sub_flags(arg1, 1, val, 0xff))
         self.a.set(val)
 
     def alu_getval16(self,reg):
         return self.get_addr(reg)
     
-    def alu_setval16(self, reg, val):
+    def alu_setval16(self, reg, val, carry=None, overflow=None):
         if reg == Bc8183.CS:
             r2 = Bc8183.CI
         elif reg == Bc8183.DS:
@@ -663,22 +692,24 @@ class Bc8183:
         
         self.regs[reg].set((val & 0xff00) >> 8)
         self.regs[r2].set(val & 0xff)
-        self.set_flags16(val)
+        self.set_flags16(val, carry, overflow)
 
     def alu_add16(self, reg, arg, reg2):
         val = self.alu_getval16(reg)
+        a = val
         val += arg
-        self.alu_setval16(reg, val)
+        self.alu_setval16(reg, val, *self.add_flags(a, arg, val, 0xffff))
 
     def alu_sub16(self, reg, arg, reg2):
         val = self.alu_getval16(reg)
+        a = val
         val -= arg
-        self.alu_setval16(reg, val)
+        self.alu_setval16(reg, val, *self.sub_flags(a, arg, val, 0xffff))
 
     def alu_mul16(self, reg, arg, reg2):
         val = self.alu_getval16(reg)
         val *= arg
-        self.alu_setval16(reg, val)
+        self.alu_setval16(reg, val, int(val > 0xffff), int(val > 0xffff))
 
     def alu_zero_divisor16(self):
         # div/mod by zero: destination and Z/N/C stay as they are, the
@@ -691,7 +722,7 @@ class Bc8183:
             return
         val = self.alu_getval16(reg)
         val //= arg
-        self.alu_setval16(reg, val)
+        self.alu_setval16(reg, val, 0, 0)
 
     def alu_mod16(self, reg, arg, reg2):
         if arg == 0:
@@ -699,32 +730,34 @@ class Bc8183:
             return
         val = self.alu_getval16(reg)
         val %= arg
-        self.alu_setval16(reg, val)
+        self.alu_setval16(reg, val, 0, 0)
 
     def alu_inc16(self, reg, arg, reg2):
         val = self.alu_getval16(reg)
+        a = val
         val += 1
-        self.alu_setval16(reg, val)
+        self.alu_setval16(reg, val, *self.add_flags(a, 1, val, 0xffff))
 
     def alu_dec16(self, reg, arg, reg2):
         val = self.alu_getval16(reg)
+        a = val
         val -= 1
-        self.alu_setval16(reg, val)
+        self.alu_setval16(reg, val, *self.sub_flags(a, 1, val, 0xffff))
 
     def alu_and16(self, reg, arg, reg2):
         val = self.alu_getval16(reg)
         val &= arg
-        self.alu_setval16(reg, val)
+        self.alu_setval16(reg, val, 0, 0)
 
     def alu_or16(self, reg, arg, reg2):
         val = self.alu_getval16(reg)
         val |= arg
-        self.alu_setval16(reg, val)
+        self.alu_setval16(reg, val, 0, 0)
 
     def alu_xor16(self, reg, arg, reg2):
         val = self.alu_getval16(reg)
         val ^= arg
-        self.alu_setval16(reg, val)
+        self.alu_setval16(reg, val, 0, 0)
 
     def alu_shl16(self, reg, arg, reg2):
         val = self.alu_getval16(reg)
@@ -743,7 +776,7 @@ class Bc8183:
     def alu_not16(self, reg, arg, reg2):
         val = self.alu_getval16(reg)
         val = ~val
-        self.alu_setval16(reg, val)
+        self.alu_setval16(reg, val, 0, 0)
 
     def create_arithmetic_and_logical_unit(self):
         self.alu = {
