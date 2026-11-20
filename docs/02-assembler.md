@@ -57,7 +57,7 @@ label:   mnemonic operands   ; comment
 - `;` starts a comment, which can sit on its own line or after an instruction.
 - Every line, including the last, must end with a newline.
 - Registers: `a f ci cs di ds si ss pc`. Pairs: `csci dsdi sssi` (memory addressing) and
-  `csci dsdi af` (16-bit ALU).
+  `csci dsdi` (16-bit ALU).
 
 ### Directives
 
@@ -117,7 +117,9 @@ cal :nowhere
 | relative range, 15-bit | `label ':name' too far away for relative 15bit jump (n bytes)` | the `:` of the target | `jrx` and `clr` (±32767 bytes) |
 | overflow | `code exceeds the 64 KB address space (past 0xffff)` | the first non-blank character of the line that crosses the limit | reported once per run |
 | unencodable line | `cannot encode 'line': reason` | the first non-blank character of the line | the line contributes no bytes and assembly goes on (e.g. `clr af`) |
-| implied pair | `cannot encode 'line': second operand must be dsdi when the first is csci`, or `cannot encode 'line': 'sssi' is not a 16-bit pair (use csci, dsdi or af)` | the first non-blank character of the line | 16-bit ops only (`add`, `sub`, `mul`, `div`, `mod`, `and`, `or`, `xor`, `shl`, `shr` in register form, and `inc`, `dec`, `not`). The second operand of the register form must be the implied pair. No bytes are emitted |
+| `inc af` / `dec af` | `cannot encode 'inc af': inc af is not allowed: the 16-bit result would overwrite the flags in f (use inc a, or a pair csci or dsdi)` | the first non-blank character of the line | an unencodable line, with `dec` for `dec af`. No bytes are emitted. See [A8](specs/memory/design-decisions.md#a8-every-16-bit-alu-op-on-af-is-rejected-the-assembler-says-why) |
+| other 16-bit ALU op on `af` | `cannot encode 'add af, csci': add af is not allowed: the 16-bit result would overwrite the flags in f (use a pair csci or dsdi)` | the first non-blank character of the line | an unencodable line, for `add sub mul div mod and or xor shl shr not` (the mnemonic as written, immediate or register form). No bytes are emitted. See [A8](specs/memory/design-decisions.md#a8-every-16-bit-alu-op-on-af-is-rejected-the-assembler-says-why) |
+| implied pair | `cannot encode 'line': second operand must be dsdi when the first is csci`, or `cannot encode 'line': 'sssi' is not a 16-bit pair (use csci or dsdi)` | the first non-blank character of the line | 16-bit ops only (`add`, `sub`, `mul`, `div`, `mod`, `and`, `or`, `xor`, `shl`, `shr` in register form, and `inc`, `dec`, `not`). The second operand of the register form must be the implied pair. No bytes are emitted |
 | assertion failed | `assertion failed: <left> <op> <right> (0xLLLL <op> 0xRRRR)`, e.g. `assertion failed: :os_metacall = 0x0008 (0x0009 = 0x0008)` | the first non-blank character of the `.assert` line | the operands as written, then their resolved values. Every failed assert is reported. An undefined operand gives `undefined label` at its `:` instead, and that assert is not evaluated |
 
 Pass 1 and pass 2 keep going after an error and report every problem they find, sorted by
@@ -168,7 +170,7 @@ The encoding column uses nibbles: `r`/`p` is a register number, `t` a condition 
 Operation numbers `o`: add 0, sub 1, and 2, or 3, xor 4, shl 5, shr 6. `xor a` is the usual
 way to clear `A` and set `Z`.
 
-### 16-bit ALU (bc8183 extension, on `csci`, `dsdi` or `af`)
+### 16-bit ALU (bc8183 extension, on `csci` or `dsdi`)
 
 | Syntax | Encoding | Bytes |
 |---|---|---|
@@ -198,12 +200,19 @@ second one from it, so the second operand must be written as the implied pair:
 |---|---|
 | `csci` | `dsdi` |
 | `dsdi` | `csci` |
-| `af` | `csci` |
 
-So `add csci, dsdi`, `sub dsdi, csci` and `add af, csci` are the valid forms. Any other second
+So `add csci, dsdi` and `sub dsdi, csci` are the valid forms. Any other second
 operand (`add csci, csci`, `add csci, af`) is an assembler error and no bytes are emitted; see
 the `implied pair` row in [Errors](#errors). An unknown pair name in any 16-bit form
 (`add csci, sssi`, `inc sssi`) is an error too.
+
+`af` is not a valid operand of any 16-bit ALU instruction. Every 16-bit ALU op with destination
+`af` is an assembler error and no bytes are emitted: `add`, `sub`, `mul`, `div`, `mod`, `and`, `or`,
+`xor`, `shl`, `shr`, `not`, `inc` and `dec`, in immediate and register forms. The 16-bit result would
+overwrite the flags in `F`. Write `inc a` / `dec a` for the 8-bit form, or a pair `csci` or `dsdi`. The
+decision is [A8](specs/memory/design-decisions.md#a8-every-16-bit-alu-op-on-af-is-rejected-the-assembler-says-why).
+The CPU still executes a hand-encoded 16-bit op on `af` (for example `5F AD 10`, pair nibble 1); only
+the assembler refuses to produce it.
 
 ### Jumps and calls
 

@@ -107,7 +107,6 @@ class TestEmitAndOverflow(unittest.TestCase):
 class TestSixteenBitPairs(unittest.TestCase):
     def test_wrong_second_pair(self):
         for text, implied, first in (('add csci,csci', 'dsdi', 'csci'), ('add dsdi,dsdi', 'csci', 'dsdi'),
-                                     ('add af,dsdi', 'csci', 'af'), ('add af,af', 'csci', 'af'),
                                      ('shl csci,csci', 'dsdi', 'csci')):
             with self.subTest(text):
                 errs = errors_of("nop\n  " + text + "\n")
@@ -130,14 +129,95 @@ class TestSixteenBitPairs(unittest.TestCase):
         self.assertEqual([e[:2] for e in errs], [(1, 1), (3, 1), (4, 1), (5, 1)])
 
     def test_valid_pairs_still_encode(self):
-        self.assertEqual(list(compile_source("add csci,dsdi\nadd dsdi,csci\nadd af,csci\n").bytes),
-                         [0x5f, 0xa8, 0x89, 0x5f, 0xa8, 0x98, 0x5f, 0xa8, 0x18])
+        self.assertEqual(list(compile_source("add csci,dsdi\nadd dsdi,csci\n").bytes),
+                         [0x5f, 0xa8, 0x89, 0x5f, 0xa8, 0x98])
 
 
 class TestValidProgram(unittest.TestCase):
     def test_no_diagnostics(self):
         context = compile_source(".org 0x0100\nstart: jmr z, :end\nnop\nend: cal :start\n.db :end\n")
         self.assertGreater(len(context.bytes), 0)
+
+
+class TestIncDecAf(unittest.TestCase):
+    def reason(self, op):
+        return ("cannot encode '{0} af': {0} af is not allowed: the 16-bit result would "
+                "overwrite the flags in f (use {0} a, or a pair csci or dsdi)".format(op))
+
+    def test_inc_dec_af_rejected_with_position(self):
+        for op in ('inc', 'dec'):
+            with self.subTest(op):
+                self.assertEqual(errors_of("nop\n  {0} af\n".format(op)),
+                                 [(2, 3, self.reason(op))])
+
+    def test_rejected_line_emits_nothing_and_assembly_continues(self):
+        for op in ('inc', 'dec'):
+            with self.subTest(op):
+                source = "nop\n{0} af\nkil\n".format(op)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    with self.assertRaises(AssemblerError) as cm:
+                        bc81asmc.compile(program.parse(source), False)
+                self.assertEqual(len(cm.exception.diagnostics), 1)
+                # a following line is still assembled: a second bad line is also reported
+                self.assertEqual(
+                    [d.line for d in self.diags("{0} af\nnop\n{0} af\n".format(op))], [1, 3])
+                self.assertEqual(list(compile_source("nop\nkil\n").bytes), [0x00, 0xf0])
+
+    def diags(self, source):
+        with contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaises(AssemblerError) as cm:
+                bc81asmc.compile(program.parse(source), False)
+        return cm.exception.diagnostics
+
+    def test_unchanged_encodings(self):
+        expected = {'inc a': [0x5d], 'dec a': [0x5e],
+                    'inc csci': [0x5f, 0xad, 0x80], 'dec csci': [0x5f, 0xae, 0x80],
+                    'inc dsdi': [0x5f, 0xad, 0x90], 'dec dsdi': [0x5f, 0xae, 0x90],
+                    'not csci': [0x5f, 0xb7, 0x80], 'not dsdi': [0x5f, 0xb7, 0x90]}
+        for text, want in expected.items():
+            with self.subTest(text):
+                self.assertEqual(list(compile_source(text + "\n").bytes), want)
+
+    def test_unknown_pair_keeps_its_message(self):
+        self.assertEqual(errors_of("inc sssi\n"), [(1, 1,
+            "cannot encode 'inc sssi': 'sssi' is not a 16-bit pair (use csci or dsdi)")])
+
+
+class TestAluOnAf(unittest.TestCase):
+    OPS = ('add', 'sub', 'mul', 'div', 'mod', 'and', 'or', 'xor', 'shl', 'shr')
+
+    def reason(self, text, op):
+        return ("cannot encode '{0}': {1} af is not allowed: the 16-bit result would "
+                "overwrite the flags in f (use a pair csci or dsdi)".format(text, op))
+
+    def test_immediate_and_register_forms_rejected(self):
+        for op in self.OPS:
+            imm = '0x01' if op in ('shl', 'shr') else '0x0100'
+            for text in ('{0} af, {1}'.format(op, imm), '{0} af, csci'.format(op)):
+                with self.subTest(text):
+                    self.assertEqual(errors_of("nop\n  " + text + "\n"),
+                                     [(2, 3, self.reason(text, op))])
+
+    def test_not_af_rejected(self):
+        self.assertEqual(errors_of("not af\n"), [(1, 1, self.reason('not af', 'not'))])
+
+    def test_af_checked_before_implied_pair(self):
+        for text in ('add af, dsdi', 'add af, af'):
+            with self.subTest(text):
+                self.assertEqual(errors_of(text + "\n"), [(1, 1, self.reason(text, 'add'))])
+
+    def test_assembly_continues_after_rejected_line(self):
+        errs = errors_of("add af, 0x0001\nnop\nnot af\n")
+        self.assertEqual([e[:2] for e in errs], [(1, 1), (3, 1)])
+
+    def test_pair_and_non_alu_forms_unchanged(self):
+        expected = {'add csci, 0x0100': [0x5f, 0xa0, 0x80, 0x01, 0x00],
+                    'add csci, dsdi': [0x5f, 0xa8, 0x89], 'add dsdi, csci': [0x5f, 0xa8, 0x98]}
+        for text, want in expected.items():
+            with self.subTest(text):
+                self.assertEqual(list(compile_source(text + "\n").bytes), want)
+        # non-ALU uses of af still assemble
+        self.assertEqual(len(compile_source("jmp z, af\n").bytes), 2)
 
 
 if __name__ == '__main__':

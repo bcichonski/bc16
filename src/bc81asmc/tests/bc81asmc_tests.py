@@ -408,5 +408,23 @@ class TestGrammar(unittest.TestCase):
             mKIL.parse('kil'),
             KIL('kil'))
 
+class TestIncDecAfGrammar(unittest.TestCase):
+    '''#66: `inc af` / `dec af` parse as the 16-bit forms, `inc a` / `dec a` stay 8-bit.'''
+
+    def test_inc_af_is_16bit(self):
+        self.assertEqual(mnemonic.parse('inc af'), INC16('af'))
+
+    def test_dec_af_is_16bit(self):
+        self.assertEqual(mnemonic.parse('dec af'), DEC16('af'))
+
+    def test_inc_dec_a_stay_8bit(self):
+        self.assertEqual(mnemonic.parse('inc a'), INC('a'))
+        self.assertEqual(mnemonic.parse('dec a'), DEC('a'))
+
+    def test_inc_dec_pairs_stay_16bit(self):
+        self.assertEqual(mnemonic.parse('inc csci'), INC16('csci'))
+        self.assertEqual(mnemonic.parse('dec dsdi'), DEC16('dsdi'))
+
+
 if __name__ == '__main__':
     unittest.main()
