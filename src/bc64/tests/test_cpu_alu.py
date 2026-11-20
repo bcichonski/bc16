@@ -4,10 +4,11 @@ Every test executes encoded bytes on the CPU and asserts the result, the
 flags and the instruction length (PC ends on the KIL after the code).
 
 Flags are asserted exactly as the CPU defines them. Z and N describe the
-stored result (A or the destination pair, story #53). C and O are still
-computed from the raw, unwrapped result, and the 8-bit SHL/SHR flags are
-odd; those definitions look wrong (see the "PINNED" comments, #54 and #55)
-and are pinned, not fixed.
+stored result (A or the destination pair, story #53). For the other ops C and
+O are still computed from the raw, unwrapped result; those definitions look
+wrong (see the "PINNED" comments, #54) and are pinned, not fixed. The SHL/SHR
+flags (8- and 16-bit) follow #55: Z/N from the stored result, C = the last
+bit shifted out, O = a 1 bit was lost (SHL only).
 """
 import contextlib
 import io
@@ -133,31 +134,30 @@ class Alu8Tests(AluTestBase):
 
     # --- SHL / SHR -----------------------------------------------------
     def test_shl_imm_result(self):
-        # PINNED: flags are computed from (result & 0x100) only, so Z is 1
-        # even though A is non-zero and N is never set.
-        self.check([0x55, 0x01], 0x01, 0x02, 0, (True, False, False, False))
+        # Z and N describe the stored A = 0x02
+        self.check([0x55, 0x01], 0x01, 0x02, 0, (False, False, False, False))
 
     def test_shl_imm_into_sign_bit(self):
-        # PINNED: A = 0x80 but Z = 1 and N = 0 (see above)
-        self.check([0x55, 0x01], 0x40, 0x80, 0, (True, False, False, False))
+        # A = 0x80: Z = 0, N = 1, nothing shifted out
+        self.check([0x55, 0x01], 0x40, 0x80, 0, (False, False, True, False))
 
     def test_shl_imm_carry_out(self):
-        # bit shifted out of bit 7: A = 0x02, C and "overflow" set, Z = 0
+        # bit 7 shifted out: A = 0x02, C = 1 (last bit out), O = 1, Z = 0
         self.check([0x55, 0x01], 0x81, 0x02, 0x100, (False, True, False, True))
 
     def test_shl_imm_by_zero(self):
-        self.check([0x55, 0x00], 0x12, 0x12, 0, (True, False, False, False))
+        self.check([0x55, 0x00], 0x12, 0x12, 0, (False, False, False, False))
 
     def test_shr_imm_even_result(self):
-        # PINNED: flags use the lsb of the *result*, not the bit shifted out
-        self.check([0x56, 0x01], 0x04, 0x02, 0, (True, False, False, False))
+        # A = 0x02: Z = 0; the bit shifted out (bit 0 of 0x04) is 0
+        self.check([0x56, 0x01], 0x04, 0x02, 0, (False, False, False, False))
 
     def test_shr_imm_odd_result(self):
-        # PINNED: lsb of result set -> value -1 -> N and "overflow", no carry
-        self.check([0x56, 0x01], 0x06, 0x03, -1, (False, False, True, True))
+        # A = 0x03; the bit shifted out (bit 0 of 0x06) is 0: no C, N, O
+        self.check([0x56, 0x01], 0x06, 0x03, -1, (False, False, False, False))
 
     def test_shr_imm_by_two(self):
-        self.check([0x56, 0x02], 0xf0, 0x3c, 0, (True, False, False, False))
+        self.check([0x56, 0x02], 0xf0, 0x3c, 0, (False, False, False, False))
 
     def test_shl_shr_register_forms_are_unreachable(self):
         # PINNED (D7): the register forms of SHL/SHR would be 0x5d/0x5e, which
@@ -424,7 +424,7 @@ class Alu16Tests(AluTestBase):
         self.check16(self.imm(0xb, 0x5, 0x80, 0x0004), 0x0001, 0x0010, 0x0010)
 
     def test_shl16_carry_out(self):
-        # PINNED (#55): shifted-out bit lands in raw bit 16: pair 0x0002, C set
+        # bit 15 shifted out: pair 0x0002, C = 1 (last bit out), O = 1
         self.check16(self.imm(0xb, 0x5, 0x80, 0x0001), 0x8001, 0x0002,
                      0x10002, (False, True, False, True))
 
@@ -435,7 +435,9 @@ class Alu16Tests(AluTestBase):
         self.check16(self.imm(0xb, 0x6, 0x80, 0x0004), 0x0100, 0x0010, 0x0010)
 
     def test_shr16_to_zero(self):
-        self.check16(self.imm(0xb, 0x6, 0x80, 0x0008), 0x00ff, 0x0000, 0)
+        # Z from the stored pair; C = last bit shifted out (bit 7 of 0x00ff)
+        self.check16(self.imm(0xb, 0x6, 0x80, 0x0008), 0x00ff, 0x0000, 0,
+                     (True, True, False, False))
 
     def test_shr16_reg(self):
         self.check16([0x5f, 0xbe, 0x80], 0x8000, 0x2000, 0x2000, ds=0x00, di=0x02)
@@ -472,7 +474,7 @@ class Alu16Tests(AluTestBase):
         self.assertEqual(cpu.a.get(), 0x03)
 
     def test_shl16_wrap_to_zero_sets_z(self):
-        # 0x8000 << 1 = pair 0x0000: Z describes the stored pair (#53); C/O from the raw 0x10000 (#54/#55)
+        # 0x8000 << 1 = pair 0x0000: Z describes the stored pair (#53); C = bit 15 shifted out, O = a 1 bit lost
         self.check16(self.imm(0xb, 0x5, 0x80, 0x0001), 0x8000, 0x0000,
                      0x10000, (True, True, False, True))
 
@@ -502,6 +504,149 @@ class JumpOnZeroAfterWrapTests(AluTestBase):
     def test_jmp_z_taken_after_inc16_wrap(self):
         self.check_taken([0x5f, 0xad, 0x80], 0x0b, cs=0xff, ci=0xff)
 
+
+class ShiftFlagTests(AluTestBase):
+    """SHL/SHR flags (#55): Z/N from the stored result, C = last bit shifted
+    out (0 for a shift by 0 or by more than the width), O = SHL lost a 1 bit."""
+    Z, C, N, O = 0, 1, 2, 3
+
+    def shift8(self, op, a, n, **regs):
+        cpu = self.run_code([op, n], a=a, **regs)
+        return cpu.a.get(), flags_of(cpu)
+
+    def shl8(self, a, n, **regs):
+        return self.shift8(0x55, a, n, **regs)
+
+    def shr8(self, a, n, **regs):
+        return self.shift8(0x56, a, n, **regs)
+
+    def test_shl_into_bit7_sets_n(self):
+        self.assertEqual(self.shl8(0x40, 1), (0x80, (False, False, True, False)))
+
+    def test_shl_to_zero_sets_z_and_c(self):
+        self.assertEqual(self.shl8(0x80, 1), (0x00, (True, True, False, True)))
+
+    def test_shl_by_two_takes_last_bit_out(self):
+        self.assertEqual(self.shl8(0x40, 2), (0x00, (True, True, False, True)))
+        self.assertEqual(self.shl8(0x80, 2), (0x00, (True, False, False, True)))
+
+    def test_shl_by_eight_and_more(self):
+        self.assertEqual(self.shl8(0x01, 8), (0x00, (True, True, False, True)))
+        self.assertEqual(self.shl8(0x02, 8), (0x00, (True, False, False, True)))
+        self.assertEqual(self.shl8(0xff, 9), (0x00, (True, False, False, True)))
+        self.assertEqual(self.shl8(0xff, 255), (0x00, (True, False, False, True)))
+        self.assertEqual(self.shl8(0x00, 200), (0x00, (True, False, False, False)))
+
+    def test_shl_by_zero_clears_c_and_o(self):
+        cpu = self.run_code([0x55, 0x00], a=0x81,
+                            flags={bc8183_cpu.FlagsRegister.CARRY: 1,
+                                   bc8183_cpu.FlagsRegister.OVERFLOW: 1})
+        self.assertEqual(cpu.a.get(), 0x81)
+        self.assertEqual(flags_of(cpu), (False, False, True, False))
+
+    def test_shr_odd_value_sets_c(self):
+        self.assertEqual(self.shr8(0x03, 1), (0x01, (False, True, False, False)))
+        self.assertEqual(self.shr8(0x01, 1), (0x00, (True, True, False, False)))
+
+    def test_shr_by_n_takes_bit_n_minus_1(self):
+        self.assertEqual(self.shr8(0x04, 3), (0x00, (True, True, False, False)))
+        self.assertEqual(self.shr8(0x03, 2), (0x00, (True, True, False, False)))
+        self.assertEqual(self.shr8(0x05, 2), (0x01, (False, False, False, False)))
+        self.assertEqual(self.shr8(0x80, 8), (0x00, (True, True, False, False)))
+
+    def test_shr_more_than_eight_clears_c(self):
+        self.assertEqual(self.shr8(0xff, 9), (0x00, (True, False, False, False)))
+        self.assertEqual(self.shr8(0xff, 255), (0x00, (True, False, False, False)))
+
+    def test_shr_to_zero_sets_z(self):
+        self.assertEqual(self.shr8(0x02, 2), (0x00, (True, True, False, False)))
+
+    def test_shr_by_zero_clears_preset_c(self):
+        cpu = self.run_code([0x56, 0x00], a=0x80,
+                            flags={bc8183_cpu.FlagsRegister.CARRY: 1})
+        self.assertEqual(cpu.a.get(), 0x80)
+        self.assertEqual(flags_of(cpu), (False, False, True, False))
+
+    def test_shr_never_sets_o_or_n(self):
+        self.assertEqual(self.shr8(0xff, 1), (0x7f, (False, True, False, False)))
+
+    def test_every_8bit_count_matches_the_definition(self):
+        for v in (0x00, 0x01, 0x80, 0xa5, 0xff):
+            for n in range(0, 256, 1 if v == 0xa5 else 7):
+                full = v << n
+                res = full & 0xff
+                c = (full >> 8) & 1 if n <= 8 and n > 0 else 0
+                o = int(full > 0xff)
+                self.assertEqual(self.shl8(v, n), (res, (res == 0, bool(c), res >= 0x80, bool(o))), (v, n))
+                res = v >> n
+                c = (v >> (n - 1)) & 1 if 0 < n <= 8 else 0
+                self.assertEqual(self.shr8(v, n), (res, (res == 0, bool(c), res >= 0x80, False)), (v, n))
+
+    def shift16(self, code, start, **regs):
+        cpu = self.run_code(code, cs=start >> 8, ci=start & 0xff, **regs)
+        return self.pair(cpu), flags_of(cpu)
+
+    def imm16(self, op, value, count):
+        return [0x5f, 0xb0 | op, 0x80, count >> 8, count & 0xff]
+
+    def test_shl16_imm_c_from_last_bit_out(self):
+        self.assertEqual(self.shift16(self.imm16(5, 0, 2), 0x4000),
+                         (0x0000, (True, True, False, True)))
+        self.assertEqual(self.shift16(self.imm16(5, 0, 2), 0x8000),
+                         (0x0000, (True, False, False, True)))
+        self.assertEqual(self.shift16(self.imm16(5, 0, 1), 0x4000),
+                         (0x8000, (False, False, True, False)))
+
+    def test_shl16_by_16_and_more(self):
+        self.assertEqual(self.shift16(self.imm16(5, 0, 16), 0x0001),
+                         (0x0000, (True, True, False, True)))
+        self.assertEqual(self.shift16(self.imm16(5, 0, 17), 0xffff),
+                         (0x0000, (True, False, False, True)))
+
+    def test_shl16_reg_large_count(self):
+        self.assertEqual(self.shift16([0x5f, 0xbd, 0x80], 0xffff, ds=0xff, di=0xff),
+                         (0x0000, (True, False, False, True)))
+        self.assertEqual(self.shift16([0x5f, 0xbd, 0x80], 0x0000, ds=0xff, di=0xff),
+                         (0x0000, (True, False, False, False)))
+        self.assertEqual(self.shift16([0x5f, 0xbd, 0x80], 0x0001, ds=0x00, di=0x10),
+                         (0x0000, (True, True, False, True)))
+
+    def test_shr16_imm_c_from_last_bit_out(self):
+        self.assertEqual(self.shift16(self.imm16(6, 0, 1), 0x0003),
+                         (0x0001, (False, True, False, False)))
+        self.assertEqual(self.shift16(self.imm16(6, 0, 3), 0x0004),
+                         (0x0000, (True, True, False, False)))
+        self.assertEqual(self.shift16(self.imm16(6, 0, 16), 0x8000),
+                         (0x0000, (True, True, False, False)))
+        self.assertEqual(self.shift16(self.imm16(6, 0, 17), 0xffff),
+                         (0x0000, (True, False, False, False)))
+
+    def test_shr16_reg_and_large_count(self):
+        self.assertEqual(self.shift16([0x5f, 0xbe, 0x80], 0x0006, ds=0x00, di=0x02),
+                         (0x0001, (False, True, False, False)))
+        self.assertEqual(self.shift16([0x5f, 0xbe, 0x80], 0xffff, ds=0xff, di=0xff),
+                         (0x0000, (True, False, False, False)))
+
+    def test_shr16_by_zero_clears_c(self):
+        cpu = self.run_code(self.imm16(6, 0, 0), cs=0x80, ci=0x01,
+                            flags={bc8183_cpu.FlagsRegister.CARRY: 1})
+        self.assertEqual(self.pair(cpu), 0x8001)
+        self.assertEqual(flags_of(cpu), (False, False, True, False))
+
+    def test_jmp_c_taken_after_shr_of_odd_value(self):
+        # shr 1 of 0x03 sets C; `jmp c` (0x69 short) lands on MOV DI,0x22
+        code = [0x56, 0x01, 0x69, 0x08, 0x15, 0x11, KIL]
+        code += [0x00] * (0x08 - len(code)) + [0x15, 0x22]
+        self.assertEqual(self.run_code(code, a=0x03).di.get(), 0x22)
+
+    def test_jmp_c_not_taken_after_shr_of_even_value(self):
+        code = [0x56, 0x01, 0x69, 0x08, 0x15, 0x11]
+        self.assertEqual(self.run_code(code, a=0x04).di.get(), 0x11)
+
+    def test_jmp_z_not_taken_after_shl_to_nonzero(self):
+        # shl 1 of 0x40 gives A = 0x80, so Z = 0 (was 1 before #55)
+        code = [0x55, 0x01, 0x68, 0x08, 0x15, 0x11]
+        self.assertEqual(self.run_code(code, a=0x40).di.get(), 0x11)
 
 if __name__ == '__main__':
     unittest.main()
