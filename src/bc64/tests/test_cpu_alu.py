@@ -164,10 +164,9 @@ class Alu8Tests(AluTestBase):
     def test_shr_imm_by_two(self):
         self.check([0x56, 0x02], 0xf0, 0x3c, 0, (False, False, False, False))
 
-    def test_shl_shr_register_forms_are_unreachable(self):
-        # PINNED (D7): the register forms of SHL/SHR would be 0x5d/0x5e, which
-        # collide with INC (0x5d) and DEC (0x5e). The CPU decodes them as the
-        # single-byte INC/DEC (the "known conflict" comment in op_CLC).
+    def test_single_byte_5d_5e_are_inc_dec(self):
+        # 0x5d/0x5e would be the short register forms of SHL/SHR, but they
+        # are the single-byte INC/DEC. SHL/SHR by a register use 58 r5 / 58 r6.
         cpu = self.run_code([0x5d], a=0x10)
         self.assertEqual(cpu.a.get(), 0x11)
         cpu = self.run_code([0x5e], a=0x10)
@@ -750,6 +749,79 @@ class ShiftFlagTests(AluTestBase):
                 res = v >> n
                 c = (v >> (n - 1)) & 1 if 0 < n <= 8 else 0
                 self.assertEqual(self.shr8(v, n), (res, (res == 0, bool(c), res >= 0x80, False)), (v, n))
+
+    # --- register-count forms: 58 r5 (shl a, r) / 58 r6 (shr a, r) ---------
+    def shift_reg(self, op, a, reg, count, **regs):
+        regno = {'ci': 0x4, 'di': 0x5}[reg]
+        regs[reg] = count
+        cpu = self.run_code([0x58, (regno << 4) | op], a=a, **regs)
+        self.assertEqual(getattr(cpu, reg).get(), count, "count register kept")
+        return cpu.a.get(), flags_of(cpu)
+
+    def test_shl_by_register_ci_and_di(self):
+        for reg in ('ci', 'di'):
+            self.assertEqual(self.shift_reg(5, 0x40, reg, 1),
+                             (0x80, (False, False, True, False)))
+            self.assertEqual(self.shift_reg(5, 0x81, reg, 1),
+                             (0x02, (False, True, False, True)))
+            self.assertEqual(self.shift_reg(5, 0x40, reg, 2),
+                             (0x00, (True, True, False, True)))
+            self.assertEqual(self.shift_reg(5, 0x03, reg, 3),
+                             (0x18, (False, False, False, False)))
+
+    def test_shr_by_register_ci_and_di(self):
+        for reg in ('ci', 'di'):
+            self.assertEqual(self.shift_reg(6, 0x03, reg, 1),
+                             (0x01, (False, True, False, False)))
+            self.assertEqual(self.shift_reg(6, 0x80, reg, 1),
+                             (0x40, (False, False, False, False)))
+            self.assertEqual(self.shift_reg(6, 0x04, reg, 3),
+                             (0x00, (True, True, False, False)))
+            self.assertEqual(self.shift_reg(6, 0xff, reg, 4),
+                             (0x0f, (False, True, False, False)))
+
+    def test_shift_by_register_zero_clears_c_and_o(self):
+        preset = {bc8183_cpu.FlagsRegister.CARRY: 1,
+                  bc8183_cpu.FlagsRegister.OVERFLOW: 1}
+        for op in (5, 6):
+            self.assertEqual(self.shift_reg(op, 0x81, 'ci', 0, flags=preset),
+                             (0x81, (False, False, True, False)))
+
+    def test_shift_by_register_more_than_eight(self):
+        self.assertEqual(self.shift_reg(5, 0xff, 'ci', 9),
+                         (0x00, (True, False, False, True)))
+        self.assertEqual(self.shift_reg(5, 0xff, 'di', 255),
+                         (0x00, (True, False, False, True)))
+        self.assertEqual(self.shift_reg(5, 0x00, 'ci', 9),
+                         (0x00, (True, False, False, False)))
+        self.assertEqual(self.shift_reg(6, 0xff, 'ci', 9),
+                         (0x00, (True, False, False, False)))
+        self.assertEqual(self.shift_reg(6, 0xff, 'di', 255),
+                         (0x00, (True, False, False, False)))
+
+    def test_shl_a_by_a_uses_old_a_as_count(self):
+        # 58 15: the count is the old value of A
+        cpu = self.run_code([0x58, 0x15], a=0x01)
+        self.assertEqual(cpu.a.get(), 0x02)
+        self.assertEqual(flags_of(cpu), (False, False, False, False))
+        cpu = self.run_code([0x58, 0x15], a=0x03)
+        self.assertEqual(cpu.a.get(), 0x18)
+        self.assertEqual(flags_of(cpu), (False, False, False, False))
+        # count 9 > 8: everything shifted out
+        cpu = self.run_code([0x58, 0x15], a=0x09)
+        self.assertEqual(cpu.a.get(), 0x00)
+        self.assertEqual(flags_of(cpu), (True, False, False, True))
+
+    def test_shr_a_by_a_uses_old_a_as_count(self):
+        cpu = self.run_code([0x58, 0x16], a=0x01)
+        self.assertEqual(cpu.a.get(), 0x00)
+        self.assertEqual(flags_of(cpu), (True, True, False, False))
+        cpu = self.run_code([0x58, 0x16], a=0x0c)
+        self.assertEqual(cpu.a.get(), 0x00)
+        self.assertEqual(flags_of(cpu), (True, False, False, False))
+        cpu = self.run_code([0x58, 0x16], a=0xff)
+        self.assertEqual(cpu.a.get(), 0x00)
+        self.assertEqual(flags_of(cpu), (True, False, False, False))
 
     def shift16(self, code, start, **regs):
         cpu = self.run_code(code, cs=start >> 8, ci=start & 0xff, **regs)

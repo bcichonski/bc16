@@ -426,5 +426,15 @@ class TestIncDecAfGrammar(unittest.TestCase):
         self.assertEqual(mnemonic.parse('dec dsdi'), DEC16('dsdi'))
 
 
+class TestShiftRegisterGrammar(unittest.TestCase):
+    '''#56: `shl r` / `shr r` with a register operand parse as the register form, not the immediate one.'''
+
+    def test_shl_ci_parses_as_register_form(self):
+        self.assertEqual(mSHLr.parse('shl ci'), CLC_A_R('shl', 'ci'))
+
+    def test_shr_ci_parses_as_register_form(self):
+        self.assertEqual(mSHRr.parse('shr ci'), CLC_A_R('shr', 'ci'))
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -238,7 +238,10 @@ class Bc8183:
             oper16(regno, arg2, regno2)
             return
         else:
-            # this is bug, there is conflict between CLC_OP_RNO and register with INC, DEC, ZER
+            # The long register form 58 ro (the == CLC_OP_RNO branch above) covers every
+            # op, including shl/shr. This branch is the short register form 5(o|8) r0,
+            # a CPU-only alias that exists only for sub/and/or/xor (o=1..4), because
+            # o|8 for shl/shr/not would be 0xD/0xE/0xF = inc/dec/EXT.
             if subcode & Bc8183.CLC_OP_RNO == \
                     Bc8183.CLC_OP_RNO:
                 regno = hi(self.nextbyte)

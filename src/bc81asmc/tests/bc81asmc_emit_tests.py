@@ -501,5 +501,21 @@ class TestOutImmediate(unittest.TestCase):
             assemble("out #ds, 0x41\n")
 
 
+class TestShiftRegisterForms(unittest.TestCase):
+    '''#56: shl r / shr r use the long register form 58 r5 / 58 r6 (register numbers a=1, ci=4, di=5).'''
+
+    def test_shl_ci_emits_58_45(self):
+        self.assertEqual(code("shl ci\n"), [0x58, 0x45])
+
+    def test_shr_ci_emits_58_46(self):
+        self.assertEqual(code("shr ci\n"), [0x58, 0x46])
+
+    def test_shl_di_emits_58_55(self):
+        self.assertEqual(code("shl di\n"), [0x58, 0x55])
+
+    def test_shr_a_emits_58_16(self):
+        self.assertEqual(code("shr a\n"), [0x58, 0x16])
+
+
 if __name__ == '__main__':
     unittest.main()

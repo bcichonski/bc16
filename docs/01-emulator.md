@@ -297,6 +297,18 @@ An unknown `EXT` sub-opcode (`JRX` uses 0x1 and 0x2) stops the CPU like a stack 
 on stderr (`EXT at XXXX: unknown sub-opcode 0xN, CPU stopped`), nothing is changed and the PC stays
 on the instruction.
 
+### 8-bit ALU encoding
+
+The 8-bit ALU ops use the `CLC` opcode (`0x5_`). The low nibble `s` of the first byte selects the form:
+
+- `s` = 0…6: immediate, `5s ii`, A = A op `ii`.
+- `s` = 7, D, E: `not`, `inc`, `dec`, 1 byte.
+- `s` = F: EXT, the 16-bit ops.
+- `s` = 8 exactly: long register form `58 ro`. The register `r` is the high nibble of byte 2 and the operation `o` (0…6) its low nibble, so A = A op reg[r]. This is the only register form the assembler emits, and it covers every op, `shl` and `shr` included.
+- `s` = 9…C: short register alias `5(o|8) r0` for `o` = 1…4 (sub, and, or, xor) only. The register is the high nibble of byte 2. The CPU accepts it, but the assembler never emits it, and no short form exists for `shl`, `shr` or `not`.
+
+So `shl r` is `58 r5` and `shr r` is `58 r6`; see [E15](specs/memory/design-decisions.md).
+
 ### Registers
 
 | No. | Name | Width | Purpose |
