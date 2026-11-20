@@ -216,10 +216,6 @@ def simple_cases():
             regs={'csci': x, 'dsdi': y}, out_regs={'csci': res, 'dsdi': y})
         add(f'{op}16 dsdi,csci', f'm{up}16r', [f'{op} dsdi, csci'], 3,
             regs={'dsdi': x, 'csci': y}, out_regs={'dsdi': res, 'csci': y})
-    # accumulator pair (a:f); F is rewritten by the flags, so only A is compared
-    add('add16 af,imm', 'mADD16i16', ['add af, 0x0100'], 5, regs={'a': 0x01}, out_regs={'a': 0x02})
-    add('add16 af,csci', 'mADD16r', ['add af, csci'], 3,
-        regs={'a': 0x01, 'csci': 0x0100}, out_regs={'a': 0x02})
     for reg in ('csci', 'dsdi'):
         add(f'inc16 {reg}', 'mINC16', [f'inc {reg}'], 3, regs={reg: 0x01ff}, out_regs={reg: 0x0200})
         add(f'dec16 {reg}', 'mDEC16', [f'dec {reg}'], 3, regs={reg: 0x0200}, out_regs={reg: 0x01ff})
@@ -478,13 +474,18 @@ class PinnedFindingsTests(unittest.TestCase):
         cpu, _, _ = execute(code, 0, {}, 3, {'csci': 0x0123, 'dsdi': 0x0005}, {}, {}, {})
         self.assertEqual(_get_reg(cpu, 'csci'), 0x0128)
 
-    def test_inc_and_dec_of_af_cannot_be_parsed(self):
-        # D7: mINC/mDEC are tried before mINC16/mDEC16 and succeed on `inc a`,
-        # leaving the `f` unparsed; `inc af` / `dec af` are therefore a parse error.
+    def test_inc_and_dec_of_af_are_rejected_on_purpose(self):
+        # D7/#66: `inc af` / `dec af` parse as the 16-bit forms and are rejected with a
+        # positioned `cannot encode` error (the 16-bit result would overwrite the flags).
         for text in ('inc af', 'dec af'):
             with self.subTest(text):
-                with self.assertRaises(parsy.ParseError):
-                    asm_grammar.program.parse(text + "\n")
+                with self.assertRaises(asm_diag.AssemblerError) as cm:
+                    assemble([text])
+                self.assertEqual([(d.line, d.column) for d in cm.exception.diagnostics], [(1, 1)])
+                op = text.split()[0]
+                self.assertIn("cannot encode '{1}': {0} af is not allowed: the 16-bit result "
+                              "would overwrite the flags in f (use {0} a, or a pair csci or dsdi)"
+                              .format(op, text), str(cm.exception))
 
     def test_clr_af_fails_to_assemble(self):
         # D7/D6: `clr af` is accepted by the grammar but cannot be encoded; it is now

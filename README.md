@@ -115,7 +115,7 @@ Building from source needs `pip install -e .` (it installs `parsy`). The referen
 - Files only grow on a disc: free space is not reused (#41).
 - For people writing programs: `strnextword` in `strings.b` never returns 0 (#82), CPU flag and ALU issues (#53, #54, #55, #56, #57, #58), the compiler has no `return`
   anywhere in a function (#20) and crashes on an undeclared variable (#68), and the assembler has issues with labels at
-  address 0 (#64), labels after a second `.org` (#65), `inc af`/`dec af` (#66) and `clr af` (#67).
+  address 0 (#64), labels after a second `.org` (#65) and `clr af` (#67).
 
 ## roadmap
 0. memory increased to 64kb

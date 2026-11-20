@@ -463,12 +463,35 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   `add csci, af` assembled silently and added `dsdi`. The assembler now requires the written
   second operand to be the implied pair, so the source says what the CPU does.
 - **Usage:**
-  - write the implied pair: `add csci, dsdi`, `sub dsdi, csci`, `add af, csci`;
+  - write the implied pair: `add csci, dsdi`, `sub dsdi, csci` (`af` is not a 16-bit pair: every 16-bit
+    ALU op with destination `af` is rejected, see A8);
   - any other second operand, and any unknown pair name in a 16-bit form, is a `cannot encode`
     diagnostic with no bytes emitted (`docs/02-assembler.md`, Errors);
   - BASM's encoder must apply the same rule when it exists (`docs/analysis/08-self-hosted-roadmap.md`, step 8).
 - **Trade-offs:** the second nibble is now redundant, and a program that wrote `add csci, af`
   to mean `dsdi` must be changed to `add csci, dsdi`. No CPU change, so no emulator behaviour moves.
+
+### A8. Every 16-bit ALU op on af is rejected: the assembler says why
+- **Purpose:** `af` holds the flags in `F`, so a 16-bit ALU result written to it would overwrite them.
+  The assembler refuses every 16-bit ALU op with destination `af` and says why, instead of a generic
+  parse error (`inc af`) or a silent encoding (the other ops, #58).
+- **Rationale:** the owner decided on #66 (2026-11-20): "reject with clear message - they makes no sense
+  as they will destroy f register". The same day, mid-run (A1): "make other arithmetic blocked on af".
+  So the rule is not limited to `inc`/`dec`: it covers `add sub mul div mod and or xor shl shr not` and
+  `inc`/`dec`, in immediate and register forms. The binary group (`and or xor shl shr not`) is included
+  too, because the reason (the result overwrites `F`) is the same for all of them. Before this, `inc af`
+  did not parse: the 8-bit `inc a` matched and the `f` was left over as a syntax error.
+- **Usage:**
+  - write `inc a` / `dec a` for the 8-bit form, or a pair `csci` / `dsdi` for the 16-bit one;
+  - any 16-bit ALU op with destination `af` is a `cannot encode` diagnostic with no bytes emitted
+    (`docs/02-assembler.md`, Errors). The `af` check runs before the implied-pair rule, so
+    `add af, dsdi` reports the `af` rejection;
+  - `af` stays valid in the non-ALU forms (`psh af`, `pop af`, `mov`, ...);
+  - BASM must apply the same rule when it exists (`docs/analysis/08-self-hosted-roadmap.md`, step 13).
+- **Trade-offs:** `af` is no longer a 16-bit pair in the assembler, so A7's `add af, csci` is gone (A7 is
+  updated). No CPU change: the emulator still runs a hand-encoded `5F AD 10` / `5F AE 10` (the pair nibble
+  of `af` is 1), so only the assembler refuses to produce it. PR #140 (#58, open, not on master) says the
+  assembler accepts `af` as a destination; that sentence must change when one of the two merges after the other.
 
 ---
 

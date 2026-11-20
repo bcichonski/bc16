@@ -323,18 +323,29 @@ class INC(Instruction):
         context.emit_4bit(ASMCODES.CLC_INC);
 
 # 16-bit register pairs and the implied second pair the CPU derives (bc8183_cpu.py)
-PAIR16_IMPLIED = {'csci': 'dsdi', 'dsdi': 'csci', 'af': 'csci'}
+PAIR16_IMPLIED = {'csci': 'dsdi', 'dsdi': 'csci'}
 
 def check_pair16(reg, reg2=None):
     """Validate the pair operand(s) of a 16-bit instruction before anything is emitted."""
     if reg.lower() not in PAIR16_IMPLIED:
-        raise ValueError("'{0}' is not a 16-bit pair (use csci, dsdi or af)".format(reg))
+        raise ValueError("'{0}' is not a 16-bit pair (use csci or dsdi)".format(reg))
     if reg2 is not None:
         if reg2.lower() not in PAIR16_IMPLIED:
-            raise ValueError("'{0}' is not a 16-bit pair (use csci, dsdi or af)".format(reg2))
+            raise ValueError("'{0}' is not a 16-bit pair (use csci or dsdi)".format(reg2))
         implied = PAIR16_IMPLIED[reg.lower()]
         if reg2.lower() != implied:
             raise ValueError("second operand must be {0} when the first is {1}".format(implied, reg.lower()))
+
+def reject_af_alu(reg, mnemonic):
+    """`af` is not a pair for the 16-bit ALU: the result would overwrite the flags in f (#66)."""
+    if reg.lower() == 'af':
+        raise ValueError("{0} af is not allowed: the 16-bit result would overwrite the flags in f "
+                         "(use a pair csci or dsdi)".format(mnemonic))
+
+def reject_af_incdec(reg, mnemonic):
+    if reg.lower() == 'af':
+        raise ValueError("{0} af is not allowed: the 16-bit result would overwrite the flags in f "
+                         "(use {0} a, or a pair csci or dsdi)".format(mnemonic))
 
 @dataclass
 class INC16(Instruction):
@@ -342,6 +353,7 @@ class INC16(Instruction):
     def __str__(self):
         return "INC16 {0}".format(self.reg.upper());
     def emit(self, context):
+        reject_af_incdec(self.reg, 'inc')
         check_pair16(self.reg)
         super().emit(context)
         context.emit_4bit(ASMCODES.CLC)
@@ -367,6 +379,7 @@ class DEC16(Instruction):
     def __str__(self):
         return "DEC16 {0}".format(self.reg.upper());
     def emit(self, context):
+        reject_af_incdec(self.reg, 'dec')
         check_pair16(self.reg)
         super().emit(context)
         context.emit_4bit(ASMCODES.CLC)
@@ -485,6 +498,7 @@ class CLC16_R_IMM(Instruction):
     def __str__(self):
         return "{0: <3}16 {2}, 0x{1:04x}".format(self.oper.upper(), self.imm, self.reg)
     def emit(self, context):
+        reject_af_alu(self.reg, self.oper.lower())
         check_pair16(self.reg)
         super().emit(context)
         context.emit_4bit(ASMCODES.CLC)  
@@ -505,6 +519,7 @@ class CLC16_R_R(Instruction):
     def __str__(self):
         return "{0: <3}16 {1}, {2}".format(self.oper.upper(), self.reg, self.reg2)
     def emit(self, context):
+        reject_af_alu(self.reg, self.oper.lower())
         check_pair16(self.reg, self.reg2)
         super().emit(context)
         context.emit_4bit(ASMCODES.CLC)
@@ -587,6 +602,7 @@ class NOT16(Instruction):
     def __str__(self):
         return "NOT16 {0}".format(self.reg.upper())
     def emit(self, context):
+        reject_af_alu(self.reg, 'not')
         check_pair16(self.reg)
         super().emit(context)
         context.emit_4bit(ASMCODES.CLC)

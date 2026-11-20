@@ -309,12 +309,12 @@ on the instruction.
 
 Memory can only be reached through a register pair, which forms the address
 `hi << 8 | lo`: `CS:CI`, `DS:DI`, `SS:SI` (and `A:F` inside the CPU). The 16-bit ALU works
-on the pairs `csci`, `dsdi` and `af`.
+on the pairs `csci`, `dsdi` and `af`. The assembler rejects every 16-bit ALU op with destination `af`
+(see [02-assembler.md](02-assembler.md), A8); the CPU itself still executes such a hand-encoded op.
 
 The register-register form has an implied second pair. The CPU reads only the first pair and
 uses `csci` → `dsdi`, `dsdi` → `csci` and `af` → `csci` as the second one. The assembler
-accepts only the implied pair as the second operand (`add csci, dsdi`, `add dsdi, csci`,
-`add af, csci`).
+accepts only the implied pair as the second operand (`add csci, dsdi`, `add dsdi, csci`).
 
 ### Flags (`F`)
 
