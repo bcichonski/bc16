@@ -474,8 +474,9 @@ class Alu16Tests(AluTestBase):
 
     # --- A:F pair --------------------------------------------------------
     def test_add16_on_a_f_pair(self):
-        # PINNED: the A:F pair low byte is F, which set_flags16 overwrites with
-        # the new flags, so only A carries a usable result.
+        # Defined behaviour (E14, #58): A:F is a 16-bit pair. A takes the high
+        # byte of the result, F takes the flags (set_flags16) and the low byte
+        # is discarded. af is allowed but not meant for 16-bit arithmetic.
         cpu = self.run_code(self.imm(0xa, 0x0, 0x10, 0x0100), a=0x01)
         self.assertEqual(cpu.a.get(), 0x02)
         self.assertEqual(cpu.f.get(), 0x00)
@@ -483,6 +484,36 @@ class Alu16Tests(AluTestBase):
     def test_add16_reg_on_a_f_pair_uses_cs_ci(self):
         cpu = self.run_code([0x5f, 0xa8, 0x10], a=0x01, cs=0x02, ci=0x00)
         self.assertEqual(cpu.a.get(), 0x03)
+
+    def test_add16_on_a_f_pair_low_byte_discarded_f_is_flags(self):
+        # 0x7f00 + 0x0123 = 0x8023: A = 0x80, F = N|O (signed overflow, E13) = 0x0c, not the low byte 0x23
+        cpu = self.run_code(self.imm(0xa, 0x0, 0x10, 0x0123), a=0x7f, f=0x00)
+        self.assertEqual(cpu.a.get(), 0x80)
+        self.assertEqual(cpu.f.get(), 0x0c)
+
+    def test_add16_on_a_f_pair_reads_f_as_low_byte(self):
+        # pair 0x00ff + 0x0001 = 0x0100: F = 0xff is the low byte of the input
+        cpu = self.run_code(self.imm(0xa, 0x0, 0x10, 0x0001), a=0x00, f=0xff)
+        self.assertEqual(cpu.a.get(), 0x01)
+        self.assertEqual(cpu.f.get(), 0x00)
+
+    def test_sub16_on_a_f_pair_borrow_sets_n_and_c(self):
+        # 0x0100 - 0x0200 = -0x0100: stored 0xff00, A = 0xff, F = N|C (borrow, E13) = 0x06
+        cpu = self.run_code(self.imm(0xa, 0x1, 0x10, 0x0200), a=0x01, f=0x00)
+        self.assertEqual(cpu.a.get(), 0xff)
+        self.assertEqual(cpu.f.get(), 0x06)
+
+    def test_mul16_on_a_f_pair_wrap_to_zero_sets_z_c_o(self):
+        # 0x1000 * 0x0100 = 0x100000: stored 0x0000, A = 0x00, F = Z|C|O (0x01|0x02|0x08)
+        cpu = self.run_code(self.imm(0xa, 0x2, 0x10, 0x0100), a=0x10, f=0x00)
+        self.assertEqual(cpu.a.get(), 0x00)
+        self.assertEqual(cpu.f.get(), 0x0b)
+
+    def test_add16_reg_on_a_f_pair_low_byte_discarded(self):
+        # op af, csci: 0x7ff0 + 0x0123 = 0x8113: A = 0x81, F = N|O (signed overflow, E13) = 0x0c
+        cpu = self.run_code([0x5f, 0xa8, 0x10], a=0x7f, f=0xf0, cs=0x01, ci=0x23)
+        self.assertEqual(cpu.a.get(), 0x81)
+        self.assertEqual(cpu.f.get(), 0x0c)
 
     def test_shl16_wrap_to_zero_sets_z(self):
         # 0x8000 << 1 = pair 0x0000: Z describes the stored pair (#53); C = bit 15 shifted out, O = a 1 bit lost
