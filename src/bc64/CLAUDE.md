@@ -62,7 +62,7 @@ failure (tape round trip) is an `expectedFailure` test; see `docs/01-emulator.md
   are written back via `alu_setval16`.
 - The CPU stack is **tagged**: a `PSH` frame is `0x10` plus the value (2 bytes); a `CAL`
   frame is `0xC0` plus the return address (3 bytes). `RET` reads the tag, so two push frames
-  on top work as an indirect jump. `print_cpu_stack` relies on the tags.
+  on top work as an indirect jump. A single push frame (or an unknown tag) on top stops the CPU at `RET`, like `KIL`. `print_cpu_stack` relies on the tags.
 - Relative offsets (`JMR` 7-bit, `JRX`/`CLR` 15-bit) are **sign-magnitude**.
 - Devices in `bc64_io.py` subclass `IODevice`: they set `io_port` and implement
   `read_byte()`/`write_byte()`, and are registered on `IOBus` in `bc64.py`. The ports are:

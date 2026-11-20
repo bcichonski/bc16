@@ -446,23 +446,37 @@ class Bc8183:
         if frametype == Bc8183.STACKFRAME_TYPE_CALL:
             needed = [addr + 2, addr + 3]
         else:
-            needed = [addr + 2, addr + 4]
+            needed = [addr + 2, addr + 3, addr + 4]
         if self.stack_fault('RET', needed):
             return
-        addrhi = self.membus.read_byte(addr + 2)
-        if(frametype == Bc8183.STACKFRAME_TYPE_CALL):
+        if frametype == Bc8183.STACKFRAME_TYPE_CALL:
+            addrhi = self.membus.read_byte(addr + 2)
             addrlo = self.membus.read_byte(addr + 3)
             addr += 3
-        else: #two frames type push
+        elif frametype == Bc8183.STACKFRAME_TYPE_PUSH:
+            if self.membus.read_byte(addr + 3) != Bc8183.STACKFRAME_TYPE_PUSH:
+                self.ret_stop('single push frame on top of the stack')
+                return
+            addrhi = self.membus.read_byte(addr + 2)  # two frames type push
             addrlo = self.membus.read_byte(addr + 4)
             addr += 4
-            
+        else:
+            self.ret_stop('no call or push frame on top of the stack')
+            return
+
         self.si.set(addr & 0xff)
         self.ss.set((addr & 0xff00) >> 8)
-    
+
         addr = (addrhi << 8) | addrlo
         self.pc.set(addr)
         self.inc_pc(0)
+
+    def ret_stop(self, reason):
+        """RET found no frame to return through: stop like KIL (PC, registers, SS:SI, memory untouched)."""
+        mesg = 'RET at {0:04x}: {1}, CPU stopped'.format(self.pc.get(), reason)
+        print(mesg, file=sys.stderr)
+        self.print_debug(mesg)
+        self.kill = True
 
     def op_IN(self):
         opcode = lo(self.nextbyte)

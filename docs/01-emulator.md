@@ -282,7 +282,8 @@ When a fix lands, the test reports an unexpected success: remove its decorator t
 - The CPU stack grows downwards from `0xfffe`. A stack instruction (`PSH`, `POP`, `CAL`, `RET`)
   that would read past the top of memory (an empty stack) or write below `0x0000` (overflow)
   stops the CPU cleanly, like `KIL`: nothing is changed, the PC stays on the instruction, and one
-  line goes to stderr. The exit code is 0 and `bc64.dmp` is written.
+  line goes to stderr. The exit code is 0 and `bc64.dmp` is written. A `RET` whose top frame is a
+  single push frame or an unknown tag stops the same way (see Stack frames).
 - One device (the floppy drive) writes to and reads from memory directly (DMA). Its addresses wrap
   at `0xffff`, so a transfer past the top continues at `0x0000`.
 
@@ -359,8 +360,15 @@ The CPU stack is tagged. Each push stores a type byte next to the data:
 
 `RET` looks at the frame type on top of the stack:
 - a call frame returns normally;
-- if the top is **two push frames**, `RET` uses them as the return address
-  (`psh hi; psh lo; ret` works as an indirect jump).
+- if the top is **two push frames**, `RET` uses them as the return address: the high byte is
+  the last pushed value, the low byte the one pushed before it (`psh lo; psh hi; ret` works as
+  an indirect jump);
+- if the top is a **single push frame** with no push frame directly below it (for example a push
+  over a call frame), or the top tag is neither `0x10` nor `0xC0`, `RET` stops the CPU cleanly,
+  like `KIL`: PC stays on the `RET`, nothing is changed, one line goes to stderr, exit code 0 and
+  `bc64.dmp` is written.
+
+The bounds check (the stack bytes must be inside memory) comes first and reports `empty stack`.
 
 `POP` doesn't check the frame type. When the CPU throws an exception it prints the decoded
 stack (`CAL addr` / `VAL value` lines).
