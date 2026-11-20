@@ -334,7 +334,19 @@ Examples (8-bit):
 | `0x00 - 1` | `0xff` | 0 | 1 |
 | `0x80 - 1` | `0x7f` | 1 | 0 |
 
-`C` is the unsigned carry or borrow, so an unsigned comparison by subtraction is tested with `jmr c` / `jmp c`. `O` is the signed overflow: it tells whether the two's-complement result is out of range. The 8-bit `shl`/`shr` flags and the 16-bit shifts keep their old definition (#55).
+`C` is the unsigned carry or borrow, so an unsigned comparison by subtraction is tested with `jmr c` / `jmp c`. `O` is the signed overflow: it tells whether the two's-complement result is out of range. This is decided in [E13](specs/memory/design-decisions.md) (#54).
+
+The shift flags (8-bit `shl`/`shr` and 16-bit `shl16`/`shr16`) are decided in [E12](specs/memory/design-decisions.md).
+`w` is the width (8 or 16), `n` the shift count and `v` the operand:
+
+| Flag | `shl`, `shl16` | `shr`, `shr16` |
+|---|---|---|
+| `Z` | stored result == 0 | same |
+| `N` | top bit of the stored result (bit 7, or bit 15) | same |
+| `C` | last bit shifted out: bit `w - n` of `v` | last bit shifted out: bit `n - 1` of `v` |
+| `O` | `1` if a 1 bit was shifted out, else `0` (not a signed overflow, see E13) | `0` |
+
+`C` is 0 for a shift by 0 or by more than the width. A shift by 0 also clears `O`.
 
 Bits 4–7 exist but the CPU doesn't use them. `MOV` into `A` also updates `Z` and `N`.
 `OUT #r, r2` leaves `C` and `O` at 0 (the value it sends is 0..0xff).

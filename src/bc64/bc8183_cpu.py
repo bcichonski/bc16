@@ -268,14 +268,11 @@ class Bc8183:
         addr = (hi << 8) | lo
         return addr
 
-    def set_flags(self, regno, val=None, raw_zn=False):
+    def set_flags(self, regno, val=None):
         # Z/N describe the stored (8-bit) value; C/O use the raw val (#54).
-        # raw_zn keeps the legacy Z/N of shl/shr untouched (#55).
         if regno == Bc8183.A:
             if val is None:
                 zn = self.a.get()
-            elif raw_zn:
-                zn = val
             else:
                 zn = val & 0xff
             self.f.set_flag(FlagsRegister.ZERO, int(zn == 0))
@@ -631,14 +628,40 @@ class Bc8183:
         self.set_flags_alu(val, 0, 0)
         self.a.set(val)
 
+    @staticmethod
+    def shift_left_flags(val, count, width):
+        # (C, O) of a left shift (#55): C is the last bit shifted out (bit
+        # width-count of val; 0 for a shift by 0 or by more than the width),
+        # O is set when any 1 bit was shifted out.
+        if count == 0:
+            return 0, 0
+        if count > width:
+            return 0, int(val != 0)
+        out = val >> (width - count)
+        return out & 1, int(out != 0)
+
+    @staticmethod
+    def shift_right_carry(val, count, width):
+        # C of a right shift (#55): bit count-1 of val, 0 for a shift by 0
+        # or by more than the width. (O is always 0.)
+        if count == 0 or count > width:
+            return 0
+        return (val >> (count - 1)) & 1
+
     def alu_shl(self, arg1, arg2):
-        val = arg1 << arg2
-        self.set_flags(Bc8183.A, val & 0x100, raw_zn=True)
+        carry, over = self.shift_left_flags(arg1, arg2, 8)
+        val = (arg1 << min(arg2, 8)) & 0xff
+        self.set_flags(Bc8183.A, val)
+        self.f.set_flag(FlagsRegister.CARRY, carry)
+        self.f.set_flag(FlagsRegister.OVERFLOW, over)
         self.a.set(val)
 
     def alu_shr(self, arg1, arg2):
-        val = arg1 >> arg2
-        self.set_flags(Bc8183.A, -(val & 0x1), raw_zn=True)
+        carry = self.shift_right_carry(arg1, arg2, 8)
+        val = arg1 >> min(arg2, 8)
+        self.set_flags(Bc8183.A, val)
+        self.f.set_flag(FlagsRegister.CARRY, carry)
+        self.f.set_flag(FlagsRegister.OVERFLOW, 0)
         self.a.set(val)
 
     def alu_not(self, arg1, arg2):
@@ -738,13 +761,17 @@ class Bc8183:
 
     def alu_shl16(self, reg, arg, reg2):
         val = self.alu_getval16(reg)
-        val <<= arg
-        self.alu_setval16(reg, val)
+        carry, over = self.shift_left_flags(val, arg, 16)
+        self.alu_setval16(reg, (val << min(arg, 16)) & 0xffff)
+        self.f.set_flag(FlagsRegister.CARRY, carry)
+        self.f.set_flag(FlagsRegister.OVERFLOW, over)
 
     def alu_shr16(self, reg, arg, reg2):
         val = self.alu_getval16(reg)
-        val >>= arg
-        self.alu_setval16(reg, val)
+        carry = self.shift_right_carry(val, arg, 16)
+        self.alu_setval16(reg, val >> min(arg, 16))
+        self.f.set_flag(FlagsRegister.CARRY, carry)
+        self.f.set_flag(FlagsRegister.OVERFLOW, 0)
     
     def alu_not16(self, reg, arg, reg2):
         val = self.alu_getval16(reg)
