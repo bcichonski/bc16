@@ -399,6 +399,17 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   is the only flag set. The reading of the 2026-11-20 note is an interpretation, posted on #54 for the owner to
   confirm.
 
+### E14. A 16-bit result written to `af` keeps its high byte in `A`; `F` gets the flags
+- **Purpose:** a 16-bit ALU op on `af` has one defined result, so the docs and the tests can state it.
+- **Rationale:** `A:F` is one pair for the 16-bit ALU. `alu_setval16` stores the result's high byte in `A` and its low byte in `F`, then `set_flags16` sets `Z/N/C/O` in `F`, which overwrites the low byte. The owner decided to keep the CPU and the assembler as they are and to document the result (#58; owner comment 2026-11-20: "that is correct cpu behavior af is not to be used in this context although allowed").
+- **Usage:**
+  - input: `A:F` read as one 16-bit value, `F` the low byte;
+  - after any 16-bit ALU op with destination `af`: `A` = bits 15–8 of the result, `F` = the `Z/N/C/O` flags of that op (E11 for `Z`/`N`, E13 for `C`/`O`, E12 for shifts); the low byte of the result is lost;
+  - `div`/`mod` by zero on `af`: `A` is unchanged and `O` = 1 (E10);
+  - the assembler accepts `af` as a destination and gives no warning;
+  - do not use `af` for 16-bit arithmetic; use `csci` or `dsdi`.
+- **Trade-offs:** code that reads the low byte of a result from `F` after a 16-bit op on `af` gets the flags instead. `af` stays allowed so that the accepted forms do not change. No `.b` or `.basm` source under `src/` uses `af` as a 16-bit ALU destination.
+
 ---
 
 ## Assembler (`src/bc81asmc/`)
