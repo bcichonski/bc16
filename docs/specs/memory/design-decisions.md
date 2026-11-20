@@ -335,18 +335,45 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Rationale:** `Z` used to come from the raw result, before the register is masked. So `add a, 0x01` on
   `0xff` left `A = 0x00` with `Z = 0`. The owner's "Expected" in #53 is that `Z` and `N` describe the value
   stored in the destination. `C` and `O` (carry, borrow, signed overflow) need an owner decision on their
-  meaning (#54), so they keep their values. The 8-bit `shl`/`shr` flags wait for #55.
+  meaning, so they keep their values. The meaning of `C` and `O` is set by E12 (#54).
 - **Usage:**
   - 8-bit ops with destination `A`: `Z` = stored `A` == 0, `N` = bit 7 of stored `A`;
   - every 16-bit ALU op with destination pair: `Z` = stored pair == 0, `N` = bit 15 of stored pair;
-  - `C` and `O` are computed from the unwrapped result, as before (#54);
+  - `C` and `O` follow E12 (carry/borrow and signed overflow, from the operands and the unwrapped result);
   - 8-bit `shl` and `shr` keep their old flags (#55);
   - 16-bit `div` and `mod` by zero are unchanged (E10).
 - **Trade-offs:** `N` gives the same result as before, because the sign bit of the raw value is the sign bit
   of the stored one. `Z` changes for a wrap to zero. The dependency audit of the built programs (bcOS, bdos,
   apps, the compiler runtime) found no `jmp`/`jrx`/`clr`/`cal` on `z` or `nz` that follows a wrapping op,
-  so no program relied on the old `Z`. Until #54 is decided, `C` and `O` after a wrap still describe the
-  unwrapped result, and the two flags can disagree with `Z`.
+  so no program relied on the old `Z`.
+
+### E12. `C` is the unsigned carry/borrow, `O` is signed overflow
+- **Purpose:** the flags have the usual 8-bit CPU meaning, so a program can test an unsigned carry or borrow
+  with `c`/`nc`, and a signed overflow with `o`/`no`, as on other 8-bit CPUs.
+- **Rationale:** #54 asked what `C` and `O` mean. The first owner comment (2026-11-19) read `O` as "unsigned out
+  of range", which made `O` a borrow flag and left `C` unused by subtraction. The owner's note of 2026-11-20 replaced
+  that reading: "it was a bug in the cpu, let's add normal 'signed' behaviour". So `C` takes the unsigned carry or
+  borrow, and `O` takes the two's-complement signed overflow. Before this, `0x7f + 1` did not set `O`, `0xff + 1`
+  did, a borrowing `sub` set `O` and not `C`, and `not` always set `O` (`~x` is negative before masking).
+  The bcOS borrow tests (`printhex4`, `upchar`, `prnt_fmt_char`, `gt16`, `gteq16`) moved from `jmr o`/`jmr no` to
+  `jmr c`/`jmr nc`, so they behave as before.
+- **Usage:**
+  - `add`, `inc` (8/16-bit): `C` = unwrapped result > max (`0xff` / `0xffff`); `O` = both operands have the same
+    sign and the stored result's sign differs;
+  - `sub`, `dec` (8/16-bit): `C` = unwrapped result < 0 (a borrow); `O` = the operands' signs differ and the stored
+    result's sign differs from the first operand's;
+  - 16-bit `mul`: `C = O` = product > 0xffff (unsigned multiply, as x86 `MUL`);
+  - `and`, `or`, `xor`, `not` (8/16-bit): `C = O = 0`;
+  - 16-bit `div`/`mod` with a non-zero divisor: `C = O = 0`; by zero: `O = 1`, `C` unchanged (E10);
+  - 8-bit `shl`/`shr` and 16-bit shifts keep their old flags (#55);
+  - `Z` and `N` follow E11.
+  - Examples: `0x7f + 1` gives `O=1, C=0`; `0xff + 1` gives `C=1, O=0`; `0x00 - 1` gives `C=1, O=0`;
+    `0x80 - 1` gives `O=1, C=0`. A program tests a borrow with `jmr c`, not `jmr o`.
+- **Trade-offs:** `C` and `O` now differ from the old `O`-as-borrow meaning, so any program that tested `o` after
+  a `sub` must test `c` instead. The bcOS programs were moved, and the dependency audit found no other such test
+  in the built programs. Shifts stay as they were until #55, and a division by zero is still E10, so `O` there
+  is the only flag set. The reading of the 2026-11-20 note is an interpretation, posted on #54 for the owner to
+  confirm.
 
 ---
 

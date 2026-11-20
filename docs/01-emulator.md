@@ -321,18 +321,27 @@ accepts only the implied pair as the second operand (`add csci, dsdi`, `add dsdi
 | Bit | Flag | Set when |
 |---|---|---|
 | 0 | `Z` zero | stored result (`A` or the destination pair) == 0 (`Z` is 1 after reset) |
-| 1 | `C` carry | result > 0xff (or > 0xffff for 16-bit ops) |
+| 1 | `C` carry / borrow (unsigned) | `add`, `inc`, `mul`: unwrapped result > 0xff (> 0xffff for 16-bit ops). `sub`, `dec`: unwrapped result < 0 (a borrow). `and`, `or`, `xor`, `not` clear it |
 | 2 | `N` negative | bit 7 (bit 15 for 16-bit ops) of the stored result |
-| 3 | `O` overflow | result > max **or result < 0**. A subtraction that borrows sets `O`, not `C` |
+| 3 | `O` signed overflow (two's complement) | `add`, `inc`: both operands have the same sign and the result's sign differs. `sub`, `dec`: the operands' signs differ and the result's sign differs from the first operand's. 16-bit `mul` sets it like `C`. `and`, `or`, `xor`, `not` clear it |
 
-`C` and `O` are still computed from the unwrapped result, before the register wraps (#54). The 8-bit `shl`/`shr` flags are still the old definition (#55).
+Examples (8-bit):
+
+| Operation | Result | `O` | `C` |
+|---|---|---|---|
+| `0x7f + 1` | `0x80` | 1 | 0 |
+| `0xff + 1` | `0x00` | 0 | 1 |
+| `0x00 - 1` | `0xff` | 0 | 1 |
+| `0x80 - 1` | `0x7f` | 1 | 0 |
+
+`C` is the unsigned carry or borrow, so an unsigned comparison by subtraction is tested with `jmr c` / `jmp c`. `O` is the signed overflow: it tells whether the two's-complement result is out of range. The 8-bit `shl`/`shr` flags and the 16-bit shifts keep their old definition (#55).
 
 Bits 4–7 exist but the CPU doesn't use them. `MOV` into `A` also updates `Z` and `N`.
-`OUT #r, r2` sets `C`/`O` from the value it sends.
+`OUT #r, r2` leaves `C` and `O` at 0 (the value it sends is 0..0xff).
 
 16-bit `div` and `mod` by zero leave the destination pair unchanged and set `O`; `Z`, `N` and `C`
 keep their values. Nothing is printed and execution goes on. A `div` or `mod` with a non-zero
-divisor sets `O` from its result (so clears it). Programs test the result with `jrx o` or `jmp o`
+divisor clears `C` and `O`. Programs test the result with `jrx o` or `jmp o`
 right after. This is decided in [E10](specs/memory/design-decisions.md); that the destination
 is left unchanged is still for the owner to confirm (#136).
 

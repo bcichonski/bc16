@@ -4,10 +4,12 @@ Every test executes encoded bytes on the CPU and asserts the result, the
 flags and the instruction length (PC ends on the KIL after the code).
 
 Flags are asserted exactly as the CPU defines them. Z and N describe the
-stored result (A or the destination pair, story #53). C and O are still
-computed from the raw, unwrapped result, and the 8-bit SHL/SHR flags are
-odd; those definitions look wrong (see the "PINNED" comments, #54 and #55)
-and are pinned, not fixed.
+stored result (A or the destination pair, story #53). C is the unsigned
+carry (add, inc, mul) or borrow (sub, dec) and O the two's-complement signed
+overflow of add, sub, inc and dec; and/or/xor/not clear both, mul sets
+C = O, div/mod clear both (story #54). The SHL/SHR flags are odd; that
+definition looks wrong (see the "PINNED" comments, #55) and is pinned, not
+fixed.
 """
 import contextlib
 import io
@@ -28,9 +30,13 @@ def flags_of(cpu):
 
 
 def flags_from_raw(v, bits=8):
-    """C and O from the raw (unmasked) result (pinned, #54). Z is computed
-    from the raw value too, so for a result that wraps to 0 pass the expected
-    flags explicitly: the CPU sets Z from the stored value (#53)."""
+    """Flags (Z, C, N, O) from the raw (unmasked) result, valid for results
+    that stay in range and for the pinned SHL/SHR flags (#55). It does not
+    model signed overflow or borrow (#54): for add/sub/inc/dec results that
+    wrap or overflow, and for logic ops with a negative raw value, pass the
+    expected flags explicitly. Z is computed from the raw value too, so for
+    a result that wraps to 0 pass them explicitly as well (Z is set from the
+    stored value, #53)."""
     top = 1 << bits
     sign = top >> 1
     return (v == 0, v >= top, (v & sign) == sign, v >= top or v < 0)
@@ -76,12 +82,12 @@ class Alu8Tests(AluTestBase):
         self.check([0x50, 0x00], 0x00, 0x00, 0x00)
 
     def test_add_imm_wrap_at_0xff(self):
-        # Z describes the stored A (#53); PINNED (#54): C and "overflow" use the raw sum 0x100
-        self.check([0x50, 0x01], 0xff, 0x00, 0x100, (True, True, False, True))
+        # Z describes the stored A (#53); 0xff + 1: unsigned carry, no signed overflow (-1 + 1)
+        self.check([0x50, 0x01], 0xff, 0x00, 0x100, (True, True, False, False))
 
-    def test_add_imm_sign_bit_no_overflow(self):
-        # PINNED: 0x7f + 1 = 0x80 sets N, "overflow" is only unsigned overflow
-        self.check([0x50, 0x01], 0x7f, 0x80, 0x80, (False, False, True, False))
+    def test_add_imm_sign_bit_signed_overflow(self):
+        # 0x7f + 1 = 0x80 sets N and the signed overflow O (127 + 1), no carry
+        self.check([0x50, 0x01], 0x7f, 0x80, 0x80, (False, False, True, True))
 
     def test_add_reg(self):
         self.check([0x58, 0x40], 0x10, 0x35, 0x35, ci=0x25)
@@ -97,14 +103,14 @@ class Alu8Tests(AluTestBase):
         self.check([0x51, 0x05], 0x05, 0x00, 0x00)
 
     def test_sub_imm_wrap_below_zero(self):
-        # 3 - 5 = -2 -> 0xfe, N and "overflow" (borrow), no carry
-        self.check([0x51, 0x05], 0x03, 0xfe, -2, (False, False, True, True))
+        # 3 - 5 = -2 -> 0xfe, N and C (borrow), no signed overflow
+        self.check([0x51, 0x05], 0x03, 0xfe, -2, (False, True, True, False))
 
     def test_sub_reg(self):
         self.check([0x59, 0x40], 0x50, 0x30, 0x30, ci=0x20)
 
     def test_sub_reg_borrow(self):
-        self.check([0x59, 0x50], 0x00, 0xff, -1, (False, False, True, True), di=0x01)
+        self.check([0x59, 0x50], 0x00, 0xff, -1, (False, True, True, False), di=0x01)
 
     # --- AND / OR / XOR ----------------------------------------------
     def test_and_imm(self):
@@ -170,26 +176,27 @@ class Alu8Tests(AluTestBase):
 
     # --- NOT ---------------------------------------------------------
     def test_not(self):
-        # ~0x0f = -16 -> 0xf0: N set, "overflow" (negative raw value)
-        self.check([0x57], 0x0f, 0xf0, -16, (False, False, True, True))
+        # ~0x0f = 0xf0: N set; C and O are cleared by logic ops
+        self.check([0x57], 0x0f, 0xf0, -16, (False, False, True, False))
 
     def test_not_zero_gives_ff(self):
-        self.check([0x57], 0x00, 0xff, -1, (False, False, True, True))
+        self.check([0x57], 0x00, 0xff, -1, (False, False, True, False))
 
     def test_not_ff_gives_zero(self):
-        # Z describes the stored A (#53); PINNED (#54): "overflow" set because the raw value is -256
-        self.check([0x57], 0xff, 0x00, -256, (True, False, False, True))
+        # Z describes the stored A (#53); C and O are cleared by logic ops
+        self.check([0x57], 0xff, 0x00, -256, (True, False, False, False))
 
     # --- INC / DEC ---------------------------------------------------
     def test_inc(self):
         self.check([0x5d], 0x41, 0x42, 0x42)
 
     def test_inc_into_sign_bit(self):
-        self.check([0x5d], 0x7f, 0x80, 0x80)
+        # 0x7f + 1: signed overflow O, no carry
+        self.check([0x5d], 0x7f, 0x80, 0x80, (False, False, True, True))
 
     def test_inc_wrap_at_0xff(self):
-        # Z describes the stored A (#53); PINNED (#54): C and "overflow" set by the raw 0x100
-        self.check([0x5d], 0xff, 0x00, 0x100, (True, True, False, True))
+        # Z describes the stored A (#53); 0xff + 1: carry, no signed overflow
+        self.check([0x5d], 0xff, 0x00, 0x100, (True, True, False, False))
 
     def test_dec(self):
         self.check([0x5e], 0x42, 0x41, 0x41)
@@ -198,7 +205,8 @@ class Alu8Tests(AluTestBase):
         self.check([0x5e], 0x01, 0x00, 0x00)
 
     def test_dec_wrap_below_zero(self):
-        self.check([0x5e], 0x00, 0xff, -1, (False, False, True, True))
+        # 0 - 1: borrow C, no signed overflow
+        self.check([0x5e], 0x00, 0xff, -1, (False, True, True, False))
 
     def test_inc_dec_do_not_touch_next_byte(self):
         cpu = self.run_code([0x5d, 0x5d, 0x5e], a=0x00)
@@ -236,12 +244,14 @@ class Alu16Tests(AluTestBase):
         self.check16(self.imm(0xa, 0x0, 0x80, 0x0001), 0x00ff, 0x0100, 0x0100)
 
     def test_add16_wrap_at_0xffff(self):
-        # Z describes the stored pair (#53); PINNED (#54): C and "overflow" use the raw sum 0x10000
+        # Z describes the stored pair (#53); 0xffff + 1: carry, no signed overflow
         self.check16(self.imm(0xa, 0x0, 0x80, 0x0001), 0xffff, 0x0000,
-                     0x10000, (True, True, False, True))
+                     0x10000, (True, True, False, False))
 
     def test_add16_into_sign_bit(self):
-        self.check16(self.imm(0xa, 0x0, 0x80, 0x0001), 0x7fff, 0x8000, 0x8000)
+        # 0x7fff + 1: signed overflow O, no carry
+        self.check16(self.imm(0xa, 0x0, 0x80, 0x0001), 0x7fff, 0x8000, 0x8000,
+                     (False, False, True, True))
 
     def test_add16_zero(self):
         self.check16(self.imm(0xa, 0x0, 0x80, 0x0000), 0x0000, 0x0000, 0)
@@ -261,8 +271,9 @@ class Alu16Tests(AluTestBase):
         self.check16(self.imm(0xa, 0x1, 0x80, 0x1234), 0x1234, 0x0000, 0)
 
     def test_sub16_wrap_below_zero(self):
+        # 0 - 1: borrow C, no signed overflow
         self.check16(self.imm(0xa, 0x1, 0x80, 0x0001), 0x0000, 0xffff,
-                     -1, (False, False, True, True))
+                     -1, (False, True, True, False))
 
     def test_sub16_reg(self):
         self.check16([0x5f, 0xa9, 0x80], 0x1000, 0x0fff, 0x0fff, ds=0x00, di=0x01)
@@ -276,7 +287,7 @@ class Alu16Tests(AluTestBase):
         self.check16(self.imm(0xa, 0x2, 0x80, 0x0003), 0x0101, 0x0303, 0x0303)
 
     def test_mul16_overflow(self):
-        # Z describes the stored pair (#53); PINNED (#54): C and "overflow" set by the raw 0x10000
+        # Z describes the stored pair (#53); product over 0xffff: C = O = 1 (#54)
         self.check16(self.imm(0xa, 0x2, 0x80, 0x0100), 0x0100, 0x0000,
                      0x10000, (True, True, False, True))
 
@@ -372,9 +383,9 @@ class Alu16Tests(AluTestBase):
         self.check16([0x5f, 0xad, 0x80], 0x00ff, 0x0100, 0x0100)
 
     def test_inc16_wrap_at_0xffff(self):
-        # Z describes the stored pair (#53); PINNED (#54): C and "overflow" use the raw 0x10000
+        # Z describes the stored pair (#53); 0xffff + 1: carry, no signed overflow
         self.check16([0x5f, 0xad, 0x80], 0xffff, 0x0000, 0x10000,
-                     (True, True, False, True))
+                     (True, True, False, False))
 
     def test_inc16_ds_pair(self):
         cpu = self.run_code([0x5f, 0xad, 0x90], ds=0x12, di=0xff)
@@ -390,8 +401,9 @@ class Alu16Tests(AluTestBase):
         self.check16([0x5f, 0xae, 0x80], 0x0001, 0x0000, 0)
 
     def test_dec16_wrap_below_zero(self):
+        # 0 - 1: borrow C, no signed overflow
         self.check16([0x5f, 0xae, 0x80], 0x0000, 0xffff, -1,
-                     (False, False, True, True))
+                     (False, True, True, False))
 
     def test_dec16_ds_pair(self):
         cpu = self.run_code([0x5f, 0xae, 0x90], ds=0x13, di=0x00)
@@ -442,18 +454,18 @@ class Alu16Tests(AluTestBase):
 
     # --- NOT -----------------------------------------------------------
     def test_not16(self):
-        # ~0x00ff = -256 -> 0xff00: N, "overflow"
+        # ~0x00ff = 0xff00: N; C and O are cleared by logic ops
         self.check16([0x5f, 0xb7, 0x80], 0x00ff, 0xff00, -256,
-                     (False, False, True, True))
+                     (False, False, True, False))
 
     def test_not16_zero(self):
         self.check16([0x5f, 0xb7, 0x80], 0x0000, 0xffff, -1,
-                     (False, False, True, True))
+                     (False, False, True, False))
 
     def test_not16_ffff(self):
-        # Z describes the stored pair (#53); PINNED (#54): "overflow" set because the raw value is -65536
+        # Z describes the stored pair (#53); C and O are cleared by logic ops
         self.check16([0x5f, 0xb7, 0x80], 0xffff, 0x0000, -65536,
-                     (True, False, False, True))
+                     (True, False, False, False))
 
     def test_not16_ds_pair(self):
         cpu = self.run_code([0x5f, 0xb7, 0x90], ds=0x0f, di=0xf0)
@@ -472,9 +484,136 @@ class Alu16Tests(AluTestBase):
         self.assertEqual(cpu.a.get(), 0x03)
 
     def test_shl16_wrap_to_zero_sets_z(self):
-        # 0x8000 << 1 = pair 0x0000: Z describes the stored pair (#53); C/O from the raw 0x10000 (#54/#55)
+        # 0x8000 << 1 = pair 0x0000: Z describes the stored pair (#53); C/O pinned (#55)
         self.check16(self.imm(0xb, 0x5, 0x80, 0x0001), 0x8000, 0x0000,
                      0x10000, (True, True, False, True))
+
+
+class CarryAndOverflowTests(AluTestBase):
+    """C is the unsigned carry/borrow, O the signed overflow (#54)."""
+    CF, OF = 1, 3
+
+    def flags8(self, code, a, **regs):
+        cpu = self.run_code(code, a=a, **regs)
+        return cpu.a.get(), flags_of(cpu)
+
+    def flags16(self, code, start, **regs):
+        cpu = self.run_code(code, cs=start >> 8, ci=start & 0xff, **regs)
+        return self.pair(cpu), flags_of(cpu)
+
+    def imm16(self, op, value):
+        return [0x5f, 0xa0 | op, 0x80, value >> 8, value & 0xff]
+
+    def test_add8_signed_overflow_without_carry(self):
+        self.assertEqual(self.flags8([0x50, 0x01], 0x7f), (0x80, (False, False, True, True)))
+
+    def test_add8_carry_and_overflow(self):
+        self.assertEqual(self.flags8([0x50, 0x80], 0x80), (0x00, (True, True, False, True)))
+
+    def test_add8_negative_plus_positive_never_overflows(self):
+        self.assertEqual(self.flags8([0x50, 0x7f], 0x80), (0xff, (False, False, True, False)))
+
+    def test_add8_reg_signed_overflow(self):
+        self.assertEqual(self.flags8([0x58, 0x40], 0x50, ci=0x50), (0xa0, (False, False, True, True)))
+
+    def test_sub8_signed_overflow_without_borrow(self):
+        self.assertEqual(self.flags8([0x51, 0x01], 0x80), (0x7f, (False, False, False, True)))
+
+    def test_sub8_borrow_and_overflow(self):
+        self.assertEqual(self.flags8([0x51, 0xff], 0x7f), (0x80, (False, True, True, True)))
+
+    def test_sub8_borrow_without_overflow(self):
+        self.assertEqual(self.flags8([0x51, 0x01], 0x00), (0xff, (False, True, True, False)))
+
+    def test_sub8_no_borrow(self):
+        self.assertEqual(self.flags8([0x51, 0x01], 0x05), (0x04, (False, False, False, False)))
+
+    def test_sub8_equal_operands_no_borrow(self):
+        self.assertEqual(self.flags8([0x51, 0x05], 0x05), (0x00, (True, False, False, False)))
+
+    def test_sub8_reg_borrow(self):
+        self.assertEqual(self.flags8([0x59, 0x50], 0x03, di=0x05), (0xfe, (False, True, True, False)))
+
+    def test_inc8_overflow_only_at_0x7f(self):
+        self.assertEqual(self.flags8([0x5d], 0x7f), (0x80, (False, False, True, True)))
+        self.assertEqual(self.flags8([0x5d], 0x80), (0x81, (False, False, True, False)))
+
+    def test_dec8_overflow_only_at_0x80(self):
+        self.assertEqual(self.flags8([0x5e], 0x80), (0x7f, (False, False, False, True)))
+        self.assertEqual(self.flags8([0x5e], 0x7f), (0x7e, (False, False, False, False)))
+
+    def test_logic8_clear_a_preset_carry_and_overflow(self):
+        preset = {bc8183_cpu.FlagsRegister.CARRY: 1, bc8183_cpu.FlagsRegister.OVERFLOW: 1}
+        for name, code in (('and', [0x52, 0xff]), ('or', [0x53, 0x01]),
+                           ('xor', [0x54, 0x01]), ('not', [0x57])):
+            with self.subTest(op=name):
+                cpu = self.run_code(code, a=0x80, flags=preset)
+                _, c, _, o = flags_of(cpu)
+                self.assertEqual((c, o), (0, 0))
+
+    def test_add16_signed_overflow_without_carry(self):
+        self.assertEqual(self.flags16(self.imm16(0, 1), 0x7fff), (0x8000, (False, False, True, True)))
+
+    def test_add16_carry_and_overflow(self):
+        self.assertEqual(self.flags16(self.imm16(0, 0x8000), 0x8000), (0x0000, (True, True, False, True)))
+
+    def test_sub16_signed_overflow_without_borrow(self):
+        self.assertEqual(self.flags16(self.imm16(1, 1), 0x8000), (0x7fff, (False, False, False, True)))
+
+    def test_sub16_borrow_and_overflow(self):
+        self.assertEqual(self.flags16(self.imm16(1, 0xffff), 0x7fff), (0x8000, (False, True, True, True)))
+
+    def test_sub16_borrow_without_overflow(self):
+        self.assertEqual(self.flags16(self.imm16(1, 1), 0x0000), (0xffff, (False, True, True, False)))
+
+    def test_sub16_no_borrow(self):
+        self.assertEqual(self.flags16(self.imm16(1, 1), 0x0005), (0x0004, (False, False, False, False)))
+
+    def test_sub16_reg_borrow(self):
+        self.assertEqual(self.flags16([0x5f, 0xa9, 0x80], 0x0000, ds=0x00, di=0x01),
+                         (0xffff, (False, True, True, False)))
+
+    def test_inc16_overflow_only_at_0x7fff(self):
+        self.assertEqual(self.flags16([0x5f, 0xad, 0x80], 0x7fff), (0x8000, (False, False, True, True)))
+        self.assertEqual(self.flags16([0x5f, 0xad, 0x80], 0x8000), (0x8001, (False, False, True, False)))
+
+    def test_dec16_overflow_only_at_0x8000(self):
+        self.assertEqual(self.flags16([0x5f, 0xae, 0x80], 0x8000), (0x7fff, (False, False, False, True)))
+        self.assertEqual(self.flags16([0x5f, 0xae, 0x80], 0x7fff), (0x7ffe, (False, False, False, False)))
+
+    def test_mul16_over_range_sets_c_and_o(self):
+        self.assertEqual(self.flags16(self.imm16(2, 0x0100), 0x0200), (0x0000, (True, True, False, True)))
+        self.assertEqual(self.flags16(self.imm16(2, 2), 0x8000), (0x0000, (True, True, False, True)))
+
+    def test_mul16_in_range_clears_c_and_o(self):
+        preset = {bc8183_cpu.FlagsRegister.CARRY: 1, bc8183_cpu.FlagsRegister.OVERFLOW: 1}
+        cpu = self.run_code(self.imm16(2, 2), cs=0x40, ci=0x00, flags=preset)
+        self.assertEqual((self.pair(cpu), flags_of(cpu)), (0x8000, (False, False, True, False)))
+
+    def test_div_mod16_clear_a_preset_carry_and_overflow(self):
+        preset = {bc8183_cpu.FlagsRegister.CARRY: 1, bc8183_cpu.FlagsRegister.OVERFLOW: 1}
+        for op in (3, 4):
+            with self.subTest(op=op):
+                cpu = self.run_code(self.imm16(op, 7), cs=0x00, ci=0x64, flags=preset)
+                _, c, _, o = flags_of(cpu)
+                self.assertEqual((c, o), (0, 0))
+
+    def test_div_mod16_by_zero_keep_carry(self):
+        preset = {bc8183_cpu.FlagsRegister.CARRY: 1}
+        for op in (3, 4):
+            with self.subTest(op=op):
+                cpu = self.run_code(self.imm16(op, 0), cs=0x00, ci=0x64, flags=preset)
+                _, c, _, o = flags_of(cpu)
+                self.assertEqual((c, o), (1, 1))
+
+    def test_logic16_clear_a_preset_carry_and_overflow(self):
+        preset = {bc8183_cpu.FlagsRegister.CARRY: 1, bc8183_cpu.FlagsRegister.OVERFLOW: 1}
+        for name, code in (('and', [0x5f, 0xb2, 0x80, 0xff, 0xff]), ('or', [0x5f, 0xb3, 0x80, 0x00, 0x01]),
+                           ('xor', [0x5f, 0xb4, 0x80, 0x00, 0x01]), ('not', [0x5f, 0xb7, 0x80])):
+            with self.subTest(op=name):
+                cpu = self.run_code(code, cs=0x80, ci=0x00, flags=preset)
+                _, c, _, o = flags_of(cpu)
+                self.assertEqual((c, o), (0, 0))
 
 
 class JumpOnZeroAfterWrapTests(AluTestBase):
