@@ -24,7 +24,7 @@ that BCC3 copies.
 | 3 | #4 | emulator | `jrx` negation bit, division by zero, FDD state typo | every `if`/`while` uses `jrx`; the linker encodes it |
 | 4 | #53 | emulator | zero flag from the unwrapped result | runtime comparison helpers depend on flags |
 | 5 | #54 | emulator | overflow/carry semantics, borrow | same |
-| 6 | #55 | emulator | `shl`/`shr` flags | same |
+| 6 | #55 | emulator | `shl`/`shr` flags. **Decided (2026-11-20):** `Z`/`N` from the stored result, `C` = last bit shifted out, `O` = a 1 bit shifted out for `shl` and 0 for `shr`; the same for 16-bit (E12) | same |
 | 7 | #56 | emulator + assembler | register forms of `shl`/`shr` | an encoding decision BASM must copy |
 | 8 | #57 | emulator + assembler | 16-bit pair ops ignore the second operand. **Decided (2026-11-19):** the CPU keeps the implied second pair (`csci`→`dsdi`, `dsdi`→`csci`, `af`→`csci`) and the assembler enforces it; BASM must apply the same rule | same |
 | 9 | #58 | emulator + assembler | 16-bit results in `A:F` | same |
