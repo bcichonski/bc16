@@ -100,7 +100,7 @@ printstr_end:  ret
 printhex4:     mov cs, 0x01
                psh a
                sub 0x0a
-               jmr no, :printhex4_af
+               jmr nc, :printhex4_af
 printhex4_09:  pop a
                add 0x30
                out #cs, a
@@ -304,10 +304,10 @@ parsehex16_end:ret
 ;         ci - old a val
 upchar:        mov ci, a
                sub 0x7a
-               jmr no, :upchar_skip
+               jmr nc, :upchar_skip
                mov a, ci
                sub 0x61
-               jmr o, :upchar_skip
+               jmr c, :upchar_skip
                add 0x41
                ret
 upchar_skip:   mov a, ci
@@ -411,10 +411,10 @@ prnt_fmt_char: pop a
                mov ci, a
                mov cs, 0x01
                sub 0x80
-               jmr no, :prnt_fmt_char3
+               jmr nc, :prnt_fmt_char3
                mov a, ci
                sub 0x20
-               jmr no, :prnt_fmt_char2
+               jmr nc, :prnt_fmt_char2
                mov a, ci
                sub 0x0d
                jmr nz, :prnt_fmt_char3
@@ -693,11 +693,11 @@ div16:       cal :os12_comperror
 ;       a - 0 otherwise
 gt16:        mov a, cs
              sub ds
-             jmr o, :gt16_false
+             jmr c, :gt16_false
              jmr nz, :gt16_true
              mov a, ci
              sub di
-             jmr o, :gt16_false
+             jmr c, :gt16_false
              jmr nz, :gt16_true
 gt16_false:  xor a
              ret
@@ -711,11 +711,11 @@ gt16_true:   mov a, 0x01
 ;       a - 0 otherwise
 gteq16:      mov a, cs
              sub ds
-             jmr o, :gteq16_false
+             jmr c, :gteq16_false
              jmr nz, :gteq16_true
              mov a, ci
              sub di
-             jmr o, :gteq16_false
+             jmr c, :gteq16_false
              jmr nz, :gteq16_true
 gteq16_true: mov a, 0x01
              ret

@@ -113,7 +113,7 @@ Building from source needs `pip install -e .` (it installs `parsy`). The referen
 ### Known limitations
 - `cp` reads keys until the input runs out and never creates the copy (#73).
 - Files only grow on a disc: free space is not reused (#41).
-- For people writing programs: `strnextword` in `strings.b` never returns 0 (#82), CPU flag and ALU issues (#53, #54, #55, #56, #57, #58), the compiler has no `return`
+- For people writing programs: `strnextword` in `strings.b` never returns 0 (#82), CPU flag and ALU issues (#55, #56, #57, #58), the compiler has no `return`
   anywhere in a function (#20) and crashes on an undeclared variable (#68), and the assembler has issues with labels at
   address 0 (#64), labels after a second `.org` (#65), `inc af`/`dec af` (#66) and `clr af` (#67).
 
@@ -286,9 +286,9 @@ some extentions like 16bit arithmetic? or 8bit div/mod/mul
 
 0xB F - 8bit processor flags
  0x0 - ZERO
- 0x1 - CARRY
+ 0x1 - CARRY (carry or borrow, unsigned)
  0x2 - NEGATIVE
- 0x3 - OVERFLOW
+ 0x3 - OVERFLOW (signed overflow, two's complement)
 0x1 A - 8bit accumulator
 0x4 CI - 8bit register addressing C segment
 0x5 DI - 8bit register addressing D segment
@@ -352,11 +352,11 @@ bc8181 instruction set B0H:
 0x6 - JMP t,(rno1,rno2)
   0x0 - if ZERO
   0x4 - if NOT ZERO
-  0x1 - if CARRY
+  0x1 - if CARRY (carry or borrow, unsigned)
   0x5 - if NOT CARRY
   0x2 - if NEGATIVE
   0x6 - if NOT NEGATIVE
-  0x3 - if OVERFLOW
+  0x3 - if OVERFLOW (signed overflow)
   0x7 - if NOT OVERFLOW
   0x8-0xF is special mode where addres is CS:imm (its kind of short absolute jump)
 0x7 - JMR t,imm7

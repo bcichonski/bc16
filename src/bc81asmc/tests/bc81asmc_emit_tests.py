@@ -86,6 +86,55 @@ class TestLabelsAbsolute(unittest.TestCase):
                          [(2, 5, "undefined label ':nowhere'")])
 
 
+class TestAddressZeroTargets(unittest.TestCase):
+    '''#64: a label or .def whose value is 0x0000 is a defined target, not "undefined label".
+    Each expected byte string was taken from the live assembler and matches docs/02-assembler.md.'''
+
+    def test_issue_repro_label_at_zero_via_jmp(self):
+        self.assertEqual(code(".org 0x0000\nstart: nop\njmp z, :start\n"),
+                         [0x00, 0x68, 0x00])
+
+    def test_def_zero_via_jmp(self):
+        # jmp t, :label = 6(t+8) ll
+        self.assertEqual(code(".def zero, 0x0000\n.org 0x0010\njmp z, :zero\n"),
+                         [0x68, 0x00])
+
+    def test_def_zero_via_cal(self):
+        # cal :label = A8 hh ll
+        self.assertEqual(code(".def zero, 0x0000\n.org 0x0010\ncal :zero\n"),
+                         [0xa8, 0x00, 0x00])
+
+    def test_def_zero_via_mv(self):
+        # .mv pair, :label = mov hi,imm8 + mov lo,imm8
+        self.assertEqual(code(".def zero, 0x0000\n.org 0x0010\n.mv dsdi, :zero\n"),
+                         [0x19, 0x00, 0x15, 0x00])
+
+    def test_def_zero_via_jrx(self):
+        # jrx t, :label = E1 t0 hh ll (15-bit sign-magnitude), placed at a non-zero .org
+        self.assertEqual(code(".def zero, 0x0000\n.org 0x0010\njrx z, :zero\n"),
+                         [0xe1, 0x00, 0x80, 0x13])
+
+    def test_label_at_zero_via_jmr(self):
+        # jmr t, :label = 7t dd (7-bit sign-magnitude), backward to address 0
+        self.assertEqual(code("start: nop\njmr z, :start\n"),
+                         [0x00, 0x70, 0x81])
+
+    def test_label_at_zero_via_jrx(self):
+        # jrx t, :label = E1 t0 hh ll, backward to address 0
+        self.assertEqual(code("start: nop\njrx z, :start\n"),
+                         [0x00, 0xe1, 0x00, 0x80, 0x04])
+
+    def test_label_at_zero_via_clr(self):
+        # clr :label = A9 hh ll (15-bit sign-magnitude relative call)
+        self.assertEqual(code("start: nop\nclr :start\n"),
+                         [0x00, 0xa9, 0x80, 0x03])
+
+    def test_label_at_zero_via_mv(self):
+        # .mv csci, :label = mov hi,imm8 + mov lo,imm8
+        self.assertEqual(code("start: nop\n.mv csci, :start\n"),
+                         [0x00, 0x18, 0x00, 0x14, 0x00])
+
+
 class TestLabelsRelative7(unittest.TestCase):
     '''jmr :label, 7-bit sign-magnitude offset stored as target - offset_byte_addr + 1.'''
 

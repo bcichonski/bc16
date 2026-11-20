@@ -448,6 +448,38 @@ class JrxTests(ControlTestBase):
             self.assertEqual(cpu.di.get(), 0x11, 'jrx n' + name + ' with flag set')
 
 
+class JmrOnCarryAndOverflowTests(ControlTestBase):
+    """`jmr c` after a borrowing SUB and `jmr o` after a signed-overflowing ADD run as real code (#54).
+    Taken: MOV DI,0x22 at 0x0a. Not taken: MOV DI,0x11 then KIL."""
+
+    def program(self, alu, jmr_opcode):
+        code = list(alu) + [jmr_opcode, 0x08, 0x15, 0x11, KIL, 0x00, 0x00, 0x00]
+        assert len(code) == len(alu) + 8
+        return code + [0x15, 0x22, KIL]
+
+    def check(self, alu, jmr_opcode, a, taken):
+        cpu = self.run_code(self.program(alu, jmr_opcode), a=a)
+        self.assertEqual(cpu.di.get(), 0x22 if taken else 0x11)
+
+    def test_jmr_c_taken_after_borrowing_sub(self):
+        self.check([0x51, 0x01], 0x71, 0x00, True)      # 0 - 1 borrows
+
+    def test_jmr_c_not_taken_after_sub_without_borrow(self):
+        self.check([0x51, 0x01], 0x71, 0x05, False)
+
+    def test_jmr_nc_taken_after_sub_without_borrow(self):
+        self.check([0x51, 0x01], 0x75, 0x05, True)
+
+    def test_jmr_o_taken_after_add_signed_overflow(self):
+        self.check([0x50, 0x01], 0x73, 0x7f, True)      # 127 + 1
+
+    def test_jmr_o_not_taken_after_add_unsigned_carry(self):
+        self.check([0x50, 0x01], 0x73, 0xff, False)     # carry, but -1 + 1 does not overflow
+
+    def test_jmr_o_not_taken_after_borrowing_sub(self):
+        self.check([0x51, 0x01], 0x73, 0x00, False)
+
+
 class StackTests(ControlTestBase):
     def test_PSH_writes_tag_and_value_and_moves_stack_pointer(self):
         cpu = self.run_code([0x81, KIL], a=0x42)

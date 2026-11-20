@@ -27,7 +27,7 @@ that BCC3 copies.
 | 6 | #55 | emulator | `shl`/`shr` flags. **Decided (2026-11-20):** `Z`/`N` from the stored result, `C` = last bit shifted out, `O` = a 1 bit shifted out for `shl` and 0 for `shr`; the same for 16-bit (E12) | same |
 | 7 | #56 | emulator + assembler | register forms of `shl`/`shr` | an encoding decision BASM must copy |
 | 8 | #57 | emulator + assembler | 16-bit pair ops ignore the second operand. **Decided (2026-11-19):** the CPU keeps the implied second pair (`csci`→`dsdi`, `dsdi`→`csci`, `af`→`csci`) and the assembler enforces it; BASM must apply the same rule | same |
-| 9 | #58 | emulator + assembler | 16-bit results in `A:F`. **Decided (2026-11-20):** `af` stays allowed as a 16-bit destination and the CPU is unchanged: `A` gets the high byte of the result, `F` the flags, and the low byte is lost. Use `csci` or `dsdi` for 16-bit arithmetic ([E13](../specs/memory/design-decisions.md)) | same |
+| 9 | #58 | emulator + assembler | 16-bit results in `A:F`. **Decided (2026-11-20):** `af` stays allowed as a 16-bit destination and the CPU is unchanged: `A` gets the high byte of the result, `F` the flags, and the low byte is lost. Use `csci` or `dsdi` for 16-bit arithmetic ([E14](../specs/memory/design-decisions.md)) | same |
 | 10 | #59 | emulator | confirm `RET` behaviour with push frames | before the ABI is frozen |
 | 11 | #64 | assembler | a label at address `0x0000` is "not defined" | **blocker for `--obj`**: every section starts at offset 0 |
 | 12 | #65 | assembler | fix-ups after a second `.org` | object files allow `.org` only on the first line |
