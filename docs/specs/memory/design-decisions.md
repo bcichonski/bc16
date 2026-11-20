@@ -220,6 +220,9 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Usage:**
   - `PSH` frame = `0x10` + value (2 bytes);
   - `CAL` frame = `0xC0` + hi + lo (3 bytes);
+  - `RET` with two push frames on top jumps to the pushed address (`psh lo; psh hi; ret`): the high
+    byte is the last pushed value. A single push frame with no push frame directly below it, or an
+    unknown top tag, stops the CPU cleanly like `KIL` (owner decision on #59, 2026-11-20);
   - keep these sizes when touching stack code, and in software that computes stack depth.
 - **Trade-offs:** stack use is double what a plain stack needs.
 
