@@ -21,6 +21,8 @@ The diagnostics tests are `tests/bc81asmc_diag_tests.py` (records, formatter, pa
 - `bc81asmc_grammar.py` turns each line into one AST dataclass from `bc81asmc_ast.py`.
   Every instruction class has its own `emit(context)`, which writes nibbles/bytes into
   `CodeContext`.
+  A label-only line becomes a no-byte node that carries just the label; in pass 1 its address is
+  the current address.
 - **Two passes:**
   1. emit, with a `0xfa` placeholder wherever a label is used, recorded in
      `context.labels` as `(addr, label, kind)`. A repeated label or `.def` name is an error

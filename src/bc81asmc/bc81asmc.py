@@ -21,6 +21,7 @@ def compile(ast, verbose):
     diagnostics = []
     asserts = []
     overflowed = False
+    orgline = None
     if verbose:
             print('1st pass')
     for line in ast:
@@ -51,6 +52,15 @@ def compile(ast, verbose):
                 deflines[name] = lineno
         if isinstance(line, ASSERT):
             asserts.append(line)
+        if isinstance(line, ORG):
+            if orgline is not None:
+                diagnostics.append(Diagnostic(lineno, col,
+                    'duplicate .org (first .org at line {0}); use .org once, at the top'.format(orgline)))
+                continue
+            if context.bytes or labellines:
+                diagnostics.append(Diagnostic(lineno, col, '.org must come before any code or label'))
+                continue
+            orgline = lineno
         saved = (len(context.bytes), context.curraddr, context.currbyte, context.currhalf,
                  len(context.labels), context.startaddr)
         try:
