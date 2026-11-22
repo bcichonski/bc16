@@ -117,5 +117,18 @@ class TestFileNameAsGiven(CliCase):
         self.assertTrue(r.stderr.startswith("sub/x.basm:1:5: error:"))
 
 
+
+class TestSecondOrg(CliCase):
+    def test_second_org_block_exit_1_and_no_btap(self):
+        r = self.run_asm(".org 0x1000\nnop\n.org 0x2000\n")
+        self.assertEqual(r.returncode, 1)
+        lines = r.stderr.splitlines()
+        self.assertEqual(lines[0], 'prog.basm:3:1: error: duplicate .org (first .org at line 1); '
+                                   'use .org once, at the top')
+        self.assertEqual(lines[1], '.org 0x2000')
+        self.assertEqual(lines[2].strip(), '^')
+        self.assertNotIn('Traceback', r.stderr)
+        self.assertFalse(self.btap_exists())
+
 if __name__ == '__main__':
     unittest.main()
