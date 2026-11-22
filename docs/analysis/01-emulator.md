@@ -32,7 +32,7 @@ Reference: [../01-emulator.md](../01-emulator.md). Decisions: E1–E6, G8 in
 |---|---|---|---|---|
 | 1 | Interactive-only I/O | disk and tape names are read from stdin (`get_string`); the keyboard is raw `getch` | the real system can't be tested automatically | #3 |
 | 2 | The trace is all-or-nothing | `d` arg → every instruction appended to `cpudebug.log` (27 MB seen) | traces are unusable for long runs | |
-| 3 | Latent bugs | `op_EXT` checks the `JRX` negation bit in the wrong nibble; `FloppyDriveV1` `self.setate` typo; division by zero crashes Python; `OUT #r, imm` encoding mismatch (an assembler fix, #11) | a trap for the first program that uses these | #4 |
+| 3 | Latent bugs | `op_EXT` checks the `JRX` negation bit in the wrong nibble; `FloppyDriveV1` `self.setate` typo; division by zero crashes Python; `OUT #r, imm` encoding mismatch (an assembler fix, **done in #11**) | a trap for the first program that uses these | #4 |
 | 4 | Failing test | `test_CLR_opcodes` | the suite isn't green, so a regression can't be told apart from the known failure | #4 |
 | 5 | Opcode constants duplicated in the assembler | `bc8183_cpu.py` vs `bc81asmc_ast.py` | encoding drift between the CPU and the tools | #5 |
 | 6 | ~~**Memory was one byte short of 64 KB**~~ (done, #7) | `TOPMEM = 0xffff` was used as the size → `bytearray(0xffff)`; the stack starts at `0xfffe` | fixed: the memory is the full `0x0000–0xffff` (65,536 bytes) | #7 |

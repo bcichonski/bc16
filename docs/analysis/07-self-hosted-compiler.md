@@ -727,8 +727,8 @@ assembly and B modules link together.
   [shared constants](#shared-constants).
 - **`.org`** is accepted only as the first line, and makes the whole file an absolute
   section at that address (the boot sector, `0x0e00`). Elsewhere it's an error.
-- **Known quirks:** `out #r, imm` is broken on the host and unused. The owner decided in #11
-  to fix the encoder; that is done in phase 0, and BASM encodes it the fixed way.
+- **Known quirks:** `out #r, imm` was broken on the host and unused. **Done in #11:** the host
+  encoder emits `Dr HH` for the port registers `a`, `ci` and `di`, and BASM encodes it the same way.
 - **Size estimate:** reader 200 (shared `RDR`) + `#include`/`#define` 150 (shared `PRE`) +
   operand parser 250 + encoder 400 (`ENC`) + label table 100 + object writer 150 (shared
   `BOFW`) + driver 50 = about **1,300 lines**, 15.5 KB of code + 4–6 KB of libraries +
@@ -1092,7 +1092,7 @@ phase 1, #16 and #41 into phase 0). The issue for each step is in
   `blink.py`) → BASM on the BC64 → B objects on the host and BLINK on the BC64 → compiler
   passes. Dead-code elimination in the host `bc` (#16) is a prerequisite. Freed disc space
   is reused by bdos (#41, largest gap first) instead of a `pack` utility. `out #r, imm` is
-  fixed, as decided in #11. The list is
+  fixed (**done in #11**). The list is
   [08-self-hosted-roadmap.md](08-self-hosted-roadmap.md).
 - **Decisions still open for the owner:**
   1. Is texted's record format the official source format (recommended: yes, and the

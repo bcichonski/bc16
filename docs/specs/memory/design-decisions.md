@@ -556,6 +556,15 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - BASM must apply the same rule when it exists (`docs/analysis/08-self-hosted-roadmap.md`, step 13).
 - **Trade-offs:** no CPU change: a hand-encoded `A1 1B` still runs and calls relative to `A:F`, so only the assembler refuses to produce it. Odd concatenations such as `clr ssci` that used to assemble are now errors; no repo source used them, so no program changes bytes.
 
+### A11. out #r, imm encodes Dr HH; the port register must be a, ci or di
+- **Purpose:** `out #r, 0xHH` assembles to the CPU's 2-byte immediate form `Dr HH` (port `r` gets the value `HH`), and the assembler rejects every port register the form cannot name, with a positioned `cannot encode` error, instead of the old nibble layout.
+- **Rationale:** the owner decided on #11 to fix the instruction, not reject it: the CPU already implements the immediate form, so the CPU is the reference and only the encoder changes. The 3-bit port field can only name `a` (1), `ci` (4) and `di` (5). `cs`, `ds`, `f`, `si`, `ss` and `pc` have numbers of 8 or more; a number >= 8 would set bit 3 and silently turn the instruction into the register form `out #r, r2`, so they are rejected (same reasoning as A8 and A9). The immediate form sets no flags, while the register form sets `Z`/`N` and clears `C`/`O`; both are documented in `docs/01-emulator.md`. No shipped source used the form, so every build is byte-identical.
+- **Usage:**
+  - `out #a, 0xHH`, `out #ci, 0xHH` and `out #di, 0xHH` encode `D1 HH`, `D4 HH` and `D5 HH`;
+  - `out #cs, 0xHH` (and `ds`, `f`, `si`, `ss`, `pc`) is a `cannot encode` diagnostic that gives the reason, and no bytes are emitted for the line (`docs/02-assembler.md`, Errors);
+  - BASM must encode the same way when it exists (`docs/analysis/08-self-hosted-roadmap.md`, step 15).
+- **Trade-offs:** no CPU change: a hand-encoded `D0 xx` still decodes with port register 0, so only the assembler refuses to produce the other forms. The register form `out #r, r2` (`D8 r r2`) is unchanged.
+
 ---
 
 ## Compiler (`src/bc/`)

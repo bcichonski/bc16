@@ -27,6 +27,10 @@ def code(source):
     return list(assemble(source).bytes)
 
 
+OUT_IMM_REASON = ('out #{r}, 0xHH takes the port in a, ci or di; '
+                  'load the value into a register and use out #{r}, <reg>')
+
+
 def unbtapify(data):
     '''Inverse of btapify: eight bit-bytes (LSB first) per original byte.'''
     result = bytearray()
@@ -484,21 +488,46 @@ class TestErrorCases(unittest.TestCase):
 
 
 class TestOutImmediate(unittest.TestCase):
-    '''Known bug #11 (decided): out #r, imm must encode as Dr HH; out #cs/#ds, imm is an error.'''
+    '''#11: out #r, 0xHH encodes as Dr HH (r = a, ci, di); other port registers are an assembler error.'''
 
-    @unittest.expectedFailure  # #11
     def test_out_ci_immediate_encodes_as_d4_41(self):
         self.assertEqual(code("out #ci, 0x41\n"), [0xd4, 0x41])
 
-    @unittest.expectedFailure  # #11
-    def test_out_cs_immediate_is_assembler_error(self):
-        with self.assertRaises(Exception):
-            assemble("out #cs, 0x41\n")
+    def test_out_a_immediate_encodes_as_d1_hh(self):
+        self.assertEqual(code("out #a, 0x7f\n"), [0xd1, 0x7f])
 
-    @unittest.expectedFailure  # #11
+    def test_out_di_immediate_encodes_as_d5_hh(self):
+        self.assertEqual(code("out #di, 0xff\n"), [0xd5, 0xff])
+
+    def test_out_immediate_full_byte_value_is_kept(self):
+        self.assertEqual(code("out #ci, 0x00\n"), [0xd4, 0x00])
+        self.assertEqual(code("out #ci, 0xab\n"), [0xd4, 0xab])
+
+    def test_out_immediate_followed_by_instruction_stays_aligned(self):
+        self.assertEqual(code("out #ci, 0x41\nnop\n"), [0xd4, 0x41, 0x00])
+
+    def test_out_cs_immediate_is_assembler_error(self):
+        with self.assertRaises(AssemblerError) as cm:
+            assemble("out #cs, 0x41\n")
+        self.assertEqual(str(cm.exception),
+                         "cannot encode 'out #cs, 0x41': " + OUT_IMM_REASON.format(r='cs'))
+
     def test_out_ds_immediate_is_assembler_error(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(AssemblerError) as cm:
             assemble("out #ds, 0x41\n")
+        self.assertEqual(str(cm.exception),
+                         "cannot encode 'out #ds, 0x41': " + OUT_IMM_REASON.format(r='ds'))
+
+    def test_out_other_port_registers_immediate_are_assembler_errors(self):
+        for reg in ('f', 'si', 'ss', 'pc'):
+            with self.subTest(reg), self.assertRaises(AssemblerError) as cm:
+                assemble("out #{0}, 0x41\n".format(reg))
+            self.assertIn(OUT_IMM_REASON.format(r=reg), str(cm.exception))
+
+    def test_rejected_out_immediate_emits_no_bytes_and_later_lines_assemble(self):
+        with self.assertRaises(AssemblerError) as cm:
+            assemble("out #cs, 0x41\nmov a, 0x01\nout #ds, 0x02\n")
+        self.assertEqual([d.line for d in cm.exception.diagnostics], [1, 3])
 
 
 class TestShiftRegisterForms(unittest.TestCase):

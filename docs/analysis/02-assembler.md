@@ -28,7 +28,7 @@ Reference: [../02-assembler.md](../02-assembler.md). Decisions: A1–A6, G5 in
 | 2 | No listing or symbol output | only `.btap` is written | addresses of labels have to be read from `--verbose` console output; traces can't show symbols | #9 |
 | 3 | Poor error messages | a parse error is a raw parsy `ParseError` with a character index (the compiler prints line context; the assembler doesn't); an undefined label raises a `KeyError` | slow debugging, especially of generated `.basm` | #10 (done) |
 | 4 | Opcodes duplicated with the CPU | `Bc8183` constants in `bc81asmc_ast.py` vs `bc8183_cpu.py`. There's even a typo'd constant name (`CLC_SUN16`) | drift risk | #5 |
-| 5 | `out #r, imm` is encoded wrongly | `OUT.emit` with an integer emits `D0 rH`: the port register lands in the second byte and only the low 4 bits of the value survive. The CPU expects `Dr HH` (port register `a`/`ci`/`di` in the low nibble, then the full value) and reads the port from register 0, which doesn't exist | a crash, or silent corruption, if anyone uses it | #11 |
+| 5 | `out #r, imm` is encoded wrongly | `OUT.emit` with an integer emits `D0 rH`: the port register lands in the second byte and only the low 4 bits of the value survive. The CPU expects `Dr HH` (port register `a`/`ci`/`di` in the low nibble, then the full value) and reads the port from register 0, which doesn't exist | a crash, or silent corruption, if anyone uses it | #11 (done) |
 | 6 | No label arithmetic | `:label+1` and `hi(:label)` aren't possible; `.def` only takes a literal | workarounds in hand-written asm (e.g. `.mv` + `inc`) | |
 | 7 | Single `.org`, output is always `.btap` | ROM and disc images need the extra `ftool btap2bin` step | longer pipeline; the `--btap` flag does nothing | |
 | 8 | Pipfile pins Python 3.7 | `src/bc81asmc/Pipfile` | outdated, and only this tool declares dependencies at all | #12 |
@@ -56,9 +56,9 @@ issue also contains the matching proposal below.
 4. **Shared ISA table** with the emulator (#5, see [01-emulator.md](01-emulator.md)). Drive
    the grammar's mnemonic list and the encoders from it, and add a round-trip test: assemble →
    disassemble → assemble.
-5. **Fix `out #r, imm`** (#11, problem 5). Decided: fix the instruction, don't reject it.
-   The CPU already has a 2-byte immediate form (`Dr HH`), so only the encoder changes; reject
-   `cs`/`ds` as the port register, because the CPU's 3-bit field can't name them.
+5. ~~**Fix `out #r, imm`**~~ (#11, problem 5): **done in #11.** The encoder now emits the CPU's
+   2-byte immediate form (`Dr HH`) for the port registers `a`, `ci` and `di`; the others are
+   rejected (A11).
 6. **Minimal expressions**: `:label+0xNN`, `:label-0xNN`, `hi(:x)`, `lo(:x)`. Nothing more.
    Keep the language simple for the self-hosted version.
 7. **`--bin` output** with optional padding, so ROMs and disc sectors come straight out of
