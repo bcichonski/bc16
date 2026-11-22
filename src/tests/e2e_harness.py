@@ -263,3 +263,18 @@ def disc_put(image_path, name, data, attributes=ATTR_RX):
         handle.write(image)
     return CatalogEntry(name_field.decode().rstrip(), ext_field.decode().rstrip(), attributes,
                         track, sector, count)
+
+
+def read_file(image_path, name):
+    """Return (CatalogEntry, bytes) of the file 'NAME.EXT' of a disc image.
+
+    The bytes are the whole sectors of the file (length * SECTOR_SIZE), found through the
+    catalog entry. Raises KeyError if the file is not in the catalog.
+    """
+    base, _, ext = name.upper().partition(".")
+    image = read_bytes(image_path)
+    for entry in read_catalog(image_path):
+        if entry.name == base and entry.ext == ext:
+            start = (entry.track * SECTORS_PER_TRACK + entry.sector) * SECTOR_SIZE
+            return entry, image[start:start + entry.length * SECTOR_SIZE]
+    raise KeyError("no file %r in %s" % (name, image_path))

@@ -516,5 +516,62 @@ class TestShiftRegisterForms(unittest.TestCase):
         self.assertEqual(code("shr a\n"), [0x58, 0x16])
 
 
+class TestLabelOnlyLines(unittest.TestCase):
+    '''A label on a line of its own (issue #103).'''
+
+    def assertSame(self, with_label, label_only):
+        self.assertEqual(code(label_only), code(with_label))
+
+    def test_backward_forms_equal_labelled_instruction(self):
+        for ins in ('jmp z, :t', 'jmr z, :t', 'cal :t', 'clr :t', '.db :t', '.mv dsdi, :t', 'jrx z, :t'):
+            with self.subTest(ins=ins):
+                self.assertSame(".org 0x0200\nt: nop\n%s\n" % ins,
+                                ".org 0x0200\nt:\nnop\n%s\n" % ins)
+
+    def test_db_backward(self):
+        self.assertEqual(code(".org 0x1234\nstart:\nnop\n.db :start\n"),
+                         [0x00, 0x12, 0x34])
+
+    def test_db_forward(self):
+        self.assertEqual(code(".org 0x1234\n.db :end\nend:\nnop\n"),
+                         [0x12, 0x36, 0x00])
+
+    def test_mv_forward_and_backward(self):
+        self.assertEqual(code(".org 0x0200\n.mv dsdi, :msg\nmsg:\nnop\n"),
+                         code(".org 0x0200\n.mv dsdi, :msg\nmsg: nop\n"))
+        self.assertEqual(code(".org 0x0200\nmsg:\nnop\n.mv csci, :msg\n"),
+                         code(".org 0x0200\nmsg: nop\n.mv csci, :msg\n"))
+
+    def test_cal_clr_jmp_jmr_forward(self):
+        for ins in ('cal :fn', 'clr :fn', 'jmp z, :fn', 'jmr z, :fn'):
+            with self.subTest(ins=ins):
+                self.assertSame(".org 0x0300\n%s\nfn: ret\n" % ins,
+                                ".org 0x0300\n%s\nfn:\nret\n" % ins)
+
+    def test_assert_resolves_label_only(self):
+        assemble(".org 0x0200\nnop\nend:\n.assert :end = 0x0201\n")
+        assemble(".org 0x0200\n.assert :end = 0x0201\nnop\nend:\n")
+
+    def test_several_label_only_lines_share_address(self):
+        ctx = assemble(".org 0x0400\nnop\na:\n  b:  ; two\nc: ; three\n   d:\nnop\n"
+                       ".assert :a = 0x0401\n.assert :b = 0x0401\n"
+                       ".assert :c = 0x0401\n.assert :d = 0x0401\n")
+        self.assertEqual(len(ctx.bytes), 2)
+
+    def test_label_only_last_line_is_end_address(self):
+        assemble(".org 0x0400\nnop\nnop\nend:\n.assert :end = 0x0402\n")
+        ctx = assemble("nop\nnop\nnop\nend:\n.assert :end = 0x0003\n")
+        self.assertEqual(len(ctx.bytes), 3)
+
+    def test_label_only_last_line_emits_no_byte(self):
+        self.assertEqual(code("nop\nend:\n"), code("nop\n"))
+
+    def test_verbose_prints_label_only_line(self):
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            bc81asmc.compile(program.parse("nop\nhere:\n"), True)
+        self.assertIn('here', out.getvalue())
+
+
 if __name__ == '__main__':
     unittest.main()

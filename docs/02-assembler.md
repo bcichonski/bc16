@@ -49,6 +49,19 @@ label:   mnemonic operands   ; comment
 - **Mnemonics and register names must be lowercase.**
 - A label is an identifier followed by `:` at the start of a line. To refer to a label,
   prefix it with a colon: `:label`. A label or `.def` may resolve to 0x0000.
+- A label may also stand alone on a line, optionally followed by a `; comment`. Such a line
+  emits no bytes. The label gets the address of the next emitted byte. Several label-only lines
+  in a row share that address. A label-only line at the end of the file gets the end address
+  (org + code length). This lets generated code skip a filler `nop` at every label (the
+  compiler change is #104).
+
+  ```
+  loop:
+  done:          ; both labels = address of the kil
+          kil
+  end:           ; end address
+  ```
+
 - Immediates are **hex only** and the digit count is fixed (a wider value is a syntax error, see [Errors](#errors)):
   - `0xHH`: 8-bit
   - `0xHHHH`: 16-bit

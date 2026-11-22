@@ -350,7 +350,7 @@ disc. `./makedisc` runs `ftool mkdisc disc.bddmanifest os.bdd`, which writes the
 `src/utils.bddmanifest` is the manifest of `utils.bdd` and works the same way (`./makedisc` runs
 `ftool mkdisc utils.bddmanifest utils.bdd`). The catalog lengths are the source sizes, so a program that grows
 gets its new length, and the files after it move, unless it has a fixed slot (`max=`). A new system utility is
-one line in `disc.bddmanifest`; a new application or game is one line in `utils.bddmanifest`.
+one line in `disc.bddmanifest`; a new application or game is one line in `utils.bddmanifest`. A catalog length shorter than the real program loads a truncated program that never returns to the shell. That is what made `cp` hang before #37 (issue #73): it ate the keyboard input and created no copy.
 
 One file per line. `#` starts a comment, and blank lines are ignored:
 

@@ -285,6 +285,16 @@ class CatalogTests(TempCase):
         with self.assertRaises(ValueError):
             h.disc_put(disk, "toolongname.b", b"y")
 
+    def test_read_file_returns_catalog_entry_and_sector_bytes(self):
+        disk = self.path("r.bdd")
+        shutil.copyfile(h.OS_DISK, disk)
+        row = h.disc_put(disk, "abc.b", b"x" * 130)
+        entry, data = h.read_file(disk, "abc.b")
+        self.assertEqual(row, entry)
+        self.assertEqual(b"x" * 130 + bytes(126), data)
+        with self.assertRaises(KeyError):
+            h.read_file(disk, "nofile.b")
+
     def test_disc_put_refuses_full_disc(self):
         disk = self.path("f.bdd")
         shutil.copyfile(h.OS_DISK, disk)

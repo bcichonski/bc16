@@ -158,7 +158,7 @@ printer output with a golden file. They are the `test_e2e_*.py` modules in `src/
 | Module | What it covers |
 | :--- | :--- |
 | `test_e2e_bcos.py` | bcOS monitor, with `--no-floppy` |
-| `test_e2e_bdos.py` | bdos shell (`ls`, `cat`, `hellowrd`, `rm`, error messages, `cp`) on a temp copy of the built `os.bdd` |
+| `test_e2e_bdos.py` | bdos shell (`ls`, `cat`, `hellowrd`, `rm`, error messages, `cp`, checked on the same drive and to drive B) on a temp copy of the built `os.bdd` |
 | `test_e2e_disc.py` | `os.bdd`: its catalog and positions against `disc.bddmanifest`, and a session on it |
 | `test_e2e_texted.py`, `test_e2e_texted_commands.py`, `test_e2e_texted_flows.py` | TextEd on the default A/B setup: `os.bdd` in A, a temp copy of `utils.bdd` in B, `b:` then `texted`. Save and load happen on B |
 | `test_e2e_utils_disc.py` | `utils.bdd`: its structure against `utils.bddmanifest`, its `BOOTSECT.BIN` and `BDOS.SYS` bytes equal to `os.bdd`'s, a reproducible build, and a solo boot in A |
