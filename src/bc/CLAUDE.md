@@ -36,8 +36,9 @@ outputs: ignored by git and never committed. Every `.basm` starts with `; genera
 - `bc_log.py` is the compiler's only output channel: trace (stdout, `--verbose` only), the summary
   line (stdout) and errors/warnings (stderr). `bc.py` and `bc_ast.py` never call `print` directly.
 - `bc.py preprocess()` handles `#include` (resolved relative to the **main** file's
-  directory), `#define` (plain text replace, longer names first, applied inside strings and
-  `asm` too), `#code` / `#heap` (module globals for the code and heap addresses), `#codelimit`
+  directory), `#define` (token replace: name = first token, value = rest of line; whole identifiers
+  in code and in the `asm` string only, never other strings, char literals or `//` comments;
+  a redefinition with a different value warns, last wins; a malformed define is an error), `#code` / `#heap` (module globals for the code and heap addresses), `#codelimit`
   (reset on every `preprocess()`, so it does not leak between compiles), and drops `//` lines.
 - `bc_grammar.py` (parsy) builds the AST from `bc_ast.py`. Each node's `emit(context)`
   appends assembly text to `Context.basm`. `PROGRAM.emit` prepends the entry point; then the

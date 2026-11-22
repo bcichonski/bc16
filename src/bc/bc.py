@@ -1,5 +1,6 @@
 import argparse
 import os
+import re
 import sys
 import traceback
 from pathlib import Path
@@ -52,6 +53,65 @@ def save_output_file(fname, code):
     with open(fname, 'w', encoding='utf8') as file_handle:
         return file_handle.write(code)
 
+IDENTIFIER = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
+# a token starting with a digit is a number, scanned whole, never an identifier
+TOKEN = re.compile(r'[A-Za-z_][A-Za-z0-9_]*|[0-9][A-Za-z0-9_]*')
+ENDS_WITH_ASM = re.compile(r'(?:^|[^A-Za-z0-9_])asm$')
+
+def parse_define(line):
+    """'#define NAME value...' -> (name, value); None if the directive is malformed."""
+    parts = line[len('#define'):].strip().split(None, 1)
+    if len(parts) < 2 or IDENTIFIER.fullmatch(parts[0]) is None:
+        return None
+    return parts[0], parts[1].strip()
+
+def substitute_tokens(text, defines):
+    """Replaces whole identifier tokens (numbers are skipped whole); a value is not rescanned."""
+    out = []
+    pos = 0
+    for match in TOKEN.finditer(text):
+        token = match.group(0)
+        if token[0].isdigit():
+            continue
+        out.append(text[pos:match.start()])
+        out.append(defines.get(token, token))
+        pos = match.end()
+    out.append(text[pos:])
+    return ''.join(out)
+
+def apply_defines(line, defines):
+    """Applies #define substitution to one source line.
+
+    Code gets whole-token replacement. String literals are left alone, except the one directly
+    after the `asm` keyword. Char literals and `//` comments are left alone."""
+    out = []
+    code_start = 0
+    pos = 0
+    length = len(line)
+    while pos < length:
+        c = line[pos]
+        if c == "'" and pos + 2 < length and line[pos + 2] == "'":
+            out.append(substitute_tokens(line[code_start:pos], defines))
+            out.append(line[pos:pos + 3])  # char literal: may hold a quote or a slash
+            pos = code_start = pos + 3
+        elif c == '/' and line.startswith('//', pos):
+            out.append(substitute_tokens(line[code_start:pos], defines))
+            out.append(line[pos:])
+            return ''.join(out)
+        elif c == '"':
+            out.append(substitute_tokens(line[code_start:pos], defines))
+            end = line.find('"', pos + 1)
+            end = length if end < 0 else end + 1
+            literal = line[pos:end]
+            if ENDS_WITH_ASM.search(''.join(out).rstrip()):
+                literal = substitute_tokens(literal, defines)
+            out.append(literal)
+            pos = code_start = end
+        else:
+            pos += 1
+    out.append(substitute_tokens(line[code_start:], defines))
+    return ''.join(out)
+
 def preprocess(input, verbose, defaultdir):
     bc_log.set_verbose(verbose)
     bc_log.trace('Preprocessing file')
@@ -63,17 +123,19 @@ def preprocess(input, verbose, defaultdir):
 
     newlines = []
     defines = {}
-    deforder = []
     i = 0
     while(i < len(lines)):
         newline = lines[i].strip()
 
         if(newline.startswith('#define')):
-            spacepos = newline.rindex(' ')
-            deffrom = newline[8:spacepos]
-            defto = newline[spacepos+1:]
-            defines[deffrom] = defto
-            deforder = sorted(defines.keys(), reverse=True)
+            parsed = parse_define(newline)
+            if parsed is None:
+                bc_log.error('malformed #define (expected: #define NAME value): {}'.format(newline))
+                sys.exit(1)
+            name, value = parsed
+            if name in defines and defines[name] != value:
+                bc_log.warning("'{0}' redefined: '{1}' replaces '{2}'".format(name, value, defines[name]))
+            defines[name] = value
             i += 1
             continue
 
@@ -115,9 +177,7 @@ def preprocess(input, verbose, defaultdir):
             i += 1
             continue
 
-        for key in deforder:
-            val = defines[key]
-            newline = newline.replace(key, val)
+        newline = apply_defines(newline, defines)
 
         if(len(newline) > 0):
             newlines.append(newline)
