@@ -1,0 +1,4 @@
+cp test.b copy.b
+ls
+cat -c copy.b
+exit

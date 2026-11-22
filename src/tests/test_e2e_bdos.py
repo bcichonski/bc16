@@ -63,6 +63,57 @@ class BdosShellTests(unittest.TestCase):
             self.assertIn(line, copy)
 
 
+class BdosCpRegressionTests(unittest.TestCase):
+    """Issue #73: cp must return to the prompt, create the copy and copy every byte."""
+
+    def test_cp_same_drive_creates_identical_copy(self):
+        seen = {}
+
+        def inspect(paths):
+            seen["catalog"] = h.read_catalog(paths["a"])
+            seen["source"] = h.read_file(paths["a"], "TEST.B")
+            seen["copy"] = h.read_file(paths["a"], "COPY.B")
+
+        scenario = "bdos_cp_same_drive"
+        out = run(scenario, inspect)
+        h.check_golden(h.golden_path(scenario), out, masks=h.DISC_MASKS, scenario=scenario,
+                       markers=[b"A>cp test.b copy.b", b"A>ls", b"COPY    .B", b"A>cat -c copy.b"]
+                       + TEST_B_TEXT + [b"A>exit", b"bye!"])
+        self.assertLess(out.index(b"A>cp test.b copy.b"), out.index(b"A>ls"))
+        (src_entry, src_bytes), (copy_entry, copy_bytes) = seen["source"], seen["copy"]
+        self.assertEqual(src_entry.length, copy_entry.length)
+        self.assertEqual(src_bytes, copy_bytes)
+        self.assertTrue(src_bytes.startswith(b"10 first line"))
+        # cp drops the W attribute (nowritemask) and keeps the rest
+        self.assertEqual(src_entry.attributes & ~0x02, copy_entry.attributes)
+        original = h.read_catalog(h.OS_DISK)
+        self.assertEqual(original, [e for e in seen["catalog"] if (e.name, e.ext) != ("COPY", "B")])
+
+    def test_cp_to_other_drive_creates_identical_copy(self):
+        seen = {}
+
+        def inspect(paths):
+            seen["a"] = h.read_catalog(paths["a"])
+            seen["b"] = h.read_catalog(paths["b"])
+            seen["source"] = h.read_file(paths["a"], "TEST.B")
+            seen["copy"] = h.read_file(paths["b"], "COPY.B")
+
+        scenario = "bdos_cp_cross_drive"
+        out = h.run_session(scenario, h.golden_path(scenario, "in"),
+                            disks={"a": h.OS_DISK, "b": h.OS_DISK},
+                            max_instructions=LIMIT, inspect=inspect)
+        h.check_golden(h.golden_path(scenario), out, masks=h.DISC_MASKS, scenario=scenario,
+                       markers=[b"A>cp test.b b:copy.b", b"A>ls b:", b"COPY    .B",
+                                b"A>cat -c b:copy.b"] + TEST_B_TEXT + [b"A>exit", b"bye!"])
+        (src_entry, src_bytes), (copy_entry, copy_bytes) = seen["source"], seen["copy"]
+        self.assertEqual(src_entry.length, copy_entry.length)
+        self.assertEqual(src_bytes, copy_bytes)
+        original = h.read_catalog(h.OS_DISK)
+        self.assertEqual(original, seen["a"])
+        self.assertNotIn(("COPY", "B"), [(e.name, e.ext) for e in seen["a"]])
+        self.assertEqual(original, [e for e in seen["b"] if (e.name, e.ext) != ("COPY", "B")])
+
+
 class OsDiscHasNoTextEdTests(unittest.TestCase):
     def test_os_catalog_has_no_texted(self):
         names = {(e.name, e.ext) for e in h.read_catalog(h.OS_DISK)}
