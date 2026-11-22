@@ -170,6 +170,8 @@ The encoding column uses nibbles: `r`/`p` is a register number, `t` a condition 
 Operation numbers `o`: add 0, sub 1, and 2, or 3, xor 4, shl 5, shr 6. `xor a` is the usual
 way to clear `A` and set `Z`.
 
+The register form `58 ro` is the encoding of every 8-bit op, including `shl r` and `shr r`, which are `58 r5` and `58 r6`. There is no `5(o|8)` short form for `shl`, `shr` or `not`: that nibble is `inc`, `dec` or EXT. See [E15](specs/memory/design-decisions.md#e15-register-count-shifts-use-the-long-register-form-58-ro).
+
 ### 16-bit ALU (bc8183 extension, on `csci` or `dsdi`)
 
 | Syntax | Encoding | Bytes |

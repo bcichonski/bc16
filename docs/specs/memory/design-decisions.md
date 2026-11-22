@@ -413,6 +413,16 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - do not use `af` for 16-bit arithmetic; use `csci` or `dsdi`.
 - **Trade-offs:** code that reads the low byte of a result from `F` after a 16-bit op on `af` gets the flags instead. `af` stays allowed so that the accepted forms do not change. No `.b` or `.basm` source under `src/` uses `af` as a 16-bit ALU destination.
 
+### E15. Register-count shifts use the long register form `58 ro`
+- **Purpose:** a program can shift `A` by the value of a register, with one settled encoding that the CPU, the assembler and the docs all state the same way.
+- **Rationale:** #56 asked whether register-count shifts exist in the ISA, and if so for a free encoding in both the CPU and the assembler. They already exist. The general long register form `58 ro` (register in the high nibble of byte 2, operation in the low nibble) is implemented by the CPU and emitted by the assembler for every 8-bit register op, so `shl r` is `58 r5` and `shr r` is `58 r6`. No new encoding is needed. The issue's premise, `5d 40` for `shl a, ci`, came from the short register form `5(o|8) r0`. That form is a CPU-only alias for sub/and/or/xor (o = 1…4, e.g. `59 40` = `sub a, ci`), and the assembler never emits it. For shl, shr and not it cannot exist, because `5D`, `5E` and `5F` are inc, dec and EXT. Settled in #56 (2026-11-20).
+- **Usage:**
+  - `shl r` = `58 r5` and `shr r` = `58 r6` (2 bytes); the count is the register's value, 0 to 255, and the register is unchanged;
+  - `shl a` / `shr a` take A's old value as the count;
+  - the flags follow [E12](#e12-shift-flags-describe-the-shifted-result-zn-from-the-stored-result-c--last-bit-shifted-out): `Z`/`N` from the stored result, `C` = last bit shifted out, and a count of 0 clears `C` and `O`;
+  - `58 ro` is the register encoding of every 8-bit op; the short alias `5(o|8) r0` is CPU-only and exists only for sub/and/or/xor.
+- **Trade-offs:** the short alias stays, so hand-encoded programs and tests (`59 40`) still run. CPU behaviour and every emitted byte are unchanged, so no built program changes. Only the misleading "this is a bug" comment in `op_CLC` is rewritten.
+
 ---
 
 ## Assembler (`src/bc81asmc/`)
