@@ -546,9 +546,17 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   of `af` is 1), so only the assembler refuses to produce it. PR #140 (#58, open, not on master) says the
   assembler accepts `af` as a destination; that sentence must change when one of the two merges after the other.
 
----
+### A9. clr af is rejected: the call offset would include the flags
+- **Purpose:** `clr pair` is the relative call by the pair value (`A1 pq`). The assembler rejects `clr af`, and any other operand that is not a full pair, with a positioned `cannot encode` error that says why, instead of the generic message of the driver's fallback for the `KeyError` that `CLR.emit` used to raise.
+- **Rationale:** `clr` is the relative call, not "clear". The owner's issue comment of 2026-11-22 ("to be consistent clr af should be allowed albeit it may not zero the f register") read `clr` as clear; it was withdrawn the same day ("yes it is a relative call, disregard the comment"). A relative call by `a:f` would take its offset from `a` and `f`, and `f` holds the flags, so the target is unpredictable. Same reasoning as A8.
+- **Usage:**
+  - the register forms of `clr` take the pairs `csci`, `dsdi` and `sssi`; `clr :label` is unchanged;
+  - `clr af` is a `cannot encode` diagnostic that gives the reason; any other non-pair (`clr aci`, `clr ssci`) reports `'aci' is not a pair for clr (use csci, dsdi or sssi)`. No bytes are emitted for the line, and assembly goes on (`docs/02-assembler.md`, Errors);
+  - `cal af`, `jmp t, af` and `jrx t, af` still assemble to `A:F` (unchanged here; a possible follow-up);
+  - BASM must apply the same rule when it exists (`docs/analysis/08-self-hosted-roadmap.md`, step 13).
+- **Trade-offs:** no CPU change: a hand-encoded `A1 1B` still runs and calls relative to `A:F`, so only the assembler refuses to produce it. Odd concatenations such as `clr ssci` that used to assemble are now errors; no repo source used them, so no program changes bytes.
 
-### A9. One `.org`, before any code or label
+### A10. One `.org`, before any code or label
 - **Purpose:** an assembled image has one start address, and its header, labels and fix-ups all agree on it.
 - **Rationale:** code is emitted contiguously, so a second `.org` could only shift addresses. Fix-ups were
   patched at `addr - startaddr` of the last `.org`, which overwrote earlier code and left the `0xfa`

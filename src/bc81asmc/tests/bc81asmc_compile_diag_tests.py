@@ -254,5 +254,34 @@ class TestOrgPlacement(unittest.TestCase):
             (4, 5, "undefined label ':nowhere'")])
 
 
+class TestClrRegisterForm(unittest.TestCase):
+    AF = ("cannot encode 'clr af': clr af is not allowed: the call offset would be read "
+          "from a:f, and f holds the flags (use a pair csci, dsdi or sssi)")
+
+    def test_clr_af_rejected_with_position(self):
+        self.assertEqual(errors_of("nop\n  clr af\n"), [(2, 3, self.AF)])
+
+    def test_non_pairs_rejected(self):
+        for op in ('aci', 'fa', 'ssci'):
+            with self.subTest(op):
+                self.assertEqual(errors_of("nop\n  clr {0}\n".format(op)), [(2, 3,
+                    "cannot encode 'clr {0}': '{0}' is not a pair for clr "
+                    "(use csci, dsdi or sssi)".format(op))])
+
+    def test_rejected_line_emits_nothing_and_assembly_continues(self):
+        self.assertEqual([e[:2] for e in errors_of("clr af\nnop\nclr aci\nkil\n")],
+                         [(1, 1), (3, 1)])
+        self.assertEqual(list(compile_source("nop\nkil\n").bytes), [0x00, 0xf0])
+
+    def test_unchanged_encodings(self):
+        for text, want in (('clr csci', [0xa1, 0x84]), ('clr dsdi', [0xa1, 0x95]),
+                           ('clr sssi', [0xa1, 0xdc])):
+            with self.subTest(text):
+                self.assertEqual(list(compile_source(text + "\n").bytes), want)
+
+    def test_clr_label_unchanged(self):
+        self.assertEqual(list(compile_source("start: nop\nclr :start\n").bytes)[:1], [0x00])
+
+
 if __name__ == '__main__':
     unittest.main()

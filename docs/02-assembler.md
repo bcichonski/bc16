@@ -117,8 +117,9 @@ cal :nowhere
 | relative range, 7-bit | `label ':name' too far away for relative 7bit jump (n bytes)` | the `:` of the target | `jmr` only (±127 bytes) |
 | relative range, 15-bit | `label ':name' too far away for relative 15bit jump (n bytes)` | the `:` of the target | `jrx` and `clr` (±32767 bytes) |
 | overflow | `code exceeds the 64 KB address space (past 0xffff)` | the first non-blank character of the line that crosses the limit | reported once per run |
-| unencodable line | `cannot encode 'line': reason` | the first non-blank character of the line | the line contributes no bytes and assembly goes on (e.g. `clr af`) |
+| unencodable line | `cannot encode 'line': reason` | the first non-blank character of the line | the line contributes no bytes and assembly goes on |
 | `inc af` / `dec af` | `cannot encode 'inc af': inc af is not allowed: the 16-bit result would overwrite the flags in f (use inc a, or a pair csci or dsdi)` | the first non-blank character of the line | an unencodable line, with `dec` for `dec af`. No bytes are emitted. See [A8](specs/memory/design-decisions.md#a8-every-16-bit-alu-op-on-af-is-rejected-the-assembler-says-why) |
+| `clr af` / other non-pair `clr` | `cannot encode 'clr af': clr af is not allowed: the call offset would be read from a:f, and f holds the flags (use a pair csci, dsdi or sssi)`; `cannot encode 'clr aci': 'aci' is not a pair for clr (use csci, dsdi or sssi)` | the first non-blank character of the line | an unencodable line, for a register operand of `clr` that is not one of the pairs `csci`, `dsdi`, `sssi`. No bytes are emitted. See [A9](specs/memory/design-decisions.md#a9-clr-af-is-rejected-the-call-offset-would-include-the-flags) |
 | other 16-bit ALU op on `af` | `cannot encode 'add af, csci': add af is not allowed: the 16-bit result would overwrite the flags in f (use a pair csci or dsdi)` | the first non-blank character of the line | an unencodable line, for `add sub mul div mod and or xor shl shr not` (the mnemonic as written, immediate or register form). No bytes are emitted. See [A8](specs/memory/design-decisions.md#a8-every-16-bit-alu-op-on-af-is-rejected-the-assembler-says-why) |
 | implied pair | `cannot encode 'line': second operand must be dsdi when the first is csci`, or `cannot encode 'line': 'sssi' is not a 16-bit pair (use csci or dsdi)` | the first non-blank character of the line | 16-bit ops only (`add`, `sub`, `mul`, `div`, `mod`, `and`, `or`, `xor`, `shl`, `shr` in register form, and `inc`, `dec`, `not`). The second operand of the register form must be the implied pair. No bytes are emitted |
 | assertion failed | `assertion failed: <left> <op> <right> (0xLLLL <op> 0xRRRR)`, e.g. `assertion failed: :os_metacall = 0x0008 (0x0009 = 0x0008)` | the first non-blank character of the `.assert` line | the operands as written, then their resolved values. Every failed assert is reported. An undefined operand gives `undefined label` at its `:` instead, and that assert is not evaluated |
@@ -230,7 +231,7 @@ the assembler refuses to produce it.
 | `cal :label` | `A8 hh ll` | 3 | call an absolute address |
 | `cal pair` | `A0 p0` | 2 | call the address in the pair |
 | `clr :label` | `A9 hh ll` | 3 | relative call, 15-bit sign-magnitude (bc8183) |
-| `clr pair` | `A1 pq` | 2 | relative call by the pair value |
+| `clr pair` | `A1 pq` | 2 | relative call by the pair value: the pair is csci, dsdi or sssi (see Errors) |
 | `ret` | `B0` | 1 | return (see the stack frames section in [01-emulator.md](01-emulator.md)) |
 | `kil` | `F0` | 1 | halt the CPU (the emulator then dumps memory) |
 
