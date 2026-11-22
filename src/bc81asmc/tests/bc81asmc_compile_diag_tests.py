@@ -220,6 +220,48 @@ class TestAluOnAf(unittest.TestCase):
         self.assertEqual(len(compile_source("jmp z, af\n").bytes), 2)
 
 
+class TestOrgPlacement(unittest.TestCase):
+    DUP = "duplicate .org (first .org at line {0}); use .org once, at the top"
+    LATE = ".org must come before any code or label"
+
+    def test_second_org_without_code_between(self):
+        self.assertEqual(errors_of(".org 0x1000\n  .org 0x2000\n"), [(2, 3, self.DUP.format(1))])
+
+    def test_second_org_after_comments_def_assert_names_first_line(self):
+        src = "; hdr\n.def x, 0x0001\n.assert 0x0001 <= 0x0002\n.org 0x1000\nnop\n.org 0x2000\n"
+        self.assertEqual(errors_of(src), [(6, 1, self.DUP.format(4))])
+
+    def test_org_after_instruction(self):
+        self.assertEqual(errors_of("nop\n.org 0x1000\n"), [(2, 1, self.LATE)])
+
+    def test_org_after_label_line(self):
+        self.assertEqual(errors_of("start: .db 0x01\n.org 0x1000\n"), [(2, 1, self.LATE)])
+
+    def test_label_only_line_before_org(self):
+        # #103 allows a label on a line of its own; before .org it is still a label
+        self.assertEqual(errors_of("start:\n.org 0x1000\nnop\n"), [(2, 1, self.LATE)])
+
+    def test_label_only_line_after_org_is_fine(self):
+        context = compile_source(".org 0x1000\nstart:\n.db :start\n")
+        self.assertEqual(list(context.bytes), [0x10, 0x00])
+
+    def test_label_on_org_line(self):
+        self.assertEqual(errors_of("lbl: .org 0x1000\n"), [(1, 1, self.LATE)])
+
+    def test_def_and_comments_before_org_are_fine(self):
+        context = compile_source("; c\n.def p, 0x0010\n.org 0x1000\nnop\n")
+        self.assertEqual(context.startaddr, 0x1000)
+
+    def test_no_org_is_fine(self):
+        self.assertEqual(list(compile_source("nop\n").bytes), [0x00])
+
+    def test_rejected_org_keeps_later_diagnostics_in_order(self):
+        src = ".org 0x1000\nnop\n.org 0x2000\n.db :nowhere\n"
+        self.assertEqual(errors_of(src), [
+            (3, 1, self.DUP.format(1)),
+            (4, 5, "undefined label ':nowhere'")])
+
+
 class TestLabelOnlyDuplicates(unittest.TestCase):
     def test_label_only_then_labelled_instruction(self):
         self.assertEqual(errors_of("a:\nnop\n  a: nop\n"),
