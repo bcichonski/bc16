@@ -1,0 +1,4 @@
+cp test.b b:copy.b
+ls b:
+cat -c b:copy.b
+exit

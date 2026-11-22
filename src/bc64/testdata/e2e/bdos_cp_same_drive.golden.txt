@@ -1,0 +1,29 @@
+bcOS 1.2
+booting from FDDlding
+bDOS 1.1 shell
+9FF5 bytes free
+reading disc...
+A>cp test.b copy.b
+<dots>
+
+A>ls
+<dots>
+listing files of drive A:
+HELLOWRD.PRG -R-X SIZE TT SS LL
+TEST    .B   -RW- SIZE TT SS LL
+COPY    .B   -R-- SIZE TT SS LL
+EB catalog entries free; XXXX sectors free...
+A>cat -c copy.b
+<dots>
+printing A:COPY    B   with options 10...
+10 first line !ln
+20 second line !ln
+30 very loooooooooooooooooooooooooooooooooooongline !ln
+40 another loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong !ln
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00
+A>exit
+bye!
+
