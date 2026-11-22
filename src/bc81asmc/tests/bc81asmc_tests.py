@@ -436,5 +436,43 @@ class TestShiftRegisterGrammar(unittest.TestCase):
         self.assertEqual(mSHRr.parse('shr ci'), CLC_A_R('shr', 'ci'))
 
 
+class TestLabelOnlyLine(unittest.TestCase):
+    '''A line holding only `name:` (issue #103).'''
+
+    def test_label_only(self):
+        res = line.parse('start:\n')
+        self.assertIsInstance(res, LabelOnly)
+        self.assertEqual(res.label, 'start')
+        self.assertEqual(res.label_col, 1)
+        self.assertFalse(hasattr(res, 'comment'))
+
+    def test_label_only_indented_with_comment(self):
+        res = line.parse('   loop:   ; the loop\n')
+        self.assertIsInstance(res, LabelOnly)
+        self.assertEqual(res.label, 'loop')
+        self.assertEqual(res.label_col, 4)
+        self.assertEqual(res.comment, '; the loop')
+
+    def test_label_only_emits_nothing(self):
+        context = CodeContext()
+        line.parse('x:\n').emit(context)
+        self.assertEqual(list(context.bytes), [])
+
+    def test_label_with_instruction_still_parses_as_instruction(self):
+        self.assertEqual(line.parse('x: nop\n'), NOP('nop'))
+
+    def test_bare_identifier_is_syntax_error(self):
+        with self.assertRaises(ParseError):
+            line.parse('foo\n')
+
+    def test_label_then_bogus_is_syntax_error(self):
+        with self.assertRaises(ParseError):
+            line.parse('name: bogus\n')
+
+    def test_blank_line_is_syntax_error(self):
+        with self.assertRaises(ParseError):
+            line.parse('\n')
+
+
 if __name__ == '__main__':
     unittest.main()

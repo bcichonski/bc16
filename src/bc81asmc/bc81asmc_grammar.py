@@ -428,5 +428,6 @@ def positioned(node_parser):
 
 line = (ignore >> positioned(
     comment.map(LineComment) |
-    seq(label.optional(), instruction, comment.optional()).combine(LINE))) << nl
+    seq(label.optional(), instruction, comment.optional()).combine(LINE) |
+    seq(label, comment.optional()).combine(LABEL_ONLY))) << nl
 program = Parser.many(line)
