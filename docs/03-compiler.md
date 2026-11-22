@@ -55,11 +55,13 @@ The preprocessor works line by line, before parsing:
 | Directive | Effect |
 |---|---|
 | `#include file.b` | paste the file in (path relative to the **main** source file's directory) |
-| `#define NAME value` | plain text replacement in every later line. `value` is the last space-separated token. Longer names are replaced first, and replacement also applies inside strings and `asm` text |
+| `#define NAME value` | token replacement. `NAME` is the first token, `value` is the rest of the line. Whole identifier tokens equal to `NAME` are replaced in code and in the string directly after `asm`; other strings, char literals and `//` comments are untouched. A redefinition with a different value warns and the last value wins; a malformed define is an error |
 | `#code 0xHHHH` | address of the code (`.org`). Default `0x1000`; bdos programs use `0x6000` |
 | `#heap 0xHHHH` | start of the heap used by `malloc`. Default `0x3000` |
 | `#codelimit 0xHHHH` | optional second limit: the program's image must end below this address. Reset for every compile, so it has no default. `bdos.b` uses `0x5d00` |
 | `// …` | a line starting with `//` is dropped |
+
+A `#define` value is not rescanned, and numbers are scanned whole, so `0x10` is never matched by a define named `x10`. `MAXLINE` is not matched by a define named `MAX`.
 
 ## Language
 

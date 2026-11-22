@@ -596,10 +596,13 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - libraries are B source in `src/bdos/` (`std.b`, `stdio.b`, `strings.b`, `stdmem.b`,
     `bdosh.b`), included by path relative to the main file;
   - constants are `#define`s;
+  - `#define` is token-based (#19): name = first token, value = rest of line; whole identifiers are
+    replaced in code and in the string directly after `asm`, never in other strings, char literals
+    or `//` comments; a redefinition with a different value warns and the last one wins;
   - the asm runtime `bc_stdlib.py` is appended to every program;
   - removing unused code is roadmap step 5.
 - **Trade-offs:** every program carries the whole of every included library; `#define`
-  replaces text everywhere, including strings.
+  replaces whole identifier tokens in code and in `asm` strings only, not in other strings or comments.
 
 ### C6. Compiler output is quiet by default; trace only with `--verbose`, errors are `file: error:` lines on stderr
 - **Purpose:** a build of many programs should print one line per program, and a compile error
