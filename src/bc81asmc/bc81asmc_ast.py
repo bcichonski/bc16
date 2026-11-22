@@ -355,6 +355,16 @@ def reject_af_incdec(reg, mnemonic):
         raise ValueError("{0} af is not allowed: the 16-bit result would overwrite the flags in f "
                          "(use {0} a, or a pair csci or dsdi)".format(mnemonic))
 
+CLR_PAIRS = ('csci', 'dsdi', 'sssi')
+
+def check_clr_pair(arg):
+    """Validate the register operand of `clr` before anything is emitted (#67)."""
+    if arg.lower() == 'af':
+        raise ValueError("clr af is not allowed: the call offset would be read from a:f, "
+                         "and f holds the flags (use a pair csci, dsdi or sssi)")
+    if arg.lower() not in CLR_PAIRS:
+        raise ValueError("'{0}' is not a pair for clr (use csci, dsdi or sssi)".format(arg))
+
 @dataclass
 class INC16(Instruction):
     reg : str
@@ -663,6 +673,8 @@ class CLR(Instruction):
     def __str__(self):
         return 'CLR {0}'.format(self.arg.upper())
     def emit(self, context):
+        if not self.arg.startswith(':'):
+            check_clr_pair(self.arg)
         super().emit(context)
         context.emit_4bit(ASMCODES.CAL)
         if(self.arg.startswith(':')):
