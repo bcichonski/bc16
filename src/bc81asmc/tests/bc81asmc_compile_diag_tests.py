@@ -220,5 +220,27 @@ class TestAluOnAf(unittest.TestCase):
         self.assertEqual(len(compile_source("jmp z, af\n").bytes), 2)
 
 
+class TestLabelOnlyDuplicates(unittest.TestCase):
+    def test_label_only_then_labelled_instruction(self):
+        self.assertEqual(errors_of("a:\nnop\n  a: nop\n"),
+                         [(3, 3, "duplicate label 'a' (first defined at line 1)")])
+
+    def test_labelled_instruction_then_label_only(self):
+        self.assertEqual(errors_of("a: nop\n  a:\n"),
+                         [(2, 3, "duplicate label 'a' (first defined at line 1)")])
+
+    def test_two_label_only_lines(self):
+        self.assertEqual(errors_of("a:\na: ; again\nnop\n"),
+                         [(2, 1, "duplicate label 'a' (first defined at line 1)")])
+
+    def test_label_only_then_def_clash(self):
+        self.assertEqual(errors_of("x:\nnop\n.def x, 0x0002\n"),
+                         [(3, 6, "duplicate symbol 'x' (first defined at line 1)")])
+
+    def test_def_then_label_only_clash(self):
+        self.assertEqual(errors_of(".def x, 0x0002\n  x:\nnop\n"),
+                         [(2, 3, "duplicate symbol 'x' (first defined at line 1)")])
+
+
 if __name__ == '__main__':
     unittest.main()
