@@ -487,13 +487,15 @@ class PinnedFindingsTests(unittest.TestCase):
                               "would overwrite the flags in f (use {0} a, or a pair csci or dsdi)"
                               .format(op, text), str(cm.exception))
 
-    def test_clr_af_fails_to_assemble(self):
-        # D7/D6: `clr af` is accepted by the grammar but cannot be encoded; it is now
-        # a positioned assembler error instead of a bare KeyError.
+    def test_clr_af_is_rejected_on_purpose(self):
+        # #67: `clr af` is accepted by the grammar but rejected by the assembler on
+        # purpose (the call offset would be read from a:f, f holds the flags).
         with self.assertRaises(asm_diag.AssemblerError) as cm:
             assemble(['clr af'])
         self.assertEqual([(d.line, d.column) for d in cm.exception.diagnostics], [(1, 1)])
-        self.assertIn('cannot encode', str(cm.exception))
+        self.assertIn("cannot encode 'clr af': clr af is not allowed: the call offset would "
+                      "be read from a:f, and f holds the flags (use a pair csci, dsdi or sssi)",
+                      str(cm.exception))
 
     def test_call_and_return_round_trip(self):
         ast, code, labels = assemble(['cal :sub', 'kil', 'sub: ret'])

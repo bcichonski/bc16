@@ -64,3 +64,4 @@ The diagnostics tests are `tests/bc81asmc_diag_tests.py` (records, formatter, pa
 - Every 16-bit ALU op with destination `af` (`add sub mul div mod and or xor shl shr not inc dec`, immediate
   and register forms) is rejected in `emit` with a `cannot encode` error (A8 in
   `docs/specs/memory/design-decisions.md`). Keep that check; `af` is not a 16-bit pair.
+- `clr pair` (the relative call) takes only the pairs `csci`, `dsdi` and `sssi`. `clr af` and any other non-pair are rejected in `emit` with a `cannot encode` error, because the offset from `af` would include the flags (A9 in `docs/specs/memory/design-decisions.md`). Keep that check.
