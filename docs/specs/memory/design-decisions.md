@@ -505,8 +505,8 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - exit status `1` on any error, and no output file; `--verbose` adds the traceback after the
     diagnostics (`docs/02-assembler.md`, Errors).
 - **Trade-offs:** only the first syntax error is shown per run. A duplicate definition now fails
-  the build until it is renamed. The renamed first definition of `strnextword` is kept as dead
-  code rather than deleted, because deleting it would change the size of every program.
+  the build until it is renamed. The renamed first definition of `strnextword` was kept as dead
+  code until #82 removed it (see D9).
 
 ### A7. 16-bit register-pair ops take an implied second pair; the assembler enforces it
 - **Purpose:** a 16-bit register-register instruction must not suggest that it adds a pair it does not add.
@@ -808,6 +808,15 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - all 248 catalog entries are numbered, as `format` does; at most 247 are used, so the catalog is never full;
   - all checks run before the output is written; a failed build writes no output file.
 - **Trade-offs:** a file that grows moves the files after it. Old discs copied before #37 number only entries 0–15, so a 17th file would overwrite `BOOTSECT.BIN`'s entry: re-make them (see `docs/05-bdos.md`).
+
+### D9. `strnextword` returns the address of the terminating NUL when there is no next word, never 0 (#82)
+- **Purpose:** one word-scanning contract for every program that parses the command line, so a missing argument is detected the same way everywhere and a pointer returned by the scanner is always a valid address in the buffer.
+- **Rationale:** option A, the existing contract. TextEd already tests the first byte (#1), and the other tools read the NUL as an empty word. Option B (return 0 when there is no next word) would need a 0 check in each of the seven callers and would grow every program that includes `strings.b`, while TEXTED has almost no slack. The dead first definition `strnextwordnull` (it returned 0) had no caller and was deleted, which makes every program that includes `strings.b` smaller.
+- **Usage:**
+  - `strnextword(P)` skips the word at `P` and the spaces after it, and returns the address of the next word, or of the terminating NUL when there is none;
+  - the result is never `0`; a missing argument is detected by `peek8(result) = NULLCHAR`, not by comparing the pointer;
+  - the function's comment in `src/bdos/strings.b` states the same contract.
+- **Trade-offs:** the NUL-pointer result is not visible from the name, so a caller that compares the pointer with 0 (as an option-B caller would) reads a missing word as present; the contract must be kept in the comment, `docs/05-bdos.md` and here.
 
 ### G12. Only sources are committed; build before test; generated `.basm` files say so
 - **Purpose:** keep build output out of the history, so PRs show only real changes, and make every test run on binaries built from the sources in the same run (#90, #92).

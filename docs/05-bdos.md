@@ -275,7 +275,9 @@ and adds `PRG`. It then:
 4. loads it to `0x6000` and `cal`s it.
 
 The program returns to the shell with `ret`. The whole command line stays in the buffer at
-`0x0dd2`, and programs parse it with `strnextword(BDIO_CMDPROMPTADDR)`.
+`0x0dd2`, and programs parse it with `strnextword(BDIO_CMDPROMPTADDR)`. `strnextword(P)` returns the
+address of the next word, or of the terminating NUL when there is none. It never returns `0`,
+so a program finds a missing argument by testing the first byte of the result for NUL.
 
 ## Programs and the discs they are on
 
