@@ -237,21 +237,40 @@ Buffered handles (`0x18` / `0x19`, open mode `1`) work on byte counts, not whole
 
 ### Result and error codes (bdioh.b)
 
-| Code | Meaning |
-|---|---|
-| `0x00` | ok |
-| `0xc0` | end of catalog |
-| `0xe0` | file not found (open) |
-| `0xe1` / `0xe5` | drive not ready (open) |
-| `0xe2` | close: descriptor not found |
-| `0xe3` / `0xe4` | no read / no write attribute |
-| `0xe6` | create: name exists (also close: catalog read error) |
-| `0xe7` | exec: not executable (also close: catalog save error) |
-| `0xe8` | exec: descriptor/catalog mismatch |
-| `0xe9` | exec: out of memory |
-| `0xea` | exec: sector read failed |
-| `0xeb` / `0xec` / `0xed` | create: read error / save error / drive not ready |
-| `0xf0` / `0xf1` / `0xf2` | delete/setattr: save error / drive not ready / not found |
+A result byte below `0xe0` is a file handle. `0xe0` and above is an error: callers test
+`result < 0xe0` to tell the two apart. Each value has one meaning, and a retired value is
+never reused. The codes are grouped by the operation that returns them. The last column is
+the text `bdio_printexecres` prints after `error: XX`. Only the codes listed with a message
+have one; every other code prints `unknown error` with its code.
+
+| Code | Operation | Meaning | Printed by `bdio_printexecres` |
+|---|---|---|---|
+| `0x00` | any | ok | — (not an error) |
+| `0xc0` | catalog scan | end of catalog | — (not an error) |
+| `0xe0` | open, exec | file not found | `file not found` |
+| `0xe1` | open, exec | drive (fdd) not ready | `fdd not ready` |
+| `0xe2` | close | file handle not found | `unknown error` |
+| `0xe3` | open, exec | reading not allowed | `reading not allowed` |
+| `0xe4` | open | writing not allowed | `unknown error` |
+| `0xe5` | - | retired (was open: drive not ready; `0xe1` is used instead, not reused) | `unknown error` |
+| `0xe6` | close | catalog read error | `unknown error` |
+| `0xe7` | exec | execution not allowed | `execution not allowed` |
+| `0xe8` | exec | catalog and file handle mismatch | `cat and file handle mismatch` |
+| `0xe9` | exec | not enough user memory | `not enough user memory` |
+| `0xea` | exec | not all sectors loaded (sector read failed) | `not all sectors loaded` |
+| `0xeb` | create | catalog read error | `unknown error` |
+| `0xec` | create | catalog save error | `unknown error` |
+| `0xed` | create | drive (fdd) not ready | `unknown error` |
+| `0xee` | create | file name already exists | `unknown error` |
+| `0xef` | close | catalog save error | `cat save error` |
+| `0xf0` | delete, setattr | catalog save error | `unknown error` |
+| `0xf1` | delete, setattr | drive (fdd) not ready | `unknown error` |
+| `0xf2` | delete, setattr | file not found | `unknown error` |
+| `0xf3`-`0xfe` | - | free (not assigned) | `unknown error` |
+| `0xff` | open | no free file handle (`BDIO_FDESCRIPTOR_NUMBERFULL`) | `unknown error` |
+
+Close codes are not contiguous (`0xe2`, `0xe6`, `0xef`): `0xe7` stays the exec code, so the
+close save error moved to `0xef`.
 
 ## Shell
 

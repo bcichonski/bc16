@@ -106,12 +106,17 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - `0x00` = ok;
   - error codes are grouped by high nibble: `0x0X` command errors, `0xcX` catalog,
     `0xeX` drive/file, `0xfX` system;
+  - bdio results: a value `< 0xe0` is a file handle, `>= 0xe0` is an error;
+  - one value per meaning: a code never has two meanings. A retired value is never reused
+    (`0xe5` is retired; drive not ready on open is `0xe1`, the owner's choice, #38);
   - bcOS: `error` prints and continues; `fatal` prints and halts;
   - B functions return a `result` byte that callers compare against named constants in
     `bdioh.b`;
-  - new codes go into the existing ranges and into the docs.
-- **Trade-offs:** callers must check every result; codes are reused across contexts (e.g.
-  `0xe6`, `0xe7`).
+  - a new or changed code goes into the existing ranges, gets a message in
+    `bdio_printexecres`, and goes into the docs (`docs/05-bdos.md`); a code without a
+    message prints `unknown error` with its code;
+- **Trade-offs:** callers must check every result. Free values are kept free, not
+  packed: a code's value is not renumbered to close a gap (e.g. close save error is `0xef`).
 
 ### G8. No interrupts: devices are polled through status ports
 - **Purpose:** keep the machine, the emulator and the OS single-threaded and deterministic.

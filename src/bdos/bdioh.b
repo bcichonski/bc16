@@ -50,18 +50,33 @@
 #define BDIO_FDESCRIPTOR_NUMBERFREE 0x00
 #define BDIO_FDESCRIPTOR_NUMBERWRITE 0x10
 #define BDIO_FDESCRIPTOR_NUMBERREAD 0x20
-#define BDIO_FDESCRIPTOR_NUMBERFULL 0xff
 #define BDIO_FDESCRIPTOR_ACCESSMODE_DIRECT 0x0d
 #define BDIO_FDESCRIPROT_ACCESSMODE_BUFFERED 0x0b
 
+// Result codes: a result below 0xe0 is a file handle, 0xe0..0xff is an error.
+// One value per meaning, grouped by operation (see docs/05-bdos.md):
+//   open/exec  0xe0 0xe1 0xe3 0xe4    close  0xe2 0xe6 0xef    exec  0xe7..0xea
+//   create     0xeb..0xee             delete/setattr  0xf0..0xf2
+//   0xe5 retired (never reuse), 0xf3..0xfe free, 0xff = no free handle.
+// bdio_printexecres names only some codes; the others print "unknown error".
 #define BDIO_FOPEN_FNAME_NOTFOUND 0xe0
+#define BDIO_FOPEN_FDD_NOT_READY 0xe1
 #define BDIO_FOPEN_ATTR_NOREAD 0xe3
 #define BDIO_FOPEN_ATTR_NOWRITE 0xe4
-#define BDIO_FOPEN_FDD_NOT_READY 0xe5
+#define BDIO_FDESCRIPTOR_NUMBERFULL 0xff
 #define BDIO_FOPEN_MODE_SECTOR 0x00
 #define BDIO_FOPEN_MODE_BUFFERED 0x01
 
-#define BDIO_FCREATE_FNAME_EXISTS 0xe6
+#define BDIO_FCLOSE_FDESC_NOTFOUND 0xe2
+#define BDIO_FCLOSE_FCAT_READERR 0xe6
+#define BDIO_FCLOSE_FCAT_SAVEERR 0xef
+
+#define BDIO_FEXEC_ATTR_NOEXEC 0xe7
+#define BDIO_FEXEC_FDESCFCAT_ERR 0xe8
+#define BDIO_FEXEC_OUTOFMEM 0xe9
+#define BDIO_FEXEC_SECTFAIL 0xea
+#define BDIO_FEXEC_OK 0x00
+
 #define BDIO_FCREATE_READERR 0xeb
 #define BDIO_FCREATE_SAVEERR 0xec
 #define BDIO_FCREATE_FDD_NOT_READY 0xed
@@ -75,16 +90,6 @@
 
 #define BDIO_FILE_INTERNALMODE_DELETE 0xd0
 #define BDIO_FILE_INTERNALMODE_SETATTR 0x5a
-
-#define BDIO_FCLOSE_FDESC_NOTFOUND 0xe2
-#define BDIO_FCLOSE_FCAT_READERR 0xe6
-#define BDIO_FCLOSE_FCAT_SAVEERR 0xe7
-
-#define BDIO_FEXEC_ATTR_NOEXEC 0xe7
-#define BDIO_FEXEC_FDESCFCAT_ERR 0xe8
-#define BDIO_FEXEC_OUTOFMEM 0xe9
-#define BDIO_FEXEC_SECTFAIL 0xea
-#define BDIO_FEXEC_OK 0x00
 
 #define BDIO_FILE_ATTRIB_READ 0x01
 #define BDIO_FILE_ATTRIB_WRITE 0x02
@@ -156,7 +161,7 @@ byte bdio_printexecres(byte execres)
 {
     word errorMessage;
     errorMessage <- "unknown error";
-    
+
     if(execres = BDIO_FOPEN_FDD_NOT_READY)
     {
         errorMessage <- "fdd not ready";
@@ -184,6 +189,10 @@ byte bdio_printexecres(byte execres)
     if(execres = BDIO_FEXEC_SECTFAIL)
     {
         errorMessage <- "not all sectors loaded";
+    }
+    if(execres = BDIO_FCLOSE_FCAT_SAVEERR)
+    {
+        errorMessage <- "cat save error";
     }
 
     printf("error: %x %s%n", execres, errorMessage);

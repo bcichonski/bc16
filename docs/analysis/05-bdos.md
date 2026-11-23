@@ -36,7 +36,7 @@ From the README and `bdos.md`:
 | 3 | Hand-maintained disc build | before #37, `fcat0800.sector` was a binary edited by hand and `makedisc` hard-coded the start tracks | adding or growing a program is error-prone; nothing checks the sizes | #37 |
 | 4 | Allocation never reuses space | new data always goes after the last used sector; `rm` doesn't free anything | the disc fills up permanently; only a reformat recovers it | #41 |
 | 5 | File size limited to 255 sectors (32 KB) | the length is one byte in the catalog entry | `bdos.md` claimed 64 KB until now; large texts and bigger apps don't fit | #39 |
-| 6 | Colliding error codes | `BDIO_FOPEN_FDD_NOT_READY` is defined twice (`0xe1`, then `0xe5`; the last one wins); `0xe6` and `0xe7` each mean two things | wrong messages; `bdio_printexecres` can't tell the cases apart | #38 |
+| 6 | Colliding error codes (fixed by #38) | `BDIO_FOPEN_FDD_NOT_READY` was defined twice (`0xe1`, then `0xe5`); `0xe6` and `0xe7` each meant two things. Fixed: one value per meaning, `0xe1` for drive not ready on open, `0xe5` retired | wrong messages; `bdio_printexecres` could not tell the cases apart | #38 |
 | 7 | Kernel size and memory | bdos uses `0x0d80–0x6000` (about 21 KB); 1.5 KB left before the file buffers; the boot loader always reads 160 sectors, and its rebuilt sector is already 128 of 128 bytes | little room for 1.1b/2.0 features without compiler improvements | #45 |
 | 8 | Fixed resources | 1 write handle, 3 read handles; one program at a time at `0x6000` | `cp`-style tools work, but pipes and scripts need more | #44 |
 | 9 | Debug leftovers | the `iowrite` printf (fixed in source, not on disc); commented-out printfs in `rm`/`cha` | noise; easy to reintroduce | #46 |
