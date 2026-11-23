@@ -5,7 +5,7 @@ import tempfile
 import unittest
 
 import bc
-from bc_ast import CompilerError, Context, Scope
+from bc_ast import CompilerError, Context, Scope, UndeclaredVariableError
 from bc_grammar import program
 
 
@@ -155,16 +155,36 @@ class TestVariables(CodegenTestCase):
         lines = main_lines('byte main() { word a; byte b; b <- 1; return b; }')
         self.assertSequence(lines, ['mov a, 0x02', 'cal :stackvar8st8', 'mov a, 0x02', 'cal :stackvar8gt8'])
 
-    def test_undeclared_variable_reported_by_context(self):
+    def emit_undeclared(self, source):
         context = Context(0x1000, 0x3000, False)
-        ast = program.parse('byte main() { x <- 1; return 1; }')
+        ast = program.parse(source)
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
-            try:
+            with self.assertRaises(UndeclaredVariableError):
                 ast.emit(context)
-            except TypeError:
-                pass  # D7: the failed lookup returns None and the caller then indexes it
-        self.assertTrue(any('Undeclared variable x' in e for e in context.errors))
-        self.assertIn(': error: Undeclared variable x', err.getvalue())
+        return context, err.getvalue()
+
+    def test_undeclared_variable_reported_by_context(self):
+        context, err = self.emit_undeclared('byte main() { x <- 1; return 1; }')
+        self.assertEqual(['Undeclared variable x'], context.errors)
+        self.assertEqual(1, err.count(': error: Undeclared variable x'))
+
+    def test_undeclared_variable_error_is_compiler_error(self):
+        self.assertTrue(issubclass(UndeclaredVariableError, CompilerError))
+
+    def test_undeclared_variable_read_reported_once(self):
+        context, err = self.emit_undeclared('byte main() { return y + 1; }')
+        self.assertEqual(['Undeclared variable y'], context.errors)
+        self.assertEqual(1, err.count(': error: Undeclared variable y'))
+
+    def test_undeclared_variable_as_call_argument_reported_once(self):
+        context, err = self.emit_undeclared('byte f(byte p) { return p; } byte main() { return f(z); }')
+        self.assertEqual(['Undeclared variable z'], context.errors)
+        self.assertEqual(1, err.count(': error: Undeclared variable z'))
+
+    def test_declared_variable_as_call_argument_through_previous_scope(self):
+        basm = compile_source('byte f(byte p) { return p; } byte main() { byte a; a <- 3; return f(a); }')
+        lines = function_lines(basm, 'main')
+        self.assertSequence(lines, ['mov a, 0x81', 'cal :stackvar8gt8'])  # a read through the previous scope, rebased
 
 
 class TestControlFlow(CodegenTestCase):

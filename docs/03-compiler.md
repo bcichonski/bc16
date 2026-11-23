@@ -48,6 +48,8 @@ python bc81asmc/bc81asmc.py bdos/helloworld.basm  # -> bdos/helloworld.btap
   An internal compiler fault (for example, an operator the grammar accepts but code generation can't
   emit) is reported as `internal error: <message>` and also exits with code 1 without writing a `.basm`,
   for example `internal error: Unknown binary operator '<op>'`.
+  An undeclared variable is reported as `Undeclared variable <name>` (no location until #28) and stops the
+  compile: it exits with code 1 without writing a `.basm`.
 - Python dependency: `parsy`, the only one. The compiler runs on Python >= 3.10 on Linux,
   macOS and Windows (tested on 3.10, 3.13 and 3.14). Output files are written as UTF-8.
 
