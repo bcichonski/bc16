@@ -12,6 +12,356 @@ PR on GitHub, and drafts from the diff. The format for an entry is in
 
 ---
 
+## [38] bdos: clean up bdio error codes (duplicates and collisions) — 2026-11-23
+
+Tags: `bdos` `abi` `tests` `docs`
+PR: [#156](https://github.com/bcichonski/bc16/pull/156)
+Builds on: #19, #82
+
+### What was built
+- `src/bdos/bdioh.b`: each bdio error value now has one meaning. `BDIO_FOPEN_FDD_NOT_READY` is `0xe1`, and `0xe5` is retired. `BDIO_FCLOSE_FCAT_SAVEERR` moved from `0xe7` to `0xef`, so `0xe7` now means only "exec: not executable". The never-produced `BDIO_FCREATE_FNAME_EXISTS` (`0xe6`) is removed, so `0xe6` means only "close: catalog read error". The defines are grouped by operation, with the free and retired values listed.
+- `bdio_printexecres` gets a message for `0xef` (`cat save error`). Other codes print as before. Each program grows by 49 bytes, and bdos ends at `0x561e`, under its `0x5d00` limit.
+- New unit test `src/tests/test_bdioh_codes.py`: no duplicate names or values, the changed codes are pinned, every changed code has a message, and the handle/error split at `0xe0` holds.
+- New e2e `src/tests/test_e2e_bdio_errors.py` (`bdos_bdio_errors.in.txt`): `cha -x` then running the program gives `E7 execution not allowed`, `cha -r` then `cat -c` gives `E3 reading not allowed`, and an unknown command gives `E0 file not found`.
+- Docs: the `docs/05-bdos.md` error table is rewritten, G7 in `design-decisions.md` now says "one value per meaning, a retired value is never reused", and problem 6 in `docs/analysis/05-bdos.md` is marked fixed. New rows in `src/bc/code_size.csv`.
+
+### Key decisions reflected in the diff
+- The owner chose `0xe1` for drive-not-ready on open, which settles the question left open in #19.
+- Only changed codes get new messages ("only changes"), because `bdio_printexecres` is in `bdioh.b` and is linked into every program.
+- Program sources didn't change: callers compare codes by name or with `< 0xe0`.
+
+## [82] strings.b: one strnextword with a documented contract — 2026-11-23
+
+Tags: `b-stdlib` `bdos` `apps` `tests` `docs`
+PR: [#155](https://github.com/bcichonski/bc16/pull/155)
+Builds on: #1
+
+### What was built
+- `src/bdos/strings.b`: the dead `strnextwordnull` copy (the one that returned 0) is deleted. `strnextword` has a comment stating its contract: it returns the address of the next word, or of the terminating NUL when there is none, never 0.
+- Nine bdos programs are 24 bytes smaller each (bdos, cat, cha, cp, fddtest, format, ls, rm, texted), recorded in `src/bc/code_size.csv`.
+- New `src/tests/test_e2e_bdos_args.py` (6 tests, one session): `ls`, `cp`, `rm`, `cha`, `cat` and `cat -c` with missing arguments print the expected errors, and both disc images are unchanged afterwards.
+- Docs: the contract is in `docs/05-bdos.md` and in the new design decision D9. A6's note no longer mentions the dead copy.
+
+### Key decisions reflected in the diff
+- Option A of the issue: callers test the first byte for `NULLCHAR`, not for a 0 address. TextEd's side was already done by #1.
+
+## [11] Assembler: `out #r, imm` encodes as `Dr HH` — 2026-11-23
+
+Tags: `assembler` `abi` `tests` `docs`
+PR: [#153](https://github.com/bcichonski/bc16/pull/153)
+Builds on: #10, #65
+
+### What was built
+- `OUT.emit` in `src/bc81asmc/bc81asmc_ast.py` emits the CPU's 2-byte immediate form `D` + port register number, then the full 8-bit value: `out #ci, 0x41` → `D4 41`, `out #a, …` → `D1 HH`, `out #di, …` → `D5 HH`. The CPU is unchanged.
+- Any other port register (`cs`, `ds`, `f`, `si`, `ss`, `pc`) is a positioned `cannot encode` error that names the fix. The rejected line emits no bytes, and assembly continues.
+- The six `#11` expected-failure tests now run as normal tests; the cs/ds ones assert the exact message. New tests cover the allowed encodings with full-byte values, the rejected registers, and assembler↔CPU agreement (value reaches the port, PC + 2, flags unchanged).
+- Docs: `docs/02-assembler.md` (I/O row, Errors table, quirk removed), `docs/01-emulator.md` (the immediate form changes no flags), both CLAUDE.md files, analysis docs 01, 02 and 07, and design decision A11.
+
+### Key decisions reflected in the diff
+- Fix, don't reject (owner decision). Registers numbered 8 and up are rejected because encoding them would set bit 3 and silently turn the instruction into the register form.
+- After this story only one expected failure is left in the whole suite (the tape round trip, #32/#62).
+
+## [69] Compiler: unknown binary operator raises CompilerError — 2026-11-23
+
+Tags: `compiler` `tests`
+PR: [#154](https://github.com/bcichonski/bc16/pull/154)
+Builds on: #14
+
+### What was built
+- `EXPRESSION_BINARY.emit` in `src/bc/bc_ast.py` raises `CompilerError("Unknown binary operator '<op>'")` for an operator that is missing from `oper2lib`/`opercommutative`. The check runs before the table lookup, which used to raise a `KeyError`. It also raises when `logic()` can't handle a table operator, where the old code referenced a missing attribute and crashed with an `AttributeError`.
+- `bc.py` reports it as `internal error: …`, exits 1 and writes no `.basm`.
+- New `UnknownBinaryOperatorTests` in `src/bc/tests/bc_codegen_tests.py`. `docs/03-compiler.md` notes the error.
+
+### Key decisions reflected in the diff
+- The check also runs before the lookup, not just at the message line the issue names, so a new operator (for example from #18) gives the error instead of a `KeyError`. Generated code is unchanged (`code_size.py --check` delta +0).
+
+## [65] Assembler: reject a second `.org` and a `.org` after code or a label — 2026-11-22
+
+Tags: `assembler` `tests` `docs`
+PR: [#151](https://github.com/bcichonski/bc16/pull/151)
+Builds on: #10, #103
+
+### What was built
+- `src/bc81asmc/bc81asmc.py` reports `duplicate .org (first .org at line M); use .org once, at the top` and `.org must come before any code or label` (including a label on the `.org` line). Only comments and `.def` may come before `.org`, and a source with no `.org` still starts at 0x0000.
+- A rejected `.org` doesn't change addresses, so later diagnostics are still reported in order. The run exits 1 and writes no `.btap`.
+- The two pinned tests now assert the error (`…_is_rejected`). New `TestOrgPlacement` diagnostics tests and a CLI test (exit 1, caret block, no `.btap`).
+- Docs: the `.org` row and an Errors row in `docs/02-assembler.md`, and design decision A10 (BASM must follow the same rule).
+
+### Key decisions reflected in the diff
+- Reject instead of fixing the fix-up offsets (owner choice, option 2). A fix would still have taken the `.btap` load address from the last `.org`. All built outputs are byte-identical.
+
+## [103] Assembler: a label on a line of its own — 2026-11-22
+
+Tags: `assembler` `tests` `docs`
+PR: [#149](https://github.com/bcichonski/bc16/pull/149)
+Builds on: #10
+
+### What was built
+- `bc81asmc_grammar.py`: `line` has a new `label, comment?` alternative, after `label? instruction comment?`, so labelled instructions parse as before.
+- `bc81asmc_ast.py`: a no-byte `LabelOnly` node. The label gets the current address (the next emitted byte), and several label-only lines in a row share it. Duplicate checks, `--verbose` and `.assert` treat it like any labelled line.
+- 22 new tests across the grammar, emit and diagnostics test files: references via `jmp`/`jmr`/`jrx`/`cal`/`clr`/`.db`/`.mv`/`.assert`, a label at EOF, duplicates, and inputs that are still errors.
+- Docs: Source syntax in `docs/02-assembler.md` and `src/bc81asmc/CLAUDE.md`.
+
+### Key decisions reflected in the diff
+- The label takes the current address, like a label on `.assert`/`.def`, so it does not look past a following `.org` (#65 later made a late `.org` an error). All 16 build outputs are byte-identical. This prepares #104 (no `nop` at compiler labels).
+
+## [73] bdos: cp regression tests (bug already fixed by #37) — 2026-11-22
+
+Tags: `bdos` `apps` `tests` `docs`
+PR: [#150](https://github.com/bcichonski/bc16/pull/150)
+Builds on: #37, #92
+
+### What was built
+- No code change: #37 had already fixed it by taking catalog lengths from the real builds (the old catalog gave `CP.PRG` 56 sectors, but it builds to 57).
+- New `BdosCpRegressionTests` in `src/tests/test_e2e_bdos.py`: `cp test.b copy.b` on the same drive and `cp test.b b:copy.b` across drives. Both have masked goldens and check that the copy's catalog length and sectors equal TEST.B's, that only `W` is dropped, and that other catalog entries are unchanged.
+- New harness helper `e2e_harness.read_file(image, name)` (catalog entry + sector bytes), with a self-test.
+- Docs: a root-cause note in `docs/05-bdos.md` (a too-short catalog length loads a truncated program) and the coverage row in `docs/01-emulator.md`.
+
+## [67] Assembler: `clr af` is rejected with a clear message — 2026-11-22
+
+Tags: `assembler` `tests` `docs`
+PR: [#152](https://github.com/bcichonski/bc16/pull/152)
+Builds on: #10, #66
+
+### What was built
+- `check_clr_pair` in `src/bc81asmc/bc81asmc_ast.py`, called from `CLR.emit`. `clr af` → `cannot encode 'clr af': clr af is not allowed: the call offset would be read from a:f, and f holds the flags (use a pair csci, dsdi or sssi)`. Any other non-pair operand → `'x' is not a pair for clr`.
+- `clr csci`/`dsdi`/`sssi` and `clr :label` encode as before.
+- The pinned test is renamed `test_clr_af_is_rejected_on_purpose` and asserts the message. New `TestClrRegisterForm` tests.
+- Docs: Errors table and `clr pair` row in `docs/02-assembler.md`, design decision A9, `src/bc81asmc/CLAUDE.md`.
+
+### Key decisions reflected in the diff
+- `clr` is the relative call, not "clear". The owner withdrew the comment that asked to allow `clr af`. `cal af`, `jmp t, af` and `jrx t, af` still assemble (not in scope).
+
+## [19] Compiler: token-based `#define` instead of substring replacement — 2026-11-22
+
+Tags: `compiler` `bdos` `tests` `docs`
+PR: [#148](https://github.com/bcichonski/bc16/pull/148)
+Builds on: #14, #15
+
+### What was built
+- `bc.py` `parse_define`/`apply_defines`: the name is the first token and the value is the rest of the line, so values with spaces work. Only whole identifiers are replaced, in code and in the string right after `asm`. Other strings, char literals and `//` comments are left alone, numbers are scanned whole (`0x10` never matches `x10`), and a replaced value is not rescanned.
+- A redefinition with a different value prints `<file>: warning: 'NAME' redefined`, and the last value still wins. A malformed `#define` is `<file>: error: …` with exit 1.
+- New `src/bc/tests/bc_define_tests.py` (16 tests).
+- `src/bdos/bdioh.b`: the dead first definition of `BDIO_FOPEN_FDD_NOT_READY` is removed, so behaviour is unchanged.
+- Docs: Preprocessor table in `docs/03-compiler.md`, `src/bc/CLAUDE.md`, design decision C5.
+
+### Key decisions reflected in the diff
+- Every program compiles to byte-identical `.basm` (`code_size.py --check` delta 0). `bc_dbg.py` keeps its own old `preprocess()` (out of scope).
+
+## [56] CPU/ISA: register-count shl/shr settled as `58 r5` / `58 r6` — 2026-11-22
+
+Tags: `emulator` `assembler` `abi` `tests` `docs`
+PR: [#147](https://github.com/bcichonski/bc16/pull/147)
+Builds on: #55
+
+### What was built
+- No behaviour change: the assembler already emits every 8-bit register op as the long form `58 ro` (`shl ci` → `58 45`), and the CPU decodes it. The issue's `5d 40` came from the CPU-only short alias `5(o|8) r0` (sub/and/or/xor only).
+- `src/bc64/bc8183_cpu.py`: comment only. The note in `op_CLC` now describes the long form and the short alias.
+- The pinned `test_shl_shr_register_forms_are_unreachable` is replaced by `test_single_byte_5d_5e_are_inc_dec` and six `ShiftFlagTests` for `58 r5`/`58 r6`. New assembler tests `TestShiftRegisterForms` and `TestShiftRegisterGrammar`.
+- Docs: a new "8-bit ALU encoding" subsection in `docs/01-emulator.md`, a note in `docs/02-assembler.md`, and design decision E15.
+
+### Key decisions reflected in the diff
+- Register-count shifts exist in the ISA, encoded as the long register form. BASM must emit the same bytes.
+
+## [59] CPU: RET stops on a single push frame — 2026-11-20
+
+Tags: `emulator` `abi` `tests` `docs`
+PR: [#144](https://github.com/bcichonski/bc16/pull/144)
+Builds on: #7
+
+### What was built
+- `op_RET` and a new `ret_stop()` in `src/bc64/bc8183_cpu.py`: a single push frame on top (no second push frame under it), or a top tag that is neither push nor call, stops the CPU like `KIL`. It prints `RET at XXXX: …, CPU stopped` to stderr and the trace, and leaves PC, registers and memory unchanged. A call frame returns as before, and two push frames still make a computed jump. The #7 bounds check still runs first.
+- New `src/bc64/tests/test_cpu_ret_frames.py` (8 tests, including a headless `bc64.py` run).
+- Docs: `docs/01-emulator.md` now gives the correct computed-jump order `psh lo; psh hi; ret` (the old text had it backwards), plus design decision E4, `src/bc64/CLAUDE.md` and roadmap step 10.
+
+### Key decisions reflected in the diff
+- An unknown top tag also stops, instead of being decoded as two push frames. A probe run showed no system or app code executes a non-call `RET`, so built programs are unaffected.
+
+## [66] Assembler: every 16-bit ALU op on af is rejected with a clear error — 2026-11-20
+
+Tags: `assembler` `tests` `docs`
+PR: [#145](https://github.com/bcichonski/bc16/pull/145)
+Builds on: #57, #10
+
+### What was built
+- `bc81asmc_grammar.py`: `mINC16`/`mDEC16` are tried before `mINC`/`mDEC`, so `inc af`/`dec af` parse.
+- `bc81asmc_ast.py`: `inc af`, `dec af` and every 16-bit ALU op on `af` (`add sub mul div mod and or xor shl shr not`, both forms) are `cannot encode` errors that say why (the result would overwrite the flags in `f`) and suggest `csci`/`dsdi`. This check runs before the implied-pair rule, and `af` is gone from `PAIR16_IMPLIED`.
+- Pinned test renamed `…_are_rejected_on_purpose`, and the `af` cases of `TestSixteenBitPairs` and the opcode-agreement table were updated. New grammar-order and diagnostics tests.
+- Docs: `docs/02-assembler.md`, `docs/01-emulator.md`, design decision A8 (A7 no longer lists `add af, csci`), `src/bc81asmc/CLAUDE.md`, README known limitations.
+
+### Key decisions reflected in the diff
+- Owner's mid-run instruction "make other arithmetic blocked on af", read as every 16-bit ALU op. The CPU is unchanged, and all 29 build outputs are byte-identical.
+
+## [58] CPU: 16-bit results on the A:F pair defined (docs + tests) — 2026-11-20
+
+Tags: `emulator` `tests` `docs`
+PR: [#140](https://github.com/bcichonski/bc16/pull/140)
+Builds on: #53, #54
+
+### What was built
+- No CPU or assembler change. The behaviour is now documented: a 16-bit op with destination `af` reads `A:F` as one value, puts the high byte of the result in `A` and the flags in `F`, so the low byte is lost.
+- `src/bc64/tests/test_cpu_alu.py`: `test_add16_on_a_f_pair` loses its `PINNED` note, and 5 new tests cover `F` as input low byte, `sub`/`mul` on `af` and the register form.
+- Docs: `docs/01-emulator.md`, `docs/02-assembler.md`, design decision E14, roadmap step 9.
+
+### Key decisions reflected in the diff
+- Owner: "that is correct cpu behavior; af is not to be used in this context although allowed". The issue's two fix options were not taken. (#66 later made the assembler reject these forms.)
+
+## [54] CPU: C is unsigned carry/borrow, O is signed overflow — 2026-11-20
+
+Tags: `emulator` `bcos` `abi` `tests` `docs`
+PR: [#143](https://github.com/bcichonski/bc16/pull/143)
+Builds on: #53, #55
+
+### What was built
+- `src/bc64/bc8183_cpu.py`: `C` is the unsigned carry for `add`/`inc` and the borrow for `sub`/`dec` (borrow is new). `O` is two's-complement signed overflow. `mul16` sets `C` = `O` = product > 0xffff. Logic ops and a non-zero `div`/`mod` clear both, and `not` no longer sets `O`. Shift flags stay as #55 set them (E12).
+- `src/bc81asmc/bcOS/bcos.basm`: the 9 `jmr o`/`jmr no` borrow tests after `sub` (`printhex4`, `upchar`, `prnt_fmt_char`, `gt16`, `gteq16`) are now `jmr c`/`jmr nc`. Instruction sizes are unchanged.
+- 18 pinned tests in `test_cpu_alu.py` assert the new flags, plus new tests for signed overflow, borrow, `mul16` and logic ops, and `jmr c`/`nc`/`o` run as code in `test_cpu_control.py`.
+- Docs: flags table in `docs/01-emulator.md`, design decision E13, README flag and jump-condition lists.
+
+### Key decisions reflected in the diff
+- The owner's mid-run note ("normal 'signed' behaviour") replaced the earlier "unsigned out of range" comment, and the usual 8-bit CPU meanings were adopted. Compiled programs are byte-identical; only the ROM changes.
+
+## [64] Assembler: label or .def at address 0x0000 (regression tests, already fixed by #10) — 2026-11-20
+
+Tags: `assembler` `tests` `docs`
+PR: [#142](https://github.com/bcichonski/bc16/pull/142)
+Builds on: #10
+
+### What was built
+- No assembler change: #10's pass-2 fix-up loop already resolves a name to 0x0000 and reports `undefined label` only when the result is `None`.
+- New `TestAddressZeroTargets` in `src/bc81asmc/tests/bc81asmc_emit_tests.py` (9 tests): the issue's repro (`00 68 00`), `.def zero` through `jmp`/`cal`/`.mv`/`jrx`, and a label at 0 reached by `jmr`/`jrx`/`clr`/`.mv`. All 9 fail if the old falsy check is restored.
+- `docs/02-assembler.md`: the Labels bullet and the `undefined label` row say a name may resolve to 0x0000.
+
+## [55] CPU: shl/shr flags describe the shifted result — 2026-11-20
+
+Tags: `emulator` `tests` `docs`
+PR: [#141](https://github.com/bcichonski/bc16/pull/141)
+Builds on: #53
+
+### What was built
+- `src/bc64/bc8183_cpu.py`: for `shl`/`shr` and `shl16`/`shr16`, `Z`/`N` come from the stored result, `C` is the last bit shifted out (0 for a count of 0 or more than the width), and `O` is 1 when `shl` shifts out a 1 bit (always 0 for `shr`). Large register counts are capped at the width. `set_flags` loses its `raw_zn` parameter.
+- `test_cpu_alu.py`: 7 shift tests get new expectations, and new `ShiftFlagTests` cover the edge counts and `jmp c`/`jmp z` after a shift run as code.
+- Docs: `docs/01-emulator.md`, design decision E12, roadmap step 6.
+
+### Key decisions reflected in the diff
+- A shift by 0 clears `C` and `O`. An audit of all 165 shifts in the built `.basm` files found nothing that reads their flags, so no program changed.
+
+## [53] CPU: zero flag from the stored result after a wrap — 2026-11-19
+
+Tags: `emulator` `tests` `docs`
+PR: [#139](https://github.com/bcichonski/bc16/pull/139)
+
+### What was built
+- `set_flags`/`set_flags16` in `src/bc64/bc8183_cpu.py` compute `Z` and `N` from the stored value, so a wrap to `0x00`/`0x0000` sets `Z` (8-bit `add`/`inc`/`not`, 16-bit `add`/`inc`/`mul`/`shl`/`not`). `C`/`O` and the 8-bit shift flags are unchanged (left to #54/#55).
+- The seven pinned tests now assert `Z = 1`, and new tests (`test_shl16_wrap_to_zero_sets_z`, `JumpOnZeroAfterWrapTests`) run `jmp z` after a wrap as code.
+- Docs: flags table in `docs/01-emulator.md`, design decision E11.
+
+### Key decisions reflected in the diff
+- Only #53 was done; #54/#55 are separate roadmap steps. An audit of every `z`/`nz` jump in the built `.basm` files found none after a wrapping op, so built programs are byte-identical.
+
+## [57] Assembler: enforce the implied second pair of 16-bit register-pair ops — 2026-11-19
+
+Tags: `assembler` `abi` `tests` `docs`
+PR: [#138](https://github.com/bcichonski/bc16/pull/138)
+Builds on: #10
+
+### What was built
+- `check_pair16` in `src/bc81asmc/bc81asmc_ast.py`, called from `CLC16_R_R`, `CLC16_R_IMM`, `INC16`, `DEC16` and `NOT16` before anything is emitted. The register form accepts only the pairs the CPU implies (`csci, dsdi`, `dsdi, csci`, `af, csci`), and an unknown pair name gets its own message. Both are positioned `cannot encode` errors.
+- New `TestSixteenBitPairs` in `bc81asmc_compile_diag_tests.py`. The pinned opcode-agreement test now runs the hand-encoded `5F A8 88` and asserts that `dsdi` is added.
+- Docs: implied-pair table in `docs/02-assembler.md` and `docs/01-emulator.md`, design decision A7, roadmap step 8, `src/bc81asmc/CLAUDE.md`.
+
+### Key decisions reflected in the diff
+- The CPU keeps reading only the first pair, and the assembler enforces the convention (owner decision). BASM must apply the same rule. Valid lines encode as before.
+
+## [15] Compiler: code-size and codegen tracking (`code_size.csv`) — 2026-11-19
+
+Tags: `compiler` `build` `tests` `docs`
+PR: [#135](https://github.com/bcichonski/bc16/pull/135)
+Builds on: #90, #92
+
+### What was built
+- New `scripts/code_size.py`: builds every program (each `.b` with `main`: 13 in `src/bdos/`, 5 in `src/bc/code/`) in a temp copy and reports start address, size (`.btap` codelen) and a 12-digit SHA-256 of the `.basm`. With no flag it prints a Markdown table with Δ and always exits 0. `--check` exits 1 on any change, and `--record` appends changed rows.
+- New append-only `src/bc/code_size.csv` (`date,program,start,bytes,basm_sha`, latest row per program wins), seeded with all programs.
+- New `scripts/tests/test_code_size.py` tests the script on temp trees. In CI, `unit (3.14)` runs it with `continue-on-error` and puts the table in the job summary.
+- Docs: `src/bc/CLAUDE.md`, `docs/03-compiler.md`, root `CLAUDE.md`, `docs/analysis/06-toolchain.md`, `history.txt`.
+
+### Key decisions reflected in the diff
+- Metrics only (owner): no golden `.basm` is tracked, and nothing fails CI when a program's size or code changes. The grammar-test repair was already done on master.
+
+## [4] Emulator fixes: negated jrx, div/mod by zero, FDD failure state — 2026-11-19
+
+Tags: `emulator` `devices` `tests` `docs`
+PR: [#137](https://github.com/bcichonski/bc16/pull/137)
+Builds on: #7
+
+### What was built
+- `op_EXT` in `src/bc64/bc8183_cpu.py`: `jrx` takes the negation bit from the test code (`t & 0x4`), so `jrx nz/nc/nn/no` work in both forms. An unknown EXT sub-opcode stops the CPU cleanly with one stderr line, instead of raising `UnboundLocalError`.
+- 16-bit `div`/`mod` by zero (immediate and register forms) sets `O`, leaves the destination and `Z/N/C` unchanged and continues; a non-zero divisor clears `O`.
+- `FloppyDriveV1.write_byte` in `src/bc64/bc64_io.py`: the `setate` typo is fixed, so an unhandled byte (including READSECT/WRITESECT outside READY) puts the drive in `STATE_DRIVE_FAILURE` until PING/CFG/SETDRV.
+- The #4 expected-failure tests run as normal tests. New tests cover every negated/plain `jrx` flag in both forms, div/mod by zero, a headless CLI run and FDD recovery. The emulator suite has no expected failures left.
+- Docs: `docs/01-emulator.md`, `docs/02-assembler.md`, `src/bc64/CLAUDE.md`, design decision E10, and the roadmap's owner-decision table (#4 → #136).
+
+### Key decisions reflected in the diff
+- Division by zero sets a flag instead of stopping the CPU (owner). In B, `x / 0` gives `x`; follow-up #136 decides the compiler side.
+
+## [111] bdos: rm no longer lets a new file overwrite another file; ls free-sector count — 2026-11-19
+
+Tags: `bdos` `filesystem` `apps` `tests` `docs`
+PR: [#134](https://github.com/bcichonski/bc16/pull/134)
+Builds on: #37, #89
+
+### What was built
+- `src/bdos/bdio.b`: `bdio_fcat_scanmem` now reads the free position back as `track << 8 | sector` (it was `<< 4`). After `rm` reordered the catalog, the old code could place a new file on top of an existing one.
+- `src/bdos/ls.b`: free sectors are `1024 − (track × 16 + sector)` (the sector was added instead of subtracted).
+- New `src/tests/test_e2e_rm_alloc.py` (rm a middle file, the last file on disc, and the last catalog entry, then `cp ls.prg new.prg`; checks that no other file changed and entries don't overlap). New `src/tests/test_e2e_ls_free.py` checks the free count against the manifest layout.
+- Docs: Allocation in `docs/05-bdos.md`, prerequisites in `docs/analysis/07-self-hosted-compiler.md`.
+
+## [109] Release bc64-v0.1: release notes and release docs — 2026-11-19
+
+Tags: `build` `docs` `tests`
+PR: [#110](https://github.com/bcichonski/bc16/pull/110)
+Builds on: #90, #100
+
+### What was built
+- README `# BC64` opens with the `bc64-v0.1` (first preview) release notes, which `make_release.py notes bc64` prints as the Release body: running from the zip with `os.bdd` in A and `utils.bdd` in B, what is on each disc, and known limitations linked to open issues.
+- README Releases section: a `bc64-v0.1` row (bc64 tags start at v0.1), the `--tag bc64-v0.1` example and the owner's dry-run/tag/push steps. CLAUDE.md and the `make_release.py` help text are updated to match.
+- New `Bc64ReleaseNotesTests` in `scripts/tests/test_make_release.py`.
+
+### Key decisions reflected in the diff
+- Tagging and publishing are left to the owner; the PR changes no pipeline (`TAG_RE` and the `bc64-v*` trigger already accept the tag).
+
+## [100] utils.bdd gets theodore, hellowrd and a bdos calc; release zip ships both discs — 2026-11-13
+
+Tags: `apps` `build` `tests` `docs`
+PR: [#101](https://github.com/bcichonski/bc16/pull/101)
+Builds on: #85, #2, #90
+
+### What was built
+- `src/bdos/calc.b` is ported to bdos (`#code 0x6000`, `#heap 0xf000`, malloc'd input buffer) and ships as `CALC.PRG` on `utils.bdd`. It is calc v1.1: `h` help, `+ - * /` on unsigned 16-bit decimals (results wrap), `q` → `bye`. New errors: `error: bad number`, `error: division by zero`, `error: unknown command, type h for help`.
+- `THEODORE.PRG` moves from `os.bdd` to `utils.bdd`. `HELLOWRD.PRG` is on both discs as the same build. `utils.bdd` holds TEXTED, CALC, HELLOWRD and THEODORE.
+- `scripts/make_release.py bc64` also zips `src/utils.bdd`, and a test pins that `release.yml` runs `./makedisc` first.
+- New `src/tests/test_e2e_calc.py` with six input scripts, theodore e2e tests moved to the A/B setup, and `test_e2e_utils_disc.py` extended. The goldens lose only the THEODORE row.
+- Docs: `docs/05-bdos.md` (layout and program tables), `docs/01-emulator.md`, README, CLAUDE.md files.
+
+### Key decisions reflected in the diff
+- calc guards division by zero itself, because the emulator's `alu_div16` crashed on it at the time (before #4). HELLOWRD stays on `os.bdd` as the smoke-test program.
+
+## [85] Separate bootable utils.bdd disc for applications (TextEd first) — 2026-11-12
+
+Tags: `build` `apps` `tests` `docs`
+PR: [#99](https://github.com/bcichonski/bc16/pull/99)
+Builds on: #37, #89, #92
+
+### What was built
+- New `src/utils.bddmanifest`: `BOOTSECT.BIN` 0/0, `DISC.CAT` 0/1, `BDOS.SYS` 2/0 and `TEXTED.PRG` 12/0 (`RX`). It uses the same boot and bdos sectors as `os.bdd`. `./makedisc` builds both discs, and the build is reproducible.
+- `TEXTED.PRG` is removed from `src/disc.bddmanifest`. The default session is `os.bdd` in A and `utils.bdd` in B, and TextEd runs after `b:`. `utils.bdd` also boots on its own.
+- `run_tests.py` requires `utils.bdd` as a build output, and the `--no-build` hint checks its manifest sources.
+- New `src/tests/test_e2e_utils_disc.py` (plan match, catalog, system files byte-identical to `os.bdd`, reproducible, boots alone). TextEd e2e tests run on B, and `os.bdd` tests check that TEXTED is gone. Goldens lose only the TEXTED row.
+- Docs: `docs/05-bdos.md`, `docs/01-emulator.md`, README, CLAUDE.md files.
+
+### Key decisions reflected in the diff
+- `utils.bdd` is a build output, not committed (since #92), and its catalog comes from the manifest.
+
 ## [89] e2e tests: derive disc positions from the manifest instead of pinning tracks/sectors — 2026-11-12
 
 Tags: `tests` `build`

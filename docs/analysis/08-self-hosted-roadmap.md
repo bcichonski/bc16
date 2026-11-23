@@ -9,7 +9,7 @@ The order is: **fixes** (emulator, assembler, compiler, bdos) → **host assembl
 → **assembler on the BC64** → **linker on the BC64** → **compiler passes** → chaining.
 
 The "Done" column marks finished steps with the PR that closed the issue (status on
-2026-11-20: steps 1–6, 8–11 and 13 are done).
+2026-11-23: steps 1–17, 21 and 26–28 are done; phase 0 still has 18–20, 22–25, 29 and 30).
 
 Work one step at a time, top to bottom. Steps inside the same phase and track can sometimes
 run in parallel (the "Track" column), but every step depends only on steps above it.
@@ -26,30 +26,30 @@ that BCC3 copies.
 | 2 | ✅ #135 | #15 | compiler | golden code-generation tests and size tracking | the safety net for every later host change |
 | 3 | ✅ #137 | #4 | emulator | `jrx` negation bit, division by zero, FDD state typo | every `if`/`while` uses `jrx`; the linker encodes it |
 | 4 | ✅ #139 | #53 | emulator | zero flag from the unwrapped result | runtime comparison helpers depend on flags |
-| 5 | ✅ #143 | #54 | emulator | overflow/carry semantics, borrow | same |
+| 5 | ✅ #143 | #54 | emulator | overflow/carry semantics, borrow. **Decided (2026-11-20):** `C` = unsigned carry/borrow, `O` = signed overflow ([E13](../specs/memory/design-decisions.md)) | same |
 | 6 | ✅ #141 | #55 | emulator | `shl`/`shr` flags. **Decided (2026-11-20):** `Z`/`N` from the stored result, `C` = last bit shifted out, `O` = a 1 bit shifted out for `shl` and 0 for `shr`; the same for 16-bit (E12) | same |
-| 7 |  | #56 | emulator + assembler | register forms of `shl`/`shr` | an encoding decision BASM must copy |
+| 7 | ✅ #147 | #56 | emulator + assembler | register forms of `shl`/`shr`. **Settled (2026-11-22):** no code change; register counts use the long form `58 ro` ([E15](../specs/memory/design-decisions.md)) | an encoding decision BASM must copy |
 | 8 | ✅ #138 | #57 | emulator + assembler | 16-bit pair ops ignore the second operand. **Decided (2026-11-19):** the CPU keeps the implied second pair (`csci`→`dsdi`, `dsdi`→`csci`, `af`→`csci`) and the assembler enforces it; BASM must apply the same rule | same |
 | 9 | ✅ #140 | #58 | emulator + assembler | 16-bit results in `A:F`. **Decided (2026-11-20):** `af` stays allowed as a 16-bit destination and the CPU is unchanged: `A` gets the high byte of the result, `F` the flags, and the low byte is lost. Use `csci` or `dsdi` for 16-bit arithmetic ([E14](../specs/memory/design-decisions.md)) | same |
 | 10 | ✅ #144 | #59 | emulator | confirm `RET` behaviour with push frames. **Decided (2026-11-20):** two push frames on top make a computed jump (`psh lo; psh hi; ret`); a single push frame or an unknown tag stops the CPU like `KIL` (E4) | before the ABI is frozen |
 | 11 | ✅ #142 | #64 | assembler | a label at address `0x0000` is "not defined" | **blocker for `--obj`**: every section starts at offset 0 |
-| 12 |  | #65 | assembler | fix-ups after a second `.org` | object files allow `.org` only on the first line |
+| 12 | ✅ #151 | #65 | assembler | fix-ups after a second `.org`. **Decided (2026-11-22):** a second `.org`, or one after code or a label, is an error (A10) | object files allow `.org` only on the first line |
 | 13 | ✅ #145 | #66 | assembler | `inc af` / `dec af` don't parse | BASM copies the grammar |
-| 14 |  | #67 | assembler | `clr af` crashes | same |
-| 15 |  | #11 | assembler | `out #r, imm` encoding (owner decided: fix) | same |
-| 16 |  | #103 | assembler | a label on a line of its own | needed by #104 |
-| 17 |  | #19 | compiler | token-based `#define` | PRE (shared by BASM and BCC) uses the same rule |
+| 14 | ✅ #152 | #67 | assembler | `clr af` crashes. `clr` is a relative call; `clr af` is rejected with a clear message (A9) | same |
+| 15 | ✅ #153 | #11 | assembler | `out #r, imm` encoding (owner decided: fix): `Dr HH`, port register `a`, `ci` or `di` only (A11) | same |
+| 16 | ✅ #149 | #103 | assembler | a label on a line of its own | needed by #104 |
+| 17 | ✅ #148 | #19 | compiler | token-based `#define` | PRE (shared by BASM and BCC) uses the same rule |
 | 18 |  | #20 | compiler | `return` anywhere | implemented once, the same in BCC2 |
 | 19 |  | #104 | compiler | no `nop` at labels and function starts | the template set BCC3 copies |
 | 20 |  | #68 | compiler | undeclared variable crashes | errors, not crashes, in the oracle |
-| 21 |  | #69 | compiler | unknown-operator error crashes | same |
+| 21 | ✅ #154 | #69 | compiler | unknown-operator error crashes | same |
 | 22 |  | #29 | compiler | runtime clean-up | before the runtime moves to `runtime.basm` |
 | 23 |  | #16 | compiler | **host `bc` drops unused functions and runtime routines** | BASM and BLINK are built by `bc`; BASM's 25–30 KB estimate is close to the 32,640-byte file limit. Split the runtime so each piece becomes one `.sect` in #116 |
 | 24 |  | #34 | compiler | spike: hot-path helpers inline, private or ROM | if inlined, the templates change; must be before #131 |
 | 25 |  | #41 | bdos | reuse freed disc space (first fit, largest gap) | every compile leaves 20–30 KB of holes; replaces the `pack` utility of the earlier plan |
-| 26 |  | #73 | bdos | `cp` never makes the copy | needed to move `.O` and `.PRG` files between discs |
-| 27 |  | #82 | bdos | `strnextword` never returns 0 | every new tool's "no name → usage" check |
-| 28 |  | #38 | bdos | bdio error codes | the new tools report them; it's an ABI |
+| 26 | ✅ #150 | #73 | bdos | `cp` never makes the copy (already fixed by #37; regression tests added) | needed to move `.O` and `.PRG` files between discs |
+| 27 | ✅ #155 | #82 | bdos | `strnextword` never returns 0. One `strnextword` that returns the NUL address, never 0 (D9) | every new tool's "no name → usage" check |
+| 28 | ✅ #156 | #38 | bdos | bdio error codes. One code per meaning; `BDIO_FOPEN_FDD_NOT_READY` = `0xe1`, `0xe5` retired | the new tools report them; it's an ABI |
 | 29 |  | #43 | bdos | shared argument parsing (`[d:]name`) | BASM, BLINK and BCC parse the same arguments |
 | 30 |  | #112 | ftool | `importtext` / `exporttext` | e2e tests put sources on a disc in texted format |
 
@@ -132,7 +132,6 @@ Steps 38–45 don't depend on phase 2 and can run in parallel with it.
 
 | Where | Decision | Needed before |
 |---|---|---|
-| #54, #56 | flag meanings, which encodings exist | step 31 (the ABI and the encoder are frozen there) |
 | #136 | `div`/`mod` by zero: keep the destination and set `O` (decided in #4, E10; the owner confirms it), and whether the B `/` and `%` check `O` | step 31 |
 | #113 | `SECT` flags | step 33 |
 | #41 | placement of a new file (proposed: largest gap; writing past it is `disc full`); defrag later | step 25 |
