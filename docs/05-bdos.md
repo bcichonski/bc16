@@ -332,6 +332,8 @@ stops at the first `0x00` or at the end of the file. A record with no valid numb
 is skipped, and text longer than the line length is truncated. `cat -c` shows each record
 ending with ` !ln`.
 
+For host text files (`ftool importtext` and `ftool exporttext`), see "Host text files" under "Building the system disc".
+
 ## Building the system disc
 
 From `src/` (the scripts pick the interpreter themselves: `winpty python` on Git Bash, else `python3`):
@@ -363,6 +365,8 @@ A single program can also be built with the console command `bcc bdos/ls` (after
 | `exportsector disk.bdd out.bin track sector` | read one sector out |
 | `dumpsector disk.bdd track sector count` | hex dump sectors |
 | `mkdisc disc.bddmanifest out.bdd` | build a disc from a manifest: places the files, writes the catalog. Any error stops it before anything is written (see below). `makedisc` runs it for `disc.bddmanifest` (`os.bdd`) and for `utils.bddmanifest` (`utils.bdd`) |
+| `importtext DISC.bdd host.txt NAME.EXT` | add a host text file to an existing disc as the TextEd file `NAME.EXT` (line numbers 10, 20, 30 …). See "Host text files" |
+| `exporttext DISC.bdd NAME.EXT host.txt [--numbers]` | write the text of the TextEd file `NAME.EXT` to a host file, without line numbers; `--numbers` keeps the `<number> ` prefix of each record |
 
 ### Disc manifest
 
@@ -412,6 +416,56 @@ Any error stops the build with a message on stderr (`mkdisc: error: ...`), exit 
 - an explicit start is before the previous slot ends, or outside the disc;
 - a bad or duplicate name, an unknown attribute letter, or empty attributes;
 - a malformed line.
+
+### Host text files
+
+`ftool importtext` and `ftool exporttext` (`src/ftool_text.py`) copy text between a host file and a
+TextEd file on a disc image. They work on any disc image of exactly 131072 bytes (`.bdd`), and they change
+only the one catalog entry and the sectors of the new file (`importtext`), or only the host file (`exporttext`).
+
+```bash
+ftool importtext DISC.bdd host.txt NAME.EXT
+ftool exporttext DISC.bdd NAME.EXT host.txt [--numbers]
+```
+
+`importtext`:
+
+- numbers the host lines 10, 20, 30 …, and writes them in the TextEd format (see "TextEd file format");
+- adds a catalog entry with attributes R W (`0x03`), and places the file after the last used sector, where
+  bdio puts a file that TextEd saves. Gaps left by `rm` are not reused (#41);
+- never overwrites: a name that already exists on the disc is refused. The name follows the manifest rules
+  (1–8 characters, plus 0–3 for the extension; `A–Z` and `0–9`, upper-cased). `DISC.CAT` is refused.
+
+Host text rules:
+
+| Item | Rule |
+|---|---|
+| line endings | host input may use LF or CRLF (the CR is dropped); a missing last newline is accepted; each record on the disc ends in 0x13; exporttext writes LF line endings (every line, including the last, ends with LF) |
+| characters | tab (`0x09`) and printable ASCII (`0x20`–`0x7e`) only; any other byte is an error |
+| line length | at most 80 bytes, the TextEd limit |
+| line count | at most 6553, so that line numbers fit in 16 bits |
+| empty line | stored as one space, because `readLines` skips a record with no text. A host line of exactly one space cannot be told apart from an empty line, so it is refused |
+| file size | at most 255 sectors (the catalog length is one byte) |
+
+`exporttext`:
+
+- finds the entry by name, and reads its sectors up to the first `0x00`;
+- writes one LF-terminated host line per record. Without `--numbers` the line is the record text only (a
+  one-space text becomes an empty line). With `--numbers` the line is the whole record, `<number> <text>`;
+- is strict: a malformed record (no number, a number above 65535, no space after it) is an error, so that no
+  line is lost without notice. `--numbers` must be the last argument; any other extra argument is an error;
+- replaces the host file only when the whole export succeeded.
+
+Both commands check everything before they write. On an error the disc image (`importtext`) or the host file
+(`exporttext`) is left unchanged, and the command prints one line on stderr and exits with status 1:
+
+```
+importtext: error: NAME.TXT already exists on the disc (it is never overwritten)
+exporttext: error: NAME.TXT not found on the disc
+```
+
+Other messages name the limit that was broken, for example `line 3: 81 characters, at most 80 (TextEd limit)`,
+`line 2: byte 0x0b is not allowed (only tab and printable ASCII)`, `catalog full`, or `disc full`.
 
 ## Testing
 
