@@ -22,20 +22,6 @@ byte strpoke8(word Paddr, byte value)
     asm "mov #csci, a";
 }
 
-word strnextwordnull(word Pstring) 
-{
-    //returns pointer to the next word in string, or NULLCHAR if not found
-    Pstring;
-    asm "mov ds, cs";
-    asm "mov di, ci";
-    asm "cal :nextword";
-    asm "jmr nz,:strnnextw";
-    asm "mov ds, 0x00";
-    asm "mov di, 0x00";
-    asm "strnnextw: mov cs, ds";
-    asm "mov ci, di";
-}
-
 byte strnlen8(word Pstring, byte maxLength) 
 {
     Pstring;
@@ -203,6 +189,10 @@ byte upstring(word Pstring)
     }
 }
 
+// Returns the address of the next word in the string: the word after the one at Pstring and
+// the spaces after it. When there is no next word it returns the address of the terminating
+// NUL. It never returns 0. Callers detect a missing word by testing the first byte of the
+// result for NULLCHAR, not the pointer.
 word strnextword(word Pstring)
 {
     Pstring;
