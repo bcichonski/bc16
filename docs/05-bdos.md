@@ -51,12 +51,13 @@ data) are committed. `os.bdd`, `utils.bdd` and the ROM are build outputs too and
 | Address | Contents |
 |---|---|
 | `0x0000–0x0d6b` | bcOS 1.2 |
-| `0x0d80–0x0dd1` | bdio variables: last error, active drive, catalog scan state, free entry/track/sector, `PMEMBUF_LEN` (`0x0d92`), file descriptor tables (write `0x0d94`, read `0x0da4`) |
+| `0x0d80–0x0dd1` | bdio variables: last error, active drive, catalog scan state, free entry/track/sector (`0x0d84`–`0x0d86`), disc-full flag (`0x0d87`), gap end (`0x0d8a`, word), free sectors for `ls` (`0x0d8c`, word), `PMEMBUF_LEN` (`0x0d92`), file descriptor tables (write `0x0d94`, read `0x0da4`) |
 | `0x0dd2–0x0dfe` | shell command-line buffer (45 bytes). **Programs read their arguments from here** |
 | `0x0e00–0x0e7f` | temporary sector buffer (the boot sector is loaded here at boot) |
 | `0x0e80–0x0eff` | catalog scan sector buffer |
-| `0x0f00–0x5721` | `BDOS.SYS`: shell + bdio code (`0x4822` bytes), followed by its B variable stack |
+| `0x0f00–0x5b4c` | `BDOS.SYS`: shell + bdio code (`0x4c4d` bytes), followed by its B variable stack |
 | `0x5d00–0x5eff` | per-handle 128-byte buffers for buffered I/O (write handle, then 3 read handles) |
+| `0x5f00–0x5f7f` | used-sector map built by `fcreate`, 128 bytes, one bit per sector (see Allocation) |
 | `0x5fd0` | bdos heap; `0x5fe0` is a temporary file-name buffer |
 | `0x6000` | **user memory**: `.PRG` programs are loaded and run here (`#code 0x6000`) |
 | `… 0xfffe` | CPU stack, growing downwards from `0xfffe` |
@@ -160,22 +161,49 @@ The default session has the system disc in A and the utilities disc in B. In hea
 
 ### Allocation
 
-When the catalog is read (`bdio_fcat_read`, run on every drive change), bdio finds two things:
+Sectors are numbered linearly (track × 16 + sector, 0..1023). The reserved part is never allocated;
+the rest is the allocatable area:
 
-- **First free entry:** the first catalog entry with length 0. The scan stops there. `rm` keeps
-  the catalog compact by moving the last entry into the hole, so the first empty entry is the end.
-- **First free sector:** the maximum of start + length over all used entries, in linear sectors
-  (track × 16 + sector), whatever the catalog order (after `rm` it is not disc order). bdio keeps
-  it as track/sector bytes and compares the values as `track << 8 | sector` words, the same
-  encoding as `bdio_tracksector_add`.
+| Sectors | Use | Constants (`bdioh.b`) |
+|---|---|---|
+| `0/0` | boot sector | `BDIO_DISC_BOOTSECT` (`0x00`) |
+| `0/1`–`1/15` | catalog (31 sectors, 248 entries) | `BDIO_DISC_FCATFIRSTSECT`–`BDIO_DISC_FCATLASTSECT` (`0x01`–`0x1f`) |
+| `2/0`–`11/15` | BDOS.SYS range that `boot.basm` loads | `BDIO_DISC_BDOSFIRSTSECT`–`BDIO_DISC_BDOSLASTSECT` (`0x20`–`0xbf`) |
+| `12/0`–`63/15` | allocatable: 832 sectors | `BDIO_DISC_ALLOCFIRSTSECT` (`0xc0`) up to the disc end `BDIO_DISC_SECTORS` (`0x0400`, exclusive) |
 
-New data is always allocated from the first free sector onwards (`bdio_getfreesect`), and files
-are written append-only. Gaps are not reused (#41). Removing the file that ends last frees its
-space again, because the maximum is recomputed on the next catalog read.
+The reserved sectors count as used whatever the catalog says: if `BOOTSECT.BIN`, `DISC.CAT` or `BDOS.SYS` was
+removed with `rm -f`, or `BDOS.SYS` is shorter than its slot, those sectors are still never allocated.
 
-`ls` prints free sectors as 1024 − (track × 16 + sector), using the same linear position. Example:
-free position 36/10 gives 1024 − 586 = 438 (`01B6`). On the layout where the last file ends at
-52/02 the figure is 190 (`00BE`).
+When the catalog is read (`bdio_fcat_read`, run on every drive change), bdio finds:
+
+- **First free entry:** the first catalog entry with length 0. The scan stops there. `rm` keeps the catalog
+  compact by moving the last entry into the hole, so the first empty entry is the end.
+- **Free sectors:** the number of free sectors in the allocatable area, kept as a word
+  (`BDIO_VAR_FCAT_TOTALFREE`, `0x0d8c`). `ls` prints this figure.
+- **Append position:** the maximum of start + length over all used entries, in linear sectors, as bdio keeps it
+  as track/sector bytes. A write handle opened without `fcreate` (a program appending to an existing file)
+  may write up to the disc end.
+
+**New file (`fcreate`):** bdio builds the used-sector map at `0x5f00` (`BDIO_USEDMAP_ADDR`, 128 bytes, one bit
+per sector) from a fresh scan of the catalog, so a file removed by another program is seen. The reserved
+sectors are marked used; every catalog entry with a length marks its extent, clipped to the disc. The scan
+stops at the first empty entry, as before. The new file goes into the **largest free gap**: the longest run
+of free sectors in the allocatable area. The tail of the disc counts as a gap, and on a tie the gap with the
+lowest start wins. The entry starts at the gap start with length 1, and the gap end becomes the limit of the
+write handle. If no sector is free, `fcreate` returns `disc full` (`0xf3`) and writes no catalog entry.
+
+**Growing a file (write and `fclose`):** the write handle writes the sectors of its file in order and never at
+or past the gap end. When a write needs such a sector, it writes nothing more and the handle is marked disc
+full. `fclose` saves the catalog entry with the sectors that were actually written, and returns `disc full`
+(`0xf3`) instead of the handle. The file keeps the sectors that fit: it is never moved, no other file is
+touched, and the user can `rm` it to free them.
+
+**`ls`:** the free figure is the total number of free sectors in the allocatable area (832 minus the used
+sectors there), so gaps count too. On a disc without gaps it equals 1024 minus the end of the last used
+sector, as before #41.
+
+Not part of #41: `DEFRAG` (moving files to close the gaps) is a follow-up. Creating a file while the write
+handle is open is not supported; no caller does it, and it is not guarded.
 
 **Discs made before #37.** `os.bdd` discs copied before #37 number only catalog entries 0–15, and entries 16–247 hold 0. bdio takes the first empty entry's number byte as the slot for a new file, so on such a disc the 17th file gets entry number 0 and overwrites the entry of `BOOTSECT.BIN`. The disc still boots, but its catalog is corrupted. Re-make the disc (`format` from a new system disc, or a copy of the new `os.bdd`), or keep it at 16 files or fewer. Discs made by `format` and the `src/os.bdd` built now number all 248 entries and are not affected.
 
@@ -267,7 +295,8 @@ have one; every other code prints `unknown error` with its code.
 | `0xf0` | delete, setattr | catalog save error | `unknown error` |
 | `0xf1` | delete, setattr | drive (fdd) not ready | `unknown error` |
 | `0xf2` | delete, setattr | file not found | `unknown error` |
-| `0xf3`-`0xfe` | - | free (not assigned) | `unknown error` |
+| `0xf3` | fcreate, close | disc full: no free sector for a new file, or a write hit the end of the file's gap | `disc full` |
+| `0xf4`-`0xfe` | - | free (not assigned) | `unknown error` |
 | `0xff` | open | no free file handle (`BDIO_FDESCRIPTOR_NUMBERFULL`) | `unknown error` |
 
 Close codes are not contiguous (`0xe2`, `0xe6`, `0xef`): `0xe7` stays the exec code, so the
@@ -352,7 +381,7 @@ Use `-h` for help in each tool. File arguments accept a drive prefix: `[d:]name.
 
 | Program | Usage | What it does |
 |---|---|---|
-| `ls` | `ls [-a] [d:]`; `ls -h` prints help | lists files: name, `SRWX` attributes, size in bytes, start track/sector, length in sectors; then free entries and free sectors. `-a` includes system files |
+| `ls` | `ls [-a] [d:]`; `ls -h` prints help | lists files: name, `SRWX` attributes, size in bytes, start track/sector, length in sectors; then free catalog entries and the free sectors of the allocatable area (see Allocation). `-a` includes system files |
 | `cp` | `cp [d:]src.ext [d:]dst.ext` | copy a file, also between drives |
 | `rm` | `rm [-f] [d:]name.ext` | delete a file; `-f` is needed for system files |
 | `cat` | `cat [-b\|-c] [d:]name.ext` | print a file as a hex dump (`-b`) or as characters (`-c`) |
@@ -479,8 +508,9 @@ ftool exporttext DISC.bdd NAME.EXT host.txt [--numbers]
 `importtext`:
 
 - numbers the host lines 10, 20, 30 …, and writes them in the TextEd format (see "TextEd file format");
-- adds a catalog entry with attributes R W (`0x03`), and places the file after the last used sector, where
-  bdio puts a file that TextEd saves. Gaps left by `rm` are not reused (#41);
+- adds a catalog entry with attributes R W (`0x03`), and places the file in the largest free gap, the same rule
+  bdio uses for a file that TextEd saves (see Allocation; #41). If the text needs more sectors than the largest gap,
+  the command fails with `disc full` before it writes anything;
 - never overwrites: a name that already exists on the disc is refused. The name follows the manifest rules
   (1–8 characters, plus 0–3 for the extension; `A–Z` and `0–9`, upper-cased). `DISC.CAT` is refused.
 

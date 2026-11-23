@@ -34,7 +34,7 @@ From the README and `bdos.md`:
 | 1 | Stale system disc | `BDOS.SYS`/`CAT.PRG` built 2024-11-03; the sources changed on 2025-01-04 | the disc doesn't match the source (#1) | #1 |
 | 2 | **Disc geometry is hard-wired to 16 sectors per track** | the boot loader packs track and sector into one byte (`ci`: high nibble track, low nibble sector, range `0x20..0xbf`); `bdio_getfreesect` masks with `& 0x0f`; `FDD_SECTORS 0x10` | roadmap item 7 (32 sectors) needs a redesign of the boot loader and the bdio addressing, not just constants | #40 |
 | 3 | Hand-maintained disc build | before #37, `fcat0800.sector` was a binary edited by hand and `makedisc` hard-coded the start tracks | adding or growing a program is error-prone; nothing checks the sizes | #37 |
-| 4 | Allocation never reuses space | new data always goes after the last used sector; `rm` doesn't free anything | the disc fills up permanently; only a reformat recovers it | #41 |
+| 4 | Allocation never reuses space (fixed by #41) | new data always went after the last used sector; `rm` didn't free anything. Fixed: a new file goes into the largest free gap, and a file that outgrows it stops with `disc full` (see `docs/05-bdos.md`, Allocation) | the disc filled up permanently; only a reformat recovered it | #41 |
 | 5 | File size limited to 255 sectors (32 KB) | the length is one byte in the catalog entry | `bdos.md` claimed 64 KB until now; large texts and bigger apps don't fit | #39 |
 | 6 | Colliding error codes (fixed by #38) | `BDIO_FOPEN_FDD_NOT_READY` was defined twice (`0xe1`, then `0xe5`); `0xe6` and `0xe7` each meant two things. Fixed: one value per meaning, `0xe1` for drive not ready on open, `0xe5` retired | wrong messages; `bdio_printexecres` could not tell the cases apart | #38 |
 | 7 | Kernel size and memory | bdos uses `0x0d80–0x6000` (about 21 KB); 1.5 KB left before the file buffers; the boot loader always reads 160 sectors, and its rebuilt sector is already 128 of 128 bytes | little room for 1.1b/2.0 features without compiler improvements | #45 |
@@ -74,8 +74,7 @@ From the README and `bdos.md`:
    - the boot loader gets a 16-bit counter.
 
    This unblocks the 80×32 geometry.
-6. **Free-space reuse** (#41): a first-fit search over the gaps between catalog entries when
-   creating a file, plus a `defrag` utility. Without it, item 7's bigger disc only delays
+6. **Free-space reuse** (#41, done: a new file goes into the largest free gap) and a `defrag` utility (still open). Without it, item 7's bigger disc only delays
    the problem.
 7. **Load addresses (1.1b) as the first step to relocation** (#42). Programs declare their load
    address (from `#code`) in the catalog, and `bdio_execute` uses it. Real relocation

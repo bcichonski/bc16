@@ -197,13 +197,17 @@ class CatalogTests(TextTestCase):
         self.assertEqual(entry[:5], bytes([5, 20, 4, 1, 0x03]))  # linear 324 = 20*16+4
 
     def test_free_sector_uses_track_times_16(self):
-        # end at 1000 = track 62, sector 8 (guards the #111 style track*15 confusion)
+        # 12/0..61/15 (sectors 192..991) are used, so the tail at 62/8 (sector 1000) is the largest gap
+        # (guards the #111 style track*15 confusion)
         image = bytearray(self.base)
-        image[CATALOG_OFFSET + 3 * 16:CATALOG_OFFSET + 4 * 16] = bytes([3, 62, 0, 8, 3]) + b'BIG     BIN'
+        layout = [(192, 200), (392, 200), (592, 200), (792, 200), (992, 8)]
+        for number, (start, sectors) in enumerate(layout, start=3):
+            entry = bytes([number, start // 16, start % 16, sectors, 3]) + b'FILL%d   BIN' % number
+            image[CATALOG_OFFSET + number * 16:CATALOG_OFFSET + (number + 1) * 16] = entry
         with open(self.disc, 'wb') as f:
             f.write(image)
         self.imp(b'a\n')
-        self.assertEqual(entry_bytes(self.read('disc.bdd'), 4)[:5], bytes([4, 62, 8, 1, 0x03]))
+        self.assertEqual(entry_bytes(self.read('disc.bdd'), 8)[:5], bytes([8, 62, 8, 1, 0x03]))
 
     def test_name_is_case_insensitive_for_export(self):
         self.imp(b'a\n', name='Foo.Txt')
@@ -290,7 +294,11 @@ class ImportErrorTests(TextTestCase):
 
     def test_disc_full(self):
         image = bytearray(self.base)
-        image[CATALOG_OFFSET + 3 * 16:CATALOG_OFFSET + 4 * 16] = bytes([3, 63, 0, 16, 3]) + b'FULL    BIN'
+        # four 208-sector files cover the whole allocatable area 12/0..63/15: no free sector is left
+        for number in range(4):
+            start = 192 + number * 208
+            image[CATALOG_OFFSET + (3 + number) * 16:CATALOG_OFFSET + (4 + number) * 16] = bytes(
+                [3 + number, start // 16, start % 16, 208, 3]) + b'FULL%d   BIN' % number
         with open(self.disc, 'wb') as f:
             f.write(image)
         self.base = bytes(image)

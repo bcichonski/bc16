@@ -889,8 +889,8 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Purpose:** put a host text file (a B or assembly source) on an existing disc as a file TextEd can load, and get a TextEd file back as host text, without any BC64-side reader.
 - **Rationale:** `importsector` writes raw sectors with no catalog entry, and `mkdisc` builds only fresh discs from a manifest, so neither can add a text file to a disc that already exists. The tool writes the record format of D6, and it places the new file where bdio would place a file TextEd saves, so the tool, bdio and TextEd agree on the disc.
 - **Usage:**
-  - `ftool importtext DISC.bdd host.txt NAME.EXT` numbers the lines 10, 20, 30 …, adds a catalog entry with attributes R W, and places the file after the last used sector;
-  - an existing name is refused, never overwritten (D-2). Rewriting in place cannot grow a file, and freeing its entry would leave a gap that bdio never reuses (#41);
+  - `ftool importtext DISC.bdd host.txt NAME.EXT` numbers the lines 10, 20, 30 …, adds a catalog entry with attributes R W, and places the file in the largest free gap, the rule bdio uses for a file TextEd saves (#41, D12);
+  - an existing name is refused, never overwritten (D-2). Rewriting in place cannot grow a file, and freeing its entry leaves a gap that later files may take (#41, D12);
   - a blank host line is stored as one space, because `readLines` skips records with no text (D-3). A host line of exactly one space is refused, since it could not be told apart from a blank line;
   - the character set is tab and printable ASCII; any other byte is refused (D-4);
   - `ftool exporttext DISC.bdd NAME.EXT host.txt [--numbers]` is strict: a malformed record is an error and the host file is not written, so a test cannot silently lose lines (D-6). Without `--numbers` each line is the record text, and a one-space text becomes an empty line; with `--numbers` each line is the whole `<number> <text>` record;
@@ -905,6 +905,18 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - the helpers are `getdriveletter`, `getdrive`, `changeDriveIfNeeded`, `getswitch`, `argfile` and `printusage`, with their contracts in `docs/05-bdos.md` ("Argument library"); `DRIVEPRESENT` is defined there;
   - a new utility parses its arguments with these helpers and does not keep its own copy. `texted` is not ported because it has no command-line arguments; porting its interactive `l`/`s` file names to `argfile` would add drive prefixes, i.e. change its command syntax.
 - **Trade-offs:** until #16 (no dead-code elimination) every tool pays for all the helpers, so the ported tools grew: `cat` +457, `cha` +536, `cp` +613, `rm` +495, `ls` +978 and `format` +956 bytes (`src/bc/code_size.csv`, rows of 2026-11-23). The library removes the duplicates but saves no bytes today; its gain is one place to fix parsing. `getswitch` returns only the matched letter, so each tool keeps its own option precedence.
+
+### D12. bdio puts a new file in the largest free gap; a file that outgrows it stops with `disc full` (#41)
+- **Purpose:** reuse the sectors that `rm` frees, so a disc no longer fills up for good after a few create and delete cycles, without moving any file.
+- **Rationale:** the size of a file is unknown when it is created, so a rule that picks a gap that fits would need the size up front, and growing a file in place would move others. Choosing the largest gap and never moving a file touches no other file; the cost is that a file that grows past its gap is cut at the gap end. The reserved area is fixed by constants, not by catalog entries, so a damaged or hand-edited catalog cannot send a write into the boot sector, the catalog or the BDOS range. The used-sector map is built only in `fcreate`, the one place that allocates, so a drive change reads only the free-sector total that `ls` shows.
+- **Usage:**
+  - reserved, never allocated: boot 0/0, catalog 0/1–1/15 and BDOS 2/0–11/15 (`BDIO_DISC_BOOTSECT`, `BDIO_DISC_FCATFIRSTSECT`/`LASTSECT`, `BDIO_DISC_BDOSFIRSTSECT`/`LASTSECT`); allocatable 12/0..63/15 (`BDIO_DISC_ALLOCFIRSTSECT` up to `BDIO_DISC_SECTORS`);
+  - `fcreate` builds the used-sector map at `0x5f00` from a fresh catalog scan, takes the longest free run (the tail of the disc counts; on a tie the lowest start wins), starts the entry at its start with length 1 and limits the write handle to the gap end; with no free sector it returns `BDIO_FILE_DISC_FULL` (`0xf3`) and writes no catalog entry;
+  - a write that needs a sector at or past the gap end writes nothing more; `fclose` then saves the catalog entry with the sectors that were written and returns `BDIO_FILE_DISC_FULL` instead of the handle. The file is never moved and no other file is touched;
+  - `ftool importtext` uses the same rule and tie-break, and fails with `disc full` before it writes when the text does not fit the largest gap;
+  - `ls` prints the total free sectors of the allocatable area (`BDIO_VAR_FCAT_TOTALFREE`), computed at catalog read; the used-sector map is not built there;
+  - one error value, `0xf3`, covers both places (one value per meaning, #38); `0xf4`–`0xfe` stay free.
+- **Trade-offs:** the largest-gap rule can leave several small gaps that no file can use, so a disc can report `disc full` while some free sectors remain; a file that outgrew its gap keeps the sectors that fit and must be removed by hand. `DEFRAG` (moving files together) is a follow-up. Creating a file while the write handle is open is not supported (not guarded).
 
 ### G12. Only sources are committed; build before test; generated `.basm` files say so
 - **Purpose:** keep build output out of the history, so PRs show only real changes, and make every test run on binaries built from the sources in the same run (#90, #92).

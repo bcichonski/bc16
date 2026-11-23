@@ -67,7 +67,7 @@ class BdiohCodesTests(unittest.TestCase):
     def test_retired_and_free_values_are_not_used(self):
         used = set(error_codes().values())
         self.assertNotIn(0xe5, used)
-        self.assertFalse([v for v in used if 0xf3 <= v <= 0xfe])
+        self.assertFalse([v for v in used if 0xf4 <= v <= 0xfe])
 
     def test_fixed_values(self):
         d = dict(defines())

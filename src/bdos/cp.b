@@ -64,7 +64,11 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
                 }
 
                 currentDrive <- changeDriveIfNeeded(currentDrive, targetdrive, TRUE);
-                bdio_fclose(fHandleOut);
+                result <- bdio_fclose(fHandleOut);
+                if(result = BDIO_FILE_DISC_FULL)
+                {
+                    bdio_printexecres(result);
+                }
 
                 fAttribsIn <- fAttribsIn & nowritemask;
                 bdio_fsetattr(Ptargetfileext, fAttribsIn);
