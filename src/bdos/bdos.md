@@ -72,6 +72,8 @@ call numbers as dispatched by bdio_call (see bdioh.b and bdosh.b wrappers)
 ### random numbers (opt-in, bdos 1.1)
 0x1a: BDIO_RANDOM, wrapper random(max) in random.b (include after bdosh.b) - random word from port 0x05; max=0 returns the whole word, else word % max
 buffered I/O contract (return values, EOF, flush, buffer counter): see docs/05-bdos.md, section "Buffered I/O"
+### argument library (opt-in, utilities, #43)
+bdosargs.b: getdriveletter, getdrive, changeDriveIfNeeded, getswitch, argfile, printusage; include after bdostools.b. See docs/05-bdos.md, "Argument library".
 ### internal, used by the shell only (not available via bdio_call)
 bdio_ffindfile(Pfnameext) - find a sector in which catalog entry for given name and extension is located
 bdio_getfreesect() - returns next free sector to allocate

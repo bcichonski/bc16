@@ -5,44 +5,12 @@
 #include bdosh.b
 #include strings.b
 #include bdostools.b
+#include bdosargs.b
 
 #define FILEBUFSECT_ADDR 0xa000
 #define FILEBUFSECT_LEN 0x40
 #define INFILEBDIONAME_ADDR 0xf0f0
 #define OUTFILEBDIONAME_ADDR 0xf0e0
-#define DRIVEPRESENT 0x0100
-
-word getdrive(word Pargs)
-{
-    word result;
-
-    if(strncmp(Pargs, "A:", 2) = STRCMP_EQ)
-    {
-        result <- BDIO_DRIVEA | DRIVEPRESENT;
-    }
-    else
-    {
-        if(strncmp(Pargs, "B:", 2) = STRCMP_EQ)
-        {
-            result <- BDIO_DRIVEB | DRIVEPRESENT;
-        }
-        else
-        {
-            result <- bdio_getdrive();
-        }
-    }
-    return result;
-}
-
-byte changeDriveIfNeeded(byte currentDrive, byte targetDrive, byte silent)
-{
-    if(currentDrive != targetDrive)
-    {
-        bdio_setdrive(targetDrive, silent);
-        currentDrive <- targetDrive;
-    }
-    return currentDrive;
-}
 
 byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetfileext)
 {
@@ -124,8 +92,7 @@ byte main()
 {
     word Pargs;
     word result;
-    word PsrcFileNameExt;
-    word PtgtFileNameExt;
+    word PtgtArgs;
     byte sourcedrv;
     byte targetdrv;
     byte len;
@@ -133,38 +100,25 @@ byte main()
     upstring(BDIO_CMDPROMPTADDR);
     Pargs <- strnextword(BDIO_CMDPROMPTADDR);
 
-    if(strncmp(Pargs, "-H", 3) = STRCMP_EQ)
+    //help only for a word that is exactly -H (end of line right after it)
+    if((getswitch(Pargs, "H") = 1) && (peek8(Pargs + 2) = NULLCHAR))
     {
-        printf("%s%n%s%n%s%n",
-            "copy file",
-            "[d:]srcfname.ext", 
+        printusage("copy file",
+            "[d:]srcfname.ext",
             "[d:]dstfname.ext");
     }
     else
     {
-        result <- getdrive(Pargs);
-        poke8(Pargs - 1, NULLCHAR);
-        if(result & DRIVEPRESENT)
-        {
-            Pargs <- Pargs + 2;  
-        }
+        //take the target before argfile terminates the source word;
+        //terminating before it keeps the old result for a missing target
+        PtgtArgs <- strnextword(Pargs);
+        poke8(PtgtArgs - 1, NULLCHAR);
 
-        PsrcFileNameExt <- Pargs;
+        result <- argfile(Pargs, INFILEBDIONAME_ADDR);
         sourcedrv <- result;
 
-        Pargs <- strnextword(Pargs);
-        poke8(Pargs - 1, NULLCHAR);
-        result <- getdrive(Pargs);
-        if(result & DRIVEPRESENT)
-        {
-            Pargs <- Pargs + 2;  
-        }
-
-        PtgtFileNameExt <- Pargs;
+        result <- argfile(PtgtArgs, OUTFILEBDIONAME_ADDR);
         targetdrv <- result;
-
-        bdio_fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
-        bdio_fnormalize(PtgtFileNameExt, OUTFILEBDIONAME_ADDR);
 
         copy(sourcedrv, INFILEBDIONAME_ADDR, targetdrv, OUTFILEBDIONAME_ADDR);
     }

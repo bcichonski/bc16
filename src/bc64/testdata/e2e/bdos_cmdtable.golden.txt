@@ -1,0 +1,214 @@
+bcOS 1.2
+booting from FDDlding
+bDOS 1.1 shell
+9FF5 bytes free
+reading disc...
+A>ls -h
+<dots>
+lists files
+-a show all files
+-h print help
+A>cp -h
+<dots>
+copy file
+[d:]srcfname.ext
+[d:]dstfname.ext
+
+A>rm -h
+<dots>
+remove file
+[-f] force
+[d:]srcfname.ext
+A>cha -h
+<dots>
+set file attributes
+[+-][SRWX] set or unset attrib
+A>cat -h
+<dots>
+print files
+-b binary
+-c characters
+
+A>format -h
+<dots>
+format disc
+d: drive
+-q quick
+A>ls
+<dots>
+listing files of drive A:
+HELLOWRD.PRG -R-X SIZE TT SS LL
+TEST    .B   -RW- SIZE TT SS LL
+EC catalog entries free; XXXX sectors free...
+A>ls -a
+<dots>
+listing files of drive A:
+BOOTSECT.BIN SR-- SIZE TT SS LL
+DISC    .CAT SR-- SIZE TT SS LL
+BDOS    .SYS SR-- SIZE TT SS LL
+LS      .PRG SR-X SIZE TT SS LL
+HELLOWRD.PRG -R-X SIZE TT SS LL
+CP      .PRG SR-X SIZE TT SS LL
+FORMAT  .PRG SR-X SIZE TT SS LL
+RM      .PRG SR-X SIZE TT SS LL
+CHA     .PRG SR-X SIZE TT SS LL
+CAT     .PRG SR-X SIZE TT SS LL
+TEST    .B   -RW- SIZE TT SS LL
+EC catalog entries free; XXXX sectors free...
+A>ls b:
+<dots>
+listing files of drive B:
+TEXTED  .PRG -R-X SIZE TT SS LL
+CALC    .PRG -R-X SIZE TT SS LL
+HELLOWRD.PRG -R-X SIZE TT SS LL
+THEODORE.PRG -R-X SIZE TT SS LL
+F0 catalog entries free; XXXX sectors free...
+A>ls -a b:
+<dots>
+listing files of drive B:
+BOOTSECT.BIN SR-- SIZE TT SS LL
+DISC    .CAT SR-- SIZE TT SS LL
+BDOS    .SYS SR-- SIZE TT SS LL
+TEXTED  .PRG -R-X SIZE TT SS LL
+CALC    .PRG -R-X SIZE TT SS LL
+HELLOWRD.PRG -R-X SIZE TT SS LL
+THEODORE.PRG -R-X SIZE TT SS LL
+F0 catalog entries free; XXXX sectors free...
+A>cat -c test.b
+<dots>
+printing A:TEST    B   with options 10...
+10 first line !ln
+20 second line !ln
+30 very loooooooooooooooooooooooooooooooooooongline !ln
+40 another loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong !ln
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00
+A>cat -b test.b
+<dots>
+printing A:TEST    B   with options 20...
+0000: 31 30 20 66 69 72 73 74 20 6C 69 6E 65 13 32 30 20 73 65 63 6F 6E 64 20 6C 69 6E 65 13 33 30 20 
+0020: 76 65 72 79 20 6C 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 
+0040: 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6E 67 6C 69 6E 65 13 34 30 20 61 6E 6F 74 68 65 72 20 6C 6F 6F 6F 
+0060: 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 
+
+0080: 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6E 
+00A0: 67 13 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+00C0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+00E0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+
+
+A>cat test.b
+<dots>
+error: unknown switch
+printing A:            with options 00...
+error: E0 file not found
+
+A>cat -x test.b
+<dots>
+error: unknown switch
+printing A:TEST    B   with options 00...
+0000: 31 30 20 66 69 72 73 74 20 6C 69 6E 65 13 32 30 20 73 65 63 6F 6E 64 20 6C 69 6E 65 13 33 30 20 
+0020: 76 65 72 79 20 6C 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 
+0040: 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6E 67 6C 69 6E 65 13 34 30 20 61 6E 6F 74 68 65 72 20 6C 6F 6F 6F 
+0060: 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 
+
+0080: 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6F 6E 
+00A0: 67 13 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+00C0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+00E0: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+
+
+A>cp test.b t1.b
+<dots>
+
+A>cp test.b b:t2.b
+<dots>
+
+A>cp b:hellowrd.prg h2.prg
+<dots>
+<dots>
+B>a:
+A>cp a:test.b b:t3.b
+<dots>
+
+A>cat -c b:t3.b
+<dots>
+printing B:T3      B   with options 10...
+10 first line !ln
+20 second line !ln
+30 very loooooooooooooooooooooooooooooooooooongline !ln
+40 another loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong !ln
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00 !catln2
+#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00#00
+A>cha +w t1.b
+<dots>
+A>cha -r t1.b
+<dots>
+A>cha +rx b:t2.b
+<dots>
+A>ls
+<dots>
+listing files of drive A:
+HELLOWRD.PRG -R-X SIZE TT SS LL
+TEST    .B   -RW- SIZE TT SS LL
+T1      .B   --W- SIZE TT SS LL
+H2      .PRG -R-X SIZE TT SS LL
+EA catalog entries free; XXXX sectors free...
+A>ls b:
+<dots>
+listing files of drive B:
+TEXTED  .PRG -R-X SIZE TT SS LL
+CALC    .PRG -R-X SIZE TT SS LL
+HELLOWRD.PRG -R-X SIZE TT SS LL
+THEODORE.PRG -R-X SIZE TT SS LL
+T2      .B   -R-X SIZE TT SS LL
+T3      .B   -R-- SIZE TT SS LL
+EE catalog entries free; XXXX sectors free...
+A>rm t1.b
+<dots>
+error: E3 reading not allowed
+A>rm b:t2.b
+<dots>
+A>rm ls.prg
+<dots>
+error: cannot remove system file
+A>rm -f b:t3.b
+<dots>
+A>ls
+<dots>
+listing files of drive A:
+HELLOWRD.PRG -R-X SIZE TT SS LL
+TEST    .B   -RW- SIZE TT SS LL
+T1      .B   --W- SIZE TT SS LL
+H2      .PRG -R-X SIZE TT SS LL
+EA catalog entries free; XXXX sectors free...
+A>ls -a b:
+<dots>
+listing files of drive B:
+BOOTSECT.BIN SR-- SIZE TT SS LL
+DISC    .CAT SR-- SIZE TT SS LL
+BDOS    .SYS SR-- SIZE TT SS LL
+TEXTED  .PRG -R-X SIZE TT SS LL
+CALC    .PRG -R-X SIZE TT SS LL
+HELLOWRD.PRG -R-X SIZE TT SS LL
+THEODORE.PRG -R-X SIZE TT SS LL
+F0 catalog entries free; XXXX sectors free...
+A>format -q b:
+<dots>
+formatting disc B...
+format error: 15
+A>ls b:
+<dots>
+listing files of drive B:
+TEXTED  .PRG -R-X SIZE TT SS LL
+CALC    .PRG -R-X SIZE TT SS LL
+HELLOWRD.PRG -R-X SIZE TT SS LL
+THEODORE.PRG -R-X SIZE TT SS LL
+F0 catalog entries free; XXXX sectors free...
+A>exit
+bye!
+
