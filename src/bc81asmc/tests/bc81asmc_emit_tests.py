@@ -256,19 +256,18 @@ class TestDirectives(unittest.TestCase):
     def test_org_does_not_emit_bytes(self):
         self.assertEqual(code(".org 0x4000\n"), [])
 
-    def test_second_org_only_shifts_addresses(self):
-        # documented: code stays contiguous, a second .org only shifts the addresses
-        context = assemble(".org 0x1000\nnop\n.org 0x2000\nnop\n")
-        self.assertEqual(list(context.bytes), [0x00, 0x00])
-        self.assertEqual(context.startaddr, 0x2000)
-        self.assertEqual(context.curraddr, 0x2001)
+    def test_second_org_is_rejected(self):
+        with self.assertRaises(AssemblerError) as cm:
+            assemble(".org 0x1000\nnop\n.org 0x2000\nnop\n")
+        self.assertEqual([(d.line, d.column, d.message) for d in cm.exception.diagnostics],
+                         [(3, 1, "duplicate .org (first .org at line 1); use .org once, at the top")])
 
-    def test_second_org_with_label_fixup_patches_wrong_bytes(self):
-        # D7 finding: fix-ups are written at (addr - startaddr) using the LAST .org, so
-        # a label reference after a second .org overwrites earlier code and leaves the
-        # 0xfa placeholder in place. Pinned as-is.
-        context = assemble(".org 0x1000\nnop\n.org 0x2000\nlbl: nop\n.db :lbl\n")
-        self.assertEqual(list(context.bytes), [0x00, 0x20, 0x00, 0xfa])
+    def test_second_org_with_label_fixup_is_rejected(self):
+        # the old behaviour patched the wrong bytes (fix-ups used the last .org); now an error
+        with self.assertRaises(AssemblerError) as cm:
+            assemble(".org 0x1000\nnop\n.org 0x2000\nlbl: nop\n.db :lbl\n")
+        self.assertEqual([(d.line, d.column, d.message) for d in cm.exception.diagnostics],
+                         [(3, 1, "duplicate .org (first .org at line 1); use .org once, at the top")])
 
     def test_def_constant_used_as_label(self):
         self.assertEqual(

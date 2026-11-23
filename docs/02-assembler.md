@@ -76,7 +76,7 @@ label:   mnemonic operands   ; comment
 
 | Directive | Effect |
 |---|---|
-| `.org 0xHHHH` | set the load/start address. Use it once at the top: code is emitted contiguously, so a second `.org` only shifts addresses |
+| `.org 0xHHHH` | set the load/start address. Use it once, before any code or label (comments and `.def` may come first). A second `.org`, or a `.org` after code or a label, is an error (see [Errors](#errors)) |
 | `.db v, v, …` | emit bytes. Each `v` is `0xHH`, `'string'` (raw chars, add `0x00` yourself) or `:label` (2 bytes, big-endian address) |
 | `.mv pair, :label` | load a 16-bit label address into a pair. Expands to `mov hi,imm8` + `mov lo,imm8` (4 bytes) |
 | `.def name, 0xHHHH` | define a constant, used like a label (`:name`). Good for fixed addresses such as `bdos_bootaddr` |
@@ -126,6 +126,7 @@ cal :nowhere
 | undefined label | `undefined label ':name'` | the `:` of the reference | every use is reported, not every name. Only a name defined neither as a label nor as a `.def` is undefined; a label or `.def` at 0x0000 is defined |
 | duplicate label | `duplicate label 'name' (first defined at line n)` | the first character of the repeated name | one per repeated definition; the first definition is not reported |
 | duplicate symbol | `duplicate symbol 'name' (first defined at line n)` | the first character of the repeated name | `.def` names and labels share one namespace, so a `.def` and a label with the same name clash |
+| `.org` placement | `duplicate .org (first .org at line n); use .org once, at the top`, or `.org must come before any code or label` | the start of the `.org` line (column 1 when a label is on that line) | a rejected `.org` has no effect, so later diagnostics are still reported. A source with no `.org` starts at 0x0000 |
 | relative range, 7-bit | `label ':name' too far away for relative 7bit jump (n bytes)` | the `:` of the target | `jmr` only (±127 bytes) |
 | relative range, 15-bit | `label ':name' too far away for relative 15bit jump (n bytes)` | the `:` of the target | `jrx` and `clr` (±32767 bytes) |
 | overflow | `code exceeds the 64 KB address space (past 0xffff)` | the first non-blank character of the line that crosses the limit | reported once per run |
