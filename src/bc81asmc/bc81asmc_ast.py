@@ -258,6 +258,14 @@ class LineComment(Token):
     def __str__(self):
        return self.comment;
 
+class LabelOnly(Token):
+    '''A line holding only a label (and maybe a comment): emits no bytes.'''
+    def __str__(self):
+        return "(label only)"
+    def __eq__(self, other):
+        return isinstance(other, LabelOnly)
+    __hash__ = None
+
 class ImmediateValue(Token):
     def __str__(self):
         return "imm";
@@ -794,6 +802,9 @@ def LINE(label, token, comment):
     if comment:
         token.set_comment(comment)
     return token
+
+def LABEL_ONLY(label, comment):
+    return LINE(label, LabelOnly(), comment)
 
 def DEBUG(*args):
     i = 0

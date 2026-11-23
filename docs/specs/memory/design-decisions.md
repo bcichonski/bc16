@@ -556,6 +556,24 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - BASM must apply the same rule when it exists (`docs/analysis/08-self-hosted-roadmap.md`, step 13).
 - **Trade-offs:** no CPU change: a hand-encoded `A1 1B` still runs and calls relative to `A:F`, so only the assembler refuses to produce it. Odd concatenations such as `clr ssci` that used to assemble are now errors; no repo source used them, so no program changes bytes.
 
+### A10. One `.org`, before any code or label
+- **Purpose:** an assembled image has one start address, and its header, labels and fix-ups all agree on it.
+- **Rationale:** code is emitted contiguously, so a second `.org` could only shift addresses. Fix-ups were
+  patched at `addr - startaddr` of the last `.org`, which overwrote earlier code and left the `0xfa`
+  placeholder in place with no error. The `.btap` header also took its load address from the last `.org`.
+  The owner decided "reject second org" on 2026-11-22 (issue #65, option 2): a second `.org` is an error,
+  not a shift.
+- **Usage:**
+  - a source has at most one `.org`, and it must come before the first emitted byte and before the first
+    label. Comments and `.def` may come before it. A source with no `.org` starts at 0x0000;
+  - a second `.org` is reported as `duplicate .org (first .org at line n); use .org once, at the top`, and a
+    `.org` after code or a label as `.org must come before any code or label`, both at the `.org` line
+    (`docs/02-assembler.md`, Errors);
+  - BASM must apply the same rule when it exists: roadmap step 12 says object files allow `.org` only on the
+    first line (`docs/analysis/08-self-hosted-roadmap.md`).
+- **Trade-offs:** no multi-segment sources. Nothing in the repo used them: a full rebuild with the fix-ups
+  patched correctly gave no output difference.
+
 ---
 
 ## Compiler (`src/bc/`)

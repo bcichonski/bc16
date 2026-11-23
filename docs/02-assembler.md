@@ -49,6 +49,19 @@ label:   mnemonic operands   ; comment
 - **Mnemonics and register names must be lowercase.**
 - A label is an identifier followed by `:` at the start of a line. To refer to a label,
   prefix it with a colon: `:label`. A label or `.def` may resolve to 0x0000.
+- A label may also stand alone on a line, optionally followed by a `; comment`. Such a line
+  emits no bytes. The label gets the address of the next emitted byte. Several label-only lines
+  in a row share that address. A label-only line at the end of the file gets the end address
+  (org + code length). This lets generated code skip a filler `nop` at every label (the
+  compiler change is #104).
+
+  ```
+  loop:
+  done:          ; both labels = address of the kil
+          kil
+  end:           ; end address
+  ```
+
 - Immediates are **hex only** and the digit count is fixed (a wider value is a syntax error, see [Errors](#errors)):
   - `0xHH`: 8-bit
   - `0xHHHH`: 16-bit
@@ -63,7 +76,7 @@ label:   mnemonic operands   ; comment
 
 | Directive | Effect |
 |---|---|
-| `.org 0xHHHH` | set the load/start address. Use it once at the top: code is emitted contiguously, so a second `.org` only shifts addresses |
+| `.org 0xHHHH` | set the load/start address. Use it once, before any code or label (comments and `.def` may come first). A second `.org`, or a `.org` after code or a label, is an error (see [Errors](#errors)) |
 | `.db v, v, …` | emit bytes. Each `v` is `0xHH`, `'string'` (raw chars, add `0x00` yourself) or `:label` (2 bytes, big-endian address) |
 | `.mv pair, :label` | load a 16-bit label address into a pair. Expands to `mov hi,imm8` + `mov lo,imm8` (4 bytes) |
 | `.def name, 0xHHHH` | define a constant, used like a label (`:name`). Good for fixed addresses such as `bdos_bootaddr` |
@@ -113,6 +126,7 @@ cal :nowhere
 | undefined label | `undefined label ':name'` | the `:` of the reference | every use is reported, not every name. Only a name defined neither as a label nor as a `.def` is undefined; a label or `.def` at 0x0000 is defined |
 | duplicate label | `duplicate label 'name' (first defined at line n)` | the first character of the repeated name | one per repeated definition; the first definition is not reported |
 | duplicate symbol | `duplicate symbol 'name' (first defined at line n)` | the first character of the repeated name | `.def` names and labels share one namespace, so a `.def` and a label with the same name clash |
+| `.org` placement | `duplicate .org (first .org at line n); use .org once, at the top`, or `.org must come before any code or label` | the start of the `.org` line (column 1 when a label is on that line) | a rejected `.org` has no effect, so later diagnostics are still reported. A source with no `.org` starts at 0x0000 |
 | relative range, 7-bit | `label ':name' too far away for relative 7bit jump (n bytes)` | the `:` of the target | `jmr` only (±127 bytes) |
 | relative range, 15-bit | `label ':name' too far away for relative 15bit jump (n bytes)` | the `:` of the target | `jrx` and `clr` (±32767 bytes) |
 | overflow | `code exceeds the 64 KB address space (past 0xffff)` | the first non-blank character of the line that crosses the limit | reported once per run |
