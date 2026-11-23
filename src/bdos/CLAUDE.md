@@ -51,6 +51,9 @@ python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81     # (or `bc64 ...`) boot; enter 
 - **Memory map:**
   - `bdos.b` is `#code 0x0f00` and must end below the file buffers at `BDIO_FDESCBUF_ADDR`
     (`0x5d00`). `bdos.b` sets `#codelimit 0x5d00`, so the assembler checks this at build time.
+  - The used-sector map is `BDIO_USEDMAP_ADDR` (`0x5f00–0x5f7f`, 128 bytes, `bdioh.b`). Only `bdio_fcat_scan`
+    fills it, for `fcreate`; nothing else may use that range. It lies above the handle buffers and below the
+    heap (`#heap 0x5fd0`), and the bdos code must still end below `0x5d00`.
   - User programs are `#code 0x6000` (`BDIO_USERMEM`). Moving that means changing every
     program's `#code` line.
   - The `#heap` value is chosen per program. The build asserts every program's image ends below it.

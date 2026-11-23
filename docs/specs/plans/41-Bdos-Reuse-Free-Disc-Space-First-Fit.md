@@ -4,7 +4,7 @@
 
 **Story Type**: `Internal`
 
-**Plan Revision**: `A2`
+**Plan Revision**: `A3`
 
 > This plan captures **what** to build and **why**: domain, architecture, decisions and verified facts.
 > It does **not** contain implementation code, pseudocode, line numbers, mock setups or test bodies.
@@ -286,20 +286,25 @@ Build-using tasks (T1, T2, T3) must not run builds at the same time in the one w
     with `l`.
 *   **Tests to modify**: None.
 
-### T3 — e2e: compile-pattern create/delete cycles don't fill the disc
+### T3 — e2e: compile-pattern create/delete, light (largest gap used; no gap big enough)
 
-*   **Goal**: AC 4 — create `.TOK`, `.IR`, `.O`, delete the `.TOK` and `.IR`, several times; the disc does not fill.
+*   **Goal**: AC 4, narrowed by the owner (A3): a **light** compile-pattern e2e — one happy path where, after
+    `.TOK`/`.IR` are deleted, the next file (`.O`) is placed in the **largest** free gap; and one failure where no gap
+    is big enough → `disc full`. Small files only; the test must stay fast (target: a few seconds of emulator time
+    each, comparable to the other e2e tests).
 *   **Depends on**: `T1`
 *   **Complexity**: `Medium`
-*   **Pointers**: `src/tests/test_e2e_rm_alloc.py` (session/inspect pattern), `e2e_harness.disc_put`.
-*   **Definition of Done**: a new e2e test where the free space is pre-filled so that **append-only allocation would
-    run out within the cycles** (the test computes and asserts that from the sizes it uses), yet every cycle
-    succeeds: no `error` in the output, every `.O` present and byte-identical to its source, no overlapping
-    extents, every original file byte-identical, and sectors 0..191 unchanged. Files are made with `cp` of
-    existing programs of different sizes (`.TOK` > `.IR` > `.O` or similar, so gaps get reused by smaller files).
-    The instruction budget is about 10× the measured need.
-*   **Tests expected**: the e2e above.
-*   **Tests to modify**: None.
+*   **Amended in**: `A3`
+*   **Pointers**: `src/tests/test_e2e_compile_cycles.py` (the slow 5-cycle version written in A0–A2; replace its
+    content — it is this story's own new file, not a protected test), `src/tests/test_e2e_alloc_gap.py`,
+    `e2e_harness.disc_put`.
+*   **Definition of Done**: the file holds exactly two light tests on temp pre-filled discs, with small `cp` sources
+    (e.g. `hellowrd.prg`, `test.b`): (1) create `X.TOK`, `X.IR`, `rm` them, create `X.O` → `X.O` starts at the start of
+    the largest free gap (derived, not pinned; the freed space is made the largest gap), every other file
+    byte-identical; (2) a disc whose largest gap is smaller than the file → `error: F3 disc full`, every other file and
+    every sector outside the gap byte-identical. No multi-cycle loop. Instruction budget about 10× the measured need.
+*   **Tests expected**: the two e2e tests above.
+*   **Tests to modify**: None (the file is new in this story).
 
 ### T4 — `ftool importtext` uses the largest gap; reserved-range cross-check test
 
@@ -391,3 +396,4 @@ rule, or a disc edited by both tools drifts from D10.
 | :--- | :--- | :--- | :--- |
 | `A1` | test-conflict: allow `test_bdioh_codes.py :: test_retired_and_free_values_are_not_used` to change (T1) | **accepted** — Decision 5 deliberately takes 0xf3 out of the free range 0xf3..0xfe the test pins; this is a design change, not a fail-driven edit | T1 `Tests to modify` lists the test (free range → 0xf4..0xfe, 0xe5 stays retired); T1 `Amended in: A1` |
 | `A2` | test-conflict: allow `test_ftool_text.py :: CatalogTests.test_free_sector_uses_track_times_16` to change (T4) | **accepted** — it pins append-only placement (file after the highest end); Decision 7 / AC 1 deliberately change that. Its purpose (track × 16 arithmetic) is kept by making the tail the largest gap | T4 `Tests to modify` lists it; T4 `Amended in: A2` |
+| `A3` | owner, mid-run: replace the slow 5-cycle compile e2e with one happy path (largest gap used) and one failure (no gap big enough) | **accepted** — owner decision; **narrows AC 4** ("several times; the disc doesn't fill up") to one create/delete pass + the full case; to be flagged in the PR | T3 rewritten, `Amended in: A3` |

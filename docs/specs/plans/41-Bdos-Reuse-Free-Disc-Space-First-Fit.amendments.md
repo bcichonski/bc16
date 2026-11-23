@@ -5,3 +5,6 @@ test-conflict — add `src/tests/test_bdioh_codes.py :: BdiohCodesTests.test_ret
 
 ## A2 — 2026-11-23 — requested by T4
 test-conflict — add `src/tests/test_ftool_text.py :: CatalogTests.test_free_sector_uses_track_times_16` to T4's Tests to modify — evidence: the test puts one file at 62/0 length 8 and asserts the import lands at 62/8 (append-only); under the largest-gap rule the run 12/0..61/15 is longest, so the import goes to 12/0. Suggested rewrite: fill 12/0..61/15 so the tail at 62/8 is the largest gap, keeping the track*16 guard.
+
+## A3 — 2026-11-23 — requested by owner (mid-run note)
+missing-task/contradiction — replace T3's 5-cycle compile-pattern e2e (~170–190 s, would multiply CI time) with a light version: "just one happy path that the largest block is used and one fail that there is no big enough left" — evidence: owner message 2026-11-23; T3 test measured 170–190 s vs ~1.5 min for the whole CI workflow.

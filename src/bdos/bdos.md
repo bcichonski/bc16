@@ -59,7 +59,7 @@ call numbers as dispatched by bdio_call (see bdioh.b and bdosh.b wrappers)
 0x03: bdio_getdrive() - return number of active drive
 ### high level file io
 0x10: bdio_fbinopenr(Pfnameext, mode) - opens a file handle associated with given cnameext for read, mode can be raw or buffered
-0x11: bdio_fbinopenw(Pfnameext, mode) - opens a file handle for write (this is append only), mode can be raw or buffered
+0x11: bdio_fbinopenw(Pfnameext, mode) - opens a file handle for write (a new file goes into the largest free gap; a file that outgrows it stops with disc full, see docs/05-bdos.md "Allocation"), mode can be raw or buffered
 0x12: bdio_fbinread(fhandle, Pmembuf, sectors) - reads given sectors of file to Pmembuf CS=fhandle, CI=sectors, DSDI = Pmembuf
 0x13: bdio_fbinwrite(fhandle, Pmembuf, sectors) - writes given memory to sectors
 0x14: bdio_fcreate(Pfnameext, attrib) - creates new file with given attribs
@@ -90,8 +90,9 @@ bcos 0x37 (os_metatab entry at 0x007a): bdio_call() - allows to call every bdio 
 0x0dd2..0x0dfe - shell command prompt buffer (programs read their arguments from here)
 0x0e00..0x0e7f - bdos boot sector at boot, later temporary sector buffer
 0x0e80..0x0eff - catalog scan sector buffer
-0x0f00..0x5721 - bdos 1.1 shell + bdio, followed by its variable stack
+0x0f00..0x5b4c - bdos 1.1 shell + bdio, followed by its variable stack
 0x5d00..0x5eff - buffers for buffered file io (128 bytes per handle)
+0x5f00..0x5f7f - used-sector map built by fcreate (128 bytes, one bit per sector)
 0x5fd0..0x5fff - bdos heap and temporary file name buffer
 0x6000..[ST]   - user mem (programs are loaded and called here)
 [ST]..0xfffe   - cpu stack
