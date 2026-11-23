@@ -4,7 +4,7 @@
 
 **Story Type**: `Internal`
 
-**Plan Revision**: `A0`
+**Plan Revision**: `A1`
 
 > This plan captures **what** to build and **why** — domain, architecture, decisions, and verified facts.
 > It deliberately does **not** contain implementation code, pseudocode, line numbers, mock setups, or test bodies.
@@ -144,6 +144,10 @@ N/A — Internal story.
     `code_size.py` −292 B total (deltas against the CSV's latest rows). Code size is the
     optimisation metric (C4).
 *   **D3 — Compile-time guard in `STATEMENT_RETURN`** (see §2.4). No bytes, no output change.
+    *Amended in: A1* — replaced by unwinding: after the value is in `csci`, `return` emits one
+    `STACKHEAD -=` for every inner scope still open (`csci` kept), then `ret`. Empty today (blocks
+    open no scope), so the output stays byte-identical; under #24 `return` keeps working from any
+    block instead of becoming a compile error.
 *   **D4 — New design decision `C8`** in `docs/specs/memory/design-decisions.md` (last compiler id
     on master is C7): "`return` is a direct `ret` from any depth; the caller owns the frame; a
     function ends with one `ret`; a future run-time block scope (#24) must unwind on `return`
@@ -289,3 +293,4 @@ when the last statement only *contains* returns. Watch the C8 id against paralle
 
 | Revision | Request | Decision | Plan changes |
 | :--- | :--- | :--- | :--- |
+| A1 | Owner, after PR #169 opened: the guard makes "return inside an inner variable scope" impossible, contradicting "return anywhere"; make `return` unwind instead | accepted | D3 amended (guard → unwinding); T1's guard test replaced by unwinding tests; C8 and the analysis doc reworded. `code_size.py --check` delta 0 (byte-identical output). |

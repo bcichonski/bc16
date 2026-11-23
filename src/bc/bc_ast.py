@@ -204,13 +204,17 @@ class Context:
         bc_log.trace("POP SCOPE (startoffset={0}, offset={1}, diff={2}, depth={3}, caller={4})".format(self.scope.startoffset, self.scope.offset, scopeoffset, self.scope.depth, caller))
         if scopeoffset < 0:
             raise CompilerError('Scope pop error')
+        self.emit_stackhead_down(scopeoffset, self.scope.depth)
+
+    def emit_stackhead_down(self, scopeoffset, depth):
+        '''Emit STACKHEAD -= scopeoffset (nothing for 0). csci is preserved, so a return value survives.'''
         if scopeoffset > 0:
             if scopeoffset < 127:
                 self.emit("""
     ;depth {2}: STACKHEAD -= {1}
                     {0}
-                    cal :stackheadrll8""".format(self.load_a(scopeoffset | 0x80), scopeoffset, self.scope.depth))
-            else:                
+                    cal :stackheadrll8""".format(self.load_a(scopeoffset | 0x80), scopeoffset, depth))
+            else:
                 self.emit("""
     ;depth {2}: STACKHEAD -= {1}
                     psh cs
@@ -219,7 +223,7 @@ class Context:
                     mov a, 0x01
                     cal :stackheadroll
                     pop ci
-                    pop cs""".format(self.load_csci(scopeoffset), scopeoffset, self.scope.depth))
+                    pop cs""".format(self.load_csci(scopeoffset), scopeoffset, depth))
 
     def get_function_call_label(self, function_name):
         if len(function_name) > 10:
@@ -714,12 +718,14 @@ class STATEMENT_RETURN(Instruction):
         return "RETURN({0})".format(self.expr)
 
     def emit(self, context):
-        # depth 0 is the global scope, depth 1 the function's own (FUNC) scope
-        if context.scope.depth > 1:
-            message = 'return inside an inner scope would skip unwinding it (see #24)'
-            context.add_error(message)
-            raise CompilerError(message)
         self.expr.emit(context)
+        # Unwind every inner scope still open (depth 1 is the function's own FUNC scope, which
+        # moves nothing): one STACKHEAD -= for all of them, after the value is in csci (C8).
+        # Blocks open no scope today, so this emits nothing yet; it keeps return valid under #24.
+        funcscope = context.scope
+        while funcscope.depth > 1:
+            funcscope = funcscope.prev_scope
+        context.emit_stackhead_down(context.scope.startoffset - funcscope.startoffset, funcscope.depth)
         context.emit("""
                 ret""")
 

@@ -1,6 +1,6 @@
 import unittest
 
-from bc_ast import CompilerError, Context, EXPRESSION_CONSTANT, STATEMENT_RETURN
+from bc_ast import Context, EXPRESSION_CONSTANT, STATEMENT_RETURN
 from tests.bc_codegen_tests import CodegenTestCase, compile_source, function_lines
 
 
@@ -43,20 +43,51 @@ class TestReturnFromNestedBlocks(CodegenTestCase):
         self.assertFalse([l for l in lines if 'stackheadrll8' in l or 'stackheadroll' in l])
 
 
-class TestReturnGuard(unittest.TestCase):
-    def test_return_in_inner_scope_raises(self):
-        context = Context()
-        context.push_scope('FUNC')
-        context.push_scope('INNER')
-        with self.assertRaises(CompilerError):
-            STATEMENT_RETURN(EXPRESSION_CONSTANT(1)).emit(context)
-        self.assertTrue(context.errors)
+class TestReturnUnwindsInnerScopes(unittest.TestCase):
+    '''No B source opens an inner scope yet (blocks open none, #24); these build one by hand.'''
 
-    def test_return_in_function_scope_is_fine(self):
+    def return_lines(self, context):
+        start = len(context.basm)
+        STATEMENT_RETURN(EXPRESSION_CONSTANT(0x1234)).emit(context)
+        self.assertFalse(context.errors)
+        return [l.strip() for l in context.basm[start:].splitlines()
+                if l.strip() and not l.strip().startswith(';')]
+
+    def function_context(self, locals_bytes):
         context = Context()
         context.push_scope('FUNC')
-        STATEMENT_RETURN(EXPRESSION_CONSTANT(1)).emit(context)
-        self.assertFalse(context.errors)
+        for n in range(locals_bytes):
+            context.add_variable('byte', 'v{0}'.format(n))
+        return context
+
+    def test_return_in_function_scope_moves_nothing(self):
+        lines = self.return_lines(self.function_context(3))
+        self.assertEqual(lines, ['mov cs, 0x12', 'mov ci, 0x34', 'ret'])
+
+    def test_return_in_inner_scope_moves_stackhead_back_then_rets(self):
+        context = self.function_context(3)
+        context.push_scope('INNER')
+        lines = self.return_lines(context)
+        self.assertEqual(lines, ['mov cs, 0x12', 'mov ci, 0x34',
+                                 'mov a, 0x83', 'cal :stackheadrll8', 'ret'])
+        self.assertEqual(context.scope.depth, 2, 'return must not change the compile-time scope chain')
+
+    def test_two_inner_scopes_unwind_in_one_move(self):
+        context = self.function_context(3)
+        context.push_scope('INNER')
+        context.add_variable('word', 'w')
+        context.push_scope('INNER2')
+        lines = self.return_lines(context)
+        self.assertEqual(lines, ['mov cs, 0x12', 'mov ci, 0x34',
+                                 'mov a, 0x85', 'cal :stackheadrll8', 'ret'])
+
+    def test_large_inner_offset_keeps_csci(self):
+        context = self.function_context(200)
+        context.push_scope('INNER')
+        lines = self.return_lines(context)
+        self.assertEqual(lines, ['mov cs, 0x12', 'mov ci, 0x34', 'psh cs', 'psh ci',
+                                 'mov cs, 0x00', 'mov ci, 0xc8', 'mov a, 0x01',
+                                 'cal :stackheadroll', 'pop ci', 'pop cs', 'ret'])
 
 
 if __name__ == '__main__':

@@ -698,15 +698,15 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   `ret` skips nothing (#20). A trailing `ret` after a body that ends in `return` was dead code
   (1 B per function), so it is omitted.
 - **Usage:**
-  - `return e` evaluates `e` into `csci` and emits `ret`, at any depth;
+  - `return e` evaluates `e` into `csci`, closes every inner scope still open with one
+    `STACKHEAD -= n` (`csci` is kept), then emits `ret`, at any depth;
   - the function epilogue emits `ret` unless the body's last top-level statement is `return`;
   - the callee never moves `sys_stackhead`;
-  - `return` while an inner run-time scope is open is a `CompilerError` (#20 guard). Block
-    scopes (#24) must unwind their stack head before a `return`; replace the guard with that
-    unwinding path when they arrive, do not just remove it.
+  - blocks open no scope today, so that move is empty and `return` is a bare `ret`; when block
+    scopes (#24) open run-time scopes, `return` inside them already unwinds them and stays valid.
 - **Trade-offs:** a body that ends in an `if/else` with returns in both branches keeps its
-  trailing `ret` (no flow analysis); #24 must add the unwinding path before it adds run-time
-  block scopes.
+  trailing `ret` (no flow analysis). A `return` inside an inner scope costs one stack-head call per
+  `return` (the same code a scope's normal exit emits).
 
 ---
 
