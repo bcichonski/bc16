@@ -75,5 +75,4 @@ outputs: ignored by git and never committed. Every `.basm` starts with `; genera
   (`python3 scripts/code_size.py --record`); this is recommended, not enforced.
 - Language quirks to keep in mind, both when writing B and when changing the grammar:
   - comparisons bind looser than `&&`/`||`;
-  - a unary operator applies to the whole rest of the expression;
-  - `return` should be the last statement of a function (`bugs.txt`).
+  - a unary operator applies to the whole rest of the expression.
