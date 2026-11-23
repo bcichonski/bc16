@@ -659,17 +659,17 @@ class STATEMENT_IFELSE(Instruction):
 
         if self.last is None:
             context.emit("""
-{0}:      nop""".format(label))
+{0}:""".format(label))
         else:
             label2 = context.get_next_label()
             context.emit("""
                 xor a
                 jrx z, :{0}""".format(label2))
             context.emit("""
-{0}:      nop""".format(label))
+{0}:""".format(label))
             self.last.emit(context)
             context.emit("""
-{0}:      nop""".format(label2))
+{0}:""".format(label2))
 
 @dataclass
 class STATEMENT_WHILE(Instruction):
@@ -683,7 +683,7 @@ class STATEMENT_WHILE(Instruction):
         label1 = context.get_next_label()
         label2 = context.get_next_label()
         context.emit("""
-{0}:      nop""".format(label1))
+{0}:""".format(label1))
         self.expr.emit(context)
         context.emit("""
                 mov a, cs
@@ -693,7 +693,7 @@ class STATEMENT_WHILE(Instruction):
         context.emit("""
                 xor a
                 jrx z, :{0}
-{1}:      nop""".format(label1, label2))
+{1}:""".format(label1, label2))
 
 @dataclass
 class STATEMENT_ASM(Instruction):
@@ -838,7 +838,7 @@ class FUNCTION_DECLARATION(Instruction):
     def add_code(self, function_data, context):
         context.emit("""
 ;FUNCTION {0}
-{1:<16}nop""".format(function_data['name'], function_data['label'] + ":"))
+{1}""".format(function_data['name'], function_data['label'] + ":"))
         context.push_scope('FUNC')
         self.add_func_params(context, function_data)
 
