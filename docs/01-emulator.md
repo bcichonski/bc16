@@ -364,7 +364,7 @@ The shift flags (8-bit `shl`/`shr` and 16-bit `shl16`/`shr16`) are decided in [E
 `C` is 0 for a shift by 0 or by more than the width. A shift by 0 also clears `O`.
 
 Bits 4–7 exist but the CPU doesn't use them. `MOV` into `A` also updates `Z` and `N`.
-`OUT #r, r2` leaves `C` and `O` at 0 (the value it sends is 0..0xff).
+`OUT #r, r2` leaves `C` and `O` at 0 (the value it sends is 0..0xff). The immediate form `OUT #r, HH` (`Dr HH`) changes no flags.
 
 16-bit `div` and `mod` by zero leave the destination pair unchanged and set `O`; `Z`, `N` and `C`
 keep their values. Nothing is printed and execution goes on. A `div` or `mod` with a non-zero
