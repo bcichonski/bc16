@@ -5,11 +5,11 @@
 #include bdosh.b
 #include strings.b
 #include bdostools.b
+#include bdosargs.b
 
 #define MODE_CHAR 0x10
 #define MODE_BIN 0x20
 #define MODE_HELP 0x40
-#define DRIVEPRESENT 0x0100
 #define INFILEBDIONAME_ADDR 0xa020
 #define INFILEBUF_ADDR 0xa100
 #define BINPERLINE 0x20
@@ -17,57 +17,6 @@
 #define CHAR_PRINTABLE_MIN 0x20
 #define CHAR_PRINTABLE_MAX 0x7e
 #define CHAR_LF 0x13
-
-word getdriveletter(byte drive)
-{
-    word driveLetter;
-    driveLetter <- "?";
-    if(drive = BDIO_DRIVEA)
-    {
-        driveLetter <- "A";
-    }
-    else
-    {
-        if(drive = BDIO_DRIVEB) 
-        {
-            driveLetter <- "B";
-        }
-    }
-
-    return driveLetter;
-}
-
-word getdrive(word Pargs)
-{
-    word result;
-
-    if(strncmp(Pargs, "A:", 2) = STRCMP_EQ)
-    {
-        result <- BDIO_DRIVEA | DRIVEPRESENT;
-    }
-    else
-    {
-        if(strncmp(Pargs, "B:", 2) = STRCMP_EQ)
-        {
-            result <- BDIO_DRIVEB | DRIVEPRESENT;
-        }
-        else
-        {
-            result <- bdio_getdrive();
-        }
-    }
-    return result;
-}
-
-byte changeDriveIfNeeded(byte currentDrive, byte targetDrive, byte silent)
-{
-    if(currentDrive != targetDrive)
-    {
-        bdio_setdrive(targetDrive, silent);
-        currentDrive <- targetDrive;
-    }
-    return currentDrive;
-}
 
 word printchars(word Pstart, word len, word linelen)
 {
@@ -208,24 +157,24 @@ byte printfile(byte sourcedrive, word Psourcefileext, byte options)
 byte getoptions(word Poptions)
 {
     byte result;
-    byte val;
-    byte bit;
+    byte option;
 
     result <- 0;
+    option <- getswitch(Poptions, "HBC");
 
-    if(strncmp(Poptions, "-H", 2) = STRCMP_EQ)
+    if(option = 1)
     {
         result <- MODE_HELP;
     }
-    else 
+    else
     {
-        if(strncmp(Poptions, "-B", 2) = STRCMP_EQ)
+        if(option = 2)
         {
             result <- MODE_BIN;
         }
         else
         {
-            if(strncmp(Poptions, "-C", 2) = STRCMP_EQ)
+            if(option = 3)
             {
                 result <- MODE_CHAR;
             }
@@ -243,7 +192,6 @@ byte main()
 {
     word Pargs;
     word result;
-    word PsrcFileNameExt;
     byte sourcedrv;
     byte len;
     byte options;
@@ -254,8 +202,7 @@ byte main()
 
     if(options & MODE_HELP)
     {
-        printf("%s%n%s%n%s%n",
-            "print files",
+        printusage("print files",
             "-b binary",
             "-c characters");
     }
@@ -263,17 +210,8 @@ byte main()
     {
         Pargs <- strnextword(Pargs);
 
-        result <- getdrive(Pargs);
-        poke8(Pargs - 1, NULLCHAR);
-        if(result & DRIVEPRESENT)
-        {
-            Pargs <- Pargs + 2;
-        }
-
-        PsrcFileNameExt <- Pargs;
+        result <- argfile(Pargs, INFILEBDIONAME_ADDR);
         sourcedrv <- result;
-
-        bdio_fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
 
         printfile(sourcedrv, INFILEBDIONAME_ADDR, options);
     }

@@ -5,64 +5,13 @@
 #include bdosh.b
 #include strings.b
 #include bdostools.b
+#include bdosargs.b
 
 #define FCATBUF_ADDR 0xf800
 #define INFILEBDIONAME_ADDR 0xf7f0
-#define DRIVEPRESENT 0x0100
 #define MODE_HELP 0x10
 #define MODE_FORCE 0x20
 #define FCAT_COPY_ADDR 0xf7c0
-
-word getdriveletter(byte drive)
-{
-    word driveLetter;
-    driveLetter <- "?";
-    if(drive = BDIO_DRIVEA)
-    {
-        driveLetter <- "A";
-    }
-    else
-    {
-        if(drive = BDIO_DRIVEB) 
-        {
-            driveLetter <- "B";
-        }
-    }
-
-    return driveLetter;
-}
-
-word getdrive(word Pargs)
-{
-    word result;
-
-    if(strncmp(Pargs, "A:", 2) = STRCMP_EQ)
-    {
-        result <- BDIO_DRIVEA | DRIVEPRESENT;
-    }
-    else
-    {
-        if(strncmp(Pargs, "B:", 2) = STRCMP_EQ)
-        {
-            result <- BDIO_DRIVEB | DRIVEPRESENT;
-        }
-        else
-        {
-            result <- bdio_getdrive();
-        }
-    }
-    return result;
-}
-
-byte changeDriveIfNeeded(byte currentDrive, byte targetDrive, byte silent)
-{
-    if(currentDrive != targetDrive)
-    {
-        bdio_setdrive(targetDrive, silent);
-        currentDrive <- targetDrive;
-    }
-    return currentDrive;
-}
 
 byte remove(byte sourcedrive, word Psourcefileext, byte options)
 {
@@ -185,14 +134,17 @@ byte remove(byte sourcedrive, word Psourcefileext, byte options)
 byte getoptions(word Poptions)
 {
     byte result;
-    result <- 0;
+    byte option;
 
-    if(strncmp(Poptions, "-F", 2) = STRCMP_EQ)
+    result <- 0;
+    option <- getswitch(Poptions, "FH");
+
+    if(option = 1)
     {
         result <- MODE_FORCE;
     }
 
-    if(strncmp(Poptions, "-H", 2) = STRCMP_EQ)
+    if(option = 2)
     {
         result <- MODE_HELP;
     }
@@ -204,7 +156,6 @@ byte main()
 {
     word Pargs;
     word result;
-    word PsrcFileNameExt;
     byte sourcedrv;
     byte len;
     byte options;
@@ -215,9 +166,8 @@ byte main()
 
     if(options & MODE_HELP)
     {
-        printf("%s%n%s%n%s%n",
-            "remove file",
-            "[-f] force", 
+        printusage("remove file",
+            "[-f] force",
             "[d:]srcfname.ext");
     }
     else
@@ -227,17 +177,8 @@ byte main()
             Pargs <- Pargs + 3;
         }
 
-        result <- getdrive(Pargs);
-        poke8(Pargs - 1, NULLCHAR);
-        if(result & DRIVEPRESENT)
-        {
-            Pargs <- Pargs + 2;
-        }
-
-        PsrcFileNameExt <- Pargs;
+        result <- argfile(Pargs, INFILEBDIONAME_ADDR);
         sourcedrv <- result;
-
-        bdio_fnormalize(PsrcFileNameExt, INFILEBDIONAME_ADDR);
 
         remove(sourcedrv, INFILEBDIONAME_ADDR, options);
     }
