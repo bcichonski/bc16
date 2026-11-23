@@ -142,9 +142,11 @@ byte printf(word PformatStr)*** // variadic: extra args become word params P1, P
   program ends with `ret` (so it returns to bcOS `r` or to the bdos shell).
 - A function's return value is whatever is in `csci` when it returns: the value of
   `return e`, or the last evaluated expression. `peek8` and similar functions rely on this.
-- `bugs.txt` says `return` should be the last statement in a function and doesn't work inside
-  nested blocks. The bdos code follows this by assigning a `result` variable and returning
-  it at the end.
+- `return` may appear anywhere in a function, including inside nested `if`/`else` and `while`.
+  It emits `ret` at that point, which is safe because the caller owns the frame: the caller
+  moves `sys_stackhead` forward before `cal` and back after it returns, and the callee never
+  moves it. Blocks open no scope (C2, C8), so an early `ret` skips no unwinding code.
+  A function whose last statement is `return` ends with a single `ret`.
 - Blocks don't open a new scope: all locals of a function share one scope, so names must be
   unique within a function.
 - Recursion works, because every call gets its own frame (see `code/funrec.b`).

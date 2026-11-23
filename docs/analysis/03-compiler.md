@@ -36,7 +36,7 @@ Reference: [../03-compiler.md](../03-compiler.md). Decisions: C1–C5, G4 in
 | 3 | Every variable access is a subroutine call | `cal :stackvar8gt16` and friends for each read and write | size and speed overhead in all generated code | #17 |
 | 4 | Stale tests, no codegen tests | 6/21 grammar tests fail; nothing checks the output `.basm` | any optimisation is a blind change | #15 |
 | 5 | Surprising semantics | comparisons bind looser than `&&`/`\|\|`; `&`/`\|` bind tighter than shifts; a unary operator applies to the whole rest of the expression; `\|\|` is bitwise | bugs in user code; every comparison must be parenthesised | #18 |
-| 6 | `return` only reliable at the end of a function | `bugs.txt`. Cause: `return` emits `ret` directly and skips the function epilogue (`pop_scope('FUNC')`), which moves `sys_stackhead` back at run time. The bdos code works around it with a `result` variable | verbose code | #20 |
+| 6 | `return` only reliable at the end of a function (**resolved by #20**) | `bugs.txt`. The suspected cause, that `return` skips the epilogue (`pop_scope('FUNC')`) which moves `sys_stackhead` back at run time, does not hold: the callee's `FUNC` epilogue emits no run-time code and the caller restores `sys_stackhead`. #20 removed the duplicate trailing `ret` and added a guard for block scopes (#24). The bdos code works around it with a `result` variable | verbose code | #20 |
 | 7 | `#define` is substring replacement | `newline.replace(key, val)` on every line, including strings and identifiers (`NULL` vs `NULLCHAR` is only safe thanks to the reverse sort); the name is everything up to the last space | silent corruption when names overlap | #19 |
 | 8 | Missing language features | no `for`/`break`/`continue`, arrays/indexing, structs, signed numbers, negative literals, block scopes, type checking | verbose `peek`/`poke` code; locals must be unique per function | #21–#27 |
 | 9 | Noisy output | `print('TERM …')`, `print("PUSH SCOPE …")` etc. are printed on every compile regardless of `--verbose` | real errors are hard to spot | #14 |
@@ -79,7 +79,7 @@ its proposal.
    The `asm` strings need a decision: keep replacing inside them, since bdos relies on it
    (`asm "mov ci, PRINTF_FORMATCHAR"`).
 7. **Language additions, in order of payoff:**
-   1. `return` anywhere (#20);
+   1. ~~`return` anywhere (#20)~~: resolved by #20. The callee's epilogue emits no run-time code and the caller restores `sys_stackhead`, so the early `ret` skipped nothing; #20 removed the duplicate trailing `ret` and added a guard for block scopes (#24);
    2. `break`/`continue` (#21);
    3. `for` (#22);
    4. byte/word indexing `p[i]` (sugar for `peek`/`poke`) and arrays (#23);

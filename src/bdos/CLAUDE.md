@@ -75,4 +75,5 @@ python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81     # (or `bc64 ...`) boot; enter 
 - B quirks used throughout these sources:
   - put each comparison in parentheses (`(a > 0) && (b = 1)`);
   - `=` is equality and `<-` is assignment;
-  - assign a `result` variable and `return` it at the end instead of returning early.
+  - early `return` works (from any depth, see C8); existing code that assigns a `result`
+    variable and returns it at the end may stay.

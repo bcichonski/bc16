@@ -714,8 +714,12 @@ class STATEMENT_RETURN(Instruction):
         return "RETURN({0})".format(self.expr)
 
     def emit(self, context):
+        # depth 0 is the global scope, depth 1 the function's own (FUNC) scope
+        if context.scope.depth > 1:
+            message = 'return inside an inner scope would skip unwinding it (see #24)'
+            context.add_error(message)
+            raise CompilerError(message)
         self.expr.emit(context)
-        # context.pop_scope('RET')
         context.emit("""
                 ret""")
 
@@ -844,7 +848,12 @@ class FUNCTION_DECLARATION(Instruction):
 
         self.code.emit(context)
         context.pop_scope('FUNC')
-        context.emit("""
+        statements = self.code.statements
+        if len(statements) > 0 and isinstance(statements[-1], STATEMENT_RETURN):
+            context.emit("""
+;END OF FUNCTION {0}""".format(function_data['name']))
+        else:
+            context.emit("""
                 ret
 ;END OF FUNCTION {0}""".format(function_data['name']))
 

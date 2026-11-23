@@ -691,6 +691,23 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   `.basm` from an older assembler will not assemble. The `sys_stackhead` exception must be
   kept in mind when auditing `nop`s: a grep for `nop` on a labelled line finds only that one.
 
+### C8. `return` is a direct `ret` from any depth; the caller owns the frame; a function ends with one `ret`
+- **Purpose:** allow `return` anywhere in a function without an epilogue jump, and emit no dead code.
+- **Rationale:** the callee's `FUNC` scope starts at offset 0, so `pop_scope('FUNC')` emits no
+  run-time code. The caller moves `sys_stackhead` before `cal` and back after it, so an early
+  `ret` skips nothing (#20). A trailing `ret` after a body that ends in `return` was dead code
+  (1 B per function), so it is omitted.
+- **Usage:**
+  - `return e` evaluates `e` into `csci` and emits `ret`, at any depth;
+  - the function epilogue emits `ret` unless the body's last top-level statement is `return`;
+  - the callee never moves `sys_stackhead`;
+  - `return` while an inner run-time scope is open is a `CompilerError` (#20 guard). Block
+    scopes (#24) must unwind their stack head before a `return`; replace the guard with that
+    unwinding path when they arrive, do not just remove it.
+- **Trade-offs:** a body that ends in an `if/else` with returns in both branches keeps its
+  trailing `ret` (no flow analysis); #24 must add the unwinding path before it adds run-time
+  block scopes.
+
 ---
 
 ## bcOS (`src/bc81asmc/bcOS/`)
