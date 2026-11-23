@@ -880,6 +880,15 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - both commands validate everything before they write, and an error leaves the disc or the host file unchanged.
 - **Trade-offs:** a file cannot be replaced by `importtext`; remove it first (`rm`, which leaves a gap) or import under another name. A host line of exactly one space cannot be imported. Tabs are kept as they are; whether BASM or BCC accept them is their concern (D-4). The 80-character, 6553-line and 255-sector limits come from TextEd and the catalog, and `docs/05-bdos.md` lists them.
 
+### D11. Utilities parse arguments with `bdosargs.b` (#43)
+- **Purpose:** one implementation of the drive prefix, option and file-argument parsing that the bdos utilities share, instead of a copy in each tool.
+- **Rationale:** each of the six utilities had its own `getdrive`, `changeDriveIfNeeded` and `-x` matching, and four of them repeated the `[d:]name.ext` sequence. The helpers are in a separate include (D7, D-1), so `texted`, which parses no command line, does not grow for nothing. All six tools include `bdostools.b` and `bdosargs.b`, including `ls` and `format`, because `argfile` calls `bdio_fnormalize` (D-2).
+- **Usage:**
+  - include order in each utility: `std.b`, `bdosh.b`, `strings.b`, `bdostools.b`, `bdosargs.b`; `bdosargs.b` contains no `#include`;
+  - the helpers are `getdriveletter`, `getdrive`, `changeDriveIfNeeded`, `getswitch`, `argfile` and `printusage`, with their contracts in `docs/05-bdos.md` ("Argument library"); `DRIVEPRESENT` is defined there;
+  - a new utility parses its arguments with these helpers and does not keep its own copy. `texted` is not ported (D-4): its file names are interactive commands with no drive prefix.
+- **Trade-offs:** until #16 (no dead-code elimination) every tool pays for all the helpers, so the ported tools grew: `cat` +457, `cha` +536, `cp` +613, `rm` +495, `ls` +978 and `format` +956 bytes (`src/bc/code_size.csv`, rows of 2026-11-23). The library removes the duplicates but saves no bytes today; its gain is one place to fix parsing. `getswitch` returns only the matched letter, so each tool keeps its own option precedence.
+
 ### G12. Only sources are committed; build before test; generated `.basm` files say so
 - **Purpose:** keep build output out of the history, so PRs show only real changes, and make every test run on binaries built from the sources in the same run (#90, #92).
 - **Rationale:** compiler output churned every PR that touched the compiler, and the ignore list had drifted from what was tracked (37 tracked-but-ignored files).
