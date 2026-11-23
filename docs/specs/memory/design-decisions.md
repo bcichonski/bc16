@@ -868,6 +868,18 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - the function's comment in `src/bdos/strings.b` states the same contract.
 - **Trade-offs:** the NUL-pointer result is not visible from the name, so a caller that compares the pointer with 0 (as an option-B caller would) reads a missing word as present; the contract must be kept in the comment, `docs/05-bdos.md` and here.
 
+### D10. `ftool` moves host text to and from TextEd files: numbered records, no overwrite, strict export (#112)
+- **Purpose:** put a host text file (a B or assembly source) on an existing disc as a file TextEd can load, and get a TextEd file back as host text, without any BC64-side reader.
+- **Rationale:** `importsector` writes raw sectors with no catalog entry, and `mkdisc` builds only fresh discs from a manifest, so neither can add a text file to a disc that already exists. The tool writes the record format of D6, and it places the new file where bdio would place a file TextEd saves, so the tool, bdio and TextEd agree on the disc.
+- **Usage:**
+  - `ftool importtext DISC.bdd host.txt NAME.EXT` numbers the lines 10, 20, 30 …, adds a catalog entry with attributes R W, and places the file after the last used sector;
+  - an existing name is refused, never overwritten (D-2). Rewriting in place cannot grow a file, and freeing its entry would leave a gap that bdio never reuses (#41);
+  - a blank host line is stored as one space, because `readLines` skips records with no text (D-3). A host line of exactly one space is refused, since it could not be told apart from a blank line;
+  - the character set is tab and printable ASCII; any other byte is refused (D-4);
+  - `ftool exporttext DISC.bdd NAME.EXT host.txt [--numbers]` is strict: a malformed record is an error and the host file is not written, so a test cannot silently lose lines (D-6). Without `--numbers` each line is the record text, and a one-space text becomes an empty line; with `--numbers` each line is the whole `<number> <text>` record;
+  - both commands validate everything before they write, and an error leaves the disc or the host file unchanged.
+- **Trade-offs:** a file cannot be replaced by `importtext`; remove it first (`rm`, which leaves a gap) or import under another name. A host line of exactly one space cannot be imported. Tabs are kept as they are; whether BASM or BCC accept them is their concern (D-4). The 80-character, 6553-line and 255-sector limits come from TextEd and the catalog, and `docs/05-bdos.md` lists them.
+
 ### G12. Only sources are committed; build before test; generated `.basm` files say so
 - **Purpose:** keep build output out of the history, so PRs show only real changes, and make every test run on binaries built from the sources in the same run (#90, #92).
 - **Rationale:** compiler output churned every PR that touched the compiler, and the ignore list had drifted from what was tracked (37 tracked-but-ignored files).

@@ -9,7 +9,7 @@ The order is: **fixes** (emulator, assembler, compiler, bdos) → **host assembl
 → **assembler on the BC64** → **linker on the BC64** → **compiler passes** → chaining.
 
 The "Done" column marks finished steps with the PR that closed the issue (status on
-2026-11-23: steps 1–17, 21 and 26–28 are done; phase 0 still has 18–20, 22–25, 29 and 30).
+2026-11-23: steps 1–17, 21 and 26–28 are done; phase 0 still has 6a, 18–20, 22–25, 29 and 30).
 
 Work one step at a time, top to bottom. Steps inside the same phase and track can sometimes
 run in parallel (the "Track" column), but every step depends only on steps above it.
@@ -28,6 +28,7 @@ that BCC3 copies.
 | 4 | ✅ #139 | #53 | emulator | zero flag from the unwrapped result | runtime comparison helpers depend on flags |
 | 5 | ✅ #143 | #54 | emulator | overflow/carry semantics, borrow. **Decided (2026-11-20):** `C` = unsigned carry/borrow, `O` = signed overflow ([E13](../specs/memory/design-decisions.md)) | same |
 | 6 | ✅ #141 | #55 | emulator | `shl`/`shr` flags. **Decided (2026-11-20):** `Z`/`N` from the stored result, `C` = last bit shifted out, `O` = a 1 bit shifted out for `shl` and 0 for `shr`; the same for 16-bit (E12) | same |
+| 6a |  | #161 | emulator | `O` after `shl` becomes signed overflow, as after `add` (E13); `shr` keeps `O` = 0. Added 2026-11-23: E12 was decided before E13, so today `shl a, 1` and `add a, a` set different `O` | same; the flags are frozen at step 31 |
 | 7 | ✅ #147 | #56 | emulator + assembler | register forms of `shl`/`shr`. **Settled (2026-11-22):** no code change; register counts use the long form `58 ro` ([E15](../specs/memory/design-decisions.md)) | an encoding decision BASM must copy |
 | 8 | ✅ #138 | #57 | emulator + assembler | 16-bit pair ops ignore the second operand. **Decided (2026-11-19):** the CPU keeps the implied second pair (`csci`→`dsdi`, `dsdi`→`csci`, `af`→`csci`) and the assembler enforces it; BASM must apply the same rule | same |
 | 9 | ✅ #140 | #58 | emulator + assembler | 16-bit results in `A:F`. **Decided (2026-11-20):** `af` stays allowed as a 16-bit destination and the CPU is unchanged: `A` gets the high byte of the result, `F` the flags, and the low byte is lost. Use `csci` or `dsdi` for 16-bit arithmetic ([E14](../specs/memory/design-decisions.md)) | same |
