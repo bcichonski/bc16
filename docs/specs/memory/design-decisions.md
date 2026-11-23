@@ -673,6 +673,24 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Trade-offs:** `bcc` no longer leaves a `.genb` behind; `bc.py --verbose` gives one. The trace
   keeps its old free-form text, so it is for people to read, not for tools to parse.
 
+### C7. Labels cost no bytes: a label is written alone on its line, with no padding `nop`
+- **Purpose:** keep every byte of the image useful, and keep host and BC64 compiler output
+  byte-identical.
+- **Rationale:** the host wrote `LABELxxxx:  nop` and `F<name>:  nop`, so every label cost a
+  byte, and a loop's start label was executed on every iteration (#104). The assembler accepts
+  a label on a line of its own (#103), so the `nop` is not needed.
+- **Usage:**
+  - the compiler writes each jump label (`LABELxxxx:`) and function label (`F<name><id>:`)
+    alone on its line, with no instruction;
+  - `asm "label:"` lines in the B libraries (`stdio.b`) follow the same rule;
+  - `sys_stackhead: nop` keeps its `nop`: that byte is the low byte of the software-stack
+    pointer word, not a label carrier;
+  - the design page's `.IR` table gives `FUNC` and `LABEL` no code (0 bytes), so BCC3 and
+    `bc --obj` start without the `nop`.
+- **Trade-offs:** the rule relies on the assembler accepting label-only lines (#103); a
+  `.basm` from an older assembler will not assemble. The `sys_stackhead` exception must be
+  kept in mind when auditing `nop`s: a grep for `nop` on a labelled line finds only that one.
+
 ---
 
 ## bcOS (`src/bc81asmc/bcOS/`)

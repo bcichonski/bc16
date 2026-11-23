@@ -241,7 +241,7 @@ operation plus a fixed payload.
 | `02` | `SYMA` | `len name` | no code. Declares an assembly label used by raw `asm` (`:poke16`), numbered in the same sequence |
 | `03` | `LINK` | `len name` | no code: becomes a `de` record |
 | `04` | `ADDR` | `kind(1) value(2)` | no code: becomes an `ad` record |
-| `10` | `FUNC` | `sym(2)` | starts a section with its global symbol; `nop` |
+| `10` | `FUNC` | `sym(2)` | starts a section with its global symbol; no code (0 bytes) |
 | `11` | `ENDF` | – | `ret`, then the function's strings |
 | `12` | `RET` | – | `ret` |
 | `20` | `LDC` | `value(2)` | `mov cs, hi` + `mov ci, lo` |
@@ -261,7 +261,7 @@ operation plus a fixed payload.
 | `70` | `ENTER` | `n(2)` | before a call: move `sys_stackhead` forward by n (`stackheadrll8`, or the long form from 127) |
 | `71` | `LEAVE` | `n(2)` | after a call: move it back |
 | `72` | `CALL` | `sym(2)` | `cal :F_name` |
-| `80` | `LABEL` | `n(2)` | local label n is here; `nop` |
+| `80` | `LABEL` | `n(2)` | local label n is here; no code (0 bytes) |
 | `81` | `JZ` | `n(2)` | `mov a, cs` + `or ci` + `jrx z, :n` |
 | `82` | `JMP` | `n(2)` | `xor a` + `jrx z, :n` |
 | `90` | `ASMB` | `count item…` | raw `asm`. An item is `00 byte`, or `01` / `02` / `03` + `sym(2)` for `:name` / `hi(:name)` / `lo(:name)` |
@@ -1009,10 +1009,11 @@ bdos fixes, is in [08-self-hosted-roadmap.md](08-self-hosted-roadmap.md).
      than migrating all the sources;
    - raw-byte `asm` added; `asm "…"` removed once the libraries are moved;
    - `#link name` added, in `bc` and in `bc81asmc`;
-   - the `nop` the host writes at every label and function start removed (176 bytes in
-     `texted`, 220 in `bdos`). The assembler must first accept a label on a line of its
-     own. BCC3's `LABEL` and `FUNC` templates follow the host, so the outputs stay
-     byte-identical.
+   - the `nop` the host writes at every label and function start removed (done in #104;
+     measured on a trial build: `texted` −209 bytes, `bdos` −264, about −1.6 KB over all 18
+     programs). The assembler first had to accept a label on a line of its own (#103). BCC3
+     and `bc --obj` start without that `nop` too, so their `LABEL` and `FUNC` templates emit
+     no bytes and the outputs stay byte-identical with the host.
 2. **Object output on the host:** `.global` / `.extern` / `.sect`, `#include` / `#define`
    and `--obj` in `bc81asmc`; external references for prototypes and `F_name` symbols in
    `bc`. Move the runtime from `bc_stdlib.py` into `runtime.basm`, so the host and BASM

@@ -59,7 +59,7 @@ class TestProgramShape(CodegenTestCase):
     def test_function_label_and_trailing_ret(self):
         lines = main_lines('byte main() { }')
         self.assertTrue(lines[1].startswith('FMAIN0001:'))
-        self.assertTrue(lines[1].endswith('nop'))
+        self.assertEqual('FMAIN0001:', lines[1])
         self.assertEqual('ret', lines[-1])
 
     def test_missing_main_is_compile_error(self):
@@ -172,7 +172,7 @@ class TestControlFlow(CodegenTestCase):
         lines = main_lines('byte main() { word a; a <- 1; if (a) { a <- 2; } return a; }')
         jump = next(l for l in lines if l.startswith('jrx z, :'))
         label = jump.split(':')[1]
-        self.assertSequence(lines, ['mov a, cs', 'or ci', jump, 'mov ci, 0x02', label + ':      nop'])
+        self.assertSequence(lines, ['mov a, cs', 'or ci', jump, 'mov ci, 0x02', label + ':'])
         self.assertEqual(1, sum(1 for l in lines if l.startswith('jrx')))
 
     def test_if_else(self):
@@ -184,19 +184,19 @@ class TestControlFlow(CodegenTestCase):
         self.assertSequence(lines, [
             'mov a, cs', 'or ci', jumps[0],
             'mov ci, 0x02', 'xor a', jumps[1],
-            else_label + ':      nop', 'mov ci, 0x03',
-            end_label + ':      nop', 'ret'])
+            else_label + ':', 'mov ci, 0x03',
+            end_label + ':', 'ret'])
 
     def test_while(self):
         lines = main_lines('byte main() { word a; a <- 3; while (a) { a <- a - 1; } return a; }')
-        start = next(l for l in lines if l.startswith('LABEL') and l.endswith('nop'))
+        start = next(l for l in lines if l.startswith('LABEL') and l.endswith(':'))
         start_label = start.split(':')[0]
         exit_jump = next(l for l in lines if l.startswith('jrx z, :') and l != 'jrx z, :' + start_label)
         exit_label = exit_jump.split(':')[1]
         self.assertSequence(lines, [
             start, 'mov a, cs', 'or ci', exit_jump,
             'sub csci, dsdi', 'xor a', 'jrx z, :' + start_label,
-            exit_label + ':      nop', 'ret'])
+            exit_label + ':', 'ret'])
 
 
 class TestFunctions(CodegenTestCase):

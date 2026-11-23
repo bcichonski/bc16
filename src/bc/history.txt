@@ -24,3 +24,7 @@ bdos code 14339 bytes
 after commutative opt: 13703 less by 5%
 after smart loading commutative constants: 13195 less by 8% (cumulative)
 after 13063, less by 9% (cumulative)
+
+bc (2026-11-23, #104)
+labels and function starts no longer emit a nop; total code saved 1605 bytes (100670 -> 99065)
+bdos 17623 -> 17359 bytes, texted 14359 -> 14150 bytes
