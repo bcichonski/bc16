@@ -4,6 +4,8 @@
 #include std.b
 #include bdosh.b
 #include strings.b
+#include bdostools.b
+#include bdosargs.b
 
 #define CATBUFSECT_ADDR 0xf800
 #define FCATATTRIBSTRING_ADDR 0xf750
@@ -13,47 +15,6 @@
 #define MODE_SWITCH_SHOWALL 0x01
 #define MODE_HELP 0x10
 #define MODE_LS 0x20
-
-word getdriveletter(byte drive)
-{
-    word driveLetter;
-    driveLetter <- "?";
-    if(drive = BDIO_DRIVEA)
-    {
-        driveLetter <- "A";
-    }
-    else
-    {
-        if(drive = BDIO_DRIVEB) 
-        {
-            driveLetter <- "B";
-        }
-    }
-
-    return driveLetter;
-}
-
-word getdrive(word Pargs)
-{
-    word result;
-
-    if(strncmp(Pargs, "A:", 2) = STRCMP_EQ)
-    {
-        result <- BDIO_DRIVEA;
-    }
-    else
-    {
-        if(strncmp(Pargs, "B:", 2) = STRCMP_EQ)
-        {
-            result <- BDIO_DRIVEB;
-        }
-        else
-        {
-            result <- bdio_getdrive();
-        }
-    }
-    return result;
-}
 
 byte setAttrib(word Pstring, byte fcatAttribs, byte attrib, byte char)
 {
@@ -121,16 +82,6 @@ byte listCatalogItem(word Pitem, byte showall)
     return res;
 }
 
-byte changeDriveIfNeeded(byte currentDrive, byte targetDrive, byte silent)
-{
-    if(currentDrive != targetDrive)
-    {
-        bdio_setdrive(targetDrive, silent);
-        currentDrive <- targetDrive;
-    }
-    return currentDrive;
-}
-
 byte listCatalog(byte showall, byte targetdrive)
 {
     word fHandle;
@@ -195,21 +146,22 @@ byte main()
 {
     word Pargs;
     byte showall;
+    byte option;
 
     showall <- FALSE;
     upstring(BDIO_CMDPROMPTADDR);
     Pargs <- strnextword(BDIO_CMDPROMPTADDR);
+    option <- getswitch(Pargs, "AH");
 
-    if(strncmp(Pargs, "-H", 2) = STRCMP_EQ)
+    if(option = 2)
     {
-        printf("%s%n%s%n%s%n",
-            "lists files",
-            "-a show all files", 
+        printusage("lists files",
+            "-a show all files",
             "-h print help");
     }
     else
     {
-        if(strncmp(Pargs, "-A", 2) = STRCMP_EQ)
+        if(option = 1)
         {
             showall <- TRUE;
             Pargs <- Pargs + 3;
