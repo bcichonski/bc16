@@ -311,5 +311,30 @@ class TestScopeErrors(unittest.TestCase):
         self.assertEqual(-1, scope.get_variable('b')['offset'])
 
 
+class UnknownBinaryOperatorTests(unittest.TestCase):
+    def _binary(self, operator):
+        from bc_ast import EXPRESSION_BINARY, EXPRESSION_TERM, EXPRESSION_CONSTANT
+        return EXPRESSION_BINARY(
+            operand1=EXPRESSION_TERM(term=EXPRESSION_CONSTANT(i16=1)),
+            arguments=[[operator, EXPRESSION_TERM(term=EXPRESSION_CONSTANT(i16=2))]])
+
+    def test_operator_missing_from_tables_raises(self):
+        expr = self._binary('^^')
+        with contextlib.redirect_stdout(io.StringIO()):
+            with self.assertRaises(CompilerError) as caught:
+                expr.emit(Context())
+        self.assertEqual("Unknown binary operator '^^'", str(caught.exception))
+
+    def test_logic_returning_false_raises_with_operator(self):
+        from unittest import mock
+        from bc_ast import EXPRESSION_BINARY
+        expr = self._binary('&')
+        with contextlib.redirect_stdout(io.StringIO()):
+            with mock.patch.object(EXPRESSION_BINARY, 'logic', return_value=False):
+                with self.assertRaises(CompilerError) as caught:
+                    expr.emit(Context())
+        self.assertEqual("Unknown binary operator '&'", str(caught.exception))
+
+
 if __name__ == '__main__':
     unittest.main()

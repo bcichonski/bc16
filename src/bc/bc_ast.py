@@ -439,6 +439,8 @@ class EXPRESSION_BINARY(Instruction):
     def emit(self, context):
         self.operand1.emit(context)
         for elem in self.arguments:
+            if elem[0] not in oper2lib or elem[0] not in opercommutative:
+                raise CompilerError("Unknown binary operator '{0}'".format(elem[0]))
             if opercommutative[elem[0]]:
                 if(isTermWithConst(elem[1])):
                     context.hint_loaddsdi = True
@@ -465,8 +467,7 @@ class EXPRESSION_BINARY(Instruction):
             lib = oper2lib[elem[0]]
             if not lib:
                 if not self.logic(context, elem[0], elem[1]):
-                    context.add_error(
-                        "Unknown binary operator '{0}'".format(self.operator))
+                    raise CompilerError("Unknown binary operator '{0}'".format(elem[0]))
                 continue
             context.emit("""
                 {0} csci, dsdi""".format(lib))
