@@ -62,6 +62,7 @@ BOOT_SECTOR = 0
 BOOT_SIGNATURE = bytes([0xbd, 0x05, 0x01, 0x01])
 SYSTEM_START = 2 * SECTORS                       # 32
 SYSTEM_SECTORS = 160                             # whole loader range
+ALLOC_FIRST_SECTOR = SYSTEM_START + SYSTEM_SECTORS  # 192 = bdioh.b BDIO_DISC_ALLOCFIRSTSECT
 
 ATTRIBUTES = {'R': 0x01, 'W': 0x02, 'X': 0x04, 'S': 0x80}
 CATALOG_NAME = ('DISC', 'CAT')

@@ -482,8 +482,11 @@ byte saveFile(word PinputBuf, word PtextedVars)
             if(fHandleOut < BDIO_FOPEN_FNAME_NOTFOUND)
             {
                 saveLines(PtextedVars, fHandleOut, Ptextbuf);
-                bdio_fclose(fHandleOut);
-                result <- 0;
+                result <- bdio_fclose(fHandleOut);
+                if(result < 0xe0)
+                {
+                    result <- 0;
+                }
             }
         }
 

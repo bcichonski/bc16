@@ -170,7 +170,31 @@ byte bdio_fcat_scannext(word PsectorBuf)
     return result;
 }
 
-byte bdio_fcat_scanmem(word PsectorBuf)
+word bdio_markused(word first, word end)
+{
+    //marks the sectors first..end-1 (linear) as used in the used-sector map
+    //whole map bytes at once where the range covers them
+    word Pmapbyte;
+
+    while(first < end)
+    {
+        Pmapbyte <- BDIO_USEDMAP_ADDR + (first >> 3);
+        if(((first & 0x07) = 0) && ((first + 8) <= end))
+        {
+            poke8(Pmapbyte, 0xff);
+            first <- first + 8;
+        }
+        else
+        {
+            poke8(Pmapbyte, peek8(Pmapbyte) | (0x80 >> (first & 0x07)));
+            first <- first + 1;
+        }
+    }
+
+    return first;
+}
+
+byte bdio_fcat_scanmem(word PsectorBuf, byte mark)
 {
     byte freeentry;
     byte freetrack;
@@ -184,6 +208,8 @@ byte bdio_fcat_scanmem(word PsectorBuf)
     byte currsectlen;
     word currfreetracksector;
     byte firstempty;
+    word extfirst;
+    word extend;
 
     freeentry <- peek8(BDIO_VAR_FCAT_FREEENTRY);
     freetrack <- peek8(BDIO_VAR_FCAT_FREETRACK);
@@ -206,6 +232,26 @@ byte bdio_fcat_scanmem(word PsectorBuf)
             currsector <- peek8(Pentry + BDIO_FCAT_ENTRYOFF_STARTSECTOR);
 
             currfreetracksector <- bdio_tracksector_add(currtrack, currsector, currsectlen);
+
+            //the extent's part inside the allocatable area (clipped to the disc, never wraps)
+            extfirst <- (currtrack << 4) + currsector;
+            extend <- extfirst + currsectlen;
+            if(extend > BDIO_DISC_SECTORS)
+            {
+                extend <- BDIO_DISC_SECTORS;
+            }
+            if(extfirst < BDIO_DISC_ALLOCFIRSTSECT)
+            {
+                extfirst <- BDIO_DISC_ALLOCFIRSTSECT;
+            }
+            if(extfirst < extend)
+            {
+                poke16(BDIO_VAR_FCAT_TOTALFREE, (#(BDIO_VAR_FCAT_TOTALFREE)) - (extend - extfirst));
+                if(mark)
+                {
+                    bdio_markused(extfirst, extend);
+                }
+            }
 
             if (freetracksector < currfreetracksector)
             {
@@ -285,22 +331,31 @@ word bdio_fcat_ffindmem(word Pfnameext, word PsectorBuf)
     return Pentry;
 }
 
-byte bdio_fcat_read()
+byte bdio_fcat_scan(byte mark)
 {
     //reads file catalog
     //initializes variables BDIO_VAR_FCAT_FREEENTRY, BDIO_VAR_FCAT_FREETRACK, BDIO_VAR_FCAT_FREESECT
+    //(highest used end) and BDIO_VAR_FCAT_TOTALFREE (free sectors of the allocatable area)
+    //mark: also build the used-sector map at BDIO_USEDMAP_ADDR (reserved sectors always used)
 
     byte result;
 
     poke8(BDIO_VAR_FCAT_FREEENTRY, BDIO_FCAT_FREEENTRY_FULL);
     poke8(BDIO_VAR_FCAT_FREETRACK, 0x00);
     poke8(BDIO_VAR_FCAT_FREESECT, 0x00);
+    poke16(BDIO_VAR_FCAT_TOTALFREE, BDIO_DISC_ALLOCSECTORS);
+
+    if(mark)
+    {
+        mzero(BDIO_USEDMAP_ADDR, BDIO_USEDMAP_LEN);
+        mfill(BDIO_USEDMAP_ADDR, BDIO_USEDMAP_RESERVEDLEN, 0xff);
+    }
 
     result <- bdio_fcat_scanfirst(BDIO_TMP_SECTBUF);
     while(result = FDD_RESULT_OK)
     {
         result <- BDIO_RESULT_ENDOFCAT;
-        if(bdio_fcat_scanmem(BDIO_TMP_SECTBUF))
+        if(bdio_fcat_scanmem(BDIO_TMP_SECTBUF, mark))
         {
             result <- bdio_fcat_scannext(BDIO_TMP_SECTBUF);
         }
@@ -319,6 +374,90 @@ byte bdio_fcat_read()
     //printf("free %x%x %x%n", peek8(BDIO_VAR_FCAT_FREETRACK), peek8(BDIO_VAR_FCAT_FREESECT), peek8(BDIO_VAR_FCAT_FREEENTRY));
 
     return result;
+}
+
+byte bdio_fcat_read()
+{
+    //reads file catalog (see bdio_fcat_scan), no used-sector map
+    //a write handle opened without fcreate may write up to the disc end
+    byte result;
+
+    result <- bdio_fcat_scan(FALSE);
+    poke16(BDIO_VAR_FCAT_GAPEND, BDIO_DISC_ENDTRACKSECT);
+
+    return result;
+}
+
+byte bdio_findgap()
+{
+    //picks the largest free run of the used-sector map in the allocatable area
+    //(the tail of the disc counts; on a tie the lowest start wins)
+    //sets BDIO_VAR_FCAT_FREETRACK/FREESECT to its start and BDIO_VAR_FCAT_GAPEND to its end
+    //returns TRUE when a free sector was found
+    word sect;
+    word step;
+    byte mapbyte;
+    byte isfree;
+    word runstart;
+    word runlen;
+    word beststart;
+    word bestlen;
+
+    sect <- BDIO_DISC_ALLOCFIRSTSECT;
+    runstart <- 0;
+    runlen <- 0;
+    beststart <- 0;
+    bestlen <- 0;
+
+    while(sect <= BDIO_DISC_SECTORS)
+    {
+        isfree <- FALSE;
+        step <- 1;
+
+        if(sect < BDIO_DISC_SECTORS)
+        {
+            mapbyte <- peek8(BDIO_USEDMAP_ADDR + (sect >> 3));
+            if(((sect & 0x07) = 0) && ((mapbyte = 0x00) || (mapbyte = 0xff)))
+            {
+                step <- 8;
+                isfree <- (mapbyte = 0x00);
+            }
+            else
+            {
+                isfree <- ((mapbyte & (0x80 >> (sect & 0x07))) = 0);
+            }
+        }
+
+        if(isfree)
+        {
+            if(runlen = 0)
+            {
+                runstart <- sect;
+            }
+            runlen <- runlen + step;
+        }
+        else
+        {
+            if(runlen > bestlen)
+            {
+                beststart <- runstart;
+                bestlen <- runlen;
+            }
+            runlen <- 0;
+        }
+
+        sect <- sect + step;
+    }
+
+    if(bestlen)
+    {
+        poke8(BDIO_VAR_FCAT_FREETRACK, beststart >> 4);
+        poke8(BDIO_VAR_FCAT_FREESECT, beststart & 0x0f);
+        runstart <- beststart + bestlen;
+        poke16(BDIO_VAR_FCAT_GAPEND, ((runstart >> 4) << 8) | (runstart & 0x0f));
+    }
+
+    return (bestlen != 0);
 }
 
 word bdio_ffindfile(word Pfnameext)
@@ -518,6 +657,7 @@ byte bdio_getfree_fdesc_internal(word PfcatEntry, word Pfdesc, byte maxfdesc, by
         {
             fdescMode <- BDIO_FDESCRIPTOR_NUMBERWRITE;
             sectlen <- 0x00;
+            poke8(BDIO_VAR_DISCFULL, FALSE);
         }
         else
         {
@@ -648,8 +788,9 @@ byte bdio_fbinopen_internal(word Pfnameext, byte testattrib, byte mode)
 
 byte bdio_fbin_internal(byte fhandle, word Pmembuf, byte sectors, byte descMode)
 {
-    //reads at most specified number of sectors for open fhandle into given Pmembuf
+    //reads (writes) at most specified number of sectors for open fhandle into (from) given Pmembuf
     //returns number of actually read sectors (EOF may be reached first)
+    //or written sectors (a write stops at BDIO_VAR_FCAT_GAPEND and sets BDIO_VAR_DISCFULL)
     byte result;
     result <- 0;
 
@@ -669,8 +810,14 @@ byte bdio_fbin_internal(byte fhandle, word Pmembuf, byte sectors, byte descMode)
         seqLen <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_SEQLEN);
         track <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRTRACK);
         sector <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_CURRSECT);
+        byte discfull;
+        discfull <- FALSE;
+        if(descMode = BDIO_FDESCRIPTOR_NUMBERWRITE)
+        {
+            discfull <- peek8(BDIO_VAR_DISCFULL);
+        }
         
-        while((sectorscount < sectors) && ((descMode = BDIO_FDESCRIPTOR_NUMBERWRITE) || (currSeq < seqLen)))
+        while((sectorscount < sectors) && (!discfull) && ((descMode = BDIO_FDESCRIPTOR_NUMBERWRITE) || (currSeq < seqLen)))
         {
             if(descMode = BDIO_FDESCRIPTOR_NUMBERREAD)
             {
@@ -679,21 +826,33 @@ byte bdio_fbin_internal(byte fhandle, word Pmembuf, byte sectors, byte descMode)
             }
             else
             {
-                //printf("iowrite %x %x %w%n", track, sector, Pmembuf);
-                bdio_iosec(FDD_CMD_WRITE, track, sector, Pmembuf);
-                tracksector <- bdio_getfreesect();             
+                if(((track << 8) | sector) < #(BDIO_VAR_FCAT_GAPEND))
+                {
+                    //printf("iowrite %x %x %w%n", track, sector, Pmembuf);
+                    bdio_iosec(FDD_CMD_WRITE, track, sector, Pmembuf);
+                    tracksector <- bdio_getfreesect();
+                    poke16(BDIO_VAR_FCAT_TOTALFREE, (#(BDIO_VAR_FCAT_TOTALFREE)) - 1);
+                }
+                else
+                {
+                    discfull <- TRUE;
+                    poke8(BDIO_VAR_DISCFULL, TRUE);
+                }
             }
 
-            Pmembuf <- Pmembuf + BDIO_SECTBUF_LEN;
-            sectorscount <- sectorscount + 1;
-            currSeq <- currSeq + 1;
-            
-            track <- tracksector >> 8;
-            sector <- tracksector & 0xff;
-
-            if((currSeq & 0x07) = 0x07)
+            if(!discfull)
             {
-                puts(".");
+                Pmembuf <- Pmembuf + BDIO_SECTBUF_LEN;
+                sectorscount <- sectorscount + 1;
+                currSeq <- currSeq + 1;
+
+                track <- tracksector >> 8;
+                sector <- tracksector & 0xff;
+
+                if((currSeq & 0x07) = 0x07)
+                {
+                    puts(".");
+                }
             }
         }
 
@@ -795,6 +954,10 @@ byte bdio_fclose(byte fhandle)
                 if(result = FDD_RESULT_OK)
                 {
                     result <- fdescNo;
+                    if(peek8(BDIO_VAR_DISCFULL))
+                    {
+                        result <- BDIO_FILE_DISC_FULL;
+                    }
                 }
                 else
                 {
@@ -972,20 +1135,32 @@ byte bdio_fcreate(word Pfnameext, byte attribs)
 
         if(PfcatEntry = BDIO_FNAME_NOTFOUND)
         {
-            fddres <- bdio_new_fcat(Pfnameext, attribs);
+            //fresh catalog scan + used-sector map, then the largest free gap
+            fddres <- bdio_fcat_scan(TRUE);
             fhandle <- BDIO_FCREATE_READERR;
 
             if(fddres = FDD_RESULT_OK)
             {
-                fcattrack <- peek8(BDIO_VAR_FCAT_SCAN_TRACK);
-                fcatsector <- peek8(BDIO_VAR_FCAT_SCAN_SECT);
+                fhandle <- BDIO_FILE_DISC_FULL;
 
-                fhandle <- BDIO_FCREATE_SAVEERR;
-                fddres <- bdio_iosec(FDD_CMD_WRITE, fcattrack, fcatsector, BDIO_TMP_SECTBUF);
-
-                if(fddres = FDD_RESULT_OK)
+                if(bdio_findgap())
                 {
-                    fhandle <- BDIO_FCREATE_OK;
+                    fddres <- bdio_new_fcat(Pfnameext, attribs);
+                    fhandle <- BDIO_FCREATE_READERR;
+
+                    if(fddres = FDD_RESULT_OK)
+                    {
+                        fcattrack <- peek8(BDIO_VAR_FCAT_SCAN_TRACK);
+                        fcatsector <- peek8(BDIO_VAR_FCAT_SCAN_SECT);
+
+                        fhandle <- BDIO_FCREATE_SAVEERR;
+                        fddres <- bdio_iosec(FDD_CMD_WRITE, fcattrack, fcatsector, BDIO_TMP_SECTBUF);
+
+                        if(fddres = FDD_RESULT_OK)
+                        {
+                            fhandle <- BDIO_FCREATE_OK;
+                        }
+                    }
                 }
             }
         }
@@ -1085,12 +1260,15 @@ word bdio_fbinbufwrite(byte fhandle, word Pmembuf, word length)
             word bufcounter;
             word chunk;
             word Pbuf;
+            byte bufdiscfull;
 
             result <- 0;
             bufcounter <- peek8(Pfdesc + BDIO_FDESCRIPTOROFF_BUFFCOUNTER);
             Pbuf <- bdio_fbinbuf_getbufaddr(fhandle);
+            //after disc full the handle takes nothing more
+            bufdiscfull <- peek8(BDIO_VAR_DISCFULL);
 
-            while(length > 0)
+            while((length > 0) && (!bufdiscfull))
             {
                 chunk <- BDIO_SECTBUF_LEN - bufcounter;
                 if(length < chunk)
@@ -1107,7 +1285,12 @@ word bdio_fbinbufwrite(byte fhandle, word Pmembuf, word length)
 
                 if(bufcounter = BDIO_SECTBUF_LEN)
                 {
-                    bdio_fbin_internal(fhandle, Pbuf, 1, BDIO_FDESCRIPTOR_NUMBERWRITE);
+                    if(bdio_fbin_internal(fhandle, Pbuf, 1, BDIO_FDESCRIPTOR_NUMBERWRITE) = 0)
+                    {
+                        //disc full: this call's bytes of the lost sector were not taken
+                        result <- result - chunk;
+                        bufdiscfull <- TRUE;
+                    }
                     bufcounter <- 0;
                 }
             }

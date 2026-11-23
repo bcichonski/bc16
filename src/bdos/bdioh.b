@@ -30,6 +30,26 @@
 #define BDIO_FCAT_LASTENTRY 0xf7
 
 #define BDIO_FREEMAP_FULL 0x0000
+
+// Disc layout, as linear sectors (track * 16 + sector); positions compared as track << 8 | sector words.
+// Reserved, never allocated (whatever the catalog says): boot sector 0/0, catalog 0/1..1/15,
+// the BDOS range 2/0..11/15 that boot.basm loads (sectors 0x20..0xbf).
+// Allocatable area: 12/0..63/15 (linear 0xc0..0x3ff, 0x340 sectors).
+#define BDIO_DISC_BOOTSECT 0x00
+#define BDIO_DISC_FCATFIRSTSECT 0x01
+#define BDIO_DISC_FCATLASTSECT 0x1f
+#define BDIO_DISC_BDOSFIRSTSECT 0x20
+#define BDIO_DISC_BDOSLASTSECT 0xbf
+#define BDIO_DISC_ALLOCFIRSTSECT 0xc0
+#define BDIO_DISC_SECTORS 0x0400
+#define BDIO_DISC_ALLOCSECTORS 0x0340
+#define BDIO_DISC_ENDTRACKSECT 0x4000
+
+// Used-sector map built by bdio_fcreate: one bit per sector (byte = sector >> 3, bit 0x80 >> (sector & 7)),
+// 1 = used. The first BDIO_USEDMAP_RESERVEDLEN bytes cover the reserved sectors 0..0xbf.
+#define BDIO_USEDMAP_ADDR 0x5f00
+#define BDIO_USEDMAP_LEN 0x80
+#define BDIO_USEDMAP_RESERVEDLEN 0x18
 #define BDIO_FNAME_NOTFOUND 0x0000
 #define BDIO_FNAME_ENDOFCAT 0x0001
 #define BDIO_FNAME_EOC 0xff
@@ -57,7 +77,8 @@
 // One value per meaning, grouped by operation (see docs/05-bdos.md):
 //   open/exec  0xe0 0xe1 0xe3 0xe4    close  0xe2 0xe6 0xef    exec  0xe7..0xea
 //   create     0xeb..0xee             delete/setattr  0xf0..0xf2
-//   0xe5 retired (never reuse), 0xf3..0xfe free, 0xff = no free handle.
+//   disc full  0xf3 (fcreate: no free sector; fclose: a write hit the end of the file's gap)
+//   0xe5 retired (never reuse), 0xf4..0xfe free, 0xff = no free handle.
 // bdio_printexecres names only some codes; the others print "unknown error".
 #define BDIO_FOPEN_FNAME_NOTFOUND 0xe0
 #define BDIO_FOPEN_FDD_NOT_READY 0xe1
@@ -86,6 +107,7 @@
 #define BDIO_FILE_SAVEERR 0xf0
 #define BDIO_FILE_FDD_NOT_READY 0xf1
 #define BDIO_FILE_FNAME_NOTFOUND 0xf2
+#define BDIO_FILE_DISC_FULL 0xf3
 #define BDIO_FILE_OK 0x00
 
 #define BDIO_FILE_INTERNALMODE_DELETE 0xd0
@@ -103,7 +125,13 @@
 #define BDIO_VAR_FCAT_FREEENTRY 0x0d84
 #define BDIO_VAR_FCAT_FREETRACK 0x0d85
 #define BDIO_VAR_FCAT_FREESECT 0x0d86
+// TRUE once a write on the write handle hit BDIO_VAR_FCAT_GAPEND (reset when a write handle is opened)
+#define BDIO_VAR_DISCFULL 0x0d87
 #define BDIO_VAR_FCAT_PLASTFOUND 0x0d88
+// word, track << 8 | sector: the write handle never writes at or past it (gap end; disc end after fcat_read)
+#define BDIO_VAR_FCAT_GAPEND 0x0d8a
+// word: free sectors of the allocatable area (computed by fcat_read, lowered by every written sector)
+#define BDIO_VAR_FCAT_TOTALFREE 0x0d8c
 #define BDIO_VAR_FCAT_NEWENTRYADDR 0x0d90
 #define BDIO_VAR_PMEMBUF_LEN 0x0d92
 #define BDIO_VAR_FDESCTAB_WRITE 0x0d94
@@ -193,6 +221,10 @@ byte bdio_printexecres(byte execres)
     if(execres = BDIO_FCLOSE_FCAT_SAVEERR)
     {
         errorMessage <- "cat save error";
+    }
+    if(execres = BDIO_FILE_DISC_FULL)
+    {
+        errorMessage <- "disc full";
     }
 
     printf("error: %x %s%n", execres, errorMessage);

@@ -6,7 +6,7 @@
 A TextEd file (bdos/texted.b saveLines/readLines, decision D6) is a sequence of records
 `<decimal line number> <text>` + 0x13, then one 0x00, zero padded to whole sectors.
 importtext numbers the host lines 10, 20, 30 ... and adds a new catalog entry (attributes
-R W) after the last used sector, exactly where bdio would put a file TextEd saves.
+R W) in the largest free gap of sectors 192..1023 (tie: lowest start), exactly where bdio puts a new file.
 exporttext writes the text of a catalog entry back to the host, one LF-terminated line
 per record.
 
@@ -113,6 +113,30 @@ def read_catalog(image):
     return used, mk.CATALOG_ENTRIES
 
 
+def _largest_gap(used):
+    """(start, length) of the longest free run in the allocatable area (tie: lowest start).
+
+    Same rule as bdio: sectors below ALLOC_FIRST_SECTOR are always used, whatever the
+    catalog says; extents are clipped to the disc. Length 0 when nothing is free.
+    """
+    first = mk.ALLOC_FIRST_SECTOR
+    taken = bytearray(mk.DISC_SECTORS)
+    for entry in used:
+        for sector in range(entry.start, min(entry.end, mk.DISC_SECTORS)):
+            taken[sector] = 1
+    best_start, best_len = first, 0
+    run_start = None
+    for sector in range(first, mk.DISC_SECTORS + 1):
+        if sector < mk.DISC_SECTORS and not taken[sector]:
+            if run_start is None:
+                run_start = sector
+        elif run_start is not None:
+            if sector - run_start > best_len:
+                best_start, best_len = run_start, sector - run_start
+            run_start = None
+    return best_start, best_len
+
+
 def _split_lines(data):
     lines = data.split(b'\n')
     if lines and lines[-1] == b'':
@@ -162,10 +186,10 @@ def import_text(disc_path, host_path, name_text):
     if free_index >= mk.MAX_USED_ENTRIES:
         raise TextError('catalog full: {} entries used, at most {} allowed'.format(
             free_index, mk.MAX_USED_ENTRIES))
-    start = max([entry.end for entry in used], default=0)
-    if start + sectors > mk.DISC_SECTORS:
-        raise TextError('disc full: {} sectors needed at sector {}, the disc has {}'.format(
-            sectors, start, mk.DISC_SECTORS))
+    start, room = _largest_gap(used)
+    if sectors > room:
+        raise TextError('disc full: {} sectors needed, the largest free gap is {} sectors (at sector {})'.format(
+            sectors, room, start))
 
     new = bytearray(image)
     offset = start * mk.SECTOR_SIZE

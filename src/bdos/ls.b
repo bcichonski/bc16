@@ -124,17 +124,14 @@ byte listCatalog(byte showall, byte targetdrive)
         bdio_printexecres(fHandle);
     }
 
-    byte freeTrack;
-    byte freeSector;
     byte freeEntry;
     word freeSectors;
     byte freeEntries;
 
-    freeTrack <- peek8(BDIO_VAR_FCAT_FREETRACK);
-    freeSector <- peek8(BDIO_VAR_FCAT_FREESECT);
     freeEntry <- peek8(BDIO_VAR_FCAT_FREEENTRY);
 
-    freeSectors <- FDD_TRACKS * FDD_SECTORS - (freeTrack * FDD_SECTORS + freeSector);
+    //free sectors of the allocatable area, kept by bdio (gaps count too)
+    freeSectors <- #(BDIO_VAR_FCAT_TOTALFREE);
     freeEntries <- BDIO_FCAT_LASTENTRY - freeEntry;
 
     printf("%x catalog entries free; %w sectors free...%n", freeEntries, freeSectors);
