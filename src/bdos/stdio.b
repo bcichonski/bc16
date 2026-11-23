@@ -149,7 +149,7 @@ byte printf(word PformatStr)***
         asm "xor a";
         asm "jmp z, csci";
 
-        asm "stdprntf_nprc: nop";
+        asm "stdprntf_nprc:";
         PRINTF_NEWLINECHAR;
         asm "pop a";
         asm "psh a";
@@ -160,7 +160,7 @@ byte printf(word PformatStr)***
         asm "xor a";
         asm "jmp z, csci";
 
-        asm "stdprntf_nnwl: nop";
+        asm "stdprntf_nnwl:";
         PRINTF_HEX8;
         asm "pop a";
         asm "psh a";
@@ -186,7 +186,7 @@ byte printf(word PformatStr)***
         asm "xor a";
         asm "jmp z, csci";
 
-        asm "stdprntf_nh8: nop";
+        asm "stdprntf_nh8:";
         PRINTF_HEX16;
         asm "pop a";
         asm "psh a";
@@ -214,7 +214,7 @@ byte printf(word PformatStr)***
         asm "xor a";
         asm "jmp z, csci";
 
-        asm "stdprntf_nh16: nop";
+        asm "stdprntf_nh16:";
         PRINTF_STRING;
         asm "pop a";
         asm "psh a";
@@ -247,10 +247,10 @@ byte printf(word PformatStr)***
         asm "xor a";
         asm "jmr z, :stdprntf_cont";
 
-        asm "stdprntf_next: nop";
+        asm "stdprntf_next:";
         PformatStr <- PformatStr + 1;
 
-        asm "stdprntf_cont: nop";
+        asm "stdprntf_cont:";
     }
 
     return 0;

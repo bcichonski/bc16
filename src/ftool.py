@@ -3,6 +3,7 @@ from bc64 import bc64_env
 from bc64 import bc64_io
 import sys
 import ftool_mkdisc
+import ftool_text
 
 env = bc64_env.Environment()
 
@@ -114,6 +115,25 @@ def mkdisc(fmanifest, fname):
         print('mkdisc: error: {}'.format(e), file=sys.stderr)
         sys.exit(1)
 
+def importtext(fdisc, ftext, name):
+    env.log('import text {} to {} as {}'.format(ftext, fdisc, name))
+    try:
+        print(ftool_text.import_text(fdisc, ftext, name))
+    except ftool_text.TextError as e:
+        print('importtext: error: {}'.format(e), file=sys.stderr)
+        sys.exit(1)
+
+def exporttext(fdisc, name, ftext, options):
+    env.log('export text {} from {} to {}'.format(name, fdisc, ftext))
+    try:
+        if options not in ([], ['--numbers']):
+            raise ftool_text.TextError('unexpected argument "{}" (only --numbers is allowed, as the last argument)'.format(
+                ' '.join(options)))
+        print(ftool_text.export_text(fdisc, name, ftext, numbers=bool(options)))
+    except ftool_text.TextError as e:
+        print('exporttext: error: {}'.format(e), file=sys.stderr)
+        sys.exit(1)
+
 def main():
     env.log("ftool v1.0")
 
@@ -138,6 +158,12 @@ def main():
     elif command=='mkdisc':
         checkargs(3)
         mkdisc(argv[2], argv[3])
+    elif command=='importtext':
+        checkargs(4)
+        importtext(argv[2], argv[3], argv[4])
+    elif command=='exporttext':
+        checkargs(4)
+        exporttext(argv[2], argv[3], argv[4], argv[5:])
     else:
         env.log('Unknown command: {}'.format(command))
 

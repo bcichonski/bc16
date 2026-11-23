@@ -48,6 +48,8 @@ python bc81asmc/bc81asmc.py bdos/helloworld.basm  # -> bdos/helloworld.btap
   An internal compiler fault (for example, an operator the grammar accepts but code generation can't
   emit) is reported as `internal error: <message>` and also exits with code 1 without writing a `.basm`,
   for example `internal error: Unknown binary operator '<op>'`.
+  An undeclared variable is reported as `Undeclared variable <name>` (no location until #28) and stops the
+  compile: it exits with code 1 without writing a `.basm`.
 - Python dependency: `parsy`, the only one. The compiler runs on Python >= 3.10 on Linux,
   macOS and Windows (tested on 3.10, 3.13 and 3.14). Output files are written as UTF-8.
 
@@ -149,7 +151,9 @@ byte printf(word PformatStr)*** // variadic: extra args become word params P1, P
 - Top-level `word x;` / `byte x;` declarations are accepted as globals, stored in the base
   frame.
 - Assembly labels are `F<NAME up to 10 chars><id>`. Data labels are `DATAxxxx` and jump
-  labels `LABELxxxx`.
+  labels `LABELxxxx`. Since #104, a jump or function label is written alone on its own line,
+  with no `nop`, so it costs no bytes. Label-only lines need the assembler support added by
+  #103. Hand-written `asm "label:"` lines in the B libraries (`stdio.b`) follow the same rule.
 
 ## How the generated code works
 
@@ -170,6 +174,9 @@ byte printf(word PformatStr)*** // variadic: extra args become word params P1, P
 - **Program layout:** the output is laid out in this order: `.org #code`, the entry point
   (init stackhead and heaphead, `cal main`, `ret`), the functions, the data segment
   (strings), the runtime stdlib, `sys_heaphead`, then `sys_stackhead`, then the `sys_codeend` label.
+- **Labels:** a label costs no bytes. The host writes `LABELxxxx:` and `F<name><id>:` on
+  their own line, with no `nop`. The `nop` that remains in the runtime, `sys_stackhead: nop`,
+  is not a label: its byte is the low byte of the software-stack pointer word, so it stays.
 - **Build-time checks:** the last line is `sys_codeend: .assert :sys_codeend < 0x<heap>`, so the
   assembler fails the build if the image reaches the `#heap` address. The label costs no bytes.
   With `#codelimit 0xHHHH`, a second line `.assert :sys_codeend < 0xHHHH` checks the same label

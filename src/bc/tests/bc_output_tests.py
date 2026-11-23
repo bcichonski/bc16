@@ -71,6 +71,13 @@ class OutputTests(unittest.TestCase):
         self.assertEqual(res.stderr.count('prog.b: error: Undeclared variable x'), 1)
         self.assertIn('Traceback', res.stderr)
 
+    def test_undeclared_variable_verbose_has_no_type_error(self):
+        res = self.run_bc('byte main() { x <- 1; return 1; }\n', '--verbose')
+        self.assertEqual(res.returncode, 1)
+        self.assertNotIn('TypeError', res.stderr)
+        self.assertNotIn('internal error', res.stderr)
+        self.assertIn('UndeclaredVariableError', res.stderr)
+
     def test_syntax_error_reports_position_source_line_and_caret(self):
         res = self.run_bc('byte main() { return 1; }\n@@@\n')
         self.assertEqual(res.returncode, 1)

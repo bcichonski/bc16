@@ -5,7 +5,7 @@ import tempfile
 import unittest
 
 import bc
-from bc_ast import CompilerError, Context, Scope
+from bc_ast import CompilerError, Context, Scope, UndeclaredVariableError
 from bc_grammar import program
 
 
@@ -59,7 +59,7 @@ class TestProgramShape(CodegenTestCase):
     def test_function_label_and_trailing_ret(self):
         lines = main_lines('byte main() { }')
         self.assertTrue(lines[1].startswith('FMAIN0001:'))
-        self.assertTrue(lines[1].endswith('nop'))
+        self.assertEqual('FMAIN0001:', lines[1])
         self.assertEqual('ret', lines[-1])
 
     def test_missing_main_is_compile_error(self):
@@ -155,16 +155,36 @@ class TestVariables(CodegenTestCase):
         lines = main_lines('byte main() { word a; byte b; b <- 1; return b; }')
         self.assertSequence(lines, ['mov a, 0x02', 'cal :stackvar8st8', 'mov a, 0x02', 'cal :stackvar8gt8'])
 
-    def test_undeclared_variable_reported_by_context(self):
+    def emit_undeclared(self, source):
         context = Context(0x1000, 0x3000, False)
-        ast = program.parse('byte main() { x <- 1; return 1; }')
+        ast = program.parse(source)
         with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as err:
-            try:
+            with self.assertRaises(UndeclaredVariableError):
                 ast.emit(context)
-            except TypeError:
-                pass  # D7: the failed lookup returns None and the caller then indexes it
-        self.assertTrue(any('Undeclared variable x' in e for e in context.errors))
-        self.assertIn(': error: Undeclared variable x', err.getvalue())
+        return context, err.getvalue()
+
+    def test_undeclared_variable_reported_by_context(self):
+        context, err = self.emit_undeclared('byte main() { x <- 1; return 1; }')
+        self.assertEqual(['Undeclared variable x'], context.errors)
+        self.assertEqual(1, err.count(': error: Undeclared variable x'))
+
+    def test_undeclared_variable_error_is_compiler_error(self):
+        self.assertTrue(issubclass(UndeclaredVariableError, CompilerError))
+
+    def test_undeclared_variable_read_reported_once(self):
+        context, err = self.emit_undeclared('byte main() { return y + 1; }')
+        self.assertEqual(['Undeclared variable y'], context.errors)
+        self.assertEqual(1, err.count(': error: Undeclared variable y'))
+
+    def test_undeclared_variable_as_call_argument_reported_once(self):
+        context, err = self.emit_undeclared('byte f(byte p) { return p; } byte main() { return f(z); }')
+        self.assertEqual(['Undeclared variable z'], context.errors)
+        self.assertEqual(1, err.count(': error: Undeclared variable z'))
+
+    def test_declared_variable_as_call_argument_through_previous_scope(self):
+        basm = compile_source('byte f(byte p) { return p; } byte main() { byte a; a <- 3; return f(a); }')
+        lines = function_lines(basm, 'main')
+        self.assertSequence(lines, ['mov a, 0x81', 'cal :stackvar8gt8'])  # a read through the previous scope, rebased
 
 
 class TestControlFlow(CodegenTestCase):
@@ -172,7 +192,7 @@ class TestControlFlow(CodegenTestCase):
         lines = main_lines('byte main() { word a; a <- 1; if (a) { a <- 2; } return a; }')
         jump = next(l for l in lines if l.startswith('jrx z, :'))
         label = jump.split(':')[1]
-        self.assertSequence(lines, ['mov a, cs', 'or ci', jump, 'mov ci, 0x02', label + ':      nop'])
+        self.assertSequence(lines, ['mov a, cs', 'or ci', jump, 'mov ci, 0x02', label + ':'])
         self.assertEqual(1, sum(1 for l in lines if l.startswith('jrx')))
 
     def test_if_else(self):
@@ -184,19 +204,19 @@ class TestControlFlow(CodegenTestCase):
         self.assertSequence(lines, [
             'mov a, cs', 'or ci', jumps[0],
             'mov ci, 0x02', 'xor a', jumps[1],
-            else_label + ':      nop', 'mov ci, 0x03',
-            end_label + ':      nop', 'ret'])
+            else_label + ':', 'mov ci, 0x03',
+            end_label + ':', 'ret'])
 
     def test_while(self):
         lines = main_lines('byte main() { word a; a <- 3; while (a) { a <- a - 1; } return a; }')
-        start = next(l for l in lines if l.startswith('LABEL') and l.endswith('nop'))
+        start = next(l for l in lines if l.startswith('LABEL') and l.endswith(':'))
         start_label = start.split(':')[0]
         exit_jump = next(l for l in lines if l.startswith('jrx z, :') and l != 'jrx z, :' + start_label)
         exit_label = exit_jump.split(':')[1]
         self.assertSequence(lines, [
             start, 'mov a, cs', 'or ci', exit_jump,
             'sub csci, dsdi', 'xor a', 'jrx z, :' + start_label,
-            exit_label + ':      nop', 'ret'])
+            exit_label + ':', 'ret'])
 
 
 class TestFunctions(CodegenTestCase):

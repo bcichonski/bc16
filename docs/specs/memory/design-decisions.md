@@ -673,6 +673,24 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Trade-offs:** `bcc` no longer leaves a `.genb` behind; `bc.py --verbose` gives one. The trace
   keeps its old free-form text, so it is for people to read, not for tools to parse.
 
+### C7. Labels cost no bytes: a label is written alone on its line, with no padding `nop`
+- **Purpose:** keep every byte of the image useful, and keep host and BC64 compiler output
+  byte-identical.
+- **Rationale:** the host wrote `LABELxxxx:  nop` and `F<name>:  nop`, so every label cost a
+  byte, and a loop's start label was executed on every iteration (#104). The assembler accepts
+  a label on a line of its own (#103), so the `nop` is not needed.
+- **Usage:**
+  - the compiler writes each jump label (`LABELxxxx:`) and function label (`F<name><id>:`)
+    alone on its line, with no instruction;
+  - `asm "label:"` lines in the B libraries (`stdio.b`) follow the same rule;
+  - `sys_stackhead: nop` keeps its `nop`: that byte is the low byte of the software-stack
+    pointer word, not a label carrier;
+  - the design page's `.IR` table gives `FUNC` and `LABEL` no code (0 bytes), so BCC3 and
+    `bc --obj` start without the `nop`.
+- **Trade-offs:** the rule relies on the assembler accepting label-only lines (#103); a
+  `.basm` from an older assembler will not assemble. The `sys_stackhead` exception must be
+  kept in mind when auditing `nop`s: a grep for `nop` on a labelled line finds only that one.
+
 ---
 
 ## bcOS (`src/bc81asmc/bcOS/`)
@@ -849,6 +867,18 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - the result is never `0`; a missing argument is detected by `peek8(result) = NULLCHAR`, not by comparing the pointer;
   - the function's comment in `src/bdos/strings.b` states the same contract.
 - **Trade-offs:** the NUL-pointer result is not visible from the name, so a caller that compares the pointer with 0 (as an option-B caller would) reads a missing word as present; the contract must be kept in the comment, `docs/05-bdos.md` and here.
+
+### D10. `ftool` moves host text to and from TextEd files: numbered records, no overwrite, strict export (#112)
+- **Purpose:** put a host text file (a B or assembly source) on an existing disc as a file TextEd can load, and get a TextEd file back as host text, without any BC64-side reader.
+- **Rationale:** `importsector` writes raw sectors with no catalog entry, and `mkdisc` builds only fresh discs from a manifest, so neither can add a text file to a disc that already exists. The tool writes the record format of D6, and it places the new file where bdio would place a file TextEd saves, so the tool, bdio and TextEd agree on the disc.
+- **Usage:**
+  - `ftool importtext DISC.bdd host.txt NAME.EXT` numbers the lines 10, 20, 30 …, adds a catalog entry with attributes R W, and places the file after the last used sector;
+  - an existing name is refused, never overwritten (D-2). Rewriting in place cannot grow a file, and freeing its entry would leave a gap that bdio never reuses (#41);
+  - a blank host line is stored as one space, because `readLines` skips records with no text (D-3). A host line of exactly one space is refused, since it could not be told apart from a blank line;
+  - the character set is tab and printable ASCII; any other byte is refused (D-4);
+  - `ftool exporttext DISC.bdd NAME.EXT host.txt [--numbers]` is strict: a malformed record is an error and the host file is not written, so a test cannot silently lose lines (D-6). Without `--numbers` each line is the record text, and a one-space text becomes an empty line; with `--numbers` each line is the whole `<number> <text>` record;
+  - both commands validate everything before they write, and an error leaves the disc or the host file unchanged.
+- **Trade-offs:** a file cannot be replaced by `importtext`; remove it first (`rm`, which leaves a gap) or import under another name. A host line of exactly one space cannot be imported. Tabs are kept as they are; whether BASM or BCC accept them is their concern (D-4). The 80-character, 6553-line and 255-sector limits come from TextEd and the catalog, and `docs/05-bdos.md` lists them.
 
 ### G12. Only sources are committed; build before test; generated `.basm` files say so
 - **Purpose:** keep build output out of the history, so PRs show only real changes, and make every test run on binaries built from the sources in the same run (#90, #92).

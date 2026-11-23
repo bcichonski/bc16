@@ -6,6 +6,10 @@ from dataclasses import dataclass
 class CompilerError(Exception):
     pass
 
+class UndeclaredVariableError(CompilerError):
+    '''A variable is in no scope. The error is recorded through Context.add_error before this is raised.'''
+    pass
+
 STACKHEAD = "sys_stackhead"
 HEAPHEAD = "sys_heaphead"
 
@@ -58,35 +62,31 @@ class Scope:
         
         self.context.add_error('Unknown type {0}'.format(vartype))
 
-    def get_variable(self, varname):
+    def _find_variable(self, varname):
+        """Look the name up through this scope and the previous ones. Returns None when it is in no scope."""
         if not self.declaredOnly:
             res = self.funcparams.get(varname)
             if res is not None:
                 return res
 
         res = self.variables.get(varname)
-        if res is None:
-            if self.prev_scope is not None:
-                res = self.prev_scope.get_variable(varname)
-
-                #print('1VAR {0} data is {1}'.format(varname, res))
-                #print('PREV SCOPE start offset is {0}'.format(self.prev_scope.startoffset))
-                #print('CURR SCOPE start offset is {0}'.format(self.startoffset))
-
+        if res is None and self.prev_scope is not None:
+            res = self.prev_scope._find_variable(varname)
+            if res is not None:
                 scopeoffset = self.startoffset - self.prev_scope.startoffset
-                rescopy = {
+                res = {
                     'name' : res['name'],
                     'type' : res['type'],
                     'offset': res['offset'] - scopeoffset,
                     'startoffset': self.startoffset
                 }
-                
-                res = rescopy
+        return res
 
-                #print('2VAR {0} data is {1}'.format(varname, res))
-
-        if res is None:    
+    def get_variable(self, varname):
+        res = self._find_variable(varname)
+        if res is None:
             self.context.add_error("Undeclared variable {0}".format(varname))
+            raise UndeclaredVariableError("Undeclared variable {0}".format(varname))
         return res
 
     def get_variable_declared_only(self):
@@ -659,17 +659,17 @@ class STATEMENT_IFELSE(Instruction):
 
         if self.last is None:
             context.emit("""
-{0}:      nop""".format(label))
+{0}:""".format(label))
         else:
             label2 = context.get_next_label()
             context.emit("""
                 xor a
                 jrx z, :{0}""".format(label2))
             context.emit("""
-{0}:      nop""".format(label))
+{0}:""".format(label))
             self.last.emit(context)
             context.emit("""
-{0}:      nop""".format(label2))
+{0}:""".format(label2))
 
 @dataclass
 class STATEMENT_WHILE(Instruction):
@@ -683,7 +683,7 @@ class STATEMENT_WHILE(Instruction):
         label1 = context.get_next_label()
         label2 = context.get_next_label()
         context.emit("""
-{0}:      nop""".format(label1))
+{0}:""".format(label1))
         self.expr.emit(context)
         context.emit("""
                 mov a, cs
@@ -693,7 +693,7 @@ class STATEMENT_WHILE(Instruction):
         context.emit("""
                 xor a
                 jrx z, :{0}
-{1}:      nop""".format(label1, label2))
+{1}:""".format(label1, label2))
 
 @dataclass
 class STATEMENT_ASM(Instruction):
@@ -838,7 +838,7 @@ class FUNCTION_DECLARATION(Instruction):
     def add_code(self, function_data, context):
         context.emit("""
 ;FUNCTION {0}
-{1:<16}nop""".format(function_data['name'], function_data['label'] + ":"))
+{1}""".format(function_data['name'], function_data['label'] + ":"))
         context.push_scope('FUNC')
         self.add_func_params(context, function_data)
 
