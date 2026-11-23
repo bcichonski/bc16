@@ -19,6 +19,7 @@ Sources are in `src/bdos/`:
 | `bdioh.b` | constants, memory addresses, error codes, call numbers |
 | `bdosh.b` | wrappers that user programs include to call bdio |
 | `bdostools.b` | `bdio_fnormalize` (converts `name.ext` to the catalog form) |
+| `bdosargs.b` | argument helpers of the utilities (`getdrive`, `getswitch`, `argfile`, `printusage`, …); opt-in, see "Argument library" |
 | `random.b` | `random(max)`: opt-in wrapper for `BDIO_RANDOM` (`0x1a`); include it after `bdosh.b` |
 | `ls.b`, `cp.b`, `rm.b`, `cat.b`, `cha.b`, `format.b` | system utilities |
 | `helloworld.b` | app on both discs: `HELLOWRD.PRG` is the smoke program on `os.bdd`, and the same build is on `utils.bdd` |
@@ -298,18 +299,65 @@ The program returns to the shell with `ret`. The whole command line stays in the
 address of the next word, or of the terminating NUL when there is none. It never returns `0`,
 so a program finds a missing argument by testing the first byte of the result for NUL.
 
+## Argument library (`bdosargs.b`)
+
+The six utilities (`ls`, `cp`, `rm`, `cha`, `cat`, `format`) share their argument helpers in `src/bdos/bdosargs.b`
+(issue #43, D11). `bdosargs.b` contains no `#include`. Each utility includes these files in this order:
+
+```
+#include std.b
+#include bdosh.b
+#include strings.b
+#include bdostools.b
+#include bdosargs.b
+```
+
+`bdostools.b` comes before `bdosargs.b` because `argfile` calls `bdio_fnormalize`. The command line is upper-cased
+(`upstring`) before any helper reads it.
+
+`texted` does not use the library. It takes no command-line arguments, and its `l` and `s` file names are interactive
+commands with no drive prefix, so it keeps `bdostools.b` alone (D11).
+
+| Helper | Contract |
+|---|---|
+| `getdriveletter(drive)` | `"A"`, `"B"`, or `"?"` for any other drive |
+| `getdrive(Pword)` | a word starting with `A:` gives `BDIO_DRIVEA \| DRIVEPRESENT`, `B:` gives `BDIO_DRIVEB \| DRIVEPRESENT`; otherwise the active drive (`bdio_getdrive()`) without the flag |
+| `changeDriveIfNeeded(current, target, silent)` | switches to `target` when it differs from `current`; returns the drive that is now active |
+| `getswitch(Pword, Pletters)` | the `-x` option matcher: returns the 1-based position of the word's second character in the NUL-terminated list `Pletters` when the word starts with `-`, else 0. Only the first two characters are read, so a bare `-` gives 0. Each tool maps the position to its own mode and keeps its own precedence |
+| `argfile(Pword, Pcatname)` | parses one `[d:]name.ext` word: returns the `getdrive` result, skips the `d:` prefix, ends the word in place at its first space (the rest of the line stays in the buffer), and writes the 11-character catalog name with `bdio_fnormalize`. A caller that needs a later word takes its address with `strnextword` before calling `argfile` on the earlier one |
+| `printusage(Ptitle, Pline1, Pline2)` | prints each non-zero string followed by a newline, title first; `0` skips a line |
+
+`DRIVEPRESENT` (`0x0100`) is defined once, in `bdosargs.b`.
+
+**Size trade-off.** The compiler links every function of every included file, and dead-code elimination is still open
+(#16). Each tool therefore pays for all six helpers, including those it does not call (`ls` and `format` also pay for
+`argfile` and `bdio_fnormalize`). The library removes the duplicated helpers, but the ported tools are **larger** today,
+not smaller. The table is from `src/bc/code_size.csv`: the "before" rows are the sources before the port, the "after"
+rows are the ported sources, both dated 2026-11-23. Compare with `python3 scripts/code_size.py`. The saving is expected
+once #16 lands.
+
+| Tool | Before (bytes) | After (bytes) | Change |
+|---|---:|---:|---:|
+| `ls` | 7318 | 8296 | +978 |
+| `cp` | 7095 | 7708 | +613 |
+| `rm` | 7915 | 8410 | +495 |
+| `cha` | 7029 | 7565 | +536 |
+| `cat` | 7767 | 8224 | +457 |
+| `format` | 10307 | 11263 | +956 |
+| **six tools** | **47431** | **51466** | **+4035** |
+
 ## Programs and the discs they are on
 
 Use `-h` for help in each tool. File arguments accept a drive prefix: `[d:]name.ext`.
 
 | Program | Usage | What it does |
 |---|---|---|
-| `ls` | `ls [-a] [-h]` | lists files: name, `SRWX` attributes, size in bytes, start track/sector, length in sectors; then free entries and free sectors. `-a` includes system files |
+| `ls` | `ls [-a] [d:]`; `ls -h` prints help | lists files: name, `SRWX` attributes, size in bytes, start track/sector, length in sectors; then free entries and free sectors. `-a` includes system files |
 | `cp` | `cp [d:]src.ext [d:]dst.ext` | copy a file, also between drives |
 | `rm` | `rm [-f] [d:]name.ext` | delete a file; `-f` is needed for system files |
 | `cat` | `cat [-b\|-c] [d:]name.ext` | print a file as a hex dump (`-b`) or as characters (`-c`) |
 | `cha` | `cha [+-][SRWX] [d:]name.ext` | set or clear attributes |
-| `format` | `format d: [-q]` | `-q` (quick) writes an empty `DISC.CAT` on a disc that already has the system layout. A full format makes the target a **system disc**: wipes it, copies the boot sector, creates the catalog and copies `BDOS.SYS`, `LS`, `CP`, `FORMAT`, … from the source system disc |
+| `format` | `format [-q] d:` | `-q` (quick) writes an empty `DISC.CAT` on a disc that already has the system layout. A full format makes the target a **system disc**: wipes it, copies the boot sector, creates the catalog and copies `BDOS.SYS`, `LS`, `CP`, `FORMAT`, … from the source system disc |
 | `hellowrd` | `hellowrd` | prints "Hello world!" and a number. On `os.bdd` and on `utils.bdd` (same build) |
 | `texted` | `texted` | TextEd v1.2 (on `utils.bdd`, so run `b:` first), a line editor: `i <n> <s>` insert lines from `n` in steps of `s`, `p <n> <m>` print, `d <n> <m>` delete, `l <file>` load (replaces the buffer; a missing file prints the bdio error and keeps it), `s <file>` save (a missing file name or number prints an error and does nothing), `m` memory stats, `h` help, `q` quit |
 | `theodore` | `theodore` | On `utils.bdd`, so run `b:` first. Looking for uncle Theodore v1.1, a guessing game: find uncle Theodore among train stops 0..99 with north/south hints; the start stop comes from the hardware random generator; 100 (or more) quits |
@@ -473,6 +521,11 @@ The shell is tested end to end in `src/tests/test_e2e_bdos.py`. The scripts `src
 boot a temp copy of the freshly built system disc (`os.bdd`) and check the output of `ls`, `cat`, `hellowrd`, `rm`
 and the error messages. `cp` copies a file (`cp test.b copy.b`), and `cat` checks the copy. See `docs/01-emulator.md`,
 End-to-end tests.
+
+`src/tests/test_e2e_bdos_cmdtable.py` pins the command lines the six utilities accept. It runs a table of example
+command lines (`-h` of each tool, `ls` and `ls -a` with and without `b:`, `cat`, `cp`, `cha`, `rm` and `format -q b:`)
+on `os.bdd` in A and a temp copy of `utils.bdd` in B, and compares the masked transcript with the golden
+`src/bc64/testdata/e2e/bdos_cmdtable.*`. The golden must not change with the library (see "Argument library").
 
 The TextEd tests (`src/tests/test_e2e_texted*.py`) boot `os.bdd` in A with a temp copy of `utils.bdd` in B, and
 run `b:` then `texted`, so the save and load happen on B.

@@ -32,7 +32,8 @@ python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81     # (or `bc64 ...`) boot; enter 
 - **`bdioh.b`** holds every shared constant: FDD commands, catalog and descriptor offsets,
   error codes, bdio call numbers and **fixed memory addresses**.
 - **Libraries:** `std.b`, `stdio.b`, `strings.b`, `stdmem.b`, `bdostools.b`, `random.b` (opt-in `random(max)`;
-  include after `bdosh.b`, it includes nothing itself).
+  include after `bdosh.b`, it includes nothing itself), `bdosargs.b` (opt-in argument helpers of the utilities:
+  `getdrive`, `getswitch`, `argfile`, `printusage`, …; include after `bdostools.b`, it includes nothing itself).
 - **Programs:** `ls`, `cp`, `rm`, `cat`, `cha`, `format` and `helloworld` are on `os.bdd` (`helloworld` is on `utils.bdd` too).
   `texted`, `theodore` and `calc` are on `utils.bdd` (run `b:` first). `calc` is a bdos program (`#code 0x6000`, a heap,
   `bdosh.b`, like `theodore`). `fddtest.b` and `debug.b` aren't built onto the disc.
@@ -66,6 +67,9 @@ python3 bc64.py bc81asmc/bcOS/bcos_v1_2_0.b81     # (or `bc64 ...`) boot; enter 
 - Programs get their arguments by parsing the shell buffer at `BDIO_CMDPROMPTADDR`
   (`0x0dd2`), typically `upstring(...)` then `strnextword(...)`. They return to the shell
   with a normal function return.
+  Utilities parse their arguments with the `bdosargs.b` helpers (`getdrive`, `getswitch`, `argfile`, `printusage`,
+  `getdriveletter`, `changeDriveIfNeeded`), not with local copies. A new utility includes `bdostools.b` and
+  `bdosargs.b` (D11).
 - File names in the bdio API use the 11-character catalog form (`"LS      PRG"`).
   `bdio_fnormalize` (`bdostools.b`) converts from `name.ext`.
 - B quirks used throughout these sources:

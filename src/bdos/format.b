@@ -4,10 +4,11 @@
 #include std.b
 #include bdosh.b
 #include strings.b
+#include bdostools.b
+#include bdosargs.b
 
 #define FILEBUFSECT_ADDR 0xa000
 #define FILEBUFSECT_LEN 0x60
-#define DRIVEPRESENT 0x0100
 #define FORMATMODE_QUICK 0x10
 #define FORMATMODE_HELP 0x20
 
@@ -20,57 +21,6 @@
 
 #define CHECK_BOOTBINOK 0xc0
 #define CHECK_ALLOK 0xcf
-
-word getdriveletter(byte drive)
-{
-    word driveLetter;
-    driveLetter <- "?";
-    if(drive = BDIO_DRIVEA)
-    {
-        driveLetter <- "A";
-    }
-    else
-    {
-        if(drive = BDIO_DRIVEB) 
-        {
-            driveLetter <- "B";
-        }
-    }
-
-    return driveLetter;
-}
-
-word getdrive(word Pargs)
-{
-    word result;
-
-    if(strncmp(Pargs, "A:", 2) = STRCMP_EQ)
-    {
-        result <- BDIO_DRIVEA | DRIVEPRESENT;
-    }
-    else
-    {
-        if(strncmp(Pargs, "B:", 2) = STRCMP_EQ)
-        {
-            result <- BDIO_DRIVEB | DRIVEPRESENT;
-        }
-        else
-        {
-            result <- bdio_getdrive();
-        }
-    }
-    return result;
-}
-
-byte changeDriveIfNeeded(byte currentDrive, byte targetDrive, byte silent)
-{
-    if(currentDrive != targetDrive)
-    {
-        bdio_setdrive(targetDrive, silent);
-        currentDrive <- targetDrive;
-    }
-    return currentDrive;
-}
 
 byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetfileext)
 {
@@ -155,14 +105,17 @@ byte copy(byte sourcedrive, word Psourcefileext, byte targetdrive, word Ptargetf
 byte getoptions(word Poptions)
 {
     byte result;
-    result <- 0;
+    byte option;
 
-    if(strncmp(Poptions, "-Q", 2) = STRCMP_EQ)
+    result <- 0;
+    option <- getswitch(Poptions, "QH");
+
+    if(option = 1)
     {
-        result <- result | FORMATMODE_QUICK;
+        result <- FORMATMODE_QUICK;
     }
 
-    if(strncmp(Poptions, "-H", 2) = STRCMP_EQ)
+    if(option = 2)
     {
         result <- FORMATMODE_HELP;
     }
@@ -417,9 +370,8 @@ byte main()
 
     if(options = FORMATMODE_HELP)
     {
-        printf("%s%n%s%n%s%n",
-            "format disc",
-            "d: drive", 
+        printusage("format disc",
+            "d: drive",
             "-q quick");
     }
     else
