@@ -1,0 +1,6 @@
+cha -x hellowrd.prg
+hellowrd
+cha -r test.b
+cat -c test.b
+foo
+exit
