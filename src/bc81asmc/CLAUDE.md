@@ -60,8 +60,7 @@ The diagnostics tests are `tests/bc81asmc_diag_tests.py` (records, formatter, pa
   the compiler must follow the same rules.
 - `emit_4bit` packs nibbles. A label reference can't start on a half-emitted byte, so the
   instruction layout has to keep label operands byte-aligned.
-- Known broken and unused: `out #r, imm`. It emits `D0 rH`, but the CPU expects `Dr HH` (#11). The `CLC_A_IMM` 16-bit branch is
-  dead code.
+- The immediate form `out #r, 0xHH` encodes `Dr HH` (`D0 | n`, then the full value; `n` is 1 for `a`, 4 for `ci`, 5 for `di`). The port register must be `a`, `ci` or `di`; any other one is rejected in `emit` with a `cannot encode` error (A11 in `docs/specs/memory/design-decisions.md`). Keep that check. The `CLC_A_IMM` 16-bit branch is dead code.
 - The register-register 16-bit forms take an implied second pair (`csci`→`dsdi`, `dsdi`→`csci`). `emit` rejects any other second operand; the CPU ignores the written one. Keep that check (see `docs/02-assembler.md`, Errors).
 - Every 16-bit ALU op with destination `af` (`add sub mul div mod and or xor shl shr not inc dec`, immediate
   and register forms) is rejected in `emit` with a `cannot encode` error (A8 in

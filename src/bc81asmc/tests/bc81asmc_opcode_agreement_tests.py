@@ -9,7 +9,7 @@ for exactly one instruction on the emulated CPU.  The test checks that the CPU
   * produces the expected register / memory / port effects.
 
 Known disagreements are handled as follows (plan 48, D2/D7):
-  * `out #r, imm` encodes wrongly (#11)            -> expectedFailure
+  * `out #r, imm` (#11) now encodes as Dr HH; out #cs/#ds, imm is an assembler error
   * other findings are pinned in `PinnedFindingsTests` with a D7 comment.
 """
 import contextlib
@@ -248,7 +248,7 @@ def simple_cases():
     add('in ci,#reg di', 'mIN', ['in ci, #di'], 2, regs={'di': 9}, inputs={9: 0x24}, out_regs={'ci': 0x24})
     add('out #r,reg', 'mOUT', ['out #ci, a'], 2, regs={'ci': 7, 'a': 0x42}, out_writes=[(7, 0x42)])
     add('out #r,reg 2', 'mOUT', ['out #di, ds'], 2, regs={'di': 3, 'ds': 0x11}, out_writes=[(3, 0x11)])
-    # `out #r, imm` is NOT here: known disagreement #11, see OutImmediateTests.
+    # `out #r, imm` (#11) is not here: it is covered by OutImmediateTests.
     return cases
 
 
@@ -438,28 +438,39 @@ class NegatedJrxTests(unittest.TestCase):
 
 
 class OutImmediateTests(unittest.TestCase):
-    """`out #r, imm` (#11, decided): `out #ci, 0x41` must assemble to D4 41 and
-    `out #cs/#ds, imm` must be an assembler error.  Today it assembles to D0 41."""
+    """`out #r, imm` (#11): `out #ci, 0x41` assembles to D4 41 and the CPU writes 0x41 to the
+    port held in `ci`; `out #cs/#ds, imm` is an assembler error."""
 
-    # Known bug #11
-    @unittest.expectedFailure
     def test_out_ci_immediate_assembles_to_d4_41(self):
         _, code, _ = assemble(['out #ci, 0x41'])
         self.assertEqual(code, bytes([0xd4, 0x41]))
 
-    # Known bug #11
-    @unittest.expectedFailure
     def test_out_ci_immediate_agrees_with_cpu(self):
         run_case(self, Case('out #ci,imm', 'mOUT', ['out #ci, 0x41'], 2, regs={'ci': 7},
                             out_writes=[(7, 0x41)]))
 
-    # Known bug #11
-    @unittest.expectedFailure
+    def test_out_a_di_immediate_agree_with_cpu(self):
+        for reg, port in (('a', 3), ('di', 9)):
+            with self.subTest(reg):
+                run_case(self, Case('out #%s,imm' % reg, 'mOUT', ['out #%s, 0xc9' % reg], 2,
+                                    regs={reg: port}, out_writes=[(port, 0xc9)]))
+
+    def test_out_immediate_leaves_flags_unchanged(self):
+        flags = {'z': 1, 'n': 1}
+        _, code, labels = assemble(['out #ci, 0x41'])
+        cpu, _, _ = execute(code, 0, labels, 2, {'ci': 7}, flags, {}, {})
+        self.assertEqual(cpu.pc.get(), 2)
+        for flag, bit in FLAG_BITS.items():
+            self.assertEqual(cpu.f.get_flag(bit), flags.get(flag, 0), flag)
+
     def test_out_cs_ds_immediate_is_an_assembler_error(self):
         for reg in ('cs', 'ds'):
             with self.subTest(reg):
-                with self.assertRaises(Exception):
+                with self.assertRaises(Exception) as cm:
                     assemble([f'out #{reg}, 0x41'])
+                self.assertIn(f'out #{reg}, 0xHH takes the port in a, ci or di; '
+                              f'load the value into a register and use out #{reg}, <reg>',
+                              str(cm.exception))
 
 
 class PinnedFindingsTests(unittest.TestCase):

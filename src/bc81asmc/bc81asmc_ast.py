@@ -729,9 +729,13 @@ class OUT(Instruction):
             context.emit_4bit(ASMCODES.REG2BIN(self.reg))
             context.emit_4bit(ASMCODES.REG2BIN(self.arg))
         else:
-            context.emit_4bit(0)
-            context.emit_4bit(ASMCODES.REG2BIN(self.reg))
-            context.emit_4bit(self.arg)
+            # out #r, 0xHH -> D r HH: the port register number is a nibble, the value a full byte
+            port = ASMCODES.REG2BIN(self.reg)
+            if port > 7:
+                raise ValueError("out #{0}, 0xHH takes the port in a, ci or di; "
+                                 "load the value into a register and use out #{0}, <reg>".format(self.reg.lower()))
+            context.emit_4bit(port)
+            context.emit_byte(self.arg)
 
 class Directive(Token):
     def __str__(self):

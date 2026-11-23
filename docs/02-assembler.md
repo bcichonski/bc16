@@ -132,6 +132,7 @@ cal :nowhere
 | overflow | `code exceeds the 64 KB address space (past 0xffff)` | the first non-blank character of the line that crosses the limit | reported once per run |
 | unencodable line | `cannot encode 'line': reason` | the first non-blank character of the line | the line contributes no bytes and assembly goes on |
 | `inc af` / `dec af` | `cannot encode 'inc af': inc af is not allowed: the 16-bit result would overwrite the flags in f (use inc a, or a pair csci or dsdi)` | the first non-blank character of the line | an unencodable line, with `dec` for `dec af`. No bytes are emitted. See [A8](specs/memory/design-decisions.md#a8-every-16-bit-alu-op-on-af-is-rejected-the-assembler-says-why) |
+| `out #cs, 0x41` (port register other than `a`, `ci`, `di`) | `cannot encode 'out #cs, 0x41': out #cs, 0xHH takes the port in a, ci or di; load the value into a register and use out #cs, <reg>` | the first non-blank character of the line | an unencodable line, for `out #r, 0xHH` with `r` one of `cs`, `ds`, `f`, `si`, `ss`, `pc`. No bytes are emitted. See [A11](specs/memory/design-decisions.md#a11-out-r-imm-encodes-dr-hh-the-port-register-must-be-a-ci-or-di) |
 | `clr af` / other non-pair `clr` | `cannot encode 'clr af': clr af is not allowed: the call offset would be read from a:f, and f holds the flags (use a pair csci, dsdi or sssi)`; `cannot encode 'clr aci': 'aci' is not a pair for clr (use csci, dsdi or sssi)` | the first non-blank character of the line | an unencodable line, for a register operand of `clr` that is not one of the pairs `csci`, `dsdi`, `sssi`. No bytes are emitted. See [A9](specs/memory/design-decisions.md#a9-clr-af-is-rejected-the-call-offset-would-include-the-flags) |
 | other 16-bit ALU op on `af` | `cannot encode 'add af, csci': add af is not allowed: the 16-bit result would overwrite the flags in f (use a pair csci or dsdi)` | the first non-blank character of the line | an unencodable line, for `add sub mul div mod and or xor shl shr not` (the mnemonic as written, immediate or register form). No bytes are emitted. See [A8](specs/memory/design-decisions.md#a8-every-16-bit-alu-op-on-af-is-rejected-the-assembler-says-why) |
 | implied pair | `cannot encode 'line': second operand must be dsdi when the first is csci`, or `cannot encode 'line': 'sssi' is not a 16-bit pair (use csci or dsdi)` | the first non-blank character of the line | 16-bit ops only (`add`, `sub`, `mul`, `div`, `mod`, `and`, `or`, `xor`, `shl`, `shr` in register form, and `inc`, `dec`, `not`). The second operand of the register form must be the implied pair. No bytes are emitted |
@@ -257,7 +258,7 @@ The usual long-jump idiom is `.mv csci, :target` then `xor a` then `jmp z, csci`
 | `in r, #0xH` | `C0 rH` | 2 | r = port H |
 | `in r, #r2` | `C8 r r2` | 2 | r = port[r2] |
 | `out #r, r2` | `D8 r r2` | 2 | port[r] = r2 |
-| `out #r, 0xHH` | `D0 rH` (emitted) | 2 | **broken**: the CPU expects `Dr HH` (port register in the low nibble, full 8-bit value), so it reads the port from register 0, which doesn't exist, and the assembler keeps only the low 4 bits of the value. Unused; always load the value into a register first (#11) |
+| `out #r, 0xHH` | `Dr HH` | 2 | port[r] = HH. `r` must be `a`, `ci` or `di` (the 3-bit field can name only those; see [Errors](#errors)). No flags change. See [A11](specs/memory/design-decisions.md#a11-out-r-imm-encodes-dr-hh-the-port-register-must-be-a-ci-or-di) |
 
 ## Example
 
@@ -277,5 +278,4 @@ msg:            .db 'Hello!', 0x0a, 0x0d, 0x00
 
 ## Known quirks
 
-- `out #r, imm` doesn't work (see above).
 - `CLC_A_IMM` has a leftover branch for 16-bit opcodes that the grammar never reaches.
