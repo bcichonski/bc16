@@ -14,4 +14,4 @@ if [ $retVal -ne 0 ]; then
     echo "Error"
     exit $retVal
 fi
-$PY ./bc81asmc/bc81asmc.py --verbose --btap $1.basm
+$PY ./bc81asmc/bc81asmc.py --verbose --btap --lst $1.lst --map $1.map $1.basm

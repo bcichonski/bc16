@@ -39,7 +39,7 @@ compiler's grammar notes.
 
 - **Only sources are committed** (design decisions G12 and #92). A `.basm` with a
   `.b` of the same name in the same folder is compiler output: it is ignored and never committed.
-  Also ignored: `.genb`, `.btap`, `.sector(s)`, `.b81` and `.bdd` files (see `.gitignore`). Committed:
+  Also ignored: `.genb`, `.btap`, `.lst`, `.map`, `.sector(s)`, `.b81` and `.bdd` files (see `.gitignore`). Committed:
   the hand-written sources (`.b`, `bcos.basm`, `bdos/boot.basm`, `examples/*.basm`, `testb.sectors` as
   sample data) and `src/disc.bddmanifest`, `src/utils.bddmanifest`. The ROM `bcos_v1_2_0.b81`, `src/os.bdd` and
   `src/utils.bdd` are build outputs too: ignored, never committed (the only tracked binary is `bdos/testb.sectors`). Every `.basm` that `bc`
@@ -100,6 +100,7 @@ cd scripts && python3 -m unittest discover -s tests -t . -p "test_*.py"         
 python3 scripts/code_size.py                             # code size of every program vs src/bc/code_size.csv (report)
 python3 scripts/code_size.py --check                     # optional, local: exit 1 when a program differs from its latest CSV row
 python3 scripts/code_size.py --record                    # after an intended codegen change: append the changed rows to the CSV
+python3 scripts/check_memory_map.py                      # after a build: check the G2 addresses in the symbol maps (exit 1 on a violation)
 cd src && python3 -m unittest bc64.tests.test_cpu.CpuTests.test_CLC16_opcodes   # one test (same form elsewhere)
 ```
 
@@ -184,6 +185,9 @@ without the other and the system breaks silently.
   These values are spread over `boot.basm`, `bdioh.b`, `bdos.b`, and the `#code`/`#heap`
   line of every program. The map is asserted at build time: `boot.basm` and the compiler (image end
   below `#heap`, `bdos.b` via `#codelimit`); bcOS follows in #30.
+  `bc81asmc` writes a `.lst` (listing) and a `.map` (symbol map) next to each `.btap` in the build (`--lst`/`--map`, #9,
+  format in `docs/02-assembler.md`). `python3 scripts/check_memory_map.py` checks the addresses above against those
+  maps after a build.
 - **Disk layout:** the boot loader range and the catalog location are requirements stated in
   `src/disc.bddmanifest`, and `ftool mkdisc` checks them. A file over its `max=` also fails the build.
 

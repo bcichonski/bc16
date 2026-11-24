@@ -19,7 +19,7 @@ check_exit_code()
 }
 
 echo building bcos...
-$PY ./bc81asmc/bc81asmc.py --verbose ./bc81asmc/bcOS/bcos.basm
+$PY ./bc81asmc/bc81asmc.py --verbose --lst ./bc81asmc/bcOS/bcos.lst --map ./bc81asmc/bcOS/bcos.map ./bc81asmc/bcOS/bcos.basm
 check_exit_code $?
 
 echo converting bcos to rom...
@@ -27,7 +27,7 @@ echo converting bcos to rom...
 check_exit_code $?
 
 echo building bootloader...
-$PY ./bc81asmc/bc81asmc.py --verbose ./bdos/boot.basm
+$PY ./bc81asmc/bc81asmc.py --verbose --lst ./bdos/boot.lst --map ./bdos/boot.map ./bdos/boot.basm
 check_exit_code $?
 
 echo building bdos...

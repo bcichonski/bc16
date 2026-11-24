@@ -99,4 +99,5 @@ def bcc():
     if code != 0:
         print("Error")
         return code
-    return _run_child(assembler, "--verbose", "--btap", args[0] + ".basm")
+    return _run_child(assembler, "--verbose", "--btap", "--lst", args[0] + ".lst", "--map", args[0] + ".map",
+                      args[0] + ".basm")
