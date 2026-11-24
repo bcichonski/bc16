@@ -238,6 +238,9 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Usage:**
   - model states as constants (`STATE_CFG1/2`, `STATE_RD1/2`, clock `STATE_TIME_*`);
   - a reset or command byte returns the device to a known state;
+  - a byte received in a parameter state is data whatever its value (the FDD's `STATE_CFG1/2`,
+    `STATE_RD1/2`, `STATE_WR1/2`), so a command value is not a reset there: recover from an
+    aborted sequence by finishing it (at most two parameter bytes), then ping;
   - `read_byte()` always returns the current status, or the next data byte in a read
     sequence;
   - CPU tests build programs as raw byte lists in a small `MemBus`.
