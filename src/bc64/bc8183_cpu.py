@@ -634,15 +634,22 @@ class Bc8183:
 
     @staticmethod
     def shift_left_flags(val, count, width):
-        # (C, O) of a left shift (#55): C is the last bit shifted out (bit
-        # width-count of val; 0 for a shift by 0 or by more than the width),
-        # O is set when any 1 bit was shifted out.
+        # (C, O) of a left shift (#55, #161): C is the last bit shifted out
+        # (bit width-count of val; 0 for a shift by 0 or by more than the
+        # width). O is the signed overflow of E13 (as for `add x, x`): set
+        # when the stored result read as signed differs from the signed
+        # operand times 2**count. A count of width or more stores 0, which
+        # equals the product only for a 0 operand (E12).
         if count == 0:
             return 0, 0
-        if count > width:
-            return 0, int(val != 0)
-        out = val >> (width - count)
-        return out & 1, int(out != 0)
+        if count >= width:
+            return int(count == width and val & 1), int(val != 0)
+        sign = 1 << (width - 1)
+        mask = (1 << width) - 1
+        signed = (val ^ sign) - sign
+        res = (val << count) & mask
+        res = (res ^ sign) - sign
+        return (val >> (width - count)) & 1, int(res != signed << count)
 
     @staticmethod
     def shift_right_carry(val, count, width):

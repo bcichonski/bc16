@@ -368,20 +368,25 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   left bit 7, so `0x40 << 1` gave `A = 0x80` with `Z = 1`; `shr` set `N` and `O` from bit 0 of the result, and
   never set `C`. The owner confirmed the expected behaviour in #55 on 2026-11-20 ("it should be fixed as
   expected"): `Z`/`N` from the stored result, and `C` = the last bit shifted out, as most 8-bit CPUs do. `O`
-  has the meaning the owner gave in #54 ("unsigned out of range", D3), so after `shl` it is 1 when a 1 bit was
-  shifted out and after `shr` it is always 0. A shift by 0 clears `C` and `O` (D2), since every other ALU op
-  sets all its flags.
+  has the meaning the owner gave in #54 ("unsigned out of range", D3), so after `shl` it was 1 when a 1 bit
+  was shifted out. #161 (owner agreement 2026-11-23) made the `shl` `O` follow E13 (signed overflow); after `shr` it
+  is always 0. A shift by 0 clears `C` and `O` (D2), since every other ALU op sets all its flags.
 - **Usage:**
   - `Z` = stored result == 0; `N` = top bit of the stored result (bit 7, or bit 15 for 16-bit ops);
   - 8-bit `shl`: `C` = bit `8 - n` of the operand; 8-bit `shr`: `C` = bit `n - 1` of the operand;
   - `shl16` and `shr16` use the same rules with width 16 (bit `16 - n`, or bit `n - 1`);
   - `C` = 0 for a shift by 0 and for a shift by more than the width, where every bit is shifted out;
-  - `O` = 1 after `shl` when a 1 bit was shifted out, else 0; `O` = 0 after `shr` and after `shr16`;
+  - after `shl`/`shl16`, `O` = 1 when the stored result, read as signed, is not the signed operand × 2ⁿ (signed
+    overflow, E13; for n = 1 the same `O` as `add x, x`); for a count ≥ the width, `O` = 1 when the operand is not 0;
+  - `O` = 0 after `shr` and after `shr16` (logical shift, unsigned operand); a shift by 0 clears `C` and `O`;
+  - examples: `0x40 shl 1` gives `O` = 1 (was 0), `0xC0 shl 1` gives `O` = 0 (was 1);
   - the 8-bit count is 0 to 255 (immediate or register), the 16-bit count is 0 to 0xffff.
 - **Trade-offs:** before this, `shl` set `Z` whenever no bit left bit 7, so `0x40 << 1` gave `Z = 1`, and it never set `N`. `shr` took `N` and `O` from bit 0 of the result and never set `C`. `shl16` set `C` for any bit shifted out, and `shr16` never set `C`. The
   dependency audit of the built programs (bcOS, boot, bdos, utilities, apps, examples, and the compiler runtime;
   165 shifts) found that every shift is followed by a flag-setting instruction before any flag is read, so no
-  built program changes. If #54 changes the meaning of `O`, the shifts follow it.
+  built program changes. After a multi-bit `shl` no flag says a 1 bit was lost any more (e.g. `0xE0 shl 2` shifts out
+  two 1 bits, gives `0x80` and `O` = 0). The #161 audit of the current build (93 shifts: 57 `shl`, 36 `shr`) found no
+  flag read after a shift.
 
 ### E13. `C` is the unsigned carry/borrow, `O` is signed overflow
 - **Purpose:** the flags have the usual 8-bit CPU meaning, so a program can test an unsigned carry or borrow
@@ -401,15 +406,14 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - 16-bit `mul`: `C = O` = product > 0xffff (unsigned multiply, as x86 `MUL`);
   - `and`, `or`, `xor`, `not` (8/16-bit): `C = O = 0`;
   - 16-bit `div`/`mod` with a non-zero divisor: `C = O = 0`; by zero: `O = 1`, `C` unchanged (E10);
-  - 8-bit `shl`/`shr` and 16-bit shifts follow E12 (#55): `C` = the last bit shifted out, `O` = a 1 bit was lost
-    after `shl` (0 after `shr`). That `O` is not a signed overflow; whether shifts should follow this decision is
-    left to the owner (E12 says "if #54 changes the meaning of `O`, the shifts follow it");
+  - shifts (8-bit `shl`/`shr` and 16-bit `shl16`/`shr16`) follow this decision through E12 (#161): `C` = the last
+    bit shifted out, `O` = signed overflow after `shl`, `O` = 0 after `shr`;
   - `Z` and `N` follow E11.
   - Examples: `0x7f + 1` gives `O=1, C=0`; `0xff + 1` gives `C=1, O=0`; `0x00 - 1` gives `C=1, O=0`;
     `0x80 - 1` gives `O=1, C=0`. A program tests a borrow with `jmr c`, not `jmr o`.
 - **Trade-offs:** `C` and `O` now differ from the old `O`-as-borrow meaning, so any program that tested `o` after
   a `sub` must test `c` instead. The bcOS programs were moved, and the dependency audit found no other such test
-  in the built programs. Shifts keep E12's flags (see Usage), and a division by zero is still E10, so `O` there
+  in the built programs. A division by zero is still E10, so `O` there
   is the only flag set. The reading of the 2026-11-20 note is an interpretation, posted on #54 for the owner to
   confirm.
 

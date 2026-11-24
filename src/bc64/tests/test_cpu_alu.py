@@ -143,8 +143,9 @@ class Alu8Tests(AluTestBase):
         self.check([0x55, 0x01], 0x01, 0x02, 0, (False, False, False, False))
 
     def test_shl_imm_into_sign_bit(self):
-        # A = 0x80: Z = 0, N = 1, nothing shifted out
-        self.check([0x55, 0x01], 0x40, 0x80, 0, (False, False, True, False))
+        # A = 0x80: Z = 0, N = 1, nothing shifted out; 64 -> 128 does not
+        # fit a signed byte, so O = 1 (#161)
+        self.check([0x55, 0x01], 0x40, 0x80, 0, (False, False, True, True))
 
     def test_shl_imm_carry_out(self):
         # bit 7 shifted out: A = 0x02, C = 1 (last bit out), O = 1, Z = 0
@@ -674,8 +675,10 @@ class JumpOnZeroAfterWrapTests(AluTestBase):
 
 
 class ShiftFlagTests(AluTestBase):
-    """SHL/SHR flags (#55): Z/N from the stored result, C = last bit shifted
-    out (0 for a shift by 0 or by more than the width), O = SHL lost a 1 bit."""
+    """SHL/SHR flags (#55, #161): Z/N from the stored result, C = last bit
+    shifted out (0 for a shift by 0 or by more than the width). O after SHL
+    is the signed overflow (E13): the stored result read as signed differs
+    from the signed operand times 2**count; O after SHR is 0 (logical)."""
     Z, C, N, O = 0, 1, 2, 3
 
     def shift8(self, op, a, n, **regs):
@@ -689,7 +692,7 @@ class ShiftFlagTests(AluTestBase):
         return self.shift8(0x56, a, n, **regs)
 
     def test_shl_into_bit7_sets_n(self):
-        self.assertEqual(self.shl8(0x40, 1), (0x80, (False, False, True, False)))
+        self.assertEqual(self.shl8(0x40, 1), (0x80, (False, False, True, True)))
 
     def test_shl_to_zero_sets_z_and_c(self):
         self.assertEqual(self.shl8(0x80, 1), (0x00, (True, True, False, True)))
@@ -744,7 +747,9 @@ class ShiftFlagTests(AluTestBase):
                 full = v << n
                 res = full & 0xff
                 c = (full >> 8) & 1 if n <= 8 and n > 0 else 0
-                o = int(full > 0xff)
+                sv = v - 0x100 if v >= 0x80 else v
+                sr = res - 0x100 if res >= 0x80 else res
+                o = int(sr != sv * (1 << min(n, 8)) if n < 8 else v != 0)
                 self.assertEqual(self.shl8(v, n), (res, (res == 0, bool(c), res >= 0x80, bool(o))), (v, n))
                 res = v >> n
                 c = (v >> (n - 1)) & 1 if 0 < n <= 8 else 0
@@ -761,7 +766,7 @@ class ShiftFlagTests(AluTestBase):
     def test_shl_by_register_ci_and_di(self):
         for reg in ('ci', 'di'):
             self.assertEqual(self.shift_reg(5, 0x40, reg, 1),
-                             (0x80, (False, False, True, False)))
+                             (0x80, (False, False, True, True)))
             self.assertEqual(self.shift_reg(5, 0x81, reg, 1),
                              (0x02, (False, True, False, True)))
             self.assertEqual(self.shift_reg(5, 0x40, reg, 2),
@@ -836,7 +841,7 @@ class ShiftFlagTests(AluTestBase):
         self.assertEqual(self.shift16(self.imm16(5, 0, 2), 0x8000),
                          (0x0000, (True, False, False, True)))
         self.assertEqual(self.shift16(self.imm16(5, 0, 1), 0x4000),
-                         (0x8000, (False, False, True, False)))
+                         (0x8000, (False, False, True, True)))
 
     def test_shl16_by_16_and_more(self):
         self.assertEqual(self.shift16(self.imm16(5, 0, 16), 0x0001),
@@ -888,6 +893,74 @@ class ShiftFlagTests(AluTestBase):
         # shl 1 of 0x40 gives A = 0x80, so Z = 0 (was 1 before #55)
         code = [0x55, 0x01, 0x68, 0x08, 0x15, 0x11]
         self.assertEqual(self.run_code(code, a=0x40).di.get(), 0x11)
+
+
+class ShiftSignedOverflowTests(AluTestBase):
+    """O after SHL/SHL16 is the signed overflow of `add x, x` (#161, E13);
+    O after SHR/SHR16 is always 0 (logical shift)."""
+    OVF = bc8183_cpu.FlagsRegister.OVERFLOW
+
+    def run8(self, code, a, **regs):
+        cpu = self.run_code(code, a=a, **regs)
+        return cpu.a.get(), flags_of(cpu)
+
+    def run16(self, code, start, **regs):
+        cpu = self.run_code(code, cs=start >> 8, ci=start & 0xff, **regs)
+        return (cpu.cs.get() << 8) | cpu.ci.get(), flags_of(cpu)
+
+    def test_shl_by_one_equals_add_a_a_for_all_values(self):
+        for v in range(256):
+            self.assertEqual(self.run8([0x55, 0x01], v),
+                             self.run8([0x58, 0x10], v), v)
+
+    def test_shl16_by_one_equals_add_csci_dsdi_on_sample(self):
+        sample = [0x0000, 0x0001, 0x3fff, 0x4000, 0x7fff, 0x8000, 0x8001,
+                  0xbfff, 0xc000, 0xffff, 0x1234, 0xa5a5, 0x5a5a, 0xfffe]
+        for v in sample:
+            self.assertEqual(
+                self.run16([0x5f, 0xb5, 0x80, 0x00, 0x01], v),
+                self.run16([0x5f, 0xa8, 0x80], v, ds=v >> 8, di=v & 0xff), v)
+
+    def test_shl_multi_bit_cases(self):
+        # (value, count) -> (result, (Z, C, N, O))
+        cases = [
+            ((0x20, 2), (0x80, (False, False, True, True))),
+            ((0xe0, 2), (0x80, (False, True, True, False))),
+            ((0x90, 1), (0x20, (False, True, False, True))),
+            ((0xc0, 1), (0x80, (False, True, True, False))),
+            ((0x40, 1), (0x80, (False, False, True, True))),
+        ]
+        for (v, n), expected in cases:
+            self.assertEqual(self.run8([0x55, n], v), expected, (v, n))
+            # register-count form (58 r5, count in ci) gives the same flags
+            self.assertEqual(self.run8([0x58, 0x45], v, ci=n), expected, (v, n))
+
+    def test_shl16_multi_bit_cases(self):
+        code2 = [0x5f, 0xb5, 0x80, 0x00, 0x02]
+        self.assertEqual(self.run16(code2, 0x2000),
+                         (0x8000, (False, False, True, True)))
+        self.assertEqual(self.run16(code2, 0xe000),
+                         (0x8000, (False, True, True, False)))
+        self.assertEqual(self.run16([0x5f, 0xb5, 0x80, 0x00, 0x01], 0xc000),
+                         (0x8000, (False, True, True, False)))
+        # register count: ds:di = 2
+        self.assertEqual(self.run16([0x5f, 0xbd, 0x80], 0x2000, ds=0, di=2),
+                         (0x8000, (False, False, True, True)))
+
+    def test_shr_clears_preset_o(self):
+        preset = {self.OVF: 1}
+        for n in (1, 3, 8, 9, 255):
+            res, (z, c, neg, o) = self.run8([0x56, n], 0xff, flags=preset)
+            self.assertFalse(o, n)
+            self.assertEqual(res, 0xff >> min(n, 8), n)
+
+    def test_shr16_clears_preset_o(self):
+        preset = {self.OVF: 1}
+        for n in (1, 3, 16, 17, 300):
+            code = [0x5f, 0xb6, 0x80, n >> 8, n & 0xff]
+            res, (z, c, neg, o) = self.run16(code, 0xffff, flags=preset)
+            self.assertFalse(o, n)
+            self.assertEqual(res, 0xffff >> min(n, 16), n)
 
 if __name__ == '__main__':
     unittest.main()

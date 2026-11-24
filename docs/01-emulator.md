@@ -374,9 +374,11 @@ The shift flags (8-bit `shl`/`shr` and 16-bit `shl16`/`shr16`) are decided in [E
 | `Z` | stored result == 0 | same |
 | `N` | top bit of the stored result (bit 7, or bit 15) | same |
 | `C` | last bit shifted out: bit `w - n` of `v` | last bit shifted out: bit `n - 1` of `v` |
-| `O` | `1` if a 1 bit was shifted out, else `0` (not a signed overflow, see E13) | `0` |
+| `O` | `1` if the stored result, read as signed, is not the signed operand × 2ⁿ (signed overflow, as `add x, x` for n = 1); for n ≥ w: `1` if `v` ≠ 0 | `0` (logical shift) |
 
 `C` is 0 for a shift by 0 or by more than the width. A shift by 0 also clears `O`.
+
+Example: `0x40 << 1` gives `O` = 1 (64 → 128 doesn't fit), `0xC0 << 1` gives `O` = 0 (−64 → −128 fits).
 
 Bits 4–7 exist but the CPU doesn't use them. `MOV` into `A` also updates `Z` and `N`.
 `OUT #r, r2` leaves `C` and `O` at 0 (the value it sends is 0..0xff). The immediate form `OUT #r, HH` (`Dr HH`) changes no flags.
