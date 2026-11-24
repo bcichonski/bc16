@@ -61,6 +61,7 @@ The preprocessor works line by line, before parsing:
 |---|---|
 | `#include file.b` | paste the file in (path relative to the **main** source file's directory) |
 | `#define NAME value` | token replacement. `NAME` is the first token, `value` is the rest of the line. Whole identifier tokens equal to `NAME` are replaced in code and in the string directly after `asm`; other strings, char literals and `//` comments are untouched. A redefinition with a different value warns and the last value wins; a malformed define is an error |
+| `#link NAME` | records `NAME` (one B identifier) as an object the program needs. No effect without `--obj`: the output is the same and the line is dropped. Names are kept per compile, in order, duplicates once. A malformed line is an error: `malformed #link (expected: #link NAME): <line>`. Writing them into the object as a `de` record is #121 |
 | `#code 0xHHHH` | address of the code (`.org`). Default `0x1000`; bdos programs use `0x6000` |
 | `#heap 0xHHHH` | start of the heap used by `malloc`. Default `0x3000` |
 | `#codelimit 0xHHHH` | optional second limit: the program's image must end below this address. Reset for every compile, so it has no default. `bdos.b` uses `0x5d00` |
@@ -119,10 +120,42 @@ Function calls are written `name(arg, arg, …)`. The argument list can span sev
 | while | `while (e) { … }` |
 | return | `return expression;` |
 | inline asm | `asm "mov a, #csci";`: the text is copied verbatim into the output |
+| raw-byte asm | `asm item, item, …;`: one `.db` line of bytes and label references, see [Raw-byte asm](#raw-byte-asm) |
 | comment | `// …` |
 
 There is no `for`, `break`, `continue`, arrays, structs or pointer types. Memory is accessed
 through `#addr` and the `peek8/peek16/poke8/poke16` library functions.
+
+### Raw-byte asm
+
+`asm item, item, …;` puts raw bytes in the output, for code the compiler cannot write yet. The design is in
+[07 "Raw `asm` in B"](analysis/07-self-hosted-compiler.md#raw-asm-in-b). The statement is not `asm "…"`: a string
+after `asm` keeps its old meaning until #127.
+
+| Item | Bytes | Output |
+|---|---|---|
+| decimal or `0x` number 0–255, or a `#define` name whose value is one | 1 | `0xHH` |
+| `:name` (a label) | 2, high byte first | `:name` |
+| `hi(:name)` / `lo(:name)` | 1 | the same text |
+
+```
+asm 0xd8, 0x81;                       // -> .db 0xd8, 0x81
+asm 0xd8, :poke16, hi(:x), lo(:x);    // -> .db 0xd8, :poke16, hi(:x), lo(:x)
+```
+
+- The statement writes one `.db` line where it stands, with no other code around it. `bc81asmc` assembles it
+  like any `.db`. The assembler accepts `hi(:name)` and `lo(:name)` as `.db` operands (decision A12, see
+  [02-assembler.md](02-assembler.md)).
+- `#define` names are replaced in items like anywhere in code (C5). A define named like a label used as `:name`
+  replaces that label too.
+- Char literals are not items: `'a'` is an error.
+- Labels in items count for the dead-code step, so a function referenced only from `:name` or `hi(:name)` is kept.
+- Every bad item is reported, and the compiler exits with code 1 without writing a `.basm`:
+
+  ```
+  file.b: error: raw asm: 256 is out of range (0-255)
+  file.b: error: raw asm: unknown item 'foo' (expected a number 0-255, :name, hi(:name) or lo(:name))
+  ```
 
 ### Functions
 
@@ -192,7 +225,8 @@ byte printf(word PformatStr)*** // variadic: extra args become word params P1, P
   created while emitting it. A chunk is reachable when kept text contains a `:label` reference to a
   label it defines.
 - **References:** every `:name` outside `;` comments counts (`cal :F…`, `clr`/`jmp`, `.mv rr, :label`,
-  `.assert`). Labels defined inside `asm` strings count too: `bdos.b`'s `main` loads `:bdio_call`,
+  `.assert`). Labels in raw-byte `asm` items (`:name`, `hi(:name)`, `lo(:name)`) count the same way.
+  Labels defined inside `asm` strings count too: `bdos.b`'s `main` loads `:bdio_call`,
   a label in an `asm` string of `bdio.b`'s `bdio_call()`, so that function is kept. Comments do not count.
 - **Runtime:** `bc_stdlib.py` is a list of fragments, one per routine, each with a declared list of
   the fragments it depends on. A fragment is emitted when kept code references one of its labels,

@@ -480,7 +480,8 @@ as a rule, with its purpose, rationale, usage and trade-offs.
     language. It compares two operands (a `:name` or a literal, no arithmetic) and emits no bytes (#8);
   - lowercase only;
   - fixed-width hex: `0xHH`, `0xHHHH`, `#0xH`;
-  - generated `.basm` must follow the same rules.
+  - generated `.basm` must follow the same rules;
+  - `.db` also takes `hi(:name)` / `lo(:name)` operands, one byte of a label address each (A12).
 - **Trade-offs:** verbose hand-written asm, and idioms like `xor a` + `jmp z` for
   unconditional jumps.
 
@@ -598,6 +599,15 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - `out #cs, 0xHH` (and `ds`, `f`, `si`, `ss`, `pc`) is a `cannot encode` diagnostic that gives the reason, and no bytes are emitted for the line (`docs/02-assembler.md`, Errors);
   - BASM must encode the same way when it exists (`docs/analysis/08-self-hosted-roadmap.md`, step 15).
 - **Trade-offs:** no CPU change: a hand-encoded `D0 xx` still decodes with port register 0, so only the assembler refuses to produce the other forms. The register form `out #r, r2` (`D8 r r2`) is unchanged.
+
+### A12. `.db` takes `hi(:name)` and `lo(:name)`: one byte of a label address
+- **Purpose:** let a `.db` line hold a single byte of a label's address, so generated or hand-written raw bytes can mix opcodes with address halves (the compiler's raw-byte `asm` statement, #120, passes the same spelling through).
+- **Rationale:** `.db :name` only emits both bytes, and `.mv` only loads a register pair, so a lone address byte could not be expressed. The new forms are operands, not an expression language: A3 stays (no arithmetic, no `:label+n`). They reuse the hi/lo emission `.mv` already has, so they resolve in pass 2 like `.db :name` and `.mv`.
+- **Usage:**
+  - `.db hi(:name)` emits the high byte, `.db lo(:name)` the low byte; lowercase, blanks inside the parentheses allowed;
+  - `name` is a label or a `.def` constant, forward or backward; an unknown name is the same positioned `undefined label` diagnostic as for `.db :name`;
+  - they mix with `0xHH`, `'text'` and `:label` in one `.db` line (`docs/02-assembler.md`).
+- **Trade-offs:** one more operand form in the grammar; nothing else (no arithmetic on the result).
 
 ---
 
@@ -736,6 +746,25 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - each fragment is meant to become one `.sect` of `runtime.basm` (#116).
 - **Trade-offs:** a false `:name` match only keeps code. A function reached only by a computed address (no
   label reference) would be dropped: take its address with `.mv rr, :label` in `asm` to keep it.
+
+### C10. Raw-byte `asm` statement and `#link` (syntax only until `--obj`)
+- **Purpose:** let B code place exact bytes and name the objects a header needs, without the compiler
+  needing an assembler (#120, roadmap step 38).
+- **Rationale:** `asm "…"` is text that an assembler on the BC64 would have to parse. A list of numbers and
+  label references maps one-to-one to `.db`, so the compiler stays a pass-through. The item set is the one
+  07 lists for BCC: no char literals, no expressions (A3).
+- **Usage:**
+  - `asm item, item, …;` writes one `.db` line in place. Items: a number 0–255 (decimal or `0x`) or a `#define`
+    name for one (1 byte); `:name` (2 bytes, high byte first); `hi(:name)` / `lo(:name)` (1 byte). A bad item
+    gives `raw asm: …` through `Context.add_error` (C6), and every bad item is reported;
+  - labels in items count for the dead-code step (C9), as labels in `asm` strings do;
+  - `#link NAME` is accepted and recorded per compile; it changes no output;
+  - the `--obj` side is #121, not this decision: `:name` becomes an `ABS16` fixup, `hi(:name)` / `lo(:name)`
+    become `HI8` / `LO8`, and each `#link` name becomes a `de` (NEED) record;
+  - `asm "…"` stays until #127.
+- **Trade-offs:** `'a'` is not an item, so a char byte is written as a number. A `#define` named like a label
+  used as `:name` replaces it too (D3, the same as in strings today). `hi`/`lo` in `.db` need the assembler
+  to know them (A12).
 
 ---
 
