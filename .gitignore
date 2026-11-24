@@ -110,6 +110,8 @@ src/bdos/*.basm
 src/bc/code/*.basm
 # assembler and ftool intermediates
 *.btap
+*.lst
+*.map
 *.sector
 *.sectors
 # sample data for TEST.B, not a build output

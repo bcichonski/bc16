@@ -6,10 +6,11 @@
 
 | File | Contents |
 |---|---|
-| `bc81asmc.py` | CLI, the two passes (emit + label fix-ups), `.btap` writer |
+| `bc81asmc.py` | CLI, the two passes (emit + label fix-ups), `.btap`, `.lst` and `.map` writers |
 | `bc81asmc_grammar.py` | the parsy grammar (the real syntax reference) |
 | `bc81asmc_ast.py` | one dataclass per instruction/directive, each with its own `emit()`; opcodes and encodings come from `src/bc8183_isa.py` |
 | `bc81asmc_diag.py` | error records (`Diagnostic`, `AssemblerError`), the `file:line:col` formatter, parsy `ParseError` conversion |
+| `bc81asmc_listing.py` | the `.lst` listing and `.map` symbol map text (no I/O); `read_map` parses a map for other tools |
 | `tests/bc81asmc_tests.py` | unit tests (need `parsy`) |
 | `grammar.txt` | early informal grammar sketch |
 | `examples/` | `hello.basm`, `first.basm` |
@@ -27,6 +28,11 @@ python bc81asmc/bc81asmc.py [--verbose] path/to/file.basm   # the same, from src
   has no effect.
 - `--verbose` prints every line with its address in pass 1, plus the relative-jump
   fix-ups.
+- `--lst FILE` writes a listing (every source line with its address and bytes) and `--map FILE`
+  writes a symbol map (labels and `.def` constants with their values). Both are optional and
+  are described in [`.lst` and `.map` output formats](#lst-and-map-output-formats). They are
+  written only when assembly succeeds, after the `.btap`. The `.btap` is the same with or
+  without them. The build scripts write `<name>.lst` and `<name>.map` next to each `.btap`.
 - To get a raw binary (ROM image or disk sectors), run `./ftool btap2bin file.btap file.bin`.
 
 ### `.btap` output format
@@ -39,6 +45,85 @@ The file holds a 24-byte preamble followed by the code, **one byte per bit, LSB 
 ```
 
 `ADDR` is the `.org` address and `name` is the source file name without its extension.
+
+### `.lst` and `.map` output formats
+
+Both files are UTF-8 with `\n` line endings.
+
+**The listing (`--lst`)** has one row per source line, in source order. Blank and comment-only
+lines are kept, so the listing reads like the source. A row is:
+
+```
+HHHH  HH HH HH HH  source line
+```
+
+- `HHHH` is the address in lowercase hex, without `0x`. It is shown when the line emits bytes,
+  carries a label, or is an `.org`. Otherwise the column is blank: comments, blank lines and
+  `.def` and `.assert` lines have no location of their own.
+- The bytes are the final values, read after pass 2, so a forward reference shows its real
+  address and not `fa`. The bytes column holds up to 4 bytes and is padded to a fixed width.
+- A `.db` longer than 4 bytes goes on in extra rows that hold only an address and bytes. The
+  longest instruction (`.mv`) is 4 bytes, so only `.db` wraps.
+- Trailing spaces are removed from the source text.
+
+An excerpt of `src/bdos/boot.lst`:
+
+```
+0e00                                  .org 0x0e00
+                                      .def bd_shell, 0x0f00
+...
+                   ;bd_dstart 0x0001
+0e00  11 02        bd_bootstrap:      mov a, 0x02
+0e02  19 0e 15 59                     .mv dsdi, :bd_boot_loadmsg
+...
+0e55  65 72 72 00  bd_boot_errmsg:    .db 'err', 0x00
+...
+0e5d  67 00
+...
+0e80               bd_end:            .assert :bd_end <= 0x0e80
+```
+
+**The map (`--map`)** has two header lines and then one line per symbol:
+
+```
+; bc81asmc map <source file name>
+; org 0xHHHH end 0xHHHH
+0xHHHH <kind> <name>
+```
+
+- `org` is the `.org` address. `end` is the first address past the image (org plus the code
+  length). A label-only line at the end of the file gets this address.
+- `kind` is `label` for a label and `def` for a `.def` constant. A `.def` is listed at its
+  value even when that value is not an address in the image (for example `os_metacall`).
+- The symbols are sorted by value, then by name. Labels and `.def`s share one namespace, so
+  each name appears once. There is no by-name section.
+
+An excerpt of `src/bdos/boot.map`:
+
+```
+; bc81asmc map boot.basm
+; org 0x0e00 end 0x0e80
+0x0008 def os_metacall
+0x0080 def bd_sectsize
+0x0e00 label bd_bootstrap
+0x0e0f label bd_loop
+0x0e11 label bd_dmaconfig
+0x0e23 label bd_readsect
+0x0e55 label bd_boot_errmsg
+0x0e59 label bd_boot_loadmsg
+0x0e5f label bd_boot_oscall
+0x0e65 label bd_boot_run
+0x0e6d label bd_boot_error
+0x0e7c label bd_diskver
+0x0e80 label bd_end
+0x0f00 def bd_shell
+```
+
+`read_map(text)` in `src/bc81asmc/bc81asmc_listing.py` is the reader for other tools. It returns
+a `SymbolMap` (`source`, `org`, `end` and `symbols`, each with `name`, `value` and `kind`), and
+raises `ValueError` on a malformed line or a missing header.
+
+## Source syntax
 
 ## Source syntax
 

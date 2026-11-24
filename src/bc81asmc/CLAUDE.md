@@ -7,6 +7,7 @@ Reference: `docs/02-assembler.md` has the syntax and full instruction encoding.
 
 ```bash
 cd src && python3 bc81asmc/bc81asmc.py --verbose path/file.basm   # -> path/file.btap (always btap)
+cd src && python3 bc81asmc/bc81asmc.py --lst path/file.lst --map path/file.map path/file.basm   # also the listing and the symbol map (both optional)
 bc81asmc --verbose path/file.basm                                 # same via the console command (`pip install -e .`), any directory
 cd src/bc81asmc && python3 -m unittest discover -s tests -t . -p "*_tests.py"   # grammar and emit tests (silent)
 cd src/bc81asmc && python3 -m unittest tests.bc81asmc_tests.TestGrammar.test_hex_imm8
@@ -15,6 +16,8 @@ cd src/bc81asmc && python3 -m unittest tests.bc81asmc_tests.TestGrammar.test_hex
 The diagnostics tests are `tests/bc81asmc_diag_tests.py` (records, formatter, parse-error conversion),
 `tests/bc81asmc_compile_diag_tests.py` (errors raised by `compile()`) and `tests/bc81asmc_cli_tests.py`
 (stderr, exit codes and `--verbose`, run as subprocesses).
+The listing and map tests are `tests/bc81asmc_listing_tests.py` (the formats, `read_map`, the real bcOS and boot images,
+and the `--lst`/`--map` flags as subprocesses).
 
 ## How it works
 
@@ -46,6 +49,11 @@ The diagnostics tests are `tests/bc81asmc_diag_tests.py` (records, formatter, pa
   this module, never `print` or raise a bare exception. Only `main()` prints and exits.
 - Output is a `.btap` file: a 24-byte preamble (`00 ff 00 ff bc 05`, org, length, name),
   then every byte expanded to 8 bit-bytes, LSB first.
+- `--lst FILE` and `--map FILE` (#9). `compile()` keeps a `LineRecord` (line number, start and end address) per
+  source line in `context.line_records`, and the labels and `.def`s in `context.label_addresses` and `context.defs`.
+  The formatters in `bc81asmc_listing.py` (`format_listing`, `format_map`) read the bytes after pass 2, so the
+  listing shows the patched values. The module does no I/O: `main()` writes the files, after the `.btap` and only
+  on success.
 
 ## Rules
 

@@ -6,6 +6,7 @@ import parsy
 from pathlib import Path
 from bc81asmc_ast import *
 from bc81asmc_grammar import program
+from bc81asmc_listing import LineRecord, format_listing, format_map
 from bc81asmc_diag import Diagnostic, AssemblerError, format_diagnostics, parse_error_to_diagnostic
 
 def read_input_file(fname):
@@ -63,6 +64,7 @@ def compile(ast, verbose):
             orgline = lineno
         saved = (len(context.bytes), context.curraddr, context.currbyte, context.currhalf,
                  len(context.labels), context.startaddr)
+        startaddr = context.curraddr
         try:
             line.emit(context)
         except Exception as e:
@@ -75,6 +77,10 @@ def compile(ast, verbose):
                 "cannot encode '{0}': {1}".format(text, reason)))
             if verbose:
                 traceback.print_exc()
+        if lineno:
+            context.line_records.append(LineRecord(lineno,
+                context.curraddr if isinstance(line, ORG) else startaddr,
+                context.curraddr, hasattr(line, 'label'), isinstance(line, ORG)))
         for ref in context.labels[len(refpos):]:
             refpos.append((getattr(ref[1], 'line', 0) or lineno, getattr(ref[1], 'col', 0) or col))
         if context.curraddr > 0x10000 and not overflowed:
@@ -160,6 +166,7 @@ def compile(ast, verbose):
         diagnostics.sort(key=lambda d: (d.line, d.column))
         raise AssemblerError(diagnostics)
 
+    context.label_addresses = labeladdresses
     print('Code length: {0} labels: {1}'.format(len(context.bytes), len(labeladdresses)))
     
     return context
@@ -222,6 +229,10 @@ def main():
         help='Be more verbose')
     parser.add_argument('--btap', action='store_true',
         help='Use btap file format')
+    parser.add_argument('--lst', metavar='FILE', type=str, default=None,
+        help='Write a listing (address, bytes, source) to FILE')
+    parser.add_argument('--map', metavar='FILE', type=str, default=None,
+        help='Write a symbol map (labels and .def constants by value) to FILE')
     args = parser.parse_args()
     print('Reading input file {}'.format(args.infile))
     input = read_input_file(args.infile)
@@ -239,6 +250,10 @@ def main():
     outfile = Path(args.infile).with_suffix(".btap")
     _, short_fname = os.path.split(Path(args.infile).with_suffix(""))
     save_output_btap(outfile, short_fname, output)
+    if args.lst:
+        save_output_file(args.lst, format_listing(input, output).encode('utf8'))
+    if args.map:
+        save_output_file(args.map, format_map(os.path.basename(args.infile), output).encode('utf8'))
 
     print('Done!')
 

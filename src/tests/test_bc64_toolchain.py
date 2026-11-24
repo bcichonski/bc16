@@ -89,6 +89,15 @@ class ToolchainLauncherTests(unittest.TestCase):
         self.assertNotIn("Reading input file prog.b", out.splitlines())
         self.assertFalse(os.path.exists(os.path.join(folder, "prog.genb")))
 
+    def test_bcc_writes_the_listing_and_symbol_map_next_to_the_btap(self):
+        folder = self.sub("maps")
+        write(os.path.join(folder, "prog.b"), PROGRAM)
+        result = launch(folder, "bcc", "prog")
+        self.assertEqual(result.returncode, 0, result.stderr.decode("latin-1"))
+        for name in ("prog.btap", "prog.lst", "prog.map"):
+            self.assertTrue(os.path.isfile(os.path.join(folder, name)), name)
+            self.assertTrue(read(os.path.join(folder, name)), name)
+
     def test_bc81asmc_matches_the_script(self):
         via_cmd, via_script = self.sub("cmd"), self.sub("script")
         for folder in (via_cmd, via_script):

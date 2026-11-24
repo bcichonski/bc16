@@ -136,6 +136,8 @@ class CodeContext:
         self.errors = []
         self.labels = []
         self.defs = {}
+        self.label_addresses = {}
+        self.line_records = []
     def emit_byte(self, b):
         self.bytes.extend([b])
         self.currbyte = None
