@@ -8,6 +8,7 @@ The BC64 is a made-up 8-bit computer that exists only as a Python emulator. It h
 |---|---|
 | `bc64.py` | builds the machine, loads the ROM image, runs the CPU, dumps memory on exit |
 | `bc64/bc8183_cpu.py` | the CPU: registers, flags, instruction decoder, ALU, call stack, debug trace |
+| `bc8183_isa.py` (in `src/`) | the bc8183 instruction set as plain data: the single source of the encoding, shared with the assembler (G14) |
 | `bc64/bc64_mem.py` | `MemBus`, a flat `bytearray` memory |
 | `bc64/bc64_io.py` | `IOBus` and the devices: keyboard, printer, tape recorder, clock, random generator, floppy drive |
 | `bc64/bc64_env.py` | host abstraction: console I/O (raw `getch`), files, debug log |
@@ -301,6 +302,11 @@ When a fix lands, the test reports an unexpected success: remove its decorator t
 There are no interrupts. Instructions are 1–5 bytes long. The high nibble of the first byte
 is the opcode. The full instruction set and its encoding are in
 [02-assembler.md](02-assembler.md).
+
+The numbers of the encoding (registers, condition codes, opcodes, sub-opcodes, ALU operations, stack tags,
+the `KIL` byte) and a table of every instruction form are written once, in `src/bc8183_isa.py`. The CPU
+imports them and does not write an opcode value itself; the assembler uses the same module (G14). A
+disassembler that decodes with the form table is planned in #178.
 
 An unknown `EXT` sub-opcode (`JRX` uses 0x1 and 0x2) stops the CPU like a stack fault: one line
 on stderr (`EXT at XXXX: unknown sub-opcode 0xN, CPU stopped`), nothing is changed and the PC stays

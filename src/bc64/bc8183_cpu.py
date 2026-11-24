@@ -1,4 +1,5 @@
 import sys
+import bc8183_isa
 # 8183 cpu version 1.2 (20240814)
 def hi(b):
     return (b >> 4) & 0xf
@@ -26,10 +27,10 @@ class Register:
 
 
 class FlagsRegister(Register):
-    ZERO = 0x0
-    CARRY = 0x1
-    NEGATIVE = 0x2
-    OVERFLOW = 0x3
+    ZERO = bc8183_isa.FLAG_ZERO
+    CARRY = bc8183_isa.FLAG_CARRY
+    NEGATIVE = bc8183_isa.FLAG_NEGATIVE
+    OVERFLOW = bc8183_isa.FLAG_OVERFLOW
     B0 = 0x0
     B1 = 0x1
     B2 = 0x2
@@ -78,52 +79,52 @@ class FlagsRegister(Register):
 
 
 class Bc8183:
-    A = 0x1
-    CI = 0x4
-    DI = 0x5
-    CS = 0x8
-    DS = 0x9
-    F = 0xB
-    SI = 0xC
-    SS = 0xD
-    PC = 0xF
+    A = bc8183_isa.REG_A
+    CI = bc8183_isa.REG_CI
+    DI = bc8183_isa.REG_DI
+    CS = bc8183_isa.REG_CS
+    DS = bc8183_isa.REG_DS
+    F = bc8183_isa.REG_F
+    SI = bc8183_isa.REG_SI
+    SS = bc8183_isa.REG_SS
+    PC = bc8183_isa.REG_PC
 
-    CLC_ADD = 0x0
-    CLC_SUB = 0x1
-    CLC_AND = 0x2
-    CLC_OR = 0x3
-    CLC_XOR = 0x4
-    CLC_SHL = 0x5
-    CLC_SHR = 0x6
-    CLC_NOT = 0x7
-    CLC_OP_RNO = 0x8
-    CLC_INC = 0xD
-    CLC_DEC = 0xE
+    CLC_ADD = bc8183_isa.ALU_ADD
+    CLC_SUB = bc8183_isa.ALU_SUB
+    CLC_AND = bc8183_isa.ALU_AND
+    CLC_OR = bc8183_isa.ALU_OR
+    CLC_XOR = bc8183_isa.ALU_XOR
+    CLC_SHL = bc8183_isa.ALU_SHL
+    CLC_SHR = bc8183_isa.ALU_SHR
+    CLC_NOT = bc8183_isa.ALU_NOT
+    CLC_OP_RNO = bc8183_isa.CLC_REGISTER_FORM
+    CLC_INC = bc8183_isa.ALU_INC
+    CLC_DEC = bc8183_isa.ALU_DEC
 
-    CLC_EXT = 0xF
-    CLC_EXT_AR = 0xA
-    CLC_EXT_BIN = 0xB
+    CLC_EXT = bc8183_isa.CLC_EXT
+    CLC_EXT_AR = bc8183_isa.ALU16_GROUP_ARITH
+    CLC_EXT_BIN = bc8183_isa.ALU16_GROUP_BINARY
 
-    CLC_MUL = 0x2
-    CLC_DIV = 0x3
-    CLC_MOD = 0x4
-    CLC_ADD16 = CLC_EXT_AR << 4 | CLC_ADD
-    CLC_SUB16 = CLC_EXT_AR << 4 | CLC_SUB
-    CLC_MUL16 = CLC_EXT_AR << 4 | CLC_MUL
-    CLC_DIV16 = CLC_EXT_AR << 4 | CLC_DIV
-    CLC_MOD16 = CLC_EXT_AR << 4 | CLC_MOD
-    CLC_INC16 = CLC_EXT_AR << 4 | CLC_INC
-    CLC_DEC16 = CLC_EXT_AR << 4 | CLC_DEC
+    CLC_MUL = bc8183_isa.ALU16_MUL
+    CLC_DIV = bc8183_isa.ALU16_DIV
+    CLC_MOD = bc8183_isa.ALU16_MOD
+    CLC_ADD16 = bc8183_isa.ALU16_CODES['add']
+    CLC_SUB16 = bc8183_isa.ALU16_CODES['sub']
+    CLC_MUL16 = bc8183_isa.ALU16_CODES['mul']
+    CLC_DIV16 = bc8183_isa.ALU16_CODES['div']
+    CLC_MOD16 = bc8183_isa.ALU16_CODES['mod']
+    CLC_INC16 = bc8183_isa.ALU16_CODES['inc']
+    CLC_DEC16 = bc8183_isa.ALU16_CODES['dec']
 
-    CLC_AND16 = CLC_EXT_BIN << 4 | CLC_AND
-    CLC_OR16 = CLC_EXT_BIN << 4 | CLC_OR
-    CLC_XOR16 = CLC_EXT_BIN << 4 | CLC_XOR
-    CLC_SHL16 = CLC_EXT_BIN << 4 | CLC_SHL
-    CLC_SHR16 = CLC_EXT_BIN << 4 | CLC_SHR
-    CLC_NOT16 = CLC_EXT_BIN << 4 | CLC_NOT
+    CLC_AND16 = bc8183_isa.ALU16_CODES['and']
+    CLC_OR16 = bc8183_isa.ALU16_CODES['or']
+    CLC_XOR16 = bc8183_isa.ALU16_CODES['xor']
+    CLC_SHL16 = bc8183_isa.ALU16_CODES['shl']
+    CLC_SHR16 = bc8183_isa.ALU16_CODES['shr']
+    CLC_NOT16 = bc8183_isa.ALU16_CODES['not']
 
-    STACKFRAME_TYPE_PUSH = 0x10
-    STACKFRAME_TYPE_CALL = 0xc0
+    STACKFRAME_TYPE_PUSH = bc8183_isa.STACKFRAME_PUSH
+    STACKFRAME_TYPE_CALL = bc8183_isa.STACKFRAME_CALL
 
     def __init__(self, membus, iobus, debug, stack_top=None):
         self.membus = membus
@@ -226,7 +227,7 @@ class Bc8183:
                 if suboper & Bc8183.CLC_OP_RNO == \
                     Bc8183.CLC_OP_RNO:
                     arg2 = self.alu_getval16(regno2)
-                    suboper = suboper & 0x07
+                    suboper = suboper & (Bc8183.CLC_OP_RNO - 1)
                     opersubcode = (subcode << 4) | suboper
                 else:
                     b1 = self.nextbyte
@@ -323,12 +324,12 @@ class Bc8183:
 
     def op_JMP(self):
         opcode = lo(self.nextbyte)
-        regno = opcode & 0x3
-        neg = opcode & 0x4 == 0x4
+        regno = opcode & bc8183_isa.COND_FLAG_MASK
+        neg = opcode & bc8183_isa.COND_NEGATE == bc8183_isa.COND_NEGATE
         test = self.f.get_flag(regno)
         if neg:
             test = not test
-        shortmode = opcode & 0x8 == 0x8
+        shortmode = opcode & bc8183_isa.JMP_SHORT == bc8183_isa.JMP_SHORT
         self.inc_pc(1)
         if shortmode:
             addr = self.cs.get() << 8 | self.nextbyte
@@ -342,12 +343,12 @@ class Bc8183:
 
     def op_JMR(self):
         opcode = lo(self.nextbyte)
-        regno = opcode & 0x3
-        neg = opcode & 0x4 == 0x4
+        regno = opcode & bc8183_isa.COND_FLAG_MASK
+        neg = opcode & bc8183_isa.COND_NEGATE == bc8183_isa.COND_NEGATE
         test = self.f.get_flag(regno)
         if neg:
             test = not test
-        regmode = opcode & 0x8 == 0x8
+        regmode = opcode & bc8183_isa.JMR_REGISTER == bc8183_isa.JMR_REGISTER
         self.inc_pc(1)
         if not regmode:
             addr = self.nextbyte
@@ -436,7 +437,7 @@ class Bc8183:
         curraddr = self.pc.get()
         
         opcode = lo(self.nextbyte)
-        directmode = opcode & Bc8183.CLC_OP_RNO == Bc8183.CLC_OP_RNO
+        directmode = opcode & bc8183_isa.CAL_DIRECT == bc8183_isa.CAL_DIRECT
         self.inc_pc(1)
         if(directmode):
             addrhi = self.nextbyte
@@ -457,7 +458,7 @@ class Bc8183:
         self.si.set(stacktop & 0xff)
         self.ss.set((stacktop & 0xff00) >> 8)
 
-        relmode = opcode & 0x01 == 0x01
+        relmode = opcode & bc8183_isa.CAL_RELATIVE == bc8183_isa.CAL_RELATIVE
         if(relmode):
             if(addr & 0x8000 == 0x8000):
                 addr = curraddr - (addr & 0x7fff)
@@ -513,7 +514,7 @@ class Bc8183:
     def op_IN(self):
         opcode = lo(self.nextbyte)
         self.inc_pc(1)
-        if opcode & 0x8 == 0x8:
+        if opcode & bc8183_isa.IN_REGISTER == bc8183_isa.IN_REGISTER:
             regno1 = hi(self.nextbyte)
             regno2 = lo(self.nextbyte)
             port = self.regs[regno2].get()
@@ -527,14 +528,14 @@ class Bc8183:
     def op_OUT(self):
         opcode = lo(self.nextbyte)
         self.inc_pc(1)
-        if opcode & 0x8 == 0x8:
+        if opcode & bc8183_isa.OUT_REGISTER == bc8183_isa.OUT_REGISTER:
             regno1 = hi(self.nextbyte)
             regno2 = lo(self.nextbyte)
             port = self.regs[regno1].get()
             val = self.regs[regno2].get()
             self.set_flags(regno2, val)
         else:
-            regno1 = opcode & 0x7
+            regno1 = opcode & bc8183_isa.OUT_PORT_MASK
             port = self.regs[regno1].get()
             val = self.nextbyte
         self.iobus.write_byte(port, val)
@@ -542,28 +543,28 @@ class Bc8183:
 
     def op_EXT(self):
         opcode = lo(self.nextbyte)
-        if opcode not in (0x01, 0x02):
+        if opcode not in bc8183_isa.EXT_SUBOPS:
             mesg = 'EXT at {0:04x}: unknown sub-opcode 0x{1:x}, CPU stopped'.format(self.pc.get(), opcode)
             print(mesg, file=sys.stderr)
             self.print_debug(mesg)
             self.kill = True
             return
         self.inc_pc(1)
-        if(opcode == 0x01):
+        if(opcode == bc8183_isa.EXT_JRX_ADDR):
             testcode = hi(self.nextbyte)
             self.inc_pc(1)
             addr = self.nextbyte
             self.inc_pc(1)
             addr = (addr << 8) | self.nextbyte
             self.inc_pc(1)
-        if(opcode == 0x02):
+        if(opcode == bc8183_isa.EXT_JRX_REG):
             testcode = hi(self.nextbyte)
             regno = lo(self.nextbyte)
             addr = self.get_addr(regno)
             self.inc_pc(1)
 
-        regno = testcode & 0x3
-        neg = testcode & 0x4 == 0x4
+        regno = testcode & bc8183_isa.COND_FLAG_MASK
+        neg = testcode & bc8183_isa.COND_NEGATE == bc8183_isa.COND_NEGATE
         test = self.f.get_flag(regno)
         if neg:
             test = not test
@@ -580,22 +581,8 @@ class Bc8183:
 
     def create_instructions(self):
         self.instructions = {
-            0x0: self.op_NOP,
-            0x1: self.op_MOV_imm,
-            0x2: self.op_MOV_reg,
-            0x3: self.op_MOV_reg_mem,
-            0x4: self.op_MOV_mem_reg,
-            0x5: self.op_CLC,
-            0x6: self.op_JMP,
-            0x7: self.op_JMR,
-            0x8: self.op_PSH,
-            0x9: self.op_POP,
-            0xa: self.op_CAL,
-            0xb: self.op_RET,
-            0xc: self.op_IN,
-            0xd: self.op_OUT,
-            0xe: self.op_EXT,
-            0xf: self.op_KIL
+            nibble: getattr(self, 'op_' + name)
+            for nibble, name in bc8183_isa.OPCODE_NAMES.items()
         }
 
     def create_registers(self, memsize):

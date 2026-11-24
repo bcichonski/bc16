@@ -216,7 +216,8 @@ as a rule, with its purpose, rationale, usage and trade-offs.
     convention);
   - the 16-bit ALU extension sits under `CLC` with low nibble `F`;
   - new instructions go into a free sub-code or `EXT` (`0xE`), never a new top-level
-    nibble.
+    nibble;
+  - the nibble values themselves come from `src/bc8183_isa.py` (G14).
 - **Trade-offs:** handlers are easy to get off-by-one; tests per opcode are mandatory.
 
 ### E4. The CPU stack is tagged
@@ -983,3 +984,13 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Trade-offs:** PRs do not run the full e2e suite, so a PR can merge with an edge-case failure that only the master run catches; the owner
   accepted this (#175). The map must be kept in step with the tests (checked by unit tests). The chain reaction runs every area for most source
   changes, so the saving is mostly on docs, bdos-only and test-only changes.
+
+### G14. One ISA module is the only place the bc8183 encoding is written
+- **Purpose:** the CPU and the assembler cannot disagree on an opcode, because there is one copy of every number (#5).
+- **Rationale:** the opcodes were written twice, in `src/bc64/bc8183_cpu.py` and `src/bc81asmc/bc81asmc_ast.py`, and only an agreement test caught a drift. One module of plain data removes the second copy. A table of every instruction form (opcode nibble, length, nibble layout) in the same module is the base a disassembler decodes with (#178).
+- **Usage:**
+  - `src/bc8183_isa.py` holds registers, condition codes, opcode nibbles, mode bits and sub-opcodes, ALU operation numbers, stack tags, the `KIL` byte and the form table `FORMS`. It is plain data: it imports nothing from the tools and has no side effects;
+  - no other file writes an opcode or encoding literal; the CPU and the assembler import the names (a source-guard test checks this);
+  - the emulator has `src/` on `sys.path`; the assembler, which runs with `src/bc81asmc/` first, appends `src/` to `sys.path` before importing the module;
+  - to change an encoding, edit the module and `docs/02-assembler.md`, add tests on both sides, and extend the agreement and form-table tests.
+- **Trade-offs:** the tools now share one import outside their own folders, so each must find `src/` on its path. A mistake in the module breaks both tools at once, which the agreement and form-table tests are there to catch.

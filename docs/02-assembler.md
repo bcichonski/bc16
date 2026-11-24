@@ -8,7 +8,7 @@
 |---|---|
 | `bc81asmc.py` | CLI, the two passes (emit + label fix-ups), `.btap` writer |
 | `bc81asmc_grammar.py` | the parsy grammar (the real syntax reference) |
-| `bc81asmc_ast.py` | one dataclass per instruction/directive, each with its own `emit()`; opcode constants |
+| `bc81asmc_ast.py` | one dataclass per instruction/directive, each with its own `emit()`; opcodes and encodings come from `src/bc8183_isa.py` |
 | `bc81asmc_diag.py` | error records (`Diagnostic`, `AssemblerError`), the `file:line:col` formatter, parsy `ParseError` conversion |
 | `tests/bc81asmc_tests.py` | unit tests (need `parsy`) |
 | `grammar.txt` | early informal grammar sketch |
@@ -148,6 +148,9 @@ on the first extra digit. The same goes for `0x10000` and `#0x10`. `jmp cond, :l
 range-checked either: it encodes only the low byte, and `CS` supplies the page at run time.
 
 ## Instruction set
+
+The encoding below is defined once, in `src/bc8183_isa.py`, which the assembler and the CPU both import (G14).
+The module also holds a table of every form listed here; the disassembler that will decode with it is #178.
 
 Condition codes `t` for `jmp`/`jmr`/`jrx`:
 

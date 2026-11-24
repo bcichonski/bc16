@@ -55,9 +55,10 @@ Reference: [../01-emulator.md](../01-emulator.md). Decisions: E1–E6, G8 in
 
 ### Improvements
 
-4. **One shared opcode table** (#5, cross-component with the assembler), e.g.
-   `src/bc8183_isa.py`, used by the CPU, the assembler, and a new **disassembler**. The
-   disassembler gives readable traces and lets you inspect `.btap`/`.bdd` contents.
+4. ~~**One shared opcode table**~~ (#5, cross-component with the assembler): **done in #5.**
+   `src/bc8183_isa.py` is the single source of the encoding for the CPU and the assembler (G14),
+   with a table of every instruction form. The new **disassembler** that decodes with it (readable
+   traces, inspecting `.btap`/`.bdd` contents) moves to #178.
 5. **Better tracing**:
    - a ring buffer of the last N instructions, dumped on exception or `KIL`;
    - trace filters (address range, on a `cal` to a label);
