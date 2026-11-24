@@ -547,7 +547,8 @@ searched on the main object's drive, then on A.
 
    Close it. Repeat until every module in the list has been read.
 3. Report a symbol defined twice, naming both modules.
-4. Mark the sections reachable from the runtime entry point and `F_main`. Report every
+4. Mark the sections reachable from the `KEEP` sections (the runtime entry stub is `KEEP` and reaches
+   `F_main`). Report every
    undefined symbol that a marked section uses, with the module that uses it.
 5. Give each marked section its address, from the `#code` address (default `0x6000`), in
    list order. The runtime entry
@@ -586,7 +587,7 @@ compiler); see [why](#why-not-inline-asm-text).
 
 Today it's written down only as how the compiler happens to work (design decision C2,
 [../03-compiler.md](../03-compiler.md)). Assembly modules depend on it, so it becomes a
-frozen ABI, recorded as a new design decision:
+frozen ABI. It is recorded as design decision [G16](../specs/memory/design-decisions.md#g16-the-b-calling-convention-is-a-frozen-abi-with-fixed-symbol-names) (#113):
 
 - **Arguments.** The caller moves `sys_stackhead` forward by the size of the locals it has
   declared so far (`Context.push_scope` in `bc_ast.py`), stores the
@@ -597,7 +598,9 @@ frozen ABI, recorded as a new design decision:
 - **Variadic functions** (`printf(word PformatStr)***`): a hidden word with the number of
   arguments comes first (offset 0), then the fixed arguments, then the extra ones as
   words. For `printf`: the count at 0, `PformatStr` at 2, the extra arguments at 4, 6, …
-- **Return value** in `csci`. A byte result is in `ci`, with `cs` = 0.
+- **Return value** in `csci`, which callers use whole (C3). A routine declared `byte` must return it with `cs` = 0,
+  so a caller can treat the result as a word. The host compiler doesn't truncate today (`byte f() { return 300; }`
+  returns 300): a known quirk, recorded in G16, and outside the rule.
 - **Registers:** the callee may change all of them, `A` and `F` included. Callers keep live
   values on the CPU stack, as generated code already does. The CPU stack is balanced on
   return.
@@ -612,6 +615,8 @@ Roadmap item 5b (#17, inline variable access) changes how generated code *reads*
 variables, not where they are, so it stays compatible with this ABI.
 
 ### Symbol names
+
+These rules are recorded in [G16](../specs/memory/design-decisions.md#g16-the-b-calling-convention-is-a-frozen-abi-with-fixed-symbol-names) too.
 
 - **A B function `name` is the global symbol `F_name`.** Today the host makes numbered
   labels (`FPOKE80003`), which another module can't know. The prefix is needed because
@@ -687,8 +692,10 @@ routines into sections costs nothing in the programs that don't use them.
 - **The host language changes:** `bc` keeps `asm "…"` until the libraries are moved, then
   drops it, so B 1.4 has only raw `asm`. Keeping it as a host-only extension would mean the
   byte-identical test never covers it.
-- **Design decisions:** a new one for the ABI and symbol names. C5 ("modularity is
-  textual: `#include`/`#define`, one image, no linker") is replaced.
+- **Design decisions:** [G16](../specs/memory/design-decisions.md#g16-the-b-calling-convention-is-a-frozen-abi-with-fixed-symbol-names) records the ABI and symbol names, and [G15](../specs/memory/design-decisions.md#g15-object-files-are-bof-v1-a-record-stream-whose-layout-is-frozen) the object
+  format. C5 ("modularity is textual: `#include`/`#define`, one image, no linker") is superseded by G16
+  from phase 3, when programs are linked. It isn't deleted now, because it still describes how today's host
+  builds work.
 
 <a id="why-not-inline-asm-text"></a>
 ### Why not inline `asm "…"` text
@@ -790,7 +797,9 @@ assembly text for a whole program is far bigger than the disc (see the short ans
 
 ### Object file format
 
-A proposal, "BOF v1" (record layout decided 2026-11-13). It is a record stream in a normal
+The object format is "BOF v1", and it is decided: design decision
+[G15](../specs/memory/design-decisions.md#g15-object-files-are-bof-v1-a-record-stream-whose-layout-is-frozen)
+records it (record layout decided 2026-11-13, `SECT` flags in #113). It is a record stream in a normal
 BFS file, written through the buffered write call and read strictly in order: there is no
 index, because bdos has no seek and the writer can't know sizes before it writes. All
 16-bit values are big-endian (design decision G6).
@@ -804,7 +813,7 @@ bytes. A reader that doesn't need a record skips it by its length.
 | `ee` | `EXTRN` | `name` | declares symbol number k (k = 0, 1, 2… in order of the `ee` records). The symbol may be defined in another module or in this one |
 | `de` | `NEED` | `module-name` | from `#link module-name`: `module-name.O` must be linked too; missing is an error |
 | `ad` | `ADDR` | `kind(1) value(2)` | from `#code` (kind 0), `#heap` (1) or `#codelimit` (2): an address of the finished program |
-| `5e` | `SECT` | `flags(1) name` | starts a section: one function, plus its strings. The section offset starts at 0 |
+| `5e` | `SECT` | `flags(1) [address(2)] name` | starts a section: one function, plus its strings. The section offset starts at 0. `address` is there only when the `ABS` flag is set |
 | `91` | `GLOBL` | `name` | the global symbol `name` is at the current section offset |
 | `c0` | `CODE` | `bytes` | code/data bytes appended to the current section, placeholders included |
 | `1a` | `LABEL` | `n(2)` | local label n is at the current section offset |
@@ -849,35 +858,70 @@ the fix records that follow it patch bytes inside it; each `offset` is a positio
 - An `ee` record also flushes the `CODE` record, so symbols can be declared at their
   first use.
 
-`word main() { puts("hi"); return 0; }` with `#include stdio.h` gives roughly:
+**Worked example: `HELLO.O`.** `word main() { puts("hi"); return 0; }` with `#include stdio.h`
+gives exactly these 100 bytes, one record per line (`'…'` is the ASCII of the hex before it):
 
 ```
-b0 06 01 'HELLO'               header, version 1
-de 05 'STDIO'                  from '#link stdio' in STDIO.H
-ee 06 'F_puts'                 symbol 0
-ee 0d 'stackheadrll8'          symbol 1 (runtime helpers are symbols too)
-5e 07 00 'F_main'              section
-91 06 'F_main'                 global at offset 0
-c0 nn  … 18 00 14 00 …         .mv csci, <string>
-       … a8 00 00 …            cal F_puts: the placeholder holds symbol 0
-       … a8 00 01 … ret        cal stackheadrll8: the placeholder holds symbol 1
-f1 02  oo oo                   two ABS16 fixes: just their offsets
-fb 03  oo 80 00                HILO fix to local label 0
-1a 02 00 00                    local label 0 = the string
-c0 03 68 69 00                 "hi"
-ed 00
+b0 06 01 48 45 4c 4c 4f          header: version 01, module 'HELLO'
+de 05 53 54 44 49 4f             NEED 'STDIO', from '#link stdio' in STDIO.H
+5e 07 00 46 5f 6d 61 69 6e       SECT: flags 00 (neither KEEP nor ABS), 'F_main'
+91 06 46 5f 6d 61 69 6e          GLOBL 'F_main' at offset 0
+c0 06 18 00 14 00 11 00          CODE, offsets 0-5: .mv csci, <string> (18 hh 14 ll); mov a, 0x00
+fb 03 01 80 00                   HILO at offset 1 (low byte at 3), target 8000 = local label 0
+ee 0d 73 74 61 63 6b 76 61 72 38 73 74 31 36
+                                 EXTRN 'stackvar8st16' = symbol 0, at its first use
+c0 03 a8 00 00                   CODE, offsets 6-8: cal stackvar8st16 (placeholder 0000 = symbol 0)
+f1 01 01                         ABS16 at offset 1 of that CODE record
+ee 06 46 5f 70 75 74 73          EXTRN 'F_puts' = symbol 1, at its first use
+c0 08 a8 00 01 18 00 14 00 b0    CODE, offsets 9-16: cal F_puts (placeholder 0001 = symbol 1);
+                                   mov cs, 0x00; mov ci, 0x00; ret
+f1 01 01                         ABS16 at offset 1 of that CODE record
+1a 02 00 00                      LABEL: local label 0 is at offset 17 (0x11)
+c0 03 68 69 00                   CODE, offsets 17-19: 'hi', 0
+ed 00                            END
 ```
+
+How the bytes were derived: the instructions are what the host compiler writes for this `main`
+today. `bc` compiles it (built textually with `stdio.b`) to `.mv csci, :DATA0020`,
+`mov a, 0x00`, `cal :stackvar8st16`, `cal :FPUTS0013`, `mov cs, 0x00`, `mov ci, 0x00`, `ret`
+and `DATA0020: .db 'hi', 0x00`, which `bc81asmc` assembles at `0x602e` to
+`18 60 14 3f 11 00 a8 60 94 a8 60 21 18 00 14 00 b0 68 69 00`. In the object every address
+becomes a placeholder: `FPUTS0013` is the symbol `F_puts`, the runtime helper keeps its name
+`stackvar8st16`, and the string label `DATA0020` is local label 0. The 16-bit placeholders
+hold the target (`00 00`, `00 01`), the two 1-byte placeholders of the `.mv` are `00`, and
+`fb` carries the target `80 00`. The records follow the writing rules: the `de` is written
+where `#link` appears, before the section; each `ee` is written at its first use and
+flushes the `CODE` record before it, whose fix record follows it directly; the strings come
+after the function's code, behind their `LABEL`, which flushes the last `CODE` record. The
+source has no `#code` or `#heap` line, so there is no `ad` record. `SECT` has flags `00`
+and no address: the runtime entry stub, which is `KEEP`, reaches `F_main`. Linked at
+`0x602e`, local label 0 is `0x603f`, the address of `DATA0020` in the host build.
 
 **Size.** A variable access is 5 bytes of code (`mov a, off` + `cal`) plus 1 fix byte. With
 one fix record per patch it would be 11–12 bytes, because each fix would also split the
 `CODE` record. The estimate for a whole `.o` is about 1.2–1.3 × the code size, to be
 measured in phase 1.
 
-**Still open:** the `SECT` flags. At least "always keep" (the runtime entry point) and
-"absolute at address X" (the `.org` boot sector) are needed.
+**`SECT` flags** (decided in #113, G15). The flags byte is followed by `address(2)` only
+when `ABS` is set:
+- bit 0 `KEEP` (`0x01`): the section is a dead-code root. The linker keeps every `KEEP`
+  section and everything it reaches. The runtime entry stub in `runtime.basm` is `KEEP` and
+  refers to `F_main`, so a B program's roots are the same as "from `main`" today. An
+  assembly-only program marks its own entry `KEEP`.
+- bit 1 `ABS` (`0x02`): the section is placed at the absolute `address(2)` that follows the
+  flags byte, not appended to the image. It is not moved, and overlapping another section is
+  a link error naming both. An `.org` file assembled with `--obj` (the boot sector) is one
+  section with flags `KEEP|ABS` (`0x03`) at its `.org` address (design decision A10 allows
+  one `.org`, before any code or label).
+- bits 2–7 are reserved and written as 0. A reader rejects a set reserved bit, naming the
+  module and the section.
+
+A section's offsets start at 0 either way, and fix-ups in an `ABS` section resolve like any
+other.
 
 - **One section per function.** That makes dead-code elimination exact: the linker keeps a
-  section only if something it keeps refers to it, starting from `main`.
+  section only if something it keeps refers to it, starting from the `KEEP` sections. A B program's runtime
+  entry stub is `KEEP` and reaches `F_main`.
 - **`REL15`** is the sign-magnitude 15-bit encoding used by `jrx` and `clr`, and **`REL7`**
   the 7-bit one used by `jmr` (design decision G5). The linker must encode them the same way
   the assembler does, and reports a target out of range by the symbol's name.
@@ -900,8 +944,8 @@ measured in phase 1.
    - a global symbol table (name in a string pool → section, offset);
    - a reference list per section: each external symbol it uses. Today's whole system has
      only a few hundred of these, at 2 bytes each.
-2. **Mark** the sections reachable from `main` and from the runtime entry point, following
-   the reference lists. Report undefined symbols that are reachable.
+2. **Mark** the sections reachable from the `KEEP` sections (for a B program: the runtime entry stub, which
+   reaches `F_main`), following the reference lists. Report undefined symbols that are reachable.
 3. **Lay out** the live sections from `0x6000` in order. Each one gets its address.
 4. **Pass 2, emit.** For each object, read it again. For each live section, keep its local
    label offsets (the module's array from pass 1), apply the fix records, and write the bytes to
@@ -1020,7 +1064,7 @@ bdos fixes, is in [08-self-hosted-roadmap.md](08-self-hosted-roadmap.md).
    assemble the same file.
 3. **`blink.py`**, then link all disc programs with it: the size win and the test of the
    format.
-4. **The ABI and symbol names** written down as a design decision, then
+4. **The ABI and symbol names** written down as a design decision (done in #113: [G16](../specs/memory/design-decisions.md#g16-the-b-calling-convention-is-a-frozen-abi-with-fixed-symbol-names)), then
    [today's `asm` moved](#moving-todays-asm) into `.basm` modules.
 5. **Split the libraries** into `.h` + `.b` / `.basm` → `.o`.
 6. **`ftool importtext` / `exporttext`** (#112), so tests can put B sources on a disc in texted
@@ -1031,7 +1075,7 @@ bdos fixes, is in [08-self-hosted-roadmap.md](08-self-hosted-roadmap.md).
 | Phase | Content | Exit criterion |
 |---|---|---|
 | 0 | fixes: the allocation bug (#111), reuse of freed space (#41), emulator flags and encodings, assembler bugs (#64, #65, #103, …), `#define` (#19), `return` (#20), label `nop`s (#104), golden tests (#15) and dead-code elimination in `bc` (#16), `ftool importtext` (#112) | e2e: `rm` then create keeps other files intact and reuses the space; every program smaller after #16, sizes recorded |
-| 1 | BOF format and the ABI as design decisions, `bc81asmc --obj` with `.global`/`.extern`/`.sect` and `#include`/`#define`, `runtime.basm`, `blink.py` | an assembly-only program assembled with `--obj` and linked by `blink.py` runs |
+| 1 | BOF format and the ABI as design decisions (G15 and G16, decided in #113), `bc81asmc --obj` with `.global`/`.extern`/`.sect` and `#include`/`#define`, `runtime.basm`, `blink.py` | an assembly-only program assembled with `--obj` and linked by `blink.py` runs |
 | 2 | `BASM.PRG` and the shared modules `RDR`, `PRE`, `BOFW` | e2e: `runtime.basm` assembled **on the BC64** is byte-identical to `bc81asmc --obj`; an assembly program goes texted → `basm` → `blink.py` → run |
 | 3 | raw `asm` and `#link` in `bc`, `bc --obj` with `F_name` symbols, today's `asm` moved into `.basm` modules, library split, every disc program linked through `blink.py`, no `asm "…"` left; shell search path, development disc; `BLINK.PRG` | every disc program runs its e2e scenarios unchanged when linked; e2e: host-built `HELLO.O` + libraries linked **on the BC64** give the same bytes as `blink.py` |
 | 4 | first a spike: BCC built and measured. Then `BCC`–`BCC3`: the B 1.4 language with raw `asm`, without globals; host `bc --tok`/`--ir` to test each format | e2e: `.TOK`, `.IR` and `.o` byte-identical to the host's for `helloworld`, `ls`, `cp`, `rm`, `cha`, `cat`, `texted` and the B parts of the libraries; linked, the programs run |
@@ -1076,13 +1120,14 @@ phase 1, #16 and #41 into phase 0). The issue for each step is in
   - assembly code lives in `.basm` modules. The assembler and the compiler write the same
     object format, and the linker joins them;
   - assembly routines follow the B calling convention, which becomes a frozen ABI, with
-    `F_name` symbols for B functions;
+    `F_name` symbols for B functions (recorded as [G16](../specs/memory/design-decisions.md#g16-the-b-calling-convention-is-a-frozen-abi-with-fixed-symbol-names) in #113);
   - the compiler keeps only a raw-byte `asm` statement and contains no assembler;
   - BASM runs on the BC64 as its own phase, after the compiler (replaced on 2026-11-19, below).
 - **Decided (2026-11-13):** the object format is a stream of `tag, length, content`
   records of at most 255 content bytes, with no index. Fixes are offset lists after each
   `CODE` record, one tag per kind, with 16-bit targets kept in the placeholder and a
-  combined `HILO` kind for `.mv`. See [object format](#object-file-format).
+  combined `HILO` kind for `.mv`. See [object format](#object-file-format). Recorded as
+  [G15](../specs/memory/design-decisions.md#g15-object-files-are-bof-v1-a-record-stream-whose-layout-is-frozen) in #113, with the `SECT` flags.
 - **Decided (2026-11-13):** work discs: drive A holds the tools and libraries and is only
   read; sources, objects and the program are all on drive B. `blink` takes one name; the
   other objects come from `#link` lines, stored as `NEED` records. Every object needs a

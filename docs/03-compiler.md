@@ -157,6 +157,24 @@ byte printf(word PformatStr)*** // variadic: extra args become word params P1, P
   with no `nop`, so it costs no bytes. Label-only lines need the assembler support added by
   #103. Hand-written `asm "label:"` lines in the B libraries (`stdio.b`) follow the same rule.
 
+## Calling convention (ABI)
+
+The convention below is frozen as a contract between B code, assembly modules and the linker.
+The full rules, the reasons and the known quirk are in
+[design decision G16](specs/memory/design-decisions.md#g16-the-b-calling-convention-is-a-frozen-abi-with-fixed-symbol-names);
+object files that carry these symbols are described by G15. Linking is planned (#121), not yet implemented:
+today the whole program is one image (C5).
+
+- **Arguments:** the caller moves `sys_stackhead` forward past its own locals, stores the arguments as the callee's first
+  locals, `cal`s, then moves it back. An argument's offset is the sum of the sizes before it (byte 1, word 2):
+  `poke8(word Paddr, byte value)` has `Paddr` at 0 and `value` at 2.
+- **Variadic (`***`):** a hidden word with the argument count at 0, then the fixed arguments, then the extra ones as words.
+- **Result:** in `csci`. A `byte` routine returns it with `cs` = 0; the host compiler doesn't enforce this yet
+  (`byte f() { return 300; }` returns 300).
+- **Registers:** all of them, `A` and `F` included, may change in a call. The CPU stack is balanced on return.
+- **Symbols:** a B function `name` is `F_name`; `G_name` is reserved for globals; other labels are local to their module.
+  Assembly callable from B defines and `.global`-exports `F_name` and is declared by a prototype.
+
 ## How the generated code works
 
 - **Registers:** an expression's result is left in `csci`, and the right-hand operand of a
