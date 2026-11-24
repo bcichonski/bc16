@@ -84,9 +84,10 @@ failure (tape round trip) is an `expectedFailure` test; see `docs/01-emulator.md
 
 ## Rules
 
-- **Opcode or encoding changes must also be made in `src/bc81asmc/bc81asmc_ast.py`** (and in
-  `README.md` / `docs/02-assembler.md`). Add a test for any new opcode to `tests/test_cpu_alu.py` or `tests/test_cpu_control.py`, and
-  extend `src/bc81asmc/tests/bc81asmc_opcode_agreement_tests.py` so the assembler and the CPU agree on it.
+- **Opcode or encoding changes are made in `src/bc8183_isa.py` only** (the assembler imports it too; G14), and
+  documented in `README.md` / `docs/02-assembler.md`. Add a test for any new opcode to `tests/test_cpu_alu.py` or `tests/test_cpu_control.py`, and
+  extend `src/bc81asmc/tests/bc81asmc_opcode_agreement_tests.py` so the assembler and the CPU agree on it, and the
+  ISA form-table and source-guard tests.
 - Port numbers, FDD commands and status codes are part of bcOS and bdos code
   (`bcos.basm`, `bdioh.b`); changing them breaks booting.
 - Memory is 65,536 bytes (`0x0000–0xffff`): `MEMORY_SIZE = 0x10000`, `TOP_ADDRESS = 0xffff`

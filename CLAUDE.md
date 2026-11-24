@@ -161,9 +161,10 @@ build. Making `tests` a required status check on
 The components are separate programs, but they share hard-coded numbers. Change one side
 without the other and the system breaks silently.
 
-- **Opcodes:** duplicated in `src/bc64/bc8183_cpu.py` (CPU) and
-  `src/bc81asmc/bc81asmc_ast.py` (assembler). `src/bc81asmc/tests/bc81asmc_opcode_agreement_tests.py` checks
-  that the two agree.
+- **Opcodes:** written once, in `src/bc8183_isa.py`; the CPU (`src/bc64/bc8183_cpu.py`) and the assembler
+  (`src/bc81asmc/bc81asmc_ast.py`) import them (G14). Change an opcode or encoding there only, add tests on
+  both sides, and extend `src/bc81asmc/tests/bc81asmc_opcode_agreement_tests.py` and the ISA form-table and
+  source-guard tests.
 - **bcOS system calls:** called via `F` = function number, then `cal :os_metacall`
   (`0x0008`). The `os_metatab` indices are an ABI used by the compiler runtime, bdos and
   apps.

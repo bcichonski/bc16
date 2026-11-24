@@ -49,9 +49,11 @@ The diagnostics tests are `tests/bc81asmc_diag_tests.py` (records, formatter, pa
 
 ## Rules
 
-- Opcode constants are duplicated in `src/bc64/bc8183_cpu.py`. Change both, and add tests
+- Opcodes and encodings live in `src/bc8183_isa.py` (shared with `src/bc64/bc8183_cpu.py`; G14). Change them there only,
+  never write an opcode value in the assembler, and add tests
   on both sides (`tests/bc81asmc_tests.py`, `tests/bc81asmc_emit_tests.py`, `src/bc64/tests/test_cpu_*.py`).
-  `tests/bc81asmc_opcode_agreement_tests.py` checks that the two sides agree; extend it for new forms.
+  `tests/bc81asmc_opcode_agreement_tests.py` checks that the two sides agree; extend it for new forms, together with
+  the ISA form-table and source-guard tests.
 - In the grammar, more specific alternatives must come first in the `|` chains
   (`mnemonic`, `mCLC`). For example, the 16-bit forms are listed before the 8-bit ones; a
   shorter match first would swallow the longer form.

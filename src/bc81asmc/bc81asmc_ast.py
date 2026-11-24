@@ -1,161 +1,100 @@
 from dataclasses import dataclass
 
-#from bc16_cpu.py
+import os
+import sys
+
+# The assembler runs with src/bc81asmc/ first on sys.path: append the parent src/ folder (never
+# insert it at the front) so that the shared ISA table is found.
+_SRC = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _SRC not in sys.path:
+    sys.path.append(_SRC)
+
+import bc8183_isa as isa
+
+
 class Bc8183:
-    A = 0x1
-    CI = 0x4
-    DI = 0x5
-    CS = 0x8
-    DS = 0x9
-    F = 0xB
-    SI = 0xC
-    SS = 0xD
-    PC = 0xF
+    """The assembler's view of the ISA: every attribute is a reference to bc8183_isa."""
+    A = isa.REG_A
+    CI = isa.REG_CI
+    DI = isa.REG_DI
+    CS = isa.REG_CS
+    DS = isa.REG_DS
+    F = isa.REG_F
+    SI = isa.REG_SI
+    SS = isa.REG_SS
+    PC = isa.REG_PC
 
-    CLC_ADD = 0x0
-    CLC_SUB = 0x1
-    CLC_AND = 0x2
-    CLC_OR  = 0x3
-    CLC_XOR = 0x4
-    CLC_SHL = 0x5
-    CLC_SHR = 0x6
-    CLC_NOT = 0x7
-    CLC_OP_RNO = 0x8
-    CLC_INC = 0xD
-    CLC_DEC = 0xE
-    CLC_EXT = 0xF
-    
-    CAL_EX_RNO = 0x1
-    CAL_EX_I16 = 0x9
+    CLC_ADD = isa.ALU_ADD
+    CLC_SUB = isa.ALU_SUB
+    CLC_AND = isa.ALU_AND
+    CLC_OR  = isa.ALU_OR
+    CLC_XOR = isa.ALU_XOR
+    CLC_SHL = isa.ALU_SHL
+    CLC_SHR = isa.ALU_SHR
+    CLC_NOT = isa.ALU_NOT
+    CLC_OP_RNO = isa.CLC_REGISTER_FORM
+    CLC_INC = isa.ALU_INC
+    CLC_DEC = isa.ALU_DEC
+    CLC_EXT = isa.CLC_EXT
 
-    CLC_EXT_AR  = 0x0a
-    CLC_EXT_BIN = 0x0b
+    CAL_EX_RNO = isa.CAL_RELATIVE
+    CAL_EX_I16 = isa.CLR_DIRECT
 
-    CLC_EXT_AR_RNO = 0x8
+    CLC_EXT_AR  = isa.ALU16_GROUP_ARITH
+    CLC_EXT_BIN = isa.ALU16_GROUP_BINARY
 
-    NOP     = 0x0
-    MOVRI8  = 0x1
-    MOVRR   = 0x2
-    MOVRM   = 0x3
-    MOVMR   = 0x4
-    CLC     = 0x5
-    JMP     = 0x6
-    JMR     = 0x7
-    PSH     = 0x8
-    POP     = 0x9
-    CAL     = 0xa
-    RET     = 0xb
-    IN      = 0xc
-    OUT     = 0xd
-    EXT     = 0xe
-    KIL     = 0xf
+    CLC_EXT_AR_RNO = isa.ALU16_REGISTER_FORM
 
-    EXT_JRX_ADR = 0x1
-    EXT_JRX_REG = 0x2
+    NOP     = isa.OP_NOP
+    MOVRI8  = isa.OP_MOV_IMM
+    MOVRR   = isa.OP_MOV_REG
+    MOVRM   = isa.OP_MOV_REG_MEM
+    MOVMR   = isa.OP_MOV_MEM_REG
+    CLC     = isa.OP_CLC
+    JMP     = isa.OP_JMP
+    JMR     = isa.OP_JMR
+    PSH     = isa.OP_PSH
+    POP     = isa.OP_POP
+    CAL     = isa.OP_CAL
+    RET     = isa.OP_RET
+    IN      = isa.OP_IN
+    OUT     = isa.OP_OUT
+    EXT     = isa.OP_EXT
+    KIL     = isa.OP_KIL
 
-    TEST_Z  = 0x0
-    TEST_NZ = 0x4
-    TEST_CY = 0x1
-    TEST_NC = 0x5
-    TEST_NG = 0x2
-    TEST_NN = 0x6
-    TEST_OF = 0x3
-    TEST_NO = 0x7
+    EXT_JRX_ADR = isa.EXT_JRX_ADDR
+    EXT_JRX_REG = isa.EXT_JRX_REG
 
-    CLC_ADD16 = 0x0
-    CLC_SUN16 = 0x1
-    CLC_MUL16 = 0x2
-    CLC_DIV16 = 0x3
-    CLC_MOD16 = 0x4
-    CLC_INC16 = 0xd
-    CLC_DEC16 = 0xe
-    CLC_AND16 = 0x2
-    CLC_OR16  = 0x3
-    CLC_XOR16 = 0x4
-    CLC_SHL16 = 0x5
-    CLC_SHR16 = 0x6
-    CLC_NOT16 = 0x7
+    CLC_ADD16 = isa.ALU16_OPS['add'][1]
+    CLC_SUN16 = isa.ALU16_OPS['sub'][1]
+    CLC_MUL16 = isa.ALU16_MUL
+    CLC_DIV16 = isa.ALU16_DIV
+    CLC_MOD16 = isa.ALU16_MOD
+    CLC_INC16 = isa.ALU16_OPS['inc'][1]
+    CLC_DEC16 = isa.ALU16_OPS['dec'][1]
+    CLC_AND16 = isa.ALU16_OPS['and'][1]
+    CLC_OR16  = isa.ALU16_OPS['or'][1]
+    CLC_XOR16 = isa.ALU16_OPS['xor'][1]
+    CLC_SHL16 = isa.ALU16_OPS['shl'][1]
+    CLC_SHR16 = isa.ALU16_OPS['shr'][1]
+    CLC_NOT16 = isa.ALU16_OPS['not'][1]
 
     def __init__(self):
-        self.registers_bin = {
-          'pc' : Bc8183.PC,
-          'ss' : Bc8183.SS,
-          'si' : Bc8183.SI,
-          'f'  : Bc8183.F,
-          'a'  : Bc8183.A,
-          'ci' : Bc8183.CI,
-          'cs' : Bc8183.CS,
-          'di' : Bc8183.DI,
-          'ds' : Bc8183.DS,
-          'af' : Bc8183.A,
-          'csci' : Bc8183.CS,
-          'dsdi' : Bc8183.DS
-        }
+        # register and pair names; a pair is its high register, `af` is a (see the CPU)
+        self.registers_bin = dict(isa.REGISTERS)
+        for name in isa.ALU16_PAIR_NAMES:
+            self.registers_bin[name] = isa.PAIR_REGISTER[name]
+        self.registers_bin['af'] = isa.PAIR_REGISTER['af']
 
-        self.registers_str = {
-          Bc8183.PC : 'pc',
-          Bc8183.SS : 'ss',
-          Bc8183.SI : 'si',
-          Bc8183.F  : 'f',
-          Bc8183.A  : 'a',
-          Bc8183.CI : 'ci',
-          Bc8183.CS : 'cs',
-          Bc8183.DI : 'di',
-          Bc8183.DS : 'ds',
-        }
+        self.registers_str = dict(isa.REGISTER_NAMES_BY_NUMBER)
 
-        self.oper_opcodes = {
-          'add' : Bc8183.CLC_ADD,
-          'sub' : Bc8183.CLC_SUB,
-          'and' : Bc8183.CLC_AND,
-          'or'  : Bc8183.CLC_OR,
-          'xor' : Bc8183.CLC_XOR,
-          'shl' : Bc8183.CLC_SHL,
-          'shr' : Bc8183.CLC_SHR
-        }
+        self.oper_opcodes = {name: isa.ALU8_OPS[name] for name in isa.ALU8_BINARY_OP_NAMES}
 
-        self.test_opcodes = {
-          'z' : Bc8183.TEST_Z,
-          'nz': Bc8183.TEST_NZ,
-          'c': Bc8183.TEST_CY,
-          'nc': Bc8183.TEST_NC,
-          'n': Bc8183.TEST_NG,
-          'nn': Bc8183.TEST_NN,
-          'o': Bc8183.TEST_OF,
-          'no': Bc8183.TEST_NO
-        }
+        self.test_opcodes = dict(isa.CONDITIONS)
 
-        self.oper_subcodes = {
-            'add' : Bc8183.CLC_EXT_AR,
-            'sub' : Bc8183.CLC_EXT_AR,
-            'mul' : Bc8183.CLC_EXT_AR,
-            'div' : Bc8183.CLC_EXT_AR,
-            'mod' : Bc8183.CLC_EXT_AR,
-            'inc' : Bc8183.CLC_EXT_AR,
-            'dec' : Bc8183.CLC_EXT_AR,
-            'and' : Bc8183.CLC_EXT_BIN,
-            'or' : Bc8183.CLC_EXT_BIN,
-            'xor' : Bc8183.CLC_EXT_BIN,
-            'shl' : Bc8183.CLC_EXT_BIN,
-            'shr' : Bc8183.CLC_EXT_BIN,
-            'not' : Bc8183.CLC_EXT_BIN,
-        }
+        self.oper_subcodes = {name: group for name, (group, op) in isa.ALU16_OPS.items()}
 
-        self.oper16_opcodes = {
-            'add' : Bc8183.CLC_ADD16,
-            'sub' : Bc8183.CLC_SUN16,
-            'mul' : Bc8183.CLC_MUL16,
-            'div' : Bc8183.CLC_DIV16,
-            'mod' : Bc8183.CLC_MOD16,
-            'inc' : Bc8183.CLC_INC16,
-            'dec' : Bc8183.CLC_DEC16,
-            'and' : Bc8183.CLC_AND16,
-            'or' : Bc8183.CLC_OR16,
-            'xor' : Bc8183.CLC_XOR16,
-            'shl' : Bc8183.CLC_SHL16,
-            'shr' : Bc8183.CLC_SHR16,
-            'not' : Bc8183.CLC_NOT16,
-        }
+        self.oper16_opcodes = {name: op for name, (group, op) in isa.ALU16_OPS.items()}
 
     def REG2BIN(self, reg : str):
         return self.registers_bin[reg.lower()]
@@ -331,7 +270,7 @@ class INC(Instruction):
         context.emit_4bit(ASMCODES.CLC_INC);
 
 # 16-bit register pairs and the implied second pair the CPU derives (bc8183_cpu.py)
-PAIR16_IMPLIED = {'csci': 'dsdi', 'dsdi': 'csci'}
+PAIR16_IMPLIED = dict(isa.ALU16_IMPLIED_PAIR_NAME)
 
 def check_pair16(reg, reg2=None):
     """Validate the pair operand(s) of a 16-bit instruction before anything is emitted."""
@@ -355,7 +294,7 @@ def reject_af_incdec(reg, mnemonic):
         raise ValueError("{0} af is not allowed: the 16-bit result would overwrite the flags in f "
                          "(use {0} a, or a pair csci or dsdi)".format(mnemonic))
 
-CLR_PAIRS = ('csci', 'dsdi', 'sssi')
+CLR_PAIRS = isa.MEMORY_PAIR_NAMES
 
 def check_clr_pair(arg):
     """Validate the register operand of `clr` before anything is emitted (#67)."""
@@ -520,7 +459,7 @@ class CLC16_R_IMM(Instruction):
         check_pair16(self.reg)
         super().emit(context)
         context.emit_4bit(ASMCODES.CLC)  
-        context.emit_4bit(Bc8183.CLC_EXT)
+        context.emit_4bit(ASMCODES.CLC_EXT)
         (kind, subcode) = ASMCODES.OPER2SUBCODE(self.oper)
         context.emit_4bit(kind)
         context.emit_4bit(subcode)
@@ -541,10 +480,10 @@ class CLC16_R_R(Instruction):
         check_pair16(self.reg, self.reg2)
         super().emit(context)
         context.emit_4bit(ASMCODES.CLC)
-        context.emit_4bit(Bc8183.CLC_EXT)
+        context.emit_4bit(ASMCODES.CLC_EXT)
         (kind, subcode) = ASMCODES.OPER2SUBCODE(self.oper)
         context.emit_4bit(kind)
-        context.emit_4bit(subcode | Bc8183.CLC_EXT_AR_RNO)
+        context.emit_4bit(subcode | ASMCODES.CLC_EXT_AR_RNO)
         context.emit_4bit(ASMCODES.REG2BIN(self.reg))
         context.emit_4bit(ASMCODES.REG2BIN(self.reg2))
 
@@ -731,7 +670,7 @@ class OUT(Instruction):
         else:
             # out #r, 0xHH -> D r HH: the port register number is a nibble, the value a full byte
             port = ASMCODES.REG2BIN(self.reg)
-            if port > 7:
+            if port > isa.OUT_PORT_MASK:
                 raise ValueError("out #{0}, 0xHH takes the port in a, ci or di; "
                                  "load the value into a register and use out #{0}, <reg>".format(self.reg.lower()))
             context.emit_4bit(port)

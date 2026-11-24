@@ -1,5 +1,7 @@
+from functools import reduce
 from parsy import regex, Parser, Result, string, seq, letter, digit
 from bc81asmc_ast import *
+from bc81asmc_ast import isa
 from bc81asmc_diag import line_col_at
 
 @Parser
@@ -62,10 +64,11 @@ heximm16 = lexeme(
   .desc('hex immediate 16bit value')
 )
 
-paramreg = (
-  string('pc') | string('ss') | string('si') | string('f') | string('a') |
-  string('ci') | string('cs') | string('di') | string('ds')
- ).desc('register name')
+def one_of(names):
+  # alternatives in the order given: the first name that matches wins
+  return reduce(lambda left, right: left | right, (string(name) for name in names))
+
+paramreg = one_of(isa.REGISTER_NAMES).desc('register name')
 
 paramreg2 = (paramreg * 2).concat().desc('two registers')
 
@@ -299,8 +302,7 @@ mSHR16r = \
     .map(lambda x: CLC16_R_R('shr', x[0], x[1]))\
     .desc('shr16 r instruction')
 
-logictest = lexeme(string('nz') | string('z') | string('nc') | string('c') |  \
-     string('nn') | string('o') | string('no') | string('n'))
+logictest = lexeme(one_of(isa.CONDITION_NAMES))
 
 labelarg = seq(pos, colon + ident).combine(sourcename)
 jmpregargs = paramreg2

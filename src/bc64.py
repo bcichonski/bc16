@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import bc8183_isa
 from bc64 import bc64_io
 from bc64 import bc8183_cpu
 from bc64 import bc64_mem
@@ -36,7 +37,7 @@ class Bc64:
 
     def write_top_kil(self):
         """Start-up step: 0xffff is ordinary RAM holding KIL, so running off the end of memory halts."""
-        self.mem.write_byte(TOP_ADDRESS, 0xff)
+        self.mem.write_byte(TOP_ADDRESS, bc8183_isa.TOP_OF_MEMORY_KIL)
 
     def run(self, max_instructions=None):
         """Run until KIL. Returns True on KIL, False when max_instructions was reached first."""

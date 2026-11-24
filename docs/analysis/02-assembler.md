@@ -53,9 +53,9 @@ issue also contains the matching proposal below.
 
 ### Improvements
 
-4. **Shared ISA table** with the emulator (#5, see [01-emulator.md](01-emulator.md)). Drive
-   the grammar's mnemonic list and the encoders from it, and add a round-trip test: assemble →
-   disassemble → assemble.
+4. ~~**Shared ISA table**~~ with the emulator (#5, see [01-emulator.md](01-emulator.md)): **done in #5.**
+   The grammar's opcodes and the encoders now come from `src/bc8183_isa.py` (G14). The
+   round-trip test (assemble → disassemble → assemble) moves to the disassembler, #178.
 5. ~~**Fix `out #r, imm`**~~ (#11, problem 5): **done in #11.** The encoder now emits the CPU's
    2-byte immediate form (`Dr HH`) for the port registers `a`, `ci` and `di`; the others are
    rejected (A11).
