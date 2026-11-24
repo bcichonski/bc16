@@ -184,8 +184,15 @@ Nothing is written into `src/`, and the built `src/os.bdd` is never changed (eac
 ```bash
 python3 run_tests.py < /dev/null              # from the repo root: all suites; builds first, then e2e
 python3 run_tests.py --group e2e --no-build < /dev/null   # e2e only, no build (outputs must exist)
+python3 run_tests.py --group e2e --tier happy < /dev/null # only the happy-path tests (main flows; what a pull request runs)
+python3 run_tests.py --group e2e --changed origin/master < /dev/null # only the e2e areas affected since origin/master (none: nothing runs)
+python3 run_tests.py --group e2e --area bdos < /dev/null  # only the modules of one area (repeatable): emulator, assembler, compiler, bcos, bdos
+python3 run_tests.py --group e2e --jobs 4 < /dev/null     # modules in parallel (default: CPU count; --jobs 1 = one process)
 cd src && python3 -m unittest tests.test_e2e_bdos   # one module
 ```
+
+The area of each module, the happy-path list and the rules that decide which areas CI runs for a change are in
+`src/tests/e2e_areas.py`; the test pyramid and the two tiers are described in `README.md`, "Testing".
 
 Long scenarios are marked `@h.slow` and are skipped unless `BC64_E2E_SLOW=1` is set, for example
 `cd src && BC64_E2E_SLOW=1 python3 -m unittest tests.test_e2e_bdos`. No scenario is slow yet.
@@ -260,7 +267,9 @@ So a program that changes size needs no test or golden edit.
 2. Add a test method to the module for that area. Call `check_golden` with the marker strings the
    output must contain, e.g. `A>ls` or `Hello world!`.
 3. Generate the golden with `BC64_UPDATE_GOLDEN=1 python3 -m unittest tests.<module>`, then read it.
-4. Run the module again without the variable, then `python3 run_tests.py < /dev/null`.
+4. Assign the module an area in `src/tests/e2e_areas.py` (`MODULE_AREA`; a unit test fails for an unmapped module). Add a happy-path id to
+   `HAPPY` only if the scenario is a main flow, not an edge case.
+5. Run the module again without the variable, then `python3 run_tests.py < /dev/null`.
 
 ### Known failures
 

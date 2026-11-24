@@ -168,7 +168,7 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   test order or files left in the tree.
 - **Usage:**
   - `pip install -e .`, then `python3 run_tests.py` from the repo root runs every
-    suite (CPython 3.10 and 3.13+ are both checked before a test or code change lands);
+    suite (CI checks CPython 3.14 before a test or code change lands);
   - a test module is silent on a passing run: turn debug output off in the module rather than
     filtering it. Temporary files come from `tempfile`;
   - a known bug whose correct behaviour is decided by its issue gets a test of the correct
@@ -177,7 +177,8 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - a known bug whose behaviour is still undecided gets a test that pins today's behaviour and
     names the issue; that test changes when the issue decides;
   - a production defect found by a test is reported (issue or plan note) and is not fixed in a
-    test-only change.
+    test-only change;
+  - which tests run where (unit tests, happy-path and full e2e, areas) is G13.
 - **Trade-offs:** an expected failure counts as a pass, so the marker must be removed when the
   fix lands or the signal goes stale. A pinned test can hold a bug in place until its issue
   decides.
@@ -317,7 +318,8 @@ as a rule, with its purpose, rationale, usage and trade-offs.
     with no bug is not written as a golden of broken output;
   - every run uses temp dirs, and the source discs and `cpudebug.log` are checked after each run; no
     apps scenarios (D8);
-  - `run_tests.py` discovers the e2e modules like the other `test_*.py`, so it is the `/grind` check (D9).
+  - `run_tests.py` discovers the e2e modules like the other `test_*.py`, so it is the `/grind` check (D9);
+  - which e2e tests run on a PR and which per area on master is G13.
 - **Trade-offs:** goldens follow the emulator and bcOS, so an intended change means regenerating them;
   each scenario costs seconds of run time, and the e2e run needs a build first (#92).
 
@@ -951,3 +953,33 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - `release.yml` builds, checks the tree is clean, runs the tests with `--no-build` and zips the built ROM and `os.bdd`; people who only want to run the machine use the bc64 Release zip;
   - after a fresh clone, build with `cd src && ./buildos && ./buildtools && ./buildapps && ./makedisc` before `./run` or the e2e tests (`./run` says so); `debug`, `fddtest` and `src/bc/code/*` are built on demand with `./bcc`.
 - **Trade-offs:** a fresh clone needs a build before it runs; a build failure fails the e2e job; the e2e tests are slower by the build time.
+
+---
+
+### G13. Test pyramid: mostly unit tests, e2e in a happy-path tier and a full tier split into areas
+- **Purpose:** keep CI fast and green-able while the e2e suite grows: the full e2e run took 9m30 on one CPU and hit the 10 minute limit (#175).
+- **Rationale:** every e2e module boots the emulator, so e2e is the expensive layer; functionality belongs in unit tests, and e2e covers only
+  what a booted system shows. A short happy-path tier gives a PR fast feedback, and the full suite runs after the merge, split by area so the jobs
+  run in parallel and only for what a change can affect.
+- **Usage:**
+  - the pyramid and the tiers are described in `README.md`, "Testing"; an edge case goes into a unit test when possible, else into the full e2e tier;
+  - tiers: `happy` (explicit test ids, `HAPPY` in `src/tests/e2e_areas.py`, at least one per area that has modules) and `full` (every e2e test,
+    happy is a subset). `python3 run_tests.py --tier happy|full` (default `full`);
+  - areas are the doc pages: `emulator`, `assembler`, `compiler`, `bcos`, `bdos` (apps and utilities are bdos). `MODULE_AREA` maps every e2e module
+    to one area (a unit test fails for an unmapped one; the runner still runs an unmapped module in the full tier). `--area NAME` (repeatable)
+    runs the modules of those areas; the assembler has no e2e module yet, so selecting only it reports FAIL "no e2e tests selected";
+  - triggers are path rules in `src/tests/e2e_areas.py` (chain reaction: emulator, assembler including bcOS, compiler, shared B libraries, build
+    scripts, harness, test data, `run_tests.py` and the workflow run all areas; other `src/bdos/` sources and the disc manifests run `bdos` and
+    `compiler`; docs, `scripts/` and unit tests run none; an unknown path runs all). The CLI `python3 src/tests/e2e_areas.py changed --base <sha>
+    --head <sha>` prints the JSON list of areas, and all areas when the base cannot be resolved;
+  - CI concurrency: each master push has its own concurrency group, so it is never cancelled or replaced while pending (each push selects areas from its own diff); a newer PR run cancels an older run of the same PR;
+  - `--jobs N` (default: CPU count) runs the e2e modules as parallel `unittest` processes and merges them into one result with the same counts;
+    `--jobs 1` and `--update-golden` run one process (goldens are shared between modules);
+  - CI (`.github/workflows/tests.yml`): `unit` on push and PR; `e2e-happy` on PR only (timeout 5 minutes); on push to `master`, and on the nightly 03:00 UTC and manual runs (every area), `e2e-areas` selects
+    the areas and an `e2e (<area>)` matrix job runs each (timeout 10 minutes, `fail-fast: false`); a docs-only push runs no e2e job;
+  - a new e2e test is added to the map, and to `HAPPY` only if it is a main flow;
+  - development loop (D10): while developing, run `--group unit`, `--group e2e --tier happy` and `--group e2e --changed origin/master` (the e2e
+    areas the change affects; none affected runs nothing); the full suite runs once, just before pushing the PR. Stated in `README.md`, "Testing".
+- **Trade-offs:** PRs do not run the full e2e suite, so a PR can merge with an edge-case failure that only the master run catches; the owner
+  accepted this (#175). The map must be kept in step with the tests (checked by unit tests). The chain reaction runs every area for most source
+  changes, so the saving is mostly on docs, bdos-only and test-only changes.

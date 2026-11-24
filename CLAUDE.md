@@ -86,7 +86,11 @@ Tests, from the repo root:
 pip install -e .                                         # parsy, needed by the assembler and compiler tests, plus the console commands
 python3 run_tests.py < /dev/null                         # all suites: emulator, ftool, assembler, compiler, release, e2e (exit 0 = pass)
 python3 run_tests.py --group unit < /dev/null            # unit suites only: emulator, ftool, assembler, compiler, release
-python3 run_tests.py --group e2e < /dev/null             # e2e suite only
+python3 run_tests.py --group e2e < /dev/null             # e2e suite only (full tier, every area)
+python3 run_tests.py --group e2e --tier happy < /dev/null   # e2e happy-path tier only (what a PR runs)
+python3 run_tests.py --group e2e --changed origin/master < /dev/null  # e2e areas the change affects since origin/master (none: nothing runs)
+python3 run_tests.py --group e2e --area bdos < /dev/null    # e2e of one area: emulator, assembler, compiler, bcos, bdos (repeatable)
+python3 run_tests.py --group e2e --jobs 4 < /dev/null       # e2e modules in parallel (default: CPU count; --jobs 1 = one process)
 
 cd src && python3 -m unittest discover -s bc64/tests -t . -p "test_*.py"    # emulator package tests (the emulator suite also has src/tests/)
 cd src && python3 -m unittest discover -s tests -t . -p "test_*.py"         # src/tests: ftool, toolchain, run_tests, e2e (system tests)
@@ -99,12 +103,16 @@ python3 scripts/code_size.py --record                    # after an intended cod
 cd src && python3 -m unittest bc64.tests.test_cpu.CpuTests.test_CLC16_opcodes   # one test (same form elsewhere)
 ```
 
+The testing policy (test pyramid, the happy and full e2e tiers, the areas and what triggers them) is in `README.md`, "Testing"; follow it
+when adding tests: cover behaviour with unit tests, add an e2e test only for what a booted system shows, register it in
+`src/tests/e2e_areas.py` and add it to `HAPPY` only if it is a main flow.
+
 Each tool keeps its tests in a `tests/` package of its folder (`src/bc64/tests/`, `src/bc/tests/`, `src/bc81asmc/tests/`, and `src/tests/` for
 the tools in `src/` and the e2e tests; the release script's tests are in `scripts/tests/`). Each suite uses flat imports, so run it from its own directory, as above.
-`python3 run_tests.py` runs the e2e suite by default (`src/tests/test_e2e_*.py` and `src/tests/test_bc64_smoke.py`, see
+`python3 run_tests.py` runs the e2e suite (full tier, parallel by default) by default (`src/tests/test_e2e_*.py` and `src/tests/test_bc64_smoke.py`, see
 `docs/01-emulator.md`), and `python3 run_tests.py --group e2e` runs only that suite. Both first build the
 pipeline (`buildos`, `buildtools`, `buildapps`, `makedisc`) so the tests run on the current sources;
-`--no-build` skips the build (the outputs must exist), and `--group unit` never builds. It is the check, also for `/grind`. After an intended change in bcOS or bdos output, regenerate the goldens and the smoke transcript
+`--no-build` skips the build (the outputs must exist), and `--group unit` never builds. The full run is the check before pushing a PR (also for `/grind`, at finalize); while developing, use unit + happy + `--changed` per README "Testing". After an intended change in bcOS or bdos output, regenerate the goldens and the smoke transcript
 with `python3 run_tests.py --update-golden < /dev/null` (it builds first unless `--no-build`), then review the diff
 of `src/bc64/testdata/` by eye before committing. Goldens are stored masked (`DISC_MASKS`, see `docs/01-emulator.md`),
 so no disc position is pinned except by `test_e2e_disc`.
@@ -119,18 +127,23 @@ There is no linter. `python3 run_tests.py` is the local check; CI runs it on Git
 ## CI
 
 The `tests` workflow (`.github/workflows/tests.yml`) runs on every push and PR to `master`:
-- both jobs install with `pip install -e .`; job `unit` also runs the four console commands from outside the checkout;
+- all jobs except `e2e-areas` install with `pip install -e .`; job `unit` also runs the four console commands from outside the checkout;
 - job `unit` checks out with `fetch-depth: 0` (the `release` suite reads the legacy release commits from
-  history), then runs `python run_tests.py --group unit` on Python 3.10 and 3.14. Its guard step fails
+  history), then runs `python run_tests.py --group unit` on Python 3.14. Its guard step fails
   if a tracked file matches `.gitignore` (`git ls-files -i -c --exclude-standard`), if a tracked `X.basm`
   sits beside a tracked `X.b`, or if a `cpudebug.log` exists;
 - on Python 3.14 the `unit` job also runs `python scripts/code_size.py` (informational, `continue-on-error`), which
   appends the code-size table to the job summary. It is metrics only: nothing fails CI on a size or code change;
-- job `e2e` (Python 3.14, after `unit`) runs `python run_tests.py --group e2e`, which builds the pipeline and
-  runs the e2e tests on the fresh outputs. Then it fails if `git status` is not clean (the build and the tests
-  must change no tracked file; nothing is restored).
-  On failure it runs `run_tests.py --group e2e --no-build --update-golden` and uploads the `e2e-golden-diff`
-  artifact (regenerated goldens and their patch).
+- pull requests: job `e2e-happy` (Python 3.14, after `unit`, timeout 5 minutes) runs
+  `python run_tests.py --group e2e --tier happy`, which builds the pipeline and runs the happy-path e2e tests on the fresh outputs;
+  PRs do not run the full e2e suite (accepted risk, G13);
+- pushes to `master` (and the nightly 03:00 UTC and manual runs, which select every area): job `e2e-areas` runs `python3 src/tests/e2e_areas.py changed --base <before> --head <sha>` and outputs the JSON list of
+  areas to run (all areas when the base is unknown); job `e2e` is a matrix over that list (after `unit` and `e2e-areas`, skipped when the
+  list is empty, `fail-fast: false`, timeout 10 minutes each) and runs `python run_tests.py --group e2e --area <area>`;
+- each master push has its own concurrency group, so it is never cancelled or replaced while pending (each push selects areas from its own diff); a newer PR run cancels an older run of the same PR;
+- in every e2e job a guard fails if `git status` is not clean afterwards (the build and the tests must change no tracked file;
+  nothing is restored). On failure the job runs `run_tests.py --group e2e --no-build --update-golden` (happy: with `--tier happy`; area jobs:
+  with `--area <area>`) and uploads the `e2e-golden-diff-happy` / `e2e-golden-diff-<area>` artifact (regenerated goldens and their patch).
 
 The `release` workflow (`.github/workflows/release.yml`) runs on a pushed `bc64-v*` tag: it builds the
 pipeline, checks that the build left the tree clean, runs `run_tests.py --no-build`, builds the zip
