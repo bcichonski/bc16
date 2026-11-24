@@ -481,6 +481,10 @@ are moved by **DMA**, straight between the disk file and emulator memory.
 | `0xf3` write | track, sector | copy 128 bytes from memory at the DMA address to the disk | `0x10` or `0xe2` |
 | `0xf4` eject | – | close the active drive's disk file (the next access asks for a name again) | – |
 
+Bytes sent while a command waits for its extra bytes (the address, track and sector bytes) are
+always data, whatever their value, even `0xf0` to `0xfb`; a track or sector out of range
+gives `0xe2`.
+
 Status codes (read with `IN`): `0x10` ready, `0x01` FDD v1 version bit, `0xe1` drive
 failure, `0xe2` read failure (also used for a track or sector out of range), `0xe3` write
 failure. Software checks for errors with `status & 0xe0`.

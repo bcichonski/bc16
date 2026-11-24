@@ -96,13 +96,73 @@ class FloppyDriveTests(TempDirTestCase):
         self.assertEqual(fdd.read_byte(), FDD.STATE_READY)
         self.assertEqual(fdd.dmaaddr, 0x1234)
 
-    def test_dma_address_with_high_byte_equal_to_ping_command_is_misread(self):
-        # pinned (D7 finding): PING is matched before the CFG1 state, so a DMA high byte of 0xf0
-        # is taken as a ping and the address is never configured.
+    def test_dma_address_with_high_byte_equal_to_ping_command_is_taken_as_data(self):
+        # #61: parameter states take precedence over commands, so a DMA high byte of 0xf0 is data.
         fdd, env, mem = self.create_fdd()
         self.send(fdd, FDD.CMD_CFG, FDD.CMD_PING)
+        self.assertEqual(fdd.read_byte(), FDD.STATE_CFG2)
+        self.send(fdd, 0x12)
+        self.assertEqual(fdd.read_byte(), FDD.STATE_READY)
+        self.assertEqual(fdd.dmaaddr, 0xf012)
+
+    def test_dma_address_bytes_equal_to_cfg_and_ping_commands_are_data(self):
+        for addr in (0xf000, 0xf0ff, 0xf100, 0xf1ff, 0x12f0, 0x12f1, 0xf0f1, 0xf1f0):
+            with self.subTest(addr=hex(addr)):
+                fdd, env, mem = self.create_fdd()
+                self.configure_dma(fdd, addr)
+                self.assertEqual(fdd.read_byte(), FDD.STATE_READY)
+                self.assertEqual(fdd.dmaaddr, addr)
+
+    def test_read_into_buffer_with_high_byte_f0_lands_there(self):
+        name = self.path("diska.bdd")
+        image = bytearray(self.DISK_SIZE)
+        offset = self.sector_offset(0, 0)
+        image[offset:offset + FDD.SECTOR_SIZE] = bytes((i + 1) & 0xff for i in range(FDD.SECTOR_SIZE))
+        with open(name, "wb") as f:
+            f.write(image)
+        fdd, env, _ = self.create_fdd()
+        mem = bc64_mem.MemBus(env, 0x10000)
+        fdd.mem = mem
+        self.configure_dma(fdd, 0xf000)
+        self.read_sector(fdd, 0, 0)
+        self.assertEqual(fdd.read_byte(), FDD.STATE_READY)
+        self.assertEqual(bytes(mem.mem[0xf000:0xf000 + FDD.SECTOR_SIZE]),
+                         bytes((i + 1) & 0xff for i in range(FDD.SECTOR_SIZE)))
+
+    def test_write_from_buffer_with_high_byte_f0_reads_from_there(self):
+        fdd, env, _ = self.create_fdd()
+        mem = bc64_mem.MemBus(env, 0x10000)
+        fdd.mem = mem
+        self.fill(mem, 0xf0f0, 0x33)
+        expected = bytes(mem.mem[0xf0f0:0xf0f0 + FDD.SECTOR_SIZE])
+        self.configure_dma(fdd, 0xf0f0)
+        self.write_sector(fdd, 1, 2)
+        self.assertEqual(fdd.read_byte(), FDD.STATE_READY)
+        fdd.fileA_handle.flush()
+        with open(self.path("diska.bdd"), "rb") as f:
+            image = f.read()
+        offset = self.sector_offset(1, 2)
+        self.assertEqual(image[offset:offset + FDD.SECTOR_SIZE], expected)
+
+    def test_command_valued_track_or_sector_is_data_and_out_of_range(self):
+        for value in (FDD.CMD_PING, FDD.CMD_CFG, FDD.CMD_READSECT, FDD.CMD_WRITESECT, FDD.CMD_EJECT,
+                      FDD.CMD_SETDRVA, FDD.CMD_SETDRVB):
+            for command in (FDD.CMD_READSECT, FDD.CMD_WRITESECT):
+                for as_track in (True, False):
+                    with self.subTest(value=hex(value), command=hex(command), as_track=as_track):
+                        fdd, env, mem = self.create_fdd()
+                        self.configure_dma(fdd, 0x100)
+                        track, sector = (value, 0) if as_track else (0, value)
+                        self.send(fdd, command, track, sector)
+                        self.assertEqual(fdd.read_byte(), FDD.STATE_READ_FAILURE)
+                        self.assertEqual(fdd.active_drive, 'A')
+
+    def test_ping_after_completed_sequence_reports_fdd_v1(self):
+        fdd, env, mem = self.create_fdd()
+        self.configure_dma(fdd, 0xf0f0)
+        self.send(fdd, FDD.CMD_PING)
         self.assertEqual(fdd.read_byte(), FDD.STATE_READY | FDD.STATE_FDDV1)
-        self.assertIsNone(fdd.dmaaddr)
+        self.assertEqual(fdd.dmaaddr, 0xf0f0)
 
     def test_drive_select(self):
         fdd, env, mem = self.create_fdd()
