@@ -214,7 +214,7 @@ when the kept code uses it, directly or through another routine. The table lists
 
 | Group | Routines |
 |---|---|
-| OS bridge | `os_metacall`-based calls into bcOS (see [04-bcos.md](04-bcos.md)) |
+| OS bridge | `os_metacall`-based calls into bcOS (see [04-bcos.md](04-bcos.md)); `src/bc/tests/bc_runtime_bcos_tests.py` checks the runtime's `.def` addresses and metacall indices against `bcos.basm` |
 | Printing / errors | `fatal`, `printhex4/8/16`, `print_newline`, `printstr` |
 | Memory | `poke16`, `peek16`, `mfill`, `mem_cpy`, `mseek` |
 | Strings and parsing | `readstr`, `nextword`, `nextval8`, `upchar`, `str_cpy`, `str_len8`, `strncpy`, `parsehex4/8/16` |

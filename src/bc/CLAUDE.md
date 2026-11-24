@@ -75,9 +75,10 @@ outputs: ignored by git and never committed. Every `.basm` starts with `; genera
 - Generated assembly must follow bc81asmc syntax: lowercase, fixed-width hex (`0x{:02x}` /
   `0x{:04x}`), one instruction per line.
 - `bc_stdlib.py` routines call bcOS through `os_metacall` table indices. Those indices must
-  match `os_metatab` in `src/bc81asmc/bcOS/bcos.basm`. The `.def var_promptbuf 0x0bcf` /
-  `var_user_mem 0x0bcb` at the end of the runtime are stale bcOS 1.1 addresses and nothing
-  references them. Don't use them; take the addresses from `os_vartab` instead.
+  match `os_metatab` in `src/bc81asmc/bcOS/bcos.basm`. The runtime's only external addresses
+  are `.def`s of bcOS labels (today only `os_metacall`, 0x0008). bcOS variables are read through
+  `os_vartab`, never `.def`'d. `tests/bc_runtime_bcos_tests.py` checks the `.def` addresses and
+  the metacall indices against the real `bcos.basm`.
 - Changing the code model or the runtime changes every program. Afterwards, rebuild bdos
   and all programs (`./buildos && ./buildtools && ./buildapps && ./makedisc`), boot
   `os.bdd`, and smoke-test `ls`, `cat` and `texted`.
