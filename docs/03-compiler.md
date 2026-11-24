@@ -174,8 +174,8 @@ byte printf(word PformatStr)*** // variadic: extra args become word params P1, P
 - **Heap:** `sys_heaphead` is set to the `#heap` address at start-up. `stdmem.b`
   implements `malloc`/`mfree` on top of it.
 - **Program layout:** the output is laid out in this order: `.org #code`, the entry point
-  (init stackhead and heaphead, `cal main`, `ret`), the functions, the data segment
-  (strings), the runtime stdlib, `sys_heaphead`, then `sys_stackhead`, then the `sys_codeend` label.
+  (init stackhead and heaphead, `cal main`, `ret`), the kept functions, the data segment
+  (kept strings), the kept runtime fragments, `sys_heaphead`, then `sys_stackhead`, then the `sys_codeend` label.
 - **Labels:** a label costs no bytes. The host writes `LABELxxxx:` and `F<name><id>:` on
   their own line, with no `nop`. The `nop` that remains in the runtime, `sys_stackhead: nop`,
   is not a label: its byte is the low byte of the software-stack pointer word, so it stays.
@@ -184,7 +184,33 @@ byte printf(word PformatStr)*** // variadic: extra args become word params P1, P
   With `#codelimit 0xHHHH`, a second line `.assert :sys_codeend < 0xHHHH` checks the same label
   against that limit. A failure is reported as `assertion failed` (see [02-assembler.md](02-assembler.md)).
 
+### Dead-code elimination
+
+- **Rule:** every function is compiled first, so errors are still reported and label numbers are
+  unchanged. Then only the function chunks reachable from the entry point are kept, in source order.
+  A chunk is a function's code (from `;FUNCTION` to `;END OF FUNCTION`) plus the string literals
+  created while emitting it. A chunk is reachable when kept text contains a `:label` reference to a
+  label it defines.
+- **References:** every `:name` outside `;` comments counts (`cal :F…`, `clr`/`jmp`, `.mv rr, :label`,
+  `.assert`). Labels defined inside `asm` strings count too: `bdos.b`'s `main` loads `:bdio_call`,
+  a label in an `asm` string of `bdio.b`'s `bdio_call()`, so that function is kept. Comments do not count.
+- **Runtime:** `bc_stdlib.py` is a list of fragments, one per routine, each with a declared list of
+  the fragments it depends on. A fragment is emitted when kept code references one of its labels,
+  plus the closure of its declared dependencies, in template order. A unit test checks that each
+  declaration equals the labels the fragment's text references.
+- **Always kept:** the entry code, the runtime banner and head lines, `sys_heaphead`, `sys_stackhead`
+  (it stays the last byte of the image), `sys_codeend` and its asserts. `sys_stdprntf` and `sys_seektmp`
+  are kept only when used (`printf`, `mseek`).
+- **Output order:** `.org`, the entry point, the kept functions, the kept strings, the runtime banner,
+  the kept runtime fragments in template order, the runtime data. Every distance between two kept labels
+  can only shrink, so no relative jump goes out of range.
+- **Sections:** each runtime fragment is meant to become one `.sect` of `runtime.basm` (#116),
+  linked by blink (#126).
+
 ### Runtime stdlib (`bc_stdlib.py`, assembly)
+
+Each routine is a fragment of `bc_stdlib.py` with its declared dependencies. A routine is emitted only
+when the kept code uses it, directly or through another routine. The table lists every routine the runtime can emit.
 
 | Group | Routines |
 |---|---|
@@ -237,7 +263,9 @@ From `bc/history.txt`:
 - in v1.2.0, commutative-operand and constant-loading optimisations shrank bdos from 14339
   to 13063 bytes;
 - the bc8183 port replaced library calls for `+ - * / %` and the bitwise operators with
-  native 16-bit instructions.
+  native 16-bit instructions;
+- #16: unused functions, strings and runtime routines are no longer emitted; total code went from
+  105367 to 77385 bytes (-27982).
 
 Current sizes are in `src/bc/code_size.csv` (append-only; the latest row per program wins).
 `python3 scripts/code_size.py` prints them; `--check` (optional, local) exits 1 when a program's code differs from its

@@ -1,5 +1,6 @@
+import re
 import bc_log
-from bc_stdlib import stdlib_template
+from bc_stdlib import runtime_banner, runtime_head, runtime_fragments, runtime_tail
 from array import array
 from dataclasses import dataclass
 
@@ -12,6 +13,38 @@ class UndeclaredVariableError(CompilerError):
 
 STACKHEAD = "sys_stackhead"
 HEAPHEAD = "sys_heaphead"
+
+LABEL_DEF = re.compile(r'^\s*([A-Za-z_][A-Za-z0-9_]*):')
+DEF_DIRECTIVE = re.compile(r'^\s*\.def\s+([A-Za-z_][A-Za-z0-9_]*)')
+LABEL_REF = re.compile(r':([A-Za-z_][A-Za-z0-9_]*)')
+
+def strip_asm_comment(line):
+    '''One assembly line without its `;` comment; a `;` inside a quoted literal is not a comment.'''
+    quote = None
+    for i, c in enumerate(line):
+        if quote is not None:
+            if c == quote:
+                quote = None
+        elif c in "'\"":
+            quote = c
+        elif c == ';':
+            return line[:i]
+    return line
+
+def asm_labels(text):
+    '''(defined labels, referenced labels) of assembly text, comments excluded.
+
+    A definition is `name:` at the start of a line (after whitespace; an instruction may follow)
+    or `.def name, ...`; a reference is any `:name` token. Over-approximating references is safe.'''
+    defined = set()
+    referenced = set()
+    for line in text.splitlines():
+        line = strip_asm_comment(line)
+        match = LABEL_DEF.match(line) or DEF_DIRECTIVE.match(line)
+        if match is not None:
+            defined.add(match.group(1))
+        referenced.update(LABEL_REF.findall(line))
+    return defined, referenced
 
 def hi(b):
     return (b >> 8) & 0xff
@@ -116,6 +149,7 @@ class Context:
         self.function_dict = { }
         self.hardkill = hardkill
         self.hint_loaddsdi = False
+        self.chunks = []
 
     def emit(self, code):
         self.basm += code
@@ -239,6 +273,69 @@ class Context:
     def set_function_data(self, function_name, data):
         self.function_dict[function_name] = data
 
+    def begin_chunk(self, name):
+        '''Starts the chunk of one function: its code and the strings created while emitting it.'''
+        self.chunks.append({'name': name, 'code': [len(self.basm), None], 'data': [len(self.data), None]})
+
+    def end_chunk(self):
+        chunk = self.chunks[-1]
+        chunk['code'][1] = len(self.basm)
+        chunk['data'][1] = len(self.data)
+
+    def link_functions(self, entry):
+        '''Keeps only the function chunks reachable from the entry code by :label references.
+
+        Every function was already emitted (label numbering and errors as without this step); a chunk
+        is kept when kept text references a label it defines (its F... label, jump labels, strings or
+        labels in its asm strings). Text outside the chunks is kept. Kept chunks stay in source order.'''
+        if len(self.chunks) == 0:
+            return
+        code_parts = []  # (chunk index or None for text outside chunks, text)
+        pos = 0
+        for index, chunk in enumerate(self.chunks):
+            start, end = chunk['code']
+            code_parts.append((None, self.basm[pos:start]))
+            code_parts.append((index, self.basm[start:end]))
+            pos = end
+        code_parts.append((None, self.basm[pos:]))
+
+        owner = {}
+        chunk_refs = []
+        for index, chunk in enumerate(self.chunks):
+            text = self.basm[chunk['code'][0]:chunk['code'][1]] + '\n' + self.data[chunk['data'][0]:chunk['data'][1]]
+            defined, referenced = asm_labels(text)
+            for label in defined:
+                owner.setdefault(label, index)
+            chunk_refs.append(referenced)
+
+        pending = set(asm_labels(entry)[1])
+        for index, text in code_parts:
+            if index is None:
+                pending |= asm_labels(text)[1]
+        kept = set()
+        while pending:
+            label = pending.pop()
+            index = owner.get(label)
+            if index is None or index in kept:
+                continue
+            kept.add(index)
+            pending |= chunk_refs[index]
+
+        self.basm = ''.join(text for index, text in code_parts if index is None or index in kept)
+        data = []
+        pos = 0
+        for index, chunk in enumerate(self.chunks):
+            start, end = chunk['data']
+            data.append(self.data[pos:start])
+            if index in kept:
+                data.append(self.data[start:end])
+            pos = end
+        data.append(self.data[pos:])
+        self.data = ''.join(data)
+        for index, chunk in enumerate(self.chunks):
+            if index not in kept:
+                bc_log.trace('Dropped unused function {0}'.format(chunk['name']))
+
     def add_data_segment(self):
         if len(self.data) > 0:
             self.emit("""
@@ -246,7 +343,29 @@ class Context:
             self.emit(self.data)
 
     def add_stdlib(self):
-        self.emit(stdlib_template.format(STACKHEAD, HEAPHEAD, hi(self.heap_segment_addr), lo(self.heap_segment_addr)))
+        '''Appends the runtime: only the fragments referenced by the kept output plus the closure of
+        their declared dependencies, in template order; then the heap/stack head data and sys_codeend.'''
+        owner = {}
+        fragments = {}
+        for fragment in runtime_fragments:
+            fragments[fragment.name] = fragment
+            for label in asm_labels(fragment.text)[0]:
+                owner.setdefault(label, fragment.name)
+        pending = [owner[label] for label in asm_labels(self.basm)[1] if label in owner]
+        kept = set()
+        while pending:
+            name = pending.pop()
+            if name not in kept:
+                kept.add(name)
+                pending.extend(fragments[name].deps)
+        self.emit(runtime_banner)
+        self.emit(runtime_head)
+        for fragment in runtime_fragments:
+            if fragment.name in kept:
+                self.emit(fragment.text.format(STACKHEAD, HEAPHEAD))
+            else:
+                bc_log.trace('Dropped unused runtime routine {0}'.format(fragment.name))
+        self.emit(runtime_tail.format(STACKHEAD, HEAPHEAD, hi(self.heap_segment_addr), lo(self.heap_segment_addr)))
         # End-of-image label on the first assert line (costs no bytes), then the optional #codelimit assert
         self.emit('sys_codeend: .assert :sys_codeend < 0x{0:04x}\n'.format(self.heap_segment_addr))
         if self.code_limit_addr is not None:
@@ -846,6 +965,7 @@ class FUNCTION_DECLARATION(Instruction):
             context.add_variable(param['type'], param['name'], True, 'FUNC DEF')
 
     def add_code(self, function_data, context):
+        context.begin_chunk(function_data['name'])
         context.emit("""
 ;FUNCTION {0}
 {1}""".format(function_data['name'], function_data['label'] + ":"))
@@ -862,6 +982,7 @@ class FUNCTION_DECLARATION(Instruction):
             context.emit("""
                 ret
 ;END OF FUNCTION {0}""".format(function_data['name']))
+        context.end_chunk()
 
 @dataclass
 class PROGRAM(Instruction):
@@ -887,7 +1008,7 @@ class PROGRAM(Instruction):
         else:
             last_command = 'ret'
 
-        context.prepend(""";MAIN ENTRYPOINT
+        entry = (""";MAIN ENTRYPOINT
 ;&STACKHEAD <- STACKHEAD + 2
                 .mv dsdi, :{1}
                 mov cs, 0x00
@@ -902,5 +1023,7 @@ class PROGRAM(Instruction):
                 cal :{0}
                 {3}
 ;FUNCTIONS""".format(function_data['label'], STACKHEAD, HEAPHEAD, last_command, context.load_csci(context.heap_segment_addr), context.heap_segment_addr))
+        context.link_functions(entry)
+        context.prepend(entry)
 
         

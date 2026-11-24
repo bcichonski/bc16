@@ -651,9 +651,9 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - `#define` is token-based (#19): name = first token, value = rest of line; whole identifiers are
     replaced in code and in the string directly after `asm`, never in other strings, char literals
     or `//` comments; a redefinition with a different value warns and the last one wins;
-  - the asm runtime `bc_stdlib.py` is appended to every program;
-  - removing unused code is roadmap step 5.
-- **Trade-offs:** every program carries the whole of every included library; `#define`
+  - the asm runtime `bc_stdlib.py` is appended to every program, but only the routines the program uses are appended (C9);
+  - removing unused code is roadmap step 5; see C9.
+- **Trade-offs:** every program is compiled from the whole of every included library, but only reachable functions are emitted (C9); `#define`
   replaces whole identifier tokens in code and in `asm` strings only, not in other strings or comments.
 
 ### C6. Compiler output is quiet by default; trace only with `--verbose`, errors are `file: error:` lines on stderr
@@ -707,6 +707,24 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Trade-offs:** a body that ends in an `if/else` with returns in both branches keeps its
   trailing `ret` (no flow analysis). A `return` inside an inner scope costs one stack-head call per
   `return` (the same code a scope's normal exit emits).
+
+### C9. The compiler emits only code reachable from `main`
+- **Purpose:** emit only the code a program can reach, so that unused functions, strings and runtime
+  routines take no space (#16).
+- **Rationale:** label-reference reachability covers B calls, `asm` strings and runtime calls by one rule,
+  and it is the same rule a section-dropping linker (#126 `blink.py`) will apply. Compile-everything-then-select
+  keeps kept code byte-identical to what it was before.
+- **Usage:**
+  - all functions are still compiled, so errors are reported and label numbers do not change; the link step
+    (`Context.link_functions`) then keeps only the function chunks (code and their strings) reachable from the
+    entry code by `:label` references, in source order;
+  - references inside `asm` strings count, and so do labels defined inside them (bdos.b's `main` loads
+    `:bdio_call`, defined in an `asm` string of `bdio.b`); `;` comments do not count;
+  - the runtime is a list of fragments with declared dependencies (`bc_stdlib.py`); a fragment is emitted when
+    kept code references one of its labels, plus its dependency closure, in template order;
+  - each fragment is meant to become one `.sect` of `runtime.basm` (#116).
+- **Trade-offs:** a false `:name` match only keeps code. A function reached only by a computed address (no
+  label reference) would be dropped: take its address with `.mv rr, :label` in `asm` to keep it.
 
 ---
 

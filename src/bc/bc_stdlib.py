@@ -1,15 +1,45 @@
-stdlib_template = """
+"""Assembly runtime (stdlib) of the compiler, split into named fragments.
+
+Each fragment is one routine (the boundaries are the former `;=============` sections of the single
+template, kept in template order) with its text and a DECLARED list of the fragments it depends on.
+The compiler emits only the fragments referenced by the kept code plus the closure of their declared
+dependencies (Context.add_stdlib); a unit test checks that the declaration equals the labels the
+text really references.
+
+Each fragment is meant to become one `.sect` of runtime.basm in #116 (then linked by blink, #126).
+
+Text is a format template: {0} = sys_stackhead, {1} = sys_heaphead (names). Always emitted:
+the banner, the head, sys_heaphead, sys_stackhead (last byte of the image) and sys_codeend.
+"""
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Fragment:
+    name: str
+    text: str
+    deps: tuple = ()
+
+
+runtime_banner = """
 ;>>>>>>>>>>COMPILER ASM STDLIB for BCOS v1.2 on BC64 v1.0<<<<<<<<<<<<<
+"""
+
+# 8 bytes, no label, purpose undocumented - kept as the head of the runtime (assumption A-1 of #16)
+runtime_head = """            mov a, 0xff
             mov a, 0xff
             mov a, 0xff
             mov a, 0xff
-            mov a, 0xff
-;=============
+"""
+
+runtime_fragments = [
+    Fragment('os_metacall', """;=============
 ; OS_METACALL(a) - calls given bcos subroutine indirectly
 ;           - other registers as required
 ; OUT:      - as returned
             .def os_metacall, 0x0008
-;=============
+"""),
+    Fragment('fatal', """;=============
 ; FATAL(a) - prints error message and stops
 ; IN:   a - error code
 ;   stack - as error address
@@ -21,7 +51,8 @@ fatal:          psh ci
                 pop ci
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('printhex4', """;=============
 ; PRINTHEX4(a) - prints hex number from 0 to f
 ; IN:    a - number to print
 ; OUT:   a - unchanged      10 -> 0 -> 41
@@ -33,7 +64,8 @@ printhex4:      psh ci
                 pop ci
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('printhex8', """;=============
 ; PRINTHEX8(a) - prints hex number 
 ; IN:    a - number to print
 ; OUT:   a - set to lower half
@@ -45,8 +77,9 @@ printhex8:      psh ci
                 pop f
                 pop ci
                 cal :os_metacall
-                ret  
-;=============
+                ret
+""", ('os_metacall',)),
+    Fragment('printhex16', """;=============
 ; PRINTHEX16(csci) - prints hex number 4 digits
 ; IN:    csci - hex number 4 digits
 ; OUT:   csci - unchanged
@@ -56,7 +89,8 @@ printhex16:     mov a, 0x05
                 pop f
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('poke16', """;=============
 ; POKE16(#dsdi, csci) - stores csci value under #dsdi address (2 bytes)
 ; IN:   dsdi - address to store
 ;       csci - value to store
@@ -66,8 +100,9 @@ printhex16:     mov a, 0x05
 poke16:        mov #dsdi, cs
                inc dsdi
                mov #dsdi, ci
-poke16_ok:     ret                    
-;=============
+poke16_ok:     ret
+"""),
+    Fragment('peek16', """;=============
 ; PEEK16(#dsdi) - returns value under dsdi address (2 bytes)
 ; IN:   dsdi - address to read
 ; OUT:  dsdi - address to read + 1
@@ -77,7 +112,8 @@ peek16:        mov cs, #dsdi
                inc dsdi
                mov ci, #dsdi
 peek16_ok:     ret
-;=============
+"""),
+    Fragment('readstr', """;=============
 ; READSTR(#dsdi, ci) - reads characters to the buffer
 ; IN:   dsdi - buffer address for chars
 ;         ci - length of the buffer (since last char has to be 0x00 we can enter one less)
@@ -89,7 +125,8 @@ readstr:        mov a, 0x0d
                 pop f
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('nextword', """;=============
 ; NEXTWORD(dsdi) - moves to the end of current word
 ; IN:     dsdi - char buffer address
 ; OUT:    dsdi - address of the next word or end of buffer
@@ -99,7 +136,8 @@ nextword:       mov a, 0x12
                 pop f
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('nextval8', """;=============
 ; NEXTVAL8(dsdi) - moves until expected value
 ; IN:     dsdi - char buffer address
 ;           ci - expected 8bit value
@@ -113,7 +151,8 @@ nextval8:       mov a, 0x13
                 pop f
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('upchar', """;=============
 ; #11: UPCHAR(a) - if a is an a-z char returns A-Z
 ; IN:     a - char code
 ; OUT:    a - char code A-Z or same
@@ -124,8 +163,9 @@ upchar:         psh a
                 pop f
                 pop a
                 cal :os_metacall
-                ret                
-;=============
+                ret
+""", ('os_metacall',)),
+    Fragment('str_cpy', """;=============
 ; STR_CPY(csci,dsdi)  - copy string from dsdi to csci
 ; IN: dsdi - source  
 ;     csci - desc
@@ -135,7 +175,8 @@ str_cpy:        mov a, 0x17
                 pop f
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('str_len8', """;=============
 ; STR_LEN8(dsdi)  - length of the string ending with 0x00
 ; IN: dsdi - source  
 ;     cs   - max length
@@ -145,7 +186,8 @@ str_len8:       mov a, 0x18
                 pop f
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('parsehex4', """;=============
 ; PARSEHEX4(#dsdi) - parses single char to hex number chars 0-9 and a-z and A-Z are supported
 ; IN:   dsdi - buffer address for char-hex
 ; OUT:     a - 0 if ok, 0xff if parse error
@@ -155,7 +197,8 @@ parsehex4:      mov a, 0x0e
                 pop f
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('parsehex8', """;=============
 ; PARSEHEX8(#dsdi) - parses two char to hex number
 ; IN:   dsdi - buffer address for char
 ; OUT:    a - success = 0 or >0 error
@@ -166,7 +209,8 @@ parsehex8:      mov a, 0x0f
                 pop f
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('parsehex16', """;=============
 ; PARSEHEX16(#dsdi) - parses four char to hex number
 ; IN:   dsdi - buffer address for char
 ; OUT:  csci - hex value for value
@@ -177,7 +221,8 @@ parsehex16:     mov a, 0x10
                 pop f
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('print_newline', """;=============
 ; PRINT_NEWLINE - prints new line
 ; IN:
 ; OUT:   a - rubbish
@@ -186,7 +231,8 @@ print_newline:  mov a, 0x00
                 pop f
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('printstr', """;=============
 ; PRINTSTR(*dsdi) - sends chars to printer
 ; IN: dsdi - address of 0-ended char table
 ; OUT:   a - set to 0x00
@@ -197,7 +243,8 @@ printstr:       mov a, 0x02
                 pop f
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('gt16', """;=============
 ; GT16(csci,dsdi) - compares csci with dsdi            
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
@@ -208,7 +255,8 @@ gt16:           mov a, 0x21
                 pop f
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('gteq16', """;=============
 ; GTEQ16(csci,dsdi) - compares csci with dsdi            
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
@@ -219,7 +267,8 @@ gteq16:         mov a, 0x22
                 pop f
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('eq16', """;=============
 ; EQ16(csci,dsdi) - compares csci with dsdi            
 ; IN:   csci - argument 1
 ;       dsdi - argument 2
@@ -230,7 +279,8 @@ eq16:           mov a, 0x23
                 pop f
                 cal :os_metacall
                 ret
-;=============
+""", ('os_metacall',)),
+    Fragment('stackoffscalc', """;=============
 ; STACKOFFSCALC(csci,a) - modifies SYS_STACKHEAD by csci and stores new value back in csci
 ; IN: csci - value to increase
 ;        a - 0x00 - add
@@ -254,7 +304,8 @@ stackoffscalc: psh a
 stoffclc_sub:  sub csci, dsdi  
 stoffclc_end:  .mv dsdi, :{0}
                ret
-;=============
+""", ('peek16',)),
+    Fragment('stackoffsclc8', """;=============
 ; STACKOFFSCLC8(a) - modifies SYS_STACKHEAD by a and stores new value back in csci, if a > 128 then this is to be substracted
 ; IN:    a - value to increase
 ;        a - 0x00 - add
@@ -281,7 +332,8 @@ stoffcl8_sub:  pop a
                sub csci, dsdi 
 stoffcl8_end:  .mv dsdi, :{0}
                ret
-;=============
+""", ('peek16',)),
+    Fragment('stackheadroll', """;=============
 ; STACKHEADROLL(csci, a) - modifies SYS_STACKHEAD by csci and saves new value
 ; IN: csci - value to increase
 ;        a - 0x00 - add
@@ -293,7 +345,8 @@ stackheadroll: clr :stackoffscalc
                clr :poke16
                .mv dsdi, :{0}
                ret
-;=============
+""", ('poke16', 'stackoffscalc')),
+    Fragment('stackheadrll8', """;=============
 ; STACKHEADRLL8(a) - modifies SYS_STACKHEAD by csci and saves new value
 ; IN:    a - value to increase
 ;        a - 0x00 - add
@@ -309,7 +362,8 @@ stackheadrll8: psh cs
                pop ci
                pop cs
                ret
-;=============
+""", ('poke16', 'stackoffsclc8')),
+    Fragment('stackvarget8', """;=============
 ; STACKVARGET8(dsdi, a) - loads value of the variable of given offset dsdi from SYS_STACKHEAD to csci
 ; IN: dsdi - offset from SYS_STACKHEAD
 ;        a - 0x00 - add
@@ -325,7 +379,8 @@ stackvarget8:  mov cs, ds
                mov cs, 0x00
                mov ci, a
                ret
-;=============
+""", ('stackoffscalc',)),
+    Fragment('stackvarget16', """;=============
 ; STACKVARGET16(dsdi, a) - loads value of the variable of given offset dsdi from SYS_STACKHEAD to csci
 ; IN: dsdi - offset from SYS_STACKHEAD
 ;        a - 0x00 - add
@@ -340,7 +395,8 @@ stackvarget16: mov cs, ds
                mov di, ci   
                clr :peek16
                ret
-;=============
+""", ('peek16', 'stackoffscalc')),
+    Fragment('stackvarset8', """;=============
 ; STACKVARSET8(ci,dsdi, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
 ; IN: ci - value
 ;     dsdi - offset from SYS_STACKHEAD
@@ -356,7 +412,8 @@ stackvarset8:  psh ci
                pop a
                mov #csci, a
                ret
-;=============
+""", ('stackoffscalc',)),
+    Fragment('stackvarset16', """;=============
 ; STACKVARSET16(csci,dsdi, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
 ; IN: csci - value
 ;     dsdi - offset from SYS_STACKHEAD
@@ -376,7 +433,8 @@ stackvarset16: psh cs
                pop cs
                clr :poke16
                ret
-;=============
+""", ('poke16', 'stackoffscalc')),
+    Fragment('stackvar8gt8', """;=============
 ; STACKVAR8GT8(a) - loads value of the variable of given offset a from SYS_STACKHEAD to csci
 ; IN:    a - offset from SYS_STACKHEAD
 ;        a - 0x00 - add
@@ -390,7 +448,8 @@ stackvar8gt8:  clr :stackoffsclc8
                mov cs, 0x00
                mov ci, a
                ret
-;=============
+""", ('stackoffsclc8',)),
+    Fragment('stackvar8gt16', """;=============
 ; STACKVAR8GT16(a) - loads value of the variable of given offset a from SYS_STACKHEAD to csci
 ; IN:    a - offset from SYS_STACKHEAD
 ;        a - 0x00 - add
@@ -403,7 +462,8 @@ stackvar8gt16: clr :stackoffsclc8
                mov di, ci   
                clr :peek16
                ret
-;=============
+""", ('peek16', 'stackoffsclc8')),
+    Fragment('stackvar8st8', """;=============
 ; STACKVAR8ST8(ci, a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
 ; IN: ci - value
 ;        a - offset from SYS_STACKHEAD
@@ -417,7 +477,8 @@ stackvar8st8:  psh ci
                pop a
                mov #csci, a
                ret
-;=============
+""", ('stackoffsclc8',)),
+    Fragment('stackvar8st16', """;=============
 ; STACKVAR8ST16(csci,a) - loads value of the variable of given offset from SYS_STACKHEAD to csci
 ; IN: csci - value
 ;        a - offset from SYS_STACKHEAD
@@ -435,7 +496,8 @@ stackvar8st16: psh cs
                pop cs
                clr :poke16
                ret
-;=============
+""", ('poke16', 'stackoffsclc8')),
+    Fragment('mseek', """;=============
 ; MSEEK(csci) - finds address of first free block of given size
 ; IN: csci - wanted size of the block
 ; OUT:csci - address after which free memory begins
@@ -497,7 +559,8 @@ mseek_ret:  pop di
             pop ci
             pop cs
             ret
-;=============
+""", ('poke16', 'peek16', 'gteq16', 'sys_seektmp')),
+    Fragment('mfill', """;=============
 ; MFILL(csci,dsdi, a) - fills memory starting from dsdi for csci bytes of value a
 ; IN: csci - length
 ;     dsdi - address of memory
@@ -511,7 +574,8 @@ mfill:      psh a
             pop a
             cal :os_metacall
             ret
-;=============
+""", ('os_metacall',)),
+    Fragment('mem_cpy', """;=============
 ; MEM_CPY(csci,dsdi, af)  - copy block of memory from csci to dsdi for at most af bytes
 ; IN: dsdi - source  
 ;     csci - desc
@@ -535,7 +599,8 @@ mem_cpy:    psh cs
             pop cs
             cal :os_metacall
             ret
-;=============
+""", ('os_metacall',)),
+    Fragment('strncpy', """;=============
 ; strncpy(csci,dsdi, a)  - copy string from dsdi to csci for at most a bytes, or end of string
 ; IN: dsdi - source  
 ;     csci - desc
@@ -549,12 +614,14 @@ strncpy:    psh a
             pop a
             cal :os_metacall
             ret
-;=============
-;SYS DATA
-            .def var_promptbuf, 0x0bcf
-            .def var_user_mem, 0x0bcb
-sys_stdprntf:.db 0x00, 0x00
-sys_seektmp: .db 0x00, 0x00 
-{1}:  .db 0x{2:02x}, 0x{3:02x}
+""", ('os_metacall',)),
+    Fragment('sys_stdprntf', """sys_stdprntf:.db 0x00, 0x00
+"""),
+    Fragment('sys_seektmp', """sys_seektmp: .db 0x00, 0x00
+"""),
+]
+
+# sys_heaphead data ({2}, {3} = heap segment address hi, lo), then sys_stackhead as the last byte
+runtime_tail = """{1}:  .db 0x{2:02x}, 0x{3:02x}
 {0}: nop
 """

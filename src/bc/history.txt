@@ -28,3 +28,7 @@ after 13063, less by 9% (cumulative)
 bc (2026-11-23, #104)
 labels and function starts no longer emit a nop; total code saved 1605 bytes (100670 -> 99065)
 bdos 17623 -> 17359 bytes, texted 14359 -> 14150 bytes
+
+bc (2026-11-23, #16)
+unused functions, strings and runtime routines are no longer emitted; total code 105367 -> 77385 bytes (-27982)
+helloworld 1626 -> 500, bdos 19493 -> 18083, texted 14203 -> 12669, ls 8224 -> 5268

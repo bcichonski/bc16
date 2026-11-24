@@ -44,6 +44,16 @@ outputs: ignored by git and never committed. Every `.basm` starts with `; genera
   appends assembly text to `Context.basm`. `PROGRAM.emit` prepends the entry point; then the
   data segment and `bc_stdlib.py` (asm runtime, a format template with `{0}`/`{1}`
   placeholders) are appended.
+- **Link step** (C9, `Context.link_functions` and `Context.add_stdlib`, run by `PROGRAM.emit` before the
+  entry point is prepended):
+  - all functions are emitted first (errors and label numbers unchanged); then only the function chunks
+    (code plus their strings) reachable from the entry code by `:label` references are kept, in source order;
+  - `asm_labels(text)` returns a text's defined labels (`name:` at line start, `.def`) and its referenced
+    `:name` tokens, comments excluded; labels inside `asm` strings count;
+  - the runtime in `bc_stdlib.py` is a list of `Fragment(name, text, deps)`; `add_stdlib` emits a fragment
+    when kept code references one of its labels, plus the closure of its declared `deps`, in template order;
+  - a fragment's declared `deps` must equal the labels its text references: a unit test checks it, so change
+    the text and its `deps` together.
 - **Code model:**
   - an expression's result is in `csci`, and a binary operator's right operand in `dsdi`;
   - intermediate values go on the CPU stack;
