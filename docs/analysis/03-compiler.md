@@ -40,7 +40,7 @@ Reference: [../03-compiler.md](../03-compiler.md). Decisions: C1–C5, G4 in
 | 7 | `#define` is substring replacement | `newline.replace(key, val)` on every line, including strings and identifiers (`NULL` vs `NULLCHAR` is only safe thanks to the reverse sort); the name is everything up to the last space | silent corruption when names overlap | #19 |
 | 8 | Missing language features | no `for`/`break`/`continue`, arrays/indexing, structs, signed numbers, negative literals, block scopes, type checking | verbose `peek`/`poke` code; locals must be unique per function | #21–#27 |
 | 9 | Noisy output | `print('TERM …')`, `print("PUSH SCOPE …")` etc. are printed on every compile regardless of `--verbose` | real errors are hard to spot | #14 |
-| 10 | Stale runtime definitions | `.def var_promptbuf 0x0bcf`, `var_user_mem 0x0bcb` (bcOS 1.1 addresses) in `bc_stdlib.py` | a trap for future runtime code | #29 |
+| 10 | Stale runtime definitions (**resolved by #29**) | `.def var_promptbuf 0x0bcf`, `var_user_mem 0x0bcb` (bcOS 1.1 addresses) were in `bc_stdlib.py`; removed by #16, and #29 added a guard test (`src/bc/tests/bc_runtime_bcos_tests.py`) | a trap for future runtime code | #29 |
 | 11 | Diagnostics | errors print preprocessed-line numbers (the `.genb` file), not the original file and line | hard to map back to the source | #28 |
 
 All proposals below are filed as issues #13–#29. Each issue contains both the problem and
@@ -89,9 +89,9 @@ its proposal.
    8. type and call checking (#27).
 8. **Source-mapped diagnostics** (#28): keep `(file, line)` through `#include`, and report
    errors and `.basm` comments with original positions.
-9. **Clean up the runtime** (#29): remove the stale `.def`s. The ROM-vs-private question is
-   decided: the runtime calls bcOS through `os_metacall` (#33); the hot paths are settled by
-   the spike #34.
+9. **Clean up the runtime** (#29, **done**): the stale `.def`s were removed by #16 and a guard test
+   now keeps them out. The ROM-vs-private question is decided: the runtime calls bcOS through
+   `os_metacall` (#33); the hot paths are settled by the spike #34.
 
 ## Modernisation verdict
 
