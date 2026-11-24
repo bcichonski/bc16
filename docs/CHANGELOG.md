@@ -12,6 +12,177 @@ PR on GitHub, and drafts from the diff. The format for an entry is in
 
 ---
 
+## [5] Shared bc8183 ISA table for the emulator and the assembler — 2026-11-24
+
+Tags: `emulator` `assembler` `abi` `tests` `docs`
+PR: [#179](https://github.com/bcichonski/bc16/pull/179)
+Builds on: #4, #11, #57
+
+### What was built
+- New `src/bc8183_isa.py`, plain data with no imports from the tools: register numbers and pairs, condition codes and the flag bits they test, the 16 opcode nibbles, mode bits and sub-opcodes (`CLC_REGISTER_FORM`, `CAL_RELATIVE`, `OUT_PORT_MASK`, `EXT_JRX_ADDR`/`EXT_JRX_REG`, …), the 8- and 16-bit ALU operation numbers, the stack-frame tags, the `KIL` byte, and `FORMS`, a table of every instruction form (opcode nibble, length, nibble layout).
+- `src/bc64/bc8183_cpu.py` and `src/bc81asmc/bc81asmc_ast.py` / `bc81asmc_grammar.py` import these names instead of writing their own opcode literals. The CPU decode table and ALU dispatch keys are the ISA tables. The assembler appends `src/` to `sys.path` to find the module, and `src/bc64.py` does the same for the emulator.
+- New tests: `src/tests/test_bc8183_isa.py` (the module and its form table), `src/tests/test_isa_single_source.py` (a source guard: no opcode or encoding literal outside the module), `src/bc64/tests/test_cpu_isa.py` (the CPU's tables are the ISA's), `src/bc81asmc/tests/bc81asmc_isa_tests.py` and `bc81asmc_isa_forms_tests.py` (every emitted first byte decodes to one form per layout).
+- Docs: new decision G14, and notes in `docs/01-emulator.md`, `docs/02-assembler.md`, the analysis pages and the CLAUDE.md files.
+
+### Key decisions reflected in the diff
+- One module holds every encoding number. Changing an encoding means editing it and `docs/02-assembler.md`, then adding tests on both sides (G14).
+- The disassembler from the issue title is not in this PR. It is split off as #178 and will decode with `FORMS`.
+
+## [29] Compiler: runtime clean-up, guarding the runtime↔bcOS contract — 2026-11-24
+
+Tags: `compiler` `bcos` `tests` `docs`
+PR: [#177](https://github.com/bcichonski/bc16/pull/177)
+Builds on: #16, #33
+
+### What was built
+- New guard test `src/bc/tests/bc_runtime_bcos_tests.py`. It checks that every `.def` in the runtime (`bc_stdlib.py`) matches the address of that label in the assembled `bcos.basm` and that the metacall indices select the expected `os_metatab` entries in table order. Checker self-tests show that a stale `.def`, a `.def` of an unknown label and a wrong metacall index are each reported.
+- Docs: `docs/03-compiler.md` names the guard, and `docs/analysis/03-compiler.md` marks problem 10 (stale `var_promptbuf`/`var_user_mem` definitions) and step 9 as resolved. `src/bc/CLAUDE.md` states the rule: the runtime's only external addresses are `.def`s of bcOS labels (today only `os_metacall`), and bcOS variables are read through `os_vartab`.
+
+### Key decisions reflected in the diff
+- No runtime code changed here: #16 had already removed the stale `.def`s. This PR only adds the guard that keeps them out. The hot-path routines are left to the spike #34.
+
+## [175] Test pyramid: happy-path e2e on PRs, full e2e per area on master — 2026-11-24
+
+Tags: `build` `tests` `docs`
+PR: [#176](https://github.com/bcichonski/bc16/pull/176)
+
+### What was built
+- New `src/tests/e2e_areas.py`: `MODULE_AREA` maps each e2e module to one area (`emulator`, `assembler`, `compiler`, `bcos`, `bdos`), `HAPPY` lists the happy-path test ids, and path rules choose the areas a change affects. Shared code (emulator, assembler, compiler, shared B libraries, build scripts, harness, test data, `run_tests.py`, the workflow) or an unknown path runs every area. Other `src/bdos/` sources and the manifests run `bdos` and `compiler`, and docs, `scripts/` and unit tests run none. Its CLI, `python3 src/tests/e2e_areas.py changed --base <sha> --head <sha>`, prints the areas as JSON.
+- `run_tests.py`: `--tier happy|full` (default `full`), `--area NAME` (repeatable), `--changed REF` (areas from the git diff against the merge base, uncommitted and untracked files included), and `--jobs N` (default: CPU count), which runs e2e modules as parallel processes and merges their results. `--update-golden` forces one job.
+- `.github/workflows/tests.yml`: `unit` runs on push and PR. `e2e-happy` runs on PRs only (5-minute timeout). On a push to master, the nightly 03:00 UTC run and manual runs, `e2e-areas` selects the areas and an `e2e (<area>)` matrix job runs each one (10-minute timeout, `fail-fast: false`). Every master push has its own concurrency group, a newer PR run cancels the older one, and a failing job uploads its golden diffs as an artifact.
+- New tests: `src/tests/test_areas.py` (the map, the happy ids, the triggers, the CLI), `test_run_tests_changed.py` and `test_run_tests_e2e_options.py` (tiers, areas, jobs, argument errors).
+- Docs: README.md has a new "Testing" section on the pyramid, the tiers and the development loop. Decision G13 is new and the CLAUDE.md files are updated.
+
+### Key decisions reflected in the diff
+- PRs no longer run the full e2e suite, so an edge-case failure can first show up on master. The owner accepted this to keep the full run (9m30 on one CPU) under CI's 10-minute limit.
+- Development loop: `--group unit`, `--group e2e --tier happy` and `--group e2e --changed origin/master` while working, and the full suite once before pushing.
+
+## [16] Compiler: dead-code elimination for functions, libraries and the runtime — 2026-11-24
+
+Tags: `compiler` `b-stdlib` `tests` `docs`
+PR: [#173](https://github.com/bcichonski/bc16/pull/173)
+Builds on: #15, #104
+
+### What was built
+- `src/bc/bc_ast.py`: every function is still compiled (errors are still reported and label numbers don't change), but each one is recorded as a chunk (`begin_chunk`/`end_chunk`). `Context.link_functions(entry)` keeps only the chunks reachable from the entry code through `:label` references, in source order, so a function's strings go with it. References inside `asm` strings count, and so do labels defined in them (`asm_labels`, `strip_asm_comment`). References in `;` comments don't.
+- `src/bc/bc_stdlib.py`: the runtime is a list of `Fragment`s with declared dependencies. A fragment is emitted only when kept code references one of its labels, plus its dependency closure, in template order. The stale `.def var_promptbuf` / `var_user_mem` (bcOS 1.1 addresses) are gone.
+- Result (`src/bc/history.txt`, `code_size.csv`): total code 105367 → 77385 bytes (−27982). For example: `helloworld` 1626 → 500, `bdos` 19493 → 18083, `texted` 14203 → 12669, `ls` 8224 → 5268.
+- New tests: `src/bc/tests/bc_dce_tests.py` (unused functions and their strings are dropped, transitive and recursive calls are kept, kept code is byte-identical, an error in an unused function still fails the compile, `--verbose` traces dropped functions) and `bc_runtime_tests.py` (fragment names, declared dependencies equal to the referenced ones, dependency closure, data labels, the output assembles).
+- `test_e2e_layout_shift.py` and the smoke transcript follow the smaller `HELLOWRD.PRG`, which now loads with zero progress dots.
+- Docs: new decision C9, C5 updated, and `docs/03-compiler.md` and `src/bc/CLAUDE.md` describe the link step.
+
+### Key decisions reflected in the diff
+- The compiler compiles everything and then selects by label reachability, the same rule the section-dropping linker (`blink.py`, #117/#126) will apply. Each runtime fragment is meant to become one `.sect` of `runtime.basm` (#116).
+- A function reached only through a computed address would be dropped. To keep it, take its address with `.mv rr, :label` in `asm` (C9).
+
+## [61] FDD: parameter bytes are data, even 0xf0..0xfb — 2026-11-24
+
+Tags: `emulator` `devices` `tests` `docs`
+PR: [#174](https://github.com/bcichonski/bc16/pull/174)
+
+### What was built
+- `src/bc64/bc64_io.py` (`FloppyDriveV1`): the parameter states (`STATE_CFG1/2`, `STATE_RD1/2`, `STATE_WR1/2`) are now handled before any command is matched. A byte received in them is data whatever its value, so a DMA address with high byte `0xf0` is no longer taken as `PING`.
+- New tests in `src/bc64/tests/test_devices.py`: DMA address bytes equal to `PING`/`CFG` are data, reading into and writing from a buffer at `0xf0xx`, a command-valued track or sector is data (then out of range, `0xe2`), and `PING` after a completed sequence reports FDD v1.
+- Docs: `docs/01-emulator.md` and a new usage line in the design decisions. To recover from an aborted sequence, finish it (at most two parameter bytes), then ping.
+
+## [20] Compiler: return anywhere in a function, one ret per function — 2026-11-23
+
+Tags: `compiler` `tests` `docs`
+PR: [#169](https://github.com/bcichonski/bc16/pull/169)
+
+### What was built
+- `src/bc/bc_ast.py`: `return e` puts `e` in `csci`, closes every inner scope still open with one `STACKHEAD -=` (new `emit_stackhead_down`, `csci` kept), then emits `ret`, at any depth. Blocks open no scope today, so this is a bare `ret`. The function epilogue skips its trailing `ret` when the body's last top-level statement is `return`.
+- New tests: `src/bc/tests/bc_return_tests.py` (one trailing `ret`, a direct `ret` from nested blocks, inner-scope unwinding in one move, large offsets keep `csci`) and e2e `src/tests/test_e2e_return.py` with `return_prog.b` (returns from nested `if`/`while` on the BC64).
+- Docs: new decision C8. `docs/03-compiler.md` states that `return` may appear anywhere, the analysis page marks problem 6 as resolved, the entry is removed from `src/bc/bugs.txt`, and `src/bdos/CLAUDE.md` notes that early `return` works.
+
+### Key decisions reflected in the diff
+- The suspected bug wasn't there: the callee's `FUNC` epilogue emits no run-time code, and the caller moves `sys_stackhead` before `cal` and back after it, so an early `ret` never skipped anything. The change removes the dead trailing `ret` (1 byte per function) and makes `return` ready for block scopes (#24).
+- There is no flow analysis: a body that ends in an `if/else` that returns in both branches keeps its trailing `ret`.
+
+## [41] bdos: reuse freed disc space (largest free gap, disc full) — 2026-11-23
+
+Tags: `bdos` `filesystem` `apps` `build` `abi` `tests` `docs`
+PR: [#170](https://github.com/bcichonski/bc16/pull/170)
+Builds on: #38, #111, #112
+
+### What was built
+- `src/bdos/bdio.b`: `fcreate` builds a used-sector map at `0x5f00` from a fresh catalog scan (`bdio_markused`, `bdio_fcat_scanmem`, `bdio_fcat_scan`), and `bdio_findgap` picks the longest free run in the allocatable area. The disc tail counts as a run, and on a tie the lowest start wins. The new entry starts there and the write handle stops at the gap end. With no free sector, `fcreate` returns `BDIO_FILE_DISC_FULL`. A write past the gap end writes nothing more, and `fclose` saves the entry with the sectors that were written and returns `BDIO_FILE_DISC_FULL`.
+- `src/bdos/bdioh.b`: the reserved-area constants (`BDIO_DISC_BOOTSECT`, `FCATFIRST/LASTSECT`, `BDOSFIRST/LASTSECT`, `ALLOCFIRSTSECT` = 192, `BDIO_DISC_SECTORS`), the used map (`BDIO_USEDMAP_ADDR` 0x5f00, 0x80 bytes), the variables `BDIO_VAR_DISCFULL` 0x0d87, `FCAT_GAPEND` 0x0d8a and `FCAT_TOTALFREE` 0x0d8c, and `BDIO_FILE_DISC_FULL` = `0xf3` with the message `disc full`.
+- Apps: `ls` prints the free sectors of the whole allocatable area, gaps included (`BDIO_VAR_FCAT_TOTALFREE`). `cp` and `texted` report `disc full` from `fclose`.
+- `ftool importtext` (`src/ftool_text.py`) places a file by the same rule and fails with `disc full` before it writes anything. `src/ftool_mkdisc.py` gets `ALLOC_FIRST_SECTOR` = 192.
+- New tests: `test_bdioh_disc_full.py`, `test_disc_layout_reserved.py` (the reserved range against both manifests, the boot loader and `ftool`), `test_ftool_text_gap.py`, and the e2e modules `test_e2e_alloc_gap.py` (rm then a smaller file reuses the gap, a file bigger than the largest gap is disc full, a removed `BDOS.SYS` slot is never reused, `ls` counts middle gaps), `test_e2e_compile_cycles.py` and `test_e2e_texted_disc_full.py`.
+- Docs: new decision D12 (D10 updated), `docs/05-bdos.md` documents allocation and the error, and the bdos analysis page is updated.
+
+### Key decisions reflected in the diff
+- The largest gap is chosen because a file's size is unknown when it is created. Files are never moved, so a file that outgrows its gap is cut at the gap end and keeps the sectors that fit. Defragmenting is left for later.
+- The reserved area comes from constants, not from catalog entries, so a damaged or edited catalog can never get boot, catalog or BDOS sectors allocated.
+- One error value, `0xf3`, covers both `fcreate` and `fclose` (one value per meaning, #38).
+- The owner asked for a light compile-cycle e2e test: one happy test and one disc-full test.
+
+## [43] bdos: shared argument-parsing library for the utilities (bdosargs.b) — 2026-11-23
+
+Tags: `bdos` `apps` `tests` `docs`
+PR: [#168](https://github.com/bcichonski/bc16/pull/168)
+Builds on: #2, #82
+
+### What was built
+- New `src/bdos/bdosargs.b`, an opt-in include with no `#include` of its own: `getdriveletter`, `getdrive` (`A:`/`B:` prefix → drive `| DRIVEPRESENT`, else the active drive), `changeDriveIfNeeded`, `getswitch(Pword, Pletters)` (the `-x` matcher), `argfile(Pword, Pcatname)` (parses `[d:]name.ext` into an 11-character catalog name through `bdio_fnormalize`), `printusage`, and `DRIVEPRESENT` defined once.
+- `ls`, `cp`, `rm`, `cha`, `cat` and `format` drop their local copies of these helpers and include `std.b`, `bdosh.b`, `strings.b`, `bdostools.b`, `bdosargs.b` in that order. `cp -h` now answers only when the word is exactly `-H`.
+- New e2e `src/tests/test_e2e_bdos_cmdtable.py`, which pins the command lines the six utilities accept: `-h` of each, `ls`/`ls -a` with and without `b:`, `cat`, `cp`, `cha`, `rm` and `format -q b:`.
+- Docs: new decision D11, an "Argument library" section in `docs/05-bdos.md`, and updates to `src/bdos/CLAUDE.md` and `bdos.md`.
+
+### Key decisions reflected in the diff
+- `texted` isn't ported: it takes no command-line arguments, and its `l`/`s` file names are interactive and have no drive prefix.
+- With no dead-code elimination yet, every tool paid for all six helpers, so the six tools grew by 4035 bytes in total. #16, merged the next day, removed the unused ones.
+
+## [68] Compiler: an undeclared variable is a compile error, not a TypeError — 2026-11-23
+
+Tags: `compiler` `tests` `docs`
+PR: [#164](https://github.com/bcichonski/bc16/pull/164)
+Builds on: #14
+
+### What was built
+- `src/bc/bc_ast.py`: new `UndeclaredVariableError(CompilerError)`. `Scope.get_variable` looks the name up through `_find_variable` (this scope and the previous ones) and raises the error with `Undeclared variable <name>` when nothing is found, instead of returning `None` for the caller to index. Leftover debug comments are removed.
+- Tests in `bc_codegen_tests.py`: the error is reported exactly once for an assignment, a read and a call argument, and a declared variable is still found through the previous scope. `bc_output_tests.py`: `--verbose` shows `UndeclaredVariableError`, never `TypeError`.
+- `docs/03-compiler.md`: an undeclared variable stops the compile with exit code 1, and no `.basm` is written.
+
+### Key decisions reflected in the diff
+- The message stays `Undeclared variable x`, which #14's output tests pin, rather than the issue's `undeclared variable 'x'`.
+
+## [104] Compiler: labels and function starts without a nop — 2026-11-23
+
+Tags: `compiler` `b-stdlib` `tests` `docs`
+PR: [#167](https://github.com/bcichonski/bc16/pull/167)
+Builds on: #103
+
+### What was built
+- `src/bc/bc_ast.py`: jump labels (`LABELxxxx:`) and function labels (`F<name><id>:`) are written alone on their line, with no `nop`. `src/bdos/stdio.b`'s `asm "label:"` lines in `printf` follow the same rule.
+- This saves 1605 bytes over all programs (100670 → 99065): `bdos` 17623 → 17359 and `texted` 14359 → 14150 (`src/bc/history.txt`, `code_size.csv`).
+- New `src/bc/tests/bc_label_nop_tests.py`: function starts, `if`, `if/else` and `while` labels have no instruction, no labelled line has a `nop` except `sys_stackhead`, and consecutive labels assemble.
+- Docs: new decision C7. `docs/03-compiler.md` is updated, and in `docs/analysis/07-self-hosted-compiler.md` the `.IR` `FUNC`/`LABEL` records emit 0 bytes.
+
+### Key decisions reflected in the diff
+- `sys_stackhead: nop` keeps its `nop`, because that byte is the low byte of the software-stack pointer, not padding.
+- BCC3 and `bc --obj` start without the `nop` too, so their output stays byte-identical with the host's.
+
+## [112] ftool: importtext / exporttext for texted files on a .bdd — 2026-11-23
+
+Tags: `build` `tests` `docs`
+PR: [#163](https://github.com/bcichonski/bc16/pull/163)
+Builds on: #37
+
+### What was built
+- New `src/ftool_text.py`, wired into `src/ftool.py`:
+  - `ftool importtext DISC.bdd host.txt NAME.EXT` numbers the host lines 10, 20, 30 …, writes them in the TextEd record format (`<number> <text>` + `0x13`, then `0x00`, zero-padded to whole sectors) and adds an R W catalog entry after the last used sector.
+  - `ftool exporttext DISC.bdd NAME.EXT host.txt [--numbers]` writes one LF-terminated line per record, without the numbers unless `--numbers` is given.
+- Limits: LF or CRLF input, tab and printable ASCII only, at most 80 bytes per line, 6553 lines and 255 sectors. A blank line is stored as one space, so a line of exactly one space is refused. An existing name and `DISC.CAT` are refused. Export rejects malformed records. Everything is checked before anything is written, and an error prints `importtext: error: …` / `exporttext: error: …` on stderr and exits 1.
+- New tests: `src/tests/test_ftool_text.py` (exact bytes, round trip, catalog fields, every import and export error, a side-effect-free import) and e2e `test_e2e_ftool_text.py` (TextEd loads an imported file, typed lines export, and a file imported then saved by TextEd exports to the original).
+- Docs: a "Host text files" section and table rows in `docs/05-bdos.md`, and new decision D10.
+
+### Key decisions reflected in the diff
+- `importtext` never overwrites. Rewriting in place can't grow a file, and freeing the entry would leave a gap that bdio didn't reuse yet (#41 later changed placement to the largest gap).
+- Export is strict, so a test can't silently lose lines.
+
 ## [38] bdos: clean up bdio error codes (duplicates and collisions) — 2026-11-23
 
 Tags: `bdos` `abi` `tests` `docs`
