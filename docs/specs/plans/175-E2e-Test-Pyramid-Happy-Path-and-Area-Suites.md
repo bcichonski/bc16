@@ -4,7 +4,7 @@
 
 **Story Type**: `Internal`
 
-**Plan Revision**: `A3`
+**Plan Revision**: `A4`
 
 > This plan captures **what** to build and **why**. The implementation agent discovers the **how** against live code.
 
@@ -122,6 +122,7 @@ Areas with no e2e module (assembler today) are dropped from the CLI's output (no
 *   `e2e-areas` — `push` only, checkout `fetch-depth: 0`, runs the selector with `github.event.before` / `github.sha`, outputs the JSON list.
 *   `e2e` — `push` only, `needs: [unit, e2e-areas]`, `if:` the list is not empty, `strategy.matrix.area: fromJSON(...)`, `fail-fast: false`, `timeout-minutes: 10`, `python run_tests.py --group e2e --area ${{ matrix.area }} < /dev/null`, same guards; artifact name `e2e-golden-diff-<area>`.
 *   Concurrency (amended in A2, A3, D11): pull-request runs share a group per ref and a newer run cancels the older one; every push to `master` gets its **own** group (keyed by the run id), so it is never cancelled or replaced while pending and runs its own selector and area jobs to the end.
+*   Nightly safety net (amended in A4, D12): triggers gain `schedule` (daily, 03:00 UTC) and `workflow_dispatch`. For those events `e2e-areas` selects **every** area (the selector already returns all areas for an empty base) and the `e2e` matrix runs them all; `unit` runs as well. The `e2e-areas`/`e2e` conditions become "not a pull request" instead of "push".
 *   Lint the workflow with `rhysd/actionlint` (docker) before committing.
 
 ---
@@ -139,6 +140,7 @@ Areas with no e2e module (assembler today) are dropped from the CLI's output (no
 *   **D9 — Decision G13** in `design-decisions.md` records the pyramid, tiers, areas and triggers; E9/G11 get a one-line cross-reference.
 *   **D10 — Development loop (owner, mid-run, A1).** While developing: unit suites, the happy tier and the affected areas (`python3 run_tests.py --group unit`, `--group e2e --tier happy`, `--group e2e --changed origin/master`). The full suite (`python3 run_tests.py`) runs **once, just before pushing the PR** (for `/grind`: at finalize, not at every wave). README "Testing", root `CLAUDE.md` ("It is the check, also for `/grind`") and G13 say so.
 *   **D11 — Master runs are never cancelled (A2).** With per-push area selection (`before..sha`), a cancelled master run would leave its push's areas untested forever. So only PR runs share a concurrency group (and cancel each other); each master push has a group of its own (A3: GitHub keeps one pending run per group and cancels an older pending one, so a shared group with `cancel-in-progress: false` would still drop the middle of three quick pushes). Rejected alternative: diffing from the last successful run (needs the Actions API, which the selector must not depend on).
+*   **D12 — Nightly full run (owner, A4).** Per-push selection can let a later unrelated push turn a red master green while an area's failure remains. A daily scheduled run of all areas bounds that to one day, and README says a red master run is fixed right away. Rejected for now: diffing from the last green run (Actions API dependency).
 *   **Assumption AS1 (deviates from AC 1 wording)**: AC 1 "CI e2e finishes with a clear margin on master" can only be observed after merge; the PR shows the happy job's time and a local per-area timing table. Flagged in the PR.
 *   **Assumption AS2**: GitHub-hosted standard runners are free for public repositories, so the per-area matrix costs nothing (owner's P1 condition). `bcichonski/bc16` is public (issue states "public repo").
 
@@ -171,6 +173,7 @@ No open questions.
 | `T6` | `run_tests.py --changed REF` (A1) | `T2` | `Medium` |
 | `T7` | Docs: development loop, full suite only before the PR (A1) | `T6`, `T4` | `Low` |
 | `T8` | CI: never cancel master runs (A2) | `T3` | `Low` |
+| `T9` | CI: nightly full e2e of every area (A4) | `T8` | `Low` |
 
 ### T1 — Area map, happy list, trigger rules and selector CLI
 
@@ -255,6 +258,17 @@ No open questions.
 *   **Tests expected**: actionlint clean; `python3 run_tests.py --group unit < /dev/null` passes.
 *   **Tests to modify**: None
 
+### T9 — CI: nightly full e2e of every area
+
+*   **Amended in**: A4
+*   **Goal**: §2.4 "Nightly safety net" (D12).
+*   **Depends on**: `T8`
+*   **Complexity**: `Low`
+*   **Pointers**: `.github/workflows/tests.yml` (`on:`, `e2e-areas`/`e2e` `if:`), README "Testing", root `CLAUDE.md` CI section, G13 usage.
+*   **Definition of Done**: `schedule` cron `0 3 * * *` and `workflow_dispatch` triggers; `e2e-areas` and `e2e` run for every non-PR event; scheduled/dispatched runs select all areas; actionlint clean; README says master also runs the full e2e of every area nightly and a red master run must be fixed right away (a later unrelated push can turn the badge green while the failure remains); CLAUDE.md CI section and G13 mention the nightly run in one phrase each.
+*   **Tests expected**: actionlint clean; `python3 src/tests/e2e_areas.py changed --base '' --head HEAD` prints every area with modules; unit group passes.
+*   **Tests to modify**: None
+
 ---
 
 ## 5. Verification
@@ -291,6 +305,7 @@ No open questions.
 | Revision | Request | Decision | Plan changes |
 | :--- | :--- | :--- | :--- |
 | A0 | — | — | initial plan; owner's mid-run "chain reaction" note folded in before FINAL (D5) |
+| A4 | owner: a later unrelated push can hide a red master area (`missing-task`) | accepted — owner chose option 1 (nightly full run) | §2.4 nightly bullet, D12, new T9 |
 | A3 | orchestrator: GitHub cancels an older *pending* run in a group even with `cancel-in-progress: false` (`wrong-fact`) | accepted — D11 relied on queueing | §2.4 concurrency, D11, T8 amended |
 | A2 | verifier: a cancelled master run leaves its push's areas untested (`contradiction`) | accepted — real gap in D6/D8; no AC weakened | §2.4 CI concurrency, D11, new T8 |
 | A1 | owner (mid-run): run the full suite only just before pushing the PR, areas/happy paths before (`missing-task`) | accepted — owner decision, extends AC 3 without weakening any AC | §2.4 `--changed`, D10, new T6, T7, §5 row |

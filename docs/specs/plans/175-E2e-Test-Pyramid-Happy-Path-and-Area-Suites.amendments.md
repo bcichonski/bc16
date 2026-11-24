@@ -8,3 +8,6 @@ contradiction — Master e2e selection can silently skip areas: `concurrency` ha
 
 ## A3 — 2026-11-24 — requested by orchestrator (pre-round-2 check)
 wrong-fact — D11 says master pushes "queue in the same concurrency group", but GitHub keeps at most one pending run per concurrency group and cancels the older pending one when a newer run arrives, even with cancel-in-progress false; with three quick pushes the middle push is never e2e-tested. Give each push its own group (e.g. group key = ref for pull_request, run_id for push) and keep cancelling PR runs — evidence: GitHub Actions docs on `concurrency` ("any previously pending job or workflow in the concurrency group will be canceled"); `.github/workflows/tests.yml` concurrency block after T8.
+
+## A4 — 2026-11-24 — requested by owner (after PR #176 opened)
+missing-task — A red master area can be hidden: each master run selects areas only from its own push, so a following docs-only push runs no e2e and turns master green while the failure remains. Owner chose option 1: a nightly scheduled full e2e run of every area (plus manual workflow_dispatch), and README guidance that a red master run is fixed right away — evidence: side-agent note relayed by the owner; owner reply "option 1".

@@ -137,7 +137,7 @@ The `tests` workflow (`.github/workflows/tests.yml`) runs on every push and PR t
 - pull requests: job `e2e-happy` (Python 3.14, after `unit`, timeout 5 minutes) runs
   `python run_tests.py --group e2e --tier happy`, which builds the pipeline and runs the happy-path e2e tests on the fresh outputs;
   PRs do not run the full e2e suite (accepted risk, G13);
-- pushes to `master`: job `e2e-areas` runs `python3 src/tests/e2e_areas.py changed --base <before> --head <sha>` and outputs the JSON list of
+- pushes to `master` (and the nightly 03:00 UTC and manual runs, which select every area): job `e2e-areas` runs `python3 src/tests/e2e_areas.py changed --base <before> --head <sha>` and outputs the JSON list of
   areas to run (all areas when the base is unknown); job `e2e` is a matrix over that list (after `unit` and `e2e-areas`, skipped when the
   list is empty, `fail-fast: false`, timeout 10 minutes each) and runs `python run_tests.py --group e2e --area <area>`;
 - each master push has its own concurrency group, so it is never cancelled or replaced while pending (each push selects areas from its own diff); a newer PR run cancels an older run of the same PR;

@@ -975,7 +975,7 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - CI concurrency: each master push has its own concurrency group, so it is never cancelled or replaced while pending (each push selects areas from its own diff); a newer PR run cancels an older run of the same PR;
   - `--jobs N` (default: CPU count) runs the e2e modules as parallel `unittest` processes and merges them into one result with the same counts;
     `--jobs 1` and `--update-golden` run one process (goldens are shared between modules);
-  - CI (`.github/workflows/tests.yml`): `unit` on push and PR; `e2e-happy` on PR only (timeout 5 minutes); on push to `master` `e2e-areas` selects
+  - CI (`.github/workflows/tests.yml`): `unit` on push and PR; `e2e-happy` on PR only (timeout 5 minutes); on push to `master`, and on the nightly 03:00 UTC and manual runs (every area), `e2e-areas` selects
     the areas and an `e2e (<area>)` matrix job runs each (timeout 10 minutes, `fail-fast: false`); a docs-only push runs no e2e job;
   - a new e2e test is added to the map, and to `HAPPY` only if it is a main flow;
   - development loop (D10): while developing, run `--group unit`, `--group e2e --tier happy` and `--group e2e --changed origin/master` (the e2e

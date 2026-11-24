@@ -47,6 +47,7 @@ E2E has two tiers:
   `emulator`, `assembler`, `compiler`, `bcos` and `bdos` (`docs/01-emulator.md` to `docs/05-bdos.md`). CI runs one job per affected area, in
   parallel (`e2e (<area>)`, timeout 10 minutes each). The assembler has no e2e module of its own yet; it is covered by unit tests and by
   every other area.
+Master also runs the full tier of every area nightly (03:00 UTC) and on manual dispatch. A red master run must be fixed right away: a later push that touches other areas runs only its own areas and can turn the badge green while the failure remains.
 
 An area runs only when something it depends on changes. Every e2e test builds and runs programs with the emulator, assembler, compiler and
 shared B libraries, so these work as a chain reaction:

@@ -5,6 +5,10 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  # nightly full e2e of every area (selector returns all areas for an empty base)
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
@@ -141,9 +145,9 @@ jobs:
           fi
           exit "$status"
 
-  # pushes to master: pick the areas the change can affect
+  # pushes to master, nightly and manual runs: pick the areas the change can affect (every area on nightly and manual runs)
   e2e-areas:
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -170,9 +174,9 @@ jobs:
           echo "areas=$areas" >> "$GITHUB_OUTPUT"
           echo "e2e areas: \`$areas\`" >> "$GITHUB_STEP_SUMMARY"
 
-  # pushes to master: full e2e, one job per selected area
+  # pushes to master, nightly and manual runs: full e2e, one job per selected area
   e2e:
-    if: github.event_name == 'push' && needs.e2e-areas.outputs.areas != '' && needs.e2e-areas.outputs.areas != '[]'
+    if: github.event_name != 'pull_request' && needs.e2e-areas.outputs.areas != '' && needs.e2e-areas.outputs.areas != '[]'
     needs: [unit, e2e-areas]
     name: e2e (${{ matrix.area }})
     runs-on: ubuntu-latest

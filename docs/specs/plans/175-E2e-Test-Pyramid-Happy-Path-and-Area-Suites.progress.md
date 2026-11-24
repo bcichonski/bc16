@@ -1,6 +1,6 @@
 # Progress — 175 Test Pyramid: Happy-Path E2E on PRs, Full E2E per Area on Master
 
-Plan revision: A3
+Plan revision: A4
 Wave snapshot: —
 
 | Task | Title | Depends on | Complexity | Status | Notes |
@@ -13,3 +13,4 @@ Wave snapshot: —
 | T6 | run_tests.py --changed REF (A1) | T2 | Medium | Done | sonnet, started 09:20, finished 09:23; guard PASS; unit PASS |
 | T7 | Docs: development loop, full suite only before the PR (A1) | T6, T4 | Low | Done | haiku, started 09:25, finished 09:29; guard PASS |
 | T8 | CI: never cancel master runs (A2) | T3 | Low | Done | haiku, started 09:36, finished 09:37; reset by A3; haiku re-dispatch 09:41, finished 09:42; actionlint clean; guard PASS; unit PASS |
+| T9 | CI: nightly full e2e of every area (A4) | T8 | Low | Done | haiku, started 10:40, finished 10:41; actionlint clean; guard PASS; unit PASS |
