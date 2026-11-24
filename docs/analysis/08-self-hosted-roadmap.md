@@ -9,7 +9,7 @@ The order is: **fixes** (emulator, assembler, compiler, bdos) → **host assembl
 → **assembler on the BC64** → **linker on the BC64** → **compiler passes** → chaining.
 
 The "Done" column marks finished steps with the PR that closed the issue (status on
-2026-11-23: steps 1–17, 21 and 26–28 are done; phase 0 still has 6a, 18–20, 22–25, 29 and 30).
+2026-11-24: every phase 0 step is done except 6a and 24; phase 1 has not started).
 
 Work one step at a time, top to bottom. Steps inside the same phase and track can sometimes
 run in parallel (the "Track" column), but every step depends only on steps above it.
@@ -40,29 +40,37 @@ that BCC3 copies.
 | 15 | ✅ #153 | #11 | assembler | `out #r, imm` encoding (owner decided: fix): `Dr HH`, port register `a`, `ci` or `di` only (A11) | same |
 | 16 | ✅ #149 | #103 | assembler | a label on a line of its own | needed by #104 |
 | 17 | ✅ #148 | #19 | compiler | token-based `#define` | PRE (shared by BASM and BCC) uses the same rule |
-| 18 |  | #20 | compiler | `return` anywhere | implemented once, the same in BCC2 |
-| 19 |  | #104 | compiler | no `nop` at labels and function starts | the template set BCC3 copies |
-| 20 |  | #68 | compiler | undeclared variable crashes | errors, not crashes, in the oracle |
+| 18 | ✅ #169 | #20 | compiler | `return` anywhere | implemented once, the same in BCC2 |
+| 19 | ✅ #167 | #104 | compiler | no `nop` at labels and function starts | the template set BCC3 copies |
+| 20 | ✅ #164 | #68 | compiler | undeclared variable crashes | errors, not crashes, in the oracle |
 | 21 | ✅ #154 | #69 | compiler | unknown-operator error crashes | same |
-| 22 |  | #29 | compiler | runtime clean-up | before the runtime moves to `runtime.basm` |
-| 23 |  | #16 | compiler | **host `bc` drops unused functions and runtime routines** | BASM and BLINK are built by `bc`; BASM's 25–30 KB estimate is close to the 32,640-byte file limit. Split the runtime so each piece becomes one `.sect` in #116 |
-| 24 |  | #34 | compiler | spike: hot-path helpers inline, private or ROM | if inlined, the templates change; must be before #131 |
-| 25 |  | #41 | bdos | reuse freed disc space (first fit, largest gap) | every compile leaves 20–30 KB of holes; replaces the `pack` utility of the earlier plan |
+| 22 | ✅ #177 | #29 | compiler | runtime clean-up | before the runtime moves to `runtime.basm` |
+| 23 | ✅ #173 | #16 | compiler | **host `bc` drops unused functions and runtime routines** | BASM and BLINK are built by `bc`; BASM's 25–30 KB estimate is close to the 32,640-byte file limit. Split the runtime so each piece becomes one `.sect` in #116 |
+| 24 |  | #34 | compiler | spike: hot-path helpers inline, private or ROM. Spike PR #171 closed unmerged (2026-11-23); the owner chose a `#optimize` directive instead, filed as #172. Issue #34 is still open | if inlined, the templates change; must be before #131 |
+| 25 | ✅ #170 | #41 | bdos | reuse freed disc space. **Decided:** a new file goes in the largest free gap; writing past it is `disc full` (`0xf3`) ([D12](../specs/memory/design-decisions.md)) | every compile leaves 20–30 KB of holes; replaces the `pack` utility of the earlier plan |
 | 26 | ✅ #150 | #73 | bdos | `cp` never makes the copy (already fixed by #37; regression tests added) | needed to move `.O` and `.PRG` files between discs |
 | 27 | ✅ #155 | #82 | bdos | `strnextword` never returns 0. One `strnextword` that returns the NUL address, never 0 (D9) | every new tool's "no name → usage" check |
 | 28 | ✅ #156 | #38 | bdos | bdio error codes. One code per meaning; `BDIO_FOPEN_FDD_NOT_READY` = `0xe1`, `0xe5` retired | the new tools report them; it's an ABI |
-| 29 |  | #43 | bdos | shared argument parsing (`[d:]name`) | BASM, BLINK and BCC parse the same arguments |
-| 30 |  | #112 | ftool | `importtext` / `exporttext` | e2e tests put sources on a disc in texted format |
+| 29 | ✅ #168 | #43 | bdos | shared argument parsing (`[d:]name`) | BASM, BLINK and BCC parse the same arguments |
+| 30 | ✅ #163 | #112 | ftool | `importtext` / `exporttext` | e2e tests put sources on a disc in texted format |
 
-Optional in this phase: #61 (DMA address `0xf0xx` read as PING), #5 (shared ISA table and a
-disassembler: helps test BASM's encoder), #9 (listing and symbol map: helps read
-byte-identical diffs).
+Optional in this phase: #61 (DMA address `0xf0xx` read as PING; ✅ #174), #5 (shared ISA table
+(✅ #179); the disassembler, which helps test BASM's encoder, was split into #178), #9 (listing
+and symbol map: helps read byte-identical diffs).
 
 Not in this plan: #18 (precedence; today's quirks stay in B 1.4), #21–#26 (language
 features: each would have to be built twice), #17, #27, #28, #33.
 
 **Exit:** the e2e suite passes; `rm` then create keeps other files intact and reuses the
 freed space; every program is smaller after #16 and the sizes are recorded.
+
+**Exit check (2026-11-24, master `5f78ace`):** all three criteria are met. The full
+`run_tests.py` passes (1248 unit and 133 e2e tests), with one expected failure: the bcOS
+tape round trip in `test_e2e_bcos.py` (#32, #62), which is not a phase 0 step.
+`test_e2e_rm_alloc` and `test_e2e_alloc_gap` cover `rm` then create.
+All 18 programs in `src/bc/code_size.csv` are smaller after #16 (total 105367 → 77385 bytes).
+Two steps are still open: 6a (#161) and 24 (#34, see above). 6a changes the flags, so it
+must land before step 31 freezes them.
 
 ## Phase 1: the host assembler writes object files
 
@@ -135,6 +143,6 @@ Steps 38–45 don't depend on phase 2 and can run in parallel with it.
 |---|---|---|
 | #136 | `div`/`mod` by zero: keep the destination and set `O` (decided in #4, E10; the owner confirms it), and whether the B `/` and `%` check `O` | step 31 |
 | #113 | `SECT` flags | step 33 |
-| #41 | placement of a new file (proposed: largest gap; writing past it is `disc full`); defrag later | step 25 |
+| ~~#41~~ | ~~placement of a new file~~: decided in #41 (largest gap, `disc full`, D12); defrag later | step 25 |
 | #127 | drop `asm "…"` (recommended) or keep it host-only | step 45 |
 | [07](07-self-hosted-compiler.md#risks-and-open-questions) | texted records as the official source format; keep precedence quirks; is self-hosting a goal | phase 4 |
