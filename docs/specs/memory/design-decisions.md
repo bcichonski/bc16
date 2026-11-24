@@ -168,7 +168,7 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   test order or files left in the tree.
 - **Usage:**
   - `pip install -e .`, then `python3 run_tests.py` from the repo root runs every
-    suite (CPython 3.10 and 3.13+ are both checked before a test or code change lands);
+    suite (CI checks CPython 3.14 before a test or code change lands);
   - a test module is silent on a passing run: turn debug output off in the module rather than
     filtering it. Temporary files come from `tempfile`;
   - a known bug whose correct behaviour is decided by its issue gets a test of the correct

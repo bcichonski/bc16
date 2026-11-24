@@ -51,7 +51,7 @@ python bc81asmc/bc81asmc.py bdos/helloworld.basm  # -> bdos/helloworld.btap
   An undeclared variable is reported as `Undeclared variable <name>` (no location until #28) and stops the
   compile: it exits with code 1 without writing a `.basm`.
 - Python dependency: `parsy`, the only one. The compiler runs on Python >= 3.10 on Linux,
-  macOS and Windows (tested on 3.10, 3.13 and 3.14). Output files are written as UTF-8.
+  macOS and Windows (CI tests 3.14). Output files are written as UTF-8.
 
 ## Preprocessor
 

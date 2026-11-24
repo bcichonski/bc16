@@ -129,7 +129,7 @@ There is no linter. `python3 run_tests.py` is the local check; CI runs it on Git
 The `tests` workflow (`.github/workflows/tests.yml`) runs on every push and PR to `master`:
 - all jobs except `e2e-areas` install with `pip install -e .`; job `unit` also runs the four console commands from outside the checkout;
 - job `unit` checks out with `fetch-depth: 0` (the `release` suite reads the legacy release commits from
-  history), then runs `python run_tests.py --group unit` on Python 3.10 and 3.14. Its guard step fails
+  history), then runs `python run_tests.py --group unit` on Python 3.14. Its guard step fails
   if a tracked file matches `.gitignore` (`git ls-files -i -c --exclude-standard`), if a tracked `X.basm`
   sits beside a tracked `X.b`, or if a `cpudebug.log` exists;
 - on Python 3.14 the `unit` job also runs `python scripts/code_size.py` (informational, `continue-on-error`), which

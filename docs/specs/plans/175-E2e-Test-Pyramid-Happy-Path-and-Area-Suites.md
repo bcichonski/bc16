@@ -4,7 +4,7 @@
 
 **Story Type**: `Internal`
 
-**Plan Revision**: `A4`
+**Plan Revision**: `A5`
 
 > This plan captures **what** to build and **why**. The implementation agent discovers the **how** against live code.
 
@@ -117,7 +117,7 @@ Areas with no e2e module (assembler today) are dropped from the CLI's output (no
 *   Unit suites, the build step, `--no-build`, the missing-output check and the exit code behave exactly as today. `python3 run_tests.py < /dev/null` → same pass/fail and expected-failure counts as before.
 
 **CI (D8).** `tests.yml`, triggers unchanged (`push` and `pull_request` to `master`):
-*   `unit` — unchanged (both events).
+*   `unit` — both events; since A5 (D13) Python 3.14 only (the 3.10 matrix entry is dropped).
 *   `e2e-happy` — `pull_request` only, `needs: unit`, `timeout-minutes: 5`, `python run_tests.py --group e2e --tier happy < /dev/null` (jobs default = runner CPUs), then the existing clean-tree guard, golden-diff artifact on failure (regenerate with `--tier happy`), cpudebug guard.
 *   `e2e-areas` — `push` only, checkout `fetch-depth: 0`, runs the selector with `github.event.before` / `github.sha`, outputs the JSON list.
 *   `e2e` — `push` only, `needs: [unit, e2e-areas]`, `if:` the list is not empty, `strategy.matrix.area: fromJSON(...)`, `fail-fast: false`, `timeout-minutes: 10`, `python run_tests.py --group e2e --area ${{ matrix.area }} < /dev/null`, same guards; artifact name `e2e-golden-diff-<area>`.
@@ -141,6 +141,7 @@ Areas with no e2e module (assembler today) are dropped from the CLI's output (no
 *   **D10 — Development loop (owner, mid-run, A1).** While developing: unit suites, the happy tier and the affected areas (`python3 run_tests.py --group unit`, `--group e2e --tier happy`, `--group e2e --changed origin/master`). The full suite (`python3 run_tests.py`) runs **once, just before pushing the PR** (for `/grind`: at finalize, not at every wave). README "Testing", root `CLAUDE.md` ("It is the check, also for `/grind`") and G13 say so.
 *   **D11 — Master runs are never cancelled (A2).** With per-push area selection (`before..sha`), a cancelled master run would leave its push's areas untested forever. So only PR runs share a concurrency group (and cancel each other); each master push has a group of its own (A3: GitHub keeps one pending run per group and cancels an older pending one, so a shared group with `cancel-in-progress: false` would still drop the middle of three quick pushes). Rejected alternative: diffing from the last successful run (needs the Actions API, which the selector must not depend on).
 *   **D12 — Nightly full run (owner, A4).** Per-push selection can let a later unrelated push turn a red master green while an area's failure remains. A daily scheduled run of all areas bounds that to one day, and README says a red master run is fixed right away. Rejected for now: diffing from the last green run (Actions API dependency).
+*   **D13 — Unit tests on Python 3.14 only (owner, A5).** The 3.10 CI job is dropped. `requires-python` stays `>= 3.10` (the owner did not ask to raise it); docs no longer claim 3.10 is tested in CI.
 *   **Assumption AS1 (deviates from AC 1 wording)**: AC 1 "CI e2e finishes with a clear margin on master" can only be observed after merge; the PR shows the happy job's time and a local per-area timing table. Flagged in the PR.
 *   **Assumption AS2**: GitHub-hosted standard runners are free for public repositories, so the per-area matrix costs nothing (owner's P1 condition). `bcichonski/bc16` is public (issue states "public repo").
 
@@ -174,6 +175,7 @@ No open questions.
 | `T7` | Docs: development loop, full suite only before the PR (A1) | `T6`, `T4` | `Low` |
 | `T8` | CI: never cancel master runs (A2) | `T3` | `Low` |
 | `T9` | CI: nightly full e2e of every area (A4) | `T8` | `Low` |
+| `T10` | CI: unit tests on Python 3.14 only (A5) | `T9` | `Low` |
 
 ### T1 — Area map, happy list, trigger rules and selector CLI
 
@@ -269,6 +271,17 @@ No open questions.
 *   **Tests expected**: actionlint clean; `python3 src/tests/e2e_areas.py changed --base '' --head HEAD` prints every area with modules; unit group passes.
 *   **Tests to modify**: None
 
+### T10 — CI: unit tests on Python 3.14 only
+
+*   **Amended in**: A5
+*   **Goal**: D13.
+*   **Depends on**: `T9`
+*   **Complexity**: `Low`
+*   **Pointers**: `.github/workflows/tests.yml` (`unit` matrix, the `if: matrix.python-version == '3.14'` code-size step), root `CLAUDE.md` CI section, G11 usage ("3.10 and 3.13+ are both checked"), `src/bc/CLAUDE.md` and `docs/03-compiler.md` ("tested on 3.10, 3.13 and 3.14").
+*   **Definition of Done**: the unit job runs on 3.14 only (job name may stay `unit (3.14)` or become `unit`; keep the code-size step running); docs listed say CI checks 3.14 and keep ">= 3.10" as the declared minimum; `pyproject.toml` unchanged; actionlint clean.
+*   **Tests expected**: actionlint clean; unit group passes.
+*   **Tests to modify**: None
+
 ---
 
 ## 5. Verification
@@ -305,6 +318,7 @@ No open questions.
 | Revision | Request | Decision | Plan changes |
 | :--- | :--- | :--- | :--- |
 | A0 | — | — | initial plan; owner's mid-run "chain reaction" note folded in before FINAL (D5) |
+| A5 | owner: drop the Python 3.10 unit tests (`missing-task`) | accepted — owner decision; requires-python unchanged | D13, §2.4 unit bullet, new T10 |
 | A4 | owner: a later unrelated push can hide a red master area (`missing-task`) | accepted — owner chose option 1 (nightly full run) | §2.4 nightly bullet, D12, new T9 |
 | A3 | orchestrator: GitHub cancels an older *pending* run in a group even with `cancel-in-progress: false` (`wrong-fact`) | accepted — D11 relied on queueing | §2.4 concurrency, D11, T8 amended |
 | A2 | verifier: a cancelled master run leaves its push's areas untested (`contradiction`) | accepted — real gap in D6/D8; no AC weakened | §2.4 CI concurrency, D11, new T8 |

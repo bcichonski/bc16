@@ -11,3 +11,6 @@ wrong-fact — D11 says master pushes "queue in the same concurrency group", but
 
 ## A4 — 2026-11-24 — requested by owner (after PR #176 opened)
 missing-task — A red master area can be hidden: each master run selects areas only from its own push, so a following docs-only push runs no e2e and turns master green while the failure remains. Owner chose option 1: a nightly scheduled full e2e run of every area (plus manual workflow_dispatch), and README guidance that a red master run is fixed right away — evidence: side-agent note relayed by the owner; owner reply "option 1".
+
+## A5 — 2026-11-24 — requested by owner (after PR #176 opened)
+missing-task — Drop the Python 3.10 unit-test job from CI (unit runs on 3.14 only). Keep `requires-python >= 3.10` (not asked to change); docs that say 3.10 is tested/checked in CI must say CI checks 3.14 only — evidence: owner message "also we can drop unit tests for python 3.10".
