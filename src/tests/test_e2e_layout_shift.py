@@ -45,10 +45,21 @@ def write_shifted_manifest(path):
         handle.write("\n".join(out) + "\n")
 
 
+def zero_dot_lines(data):
+    """Treat a progress line that is only `<dots>` as an empty line (optional leading CR kept)."""
+    lines = data.split(b"\n")
+    return b"\n".join(b"\r" if line == b"\r<dots>" else b"" if line == b"<dots>" else line for line in lines)
+
+
 def compare_masked(name, golden, actual):
-    """Compare actual with the committed golden under DISC_MASKS; never writes anything."""
-    expected = h.apply_masks(h.read_bytes(golden), h.DISC_MASKS)
-    masked = h.apply_masks(actual, h.DISC_MASKS)
+    """Compare actual with the committed golden under DISC_MASKS; never writes anything.
+
+    A program under 8 sectors loads with zero progress dots, so its load line is empty in the golden,
+    while the grown program on the shifted disc prints dots, which DISC_MASKS turns into `<dots>`.
+    Both sides therefore also get a line that is exactly `<dots>` normalised to an empty line.
+    """
+    expected = zero_dot_lines(h.apply_masks(h.read_bytes(golden), h.DISC_MASKS))
+    masked = zero_dot_lines(h.apply_masks(actual, h.DISC_MASKS))
     if masked == expected:
         return
     diff = "\n".join(difflib.unified_diff(

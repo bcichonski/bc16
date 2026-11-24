@@ -54,7 +54,7 @@ class TestProgramShape(CodegenTestCase):
         self.assertIn('cal :FMAIN0001', basm)
         self.assertLess(basm.index(';FUNCTION main'), basm.index(';END OF FUNCTION main'))
         self.assertLess(basm.index(';END OF FUNCTION main'), basm.index('COMPILER ASM STDLIB'))
-        self.assertIn('stackheadrll8:', basm)
+        self.assertNotIn('stackheadrll8:', basm)
 
     def test_function_label_and_trailing_ret(self):
         lines = main_lines('byte main() { }')

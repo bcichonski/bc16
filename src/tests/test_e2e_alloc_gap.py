@@ -125,9 +125,11 @@ class AllocGapTests(unittest.TestCase):
                              "%s.%s changed" % name)
 
     def test_rm_then_smaller_file_reuses_freed_gap(self):
-        source = h.disc_put(self.disc, "SRC.DAT", bytes((i * 7 + 3) & 0xff for i in range(8 * 128)))
         hello = find(h.read_catalog(self.disc), "hellowrd.prg")
-        tail = 3
+        source_sectors = hello.length - 1
+        source = h.disc_put(self.disc, "SRC.DAT",
+                            bytes((i * 7 + 3) & 0xff for i in range(source_sectors * h.SECTOR_SIZE)))
+        tail = source_sectors - 1
         self.assertLess(tail, source.length)
         self.assertLess(source.length, hello.length)
         fill_tail(self.disc, tail)

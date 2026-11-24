@@ -1,4 +1,4 @@
-......
+...
 write ok
 read ok
 eof ok

@@ -128,7 +128,7 @@ bcOS 1.2
 
 A>cp b:hellowrd.prg h2.prg
 <dots>
-<dots>
+
 B>a:
 A>cp a:test.b b:t3.b
 <dots>
