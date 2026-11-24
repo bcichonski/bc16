@@ -1,0 +1,65 @@
+{
+  "ticket": "118",
+  "checkout_path": "/c/workspace/bc16-118",
+  "branch": "ai/feature/118-bc64-shared-b-modules-texted-reader",
+  "tools": {
+    "github_mcp": false,
+    "gh": true,
+    "ci_logs": "gh",
+    "ci_rerun": "none"
+  },
+  "phases": {
+    "review_story": {
+      "status": "done"
+    },
+    "spec_plan": {
+      "status": "blocked",
+      "plan_file": "docs/specs/plans/118-Shared-B-Modules-RDR-PRE-BOFW.md",
+      "revision": "A0",
+      "amendments": [],
+      "reason": "OQ-1 BOF v1 not frozen (#113, SECT flags owner decision); OQ-2 bc81asmc --dump does not exist (#115, AC-1 oracle); OQ-3 PRE vs host .h handling (#114); OQ-4 owner may accept RDR+PRE split"
+    },
+    "implementation": {
+      "status": "pending",
+      "base_refs": {}
+    },
+    "verification": {
+      "status": "pending",
+      "round": 0,
+      "max_rounds": 3,
+      "history": []
+    },
+    "finalize": {
+      "status": "done",
+      "mode": "bail-out",
+      "pr_urls": [
+        {
+          "repo": "bc16",
+          "pr_url": "https://github.com/bcichonski/bc16/pull/182",
+          "pr_pending": false
+        }
+      ]
+    },
+    "pr_monitor": {
+      "status": "pending",
+      "repos": {}
+    }
+  },
+  "github": {
+    "repo": "bcichonski/bc16",
+    "story_issue": 118,
+    "story_points_estimated": true,
+    "story_moved_to_development": false,
+    "estimates_posted": false,
+    "estimates": [],
+    "sub_issues": [],
+    "pending_writes": []
+  },
+  "notes": [
+    "tools: gh with GITHUB_PERSONAL_ACCESS_TOKEN used for all GitHub ops (MCP issue_read had schema failures on this repo before); checks API 403 -> gh run view; rerun 403 -> empty commit",
+    "points:8 estimated (scope: three B modules + e2e; siblings #112=3, #43=5)",
+    "worktree created from origin/master 5f74848",
+    "Dependency check: roadmap step 36; steps 31-35 (#113 BOF v1 format, #114, #115 --obj/--dump, #116, #117) all OPEN; #113 run is only at review_story",
+    "bail-out: nothing implemented, validation skipped (nothing to build); estimates not posted (no FINAL plan); story status left status:todo"
+  ]
+}
