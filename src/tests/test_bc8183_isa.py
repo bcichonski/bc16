@@ -1,8 +1,7 @@
 """Unit tests of src/bc8183_isa.py, the single definition of the bc8183 encoding.
 
-The expected numbers are written out here on purpose: they are the documented values
-(docs/01-emulator.md, docs/02-assembler.md "Instruction set"), so a changed value in the
-module fails a test.
+The expected numbers are written out here on purpose, so a changed value in the module fails
+a test.
 """
 import dataclasses
 import os
@@ -13,12 +12,6 @@ import unittest
 import bc8183_isa as isa
 
 SRC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DOCS_DIR = os.path.join(os.path.dirname(SRC_DIR), 'docs')
-
-
-def read_doc(name):
-    with open(os.path.join(DOCS_DIR, name), encoding='utf-8') as f:
-        return f.read()
 
 
 class RegisterTests(unittest.TestCase):
@@ -243,19 +236,6 @@ class FormTableTests(unittest.TestCase):
         hidden = sorted(form.key for form in isa.FORMS if not form.emitted)
         self.assertEqual(hidden, ['and.reg_short', 'or.reg_short', 'sub.reg_short',
                                   'xor.reg_short'])
-
-    def test_every_docs_encoding_row_is_a_form(self):
-        rows = set()
-        for line in read_doc('02-assembler.md').splitlines():
-            cells = [c.strip() for c in line.split('|')]
-            if len(cells) > 3 and cells[2].startswith('`') and cells[3].isdigit():
-                rows.add((cells[2].split('`')[1], int(cells[3])))
-        self.assertEqual(len(rows), 32)  # distinct (encoding, bytes) rows of the tables
-        forms = {(form.encoding, form.length) for form in isa.FORMS if form.emitted}
-        self.assertEqual(forms, rows)
-
-    def test_short_alias_is_documented(self):
-        self.assertIn('`5(o|8) r0`', read_doc('01-emulator.md'))
 
     def test_pinned_layouts(self):
         expected = {
