@@ -30,7 +30,7 @@ skip the build) and runs the e2e suite with `BC64_UPDATE_GOLDEN=1`, which also r
 Check the diff of `src/bc64/testdata/` by eye: it should show only the intended changes, then run
 `python3 run_tests.py` and commit the changed files. The transcript is stored with `DISC_MASKS` applied, so it
 holds no disc positions (see `docs/01-emulator.md`, "Masks and derived positions"). The session runs on a temp
-copy, so `os.bdd` itself is never written by the emulator. CI's `e2e` job builds, runs the tests on the fresh
+copy, so `os.bdd` itself is never written by the emulator. CI's e2e jobs (`e2e-happy` on PRs, `e2e (<area>)` on master) build, run the tests on the fresh
 outputs and fails if the transcript or a golden differs or the tree is not clean. Tests that boot the real ROM
 are in `src/tests/test_e2e_rom.py`.
 

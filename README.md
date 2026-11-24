@@ -31,6 +31,53 @@ want to run the machine, use the `bc64` zip from the Release page: it has the bu
 `debug`, `fddtest` and the programs in `src/bc/code/` aren't part of the pipeline. Build them on demand with
 `./bcc <name>` (for example `./bcc bdos/debug`).
 
+# Testing
+
+Tests follow a pyramid. Most of the functionality is covered by **unit tests**: they are fast and live in the `tests/` folder of each tool
+(`src/bc64/tests/`, `src/bc81asmc/tests/`, `src/bc/tests/`, `src/tests/`, `scripts/tests/`). **End-to-end (e2e) tests** boot the whole
+system on the headless emulator and cover only what a booted system shows: bcOS, the bdos shell, the discs, the programs and the toolchain
+working together. They are slow (every module boots the emulator), so there are few of them.
+
+E2E has two tiers:
+
+- **happy path**: the main flows, one or more per area (the list is `HAPPY` in `src/tests/e2e_areas.py`). It runs on every pull request, in the
+  `e2e-happy` CI job (timeout 5 minutes).
+- **full**: every e2e test, edge cases included. It runs only on a push (merge) to `master`, not on pull requests. A pull request can
+  therefore merge with an edge-case failure that only the master run shows. The full tier is split into areas named after the doc pages:
+  `emulator`, `assembler`, `compiler`, `bcos` and `bdos` (`docs/01-emulator.md` to `docs/05-bdos.md`). CI runs one job per affected area, in
+  parallel (`e2e (<area>)`, timeout 10 minutes each). The assembler has no e2e module of its own yet; it is covered by unit tests and by
+  every other area.
+
+An area runs only when something it depends on changes. Every e2e test builds and runs programs with the emulator, assembler, compiler and
+shared B libraries, so these work as a chain reaction:
+
+| Changed | Areas that run |
+| :--- | :--- |
+| the emulator, the assembler (including bcOS), the compiler, the shared B libraries (`src/bdos/std*.b` and friends, `src/bc/code/`), the build scripts in `src/`, the e2e harness, the test data, `run_tests.py`, the workflow | all |
+| other `src/bdos/` sources and the disc manifests | `bdos` and `compiler` |
+| an e2e test module | the area of that module |
+| docs, `scripts/`, unit tests | none |
+| a path the rules do not know | all |
+
+The map (modules to areas, the happy-path list and these rules) lives in `src/tests/e2e_areas.py`. Adding an e2e test means adding its
+module to that map, and to `HAPPY` only if it is a main flow. An edge case belongs in a unit test when it can be one, and in the full e2e
+tier only when it needs the booted system.
+
+```bash
+python3 run_tests.py < /dev/null                          # everything: unit suites and the full e2e tier (builds first)
+python3 run_tests.py --group unit < /dev/null             # unit suites only
+python3 run_tests.py --group e2e --tier happy < /dev/null # the happy-path e2e tier, what a pull request runs
+python3 run_tests.py --group e2e --area bdos < /dev/null  # the full e2e tests of one area (repeat --area for more)
+python3 run_tests.py --jobs 4 < /dev/null                 # e2e modules in parallel; default: the number of CPUs, --jobs 1 = one process
+python3 run_tests.py --group e2e --changed origin/master < /dev/null  # only the e2e areas the change affects since origin/master (none: nothing runs)
+```
+
+Add `--no-build` to skip the build when the ROM and discs are already built.
+
+**Development loop.** While developing, run `python3 run_tests.py --group unit < /dev/null`, `python3 run_tests.py --group e2e --tier happy < /dev/null`
+and `python3 run_tests.py --group e2e --changed origin/master < /dev/null` (only the e2e areas your change affects; when none is affected,
+nothing runs). Run the full suite, `python3 run_tests.py < /dev/null`, once just before pushing the PR.
+
 # Releases
 
 Every machine generation is a tagged GitHub Release with a zip. The tags are:

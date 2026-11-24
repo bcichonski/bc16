@@ -1,0 +1,10 @@
+# Amendment requests — 175
+
+## A1 — 2026-11-24 — requested by owner (mid-run message)
+missing-task — Local development runs unit tests + the happy-path e2e tier + the e2e areas affected by the change; the full suite (`python3 run_tests.py`) runs only once, just before pushing the PR. Add a `run_tests.py` option that selects the affected areas from the changes against a base ref (committed and uncommitted) using the T1 trigger rules, and document the development loop in README "Testing", root CLAUDE.md and G13 — evidence: owner message "also can we adjust the development to run the full suite only just before pushing the PR, and satisfy with areas / happy paths before?"
+
+## A2 — 2026-11-24 — requested by verifier
+contradiction — Master e2e selection can silently skip areas: `concurrency` has `cancel-in-progress: true` for every ref, so push A (e.g. bdos change) cancelled by a quick push B (docs only) leaves A's changes never e2e-tested, because B's `e2e-areas` diffs only `github.event.before..github.sha`. Limit cancel-in-progress to PR refs (or compute the base from the last successful run) — evidence: `.github/workflows/tests.yml` concurrency block and the `Select e2e areas` step (`BASE_SHA: ${{ github.event.before }}`); the plan has no concurrency text.
+
+## A3 — 2026-11-24 — requested by orchestrator (pre-round-2 check)
+wrong-fact — D11 says master pushes "queue in the same concurrency group", but GitHub keeps at most one pending run per concurrency group and cancels the older pending one when a newer run arrives, even with cancel-in-progress false; with three quick pushes the middle push is never e2e-tested. Give each push its own group (e.g. group key = ref for pull_request, run_id for push) and keep cancelling PR runs — evidence: GitHub Actions docs on `concurrency` ("any previously pending job or workflow in the concurrency group will be canceled"); `.github/workflows/tests.yml` concurrency block after T8.
