@@ -4,7 +4,7 @@
 
 **Story Type**: `Internal`
 
-**Plan Revision**: `A0`
+**Plan Revision**: `A1`
 
 > This plan captures **what** to build and **why**: domain, architecture, decisions, and verified facts.
 > It does **not** contain implementation text. The implementation agent writes the documentation against the live
@@ -121,7 +121,8 @@ scratchpad may be used to assemble and check the listing. It is not committed, a
     `design-decisions.md`, where G12–G14 already sit. They are cross-tool contracts (assembler, compiler, linker,
     BC64 tools). Before the PR, check that `origin/master`'s last G id is still G14, because parallel stories collide
     on ids. If it isn't, renumber.
-*   **D2 — `SECT` flags (owner to confirm in the PR).** `SECT` content is `flags(1) [address(2)] name`:
+*   **D2a — Two section tags, no flags (A1, owner).** `5e` is gone. `55` SECTSTAT has content `name`: a relocatable section, placed by the linker and kept only if something kept refers to it. `5a` SECTABS has content `address(2) name`: placed at that address, never moved, always kept, and overlapping another section is a link error. The dead-code roots are every SECTABS section plus the first section of the first linked object (the entry: the runtime entry stub, or an assembly-only program's entry), which is placed at `#code`. An `.org` file assembled with `--obj` is one SECTABS section. D2 below is superseded.
+*   **D2 — `SECT` flags (Superseded by A1, see D2a).** `SECT` content is `flags(1) [address(2)] name`:
     *   bit 0 `KEEP` (`0x01`): the section is a dead-code root. The linker keeps every `KEEP` section and everything
         it reaches. The runtime entry stub in `runtime.basm` is `KEEP` and refers to `F_main`, so a B program's
         roots are the same as "from `main`" today. An assembly-only program (phase 1 e2e) marks its own entry
@@ -158,9 +159,8 @@ scratchpad may be used to assemble and check the listing. It is not committed, a
 | Constant / Policy | Selected Value | Why | Where it lives |
 | :--- | :--- | :--- | :--- |
 | BOF version byte | `01` | First version | G15, 07 |
-| `SECT` KEEP | bit 0, `0x01` | Dead-code root | G15 |
-| `SECT` ABS | bit 1, `0x02`, followed by `address(2)` | `.org` files | G15 |
-| Reserved bits | 2–7 = 0; rejected if set | Room for v1 extensions without ambiguity | G15 |
+| Section tags (A1) | `55` SECTSTAT `name`; `5a` SECTABS `address(2) name`; no flags byte | Owner: one tag per kind, like the fix records | G15 |
+| Dead-code roots (A1) | every SECTABS + the first section of the first object (entry, at `#code`) | Replaces KEEP | G15 |
 | Decision ids | G15 (BOF), G16 (ABI + names) | Next free Global ids | design-decisions.md |
 | B function symbol | `F_name` | 07 Symbol names | G16 |
 | B global symbol | `G_name` (reserved) | 07 Symbol names | G16 |
@@ -179,6 +179,7 @@ Resolution attempt: AC-1 requires a decision; 07 names the two needed cases; no 
 | `T1` | G15 BOF v1 decision + byte-exact hello `.o` in 07 | — | `High` |
 | `T2` | G16 ABI + symbol names, C5/C2 notes, 03-compiler reference | `T1` | `Medium` |
 | `T3` | 02-assembler reference; make 07 and 08 agree with G15/G16 | `T1`, `T2` | `Medium` |
+| `T4` | Split `SECT` into SECTSTAT `55` / SECTABS `5a` everywhere (A1) | `T3` | `Medium` |
 
 ### T1 — G15 BOF v1 decision + byte-exact hello `.o`
 
@@ -247,6 +248,19 @@ Resolution attempt: AC-1 requires a decision; 07 names the two needed cases; no 
 
 ---
 
+### T4 — Split `SECT` into SECTSTAT / SECTABS (A1)
+
+*   **Amended in**: A1
+*   **Goal**: Every page uses D2a. G15, the 07 record table, the tag list, the writing rules ("before a `LABEL`, `GLOBL`, SECTSTAT/SECTABS…"), the `HELLO.O` example (now `55 06 'F_main'`, 1 byte shorter), the dead-code-root wording in 07/G15 and the `02-assembler.md` section have no `5e`, flags byte, KEEP or ABS bit left. The 08 struck row reads "decided in #113 (G15: SECTSTAT/SECTABS)".
+*   **Depends on**: `T3`
+*   **Complexity**: `Medium`
+*   **Pointers**: grep `5e`, `SECT`, `KEEP`, `flags(1)`, `ABS` in `docs/specs/memory/design-decisions.md`, `docs/analysis/07-self-hosted-compiler.md`, `docs/02-assembler.md`, `docs/analysis/08-self-hosted-roadmap.md`. The `ab` ABS *symbol* record is unrelated: keep it.
+*   **Definition of Done**: as Goal. The new example total size is stated correctly, and a scratchpad re-parse of the listing passes (lengths, fix offsets on placeholders). No `5e` tag remains.
+*   **Tests expected**: none (docs).
+*   **Tests to modify**: None
+
+---
+
 ## 5. Verification
 
 *   **Unit**: `python3 run_tests.py --group unit` exits 0 (docs only; proves nothing broke).
@@ -285,3 +299,4 @@ to confirm D2. The C5 handling (D5) and the byte-return rule (D6) are interpreta
 
 | Amendment | Requested by | Request | Decision | Plan changes |
 | :--- | :--- | :--- | :--- | :--- |
+| A1 | owner (PR #183) | Split `5e` SECT into `55` SECTSTAT / `5a` SECTABS, no flags | Accepted: owner decision on the open point D2 was meant for | D2 superseded by D2a; §3.1 rows replaced; T4 added |

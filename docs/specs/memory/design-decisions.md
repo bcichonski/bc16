@@ -1009,7 +1009,7 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   stream of short records with no index. One section per function makes dead-code elimination exact. 16-bit fix entries keep the
   target in the placeholder, so a call or jump costs 1 fix byte. The design and its sizes are in
   [07, "Object file format"](../../analysis/07-self-hosted-compiler.md#object-file-format); the record layout was decided on 2026-11-13
-  and the `SECT` flags in #113.
+  and the section records `SECTSTAT`/`SECTABS` in #113.
 - **Usage:**
   - every record is `tag(1) length(1) content[length]` (content at most 255 bytes; a reader skips a record it doesn't need by its
     length); 16-bit values are big-endian (G6); a name is the rest of its record and carries no length of its own;
@@ -1021,7 +1021,8 @@ as a rule, with its purpose, rationale, usage and trade-offs.
     | `ee` | `EXTRN` | `name` | declares symbol number k (k = 0, 1, 2… in order of the `ee` records); defined in this or another module |
     | `de` | `NEED` | `module-name` | from `#link module-name`: `module-name.O` must be linked too; missing is an error |
     | `ad` | `ADDR` | `kind(1) value(2)` | from `#code` (kind 0), `#heap` (1) or `#codelimit` (2): an address of the finished program |
-    | `5e` | `SECT` | `flags(1) [address(2)] name` | starts a section (one function plus its strings); the section offset starts at 0 |
+    | `55` | `SECTSTAT` | `name` | starts a relocatable section (one function plus its strings); the section offset starts at 0; kept only if something kept refers to it |
+    | `5a` | `SECTABS` | `address(2) name` | starts a section placed at `address`: never moved, always kept; the section offset starts at 0 |
     | `91` | `GLOBL` | `name` | the global symbol `name` is at the current section offset |
     | `c0` | `CODE` | `bytes` | code/data bytes appended to the current section, placeholders included |
     | `1a` | `LABEL` | `n(2)` | local label n is at the current section offset |
@@ -1039,29 +1040,27 @@ as a rule, with its purpose, rationale, usage and trade-offs.
     placeholder, so an entry is only the offset; `f8`, `f9`, `fa` and `fb` have 1-byte placeholders (written as `00`) and carry the
     target in the entry. There is no addend. `REL15`/`REL7` are encoded as the assembler does (G5); a target out of range is a link
     error naming the symbol;
-  - writing rules, which make the output deterministic: the `CODE` record is flushed when full, before a `LABEL`, `GLOBL`, `SECT`,
-    `ee` or `END`, and before a template (or raw `asm` item) that wouldn't fit whole, so a placeholder never straddles two records;
+  - writing rules, which make the output deterministic: the `CODE` record is flushed when full, before a `LABEL`, `GLOBL`, `SECTSTAT`,
+    `SECTABS`, `ee` or `END`, and before a template (or raw `asm` item) that wouldn't fit whole, so a placeholder never straddles two records;
     the fix records follow their `CODE` record directly, in tag order `f1`, `f2`, `f8`, `f9`, `fa`, `fb`, with offsets ascending,
     empty lists not written, and a list over 255 bytes continued in another record with the same tag; every symbol a fix refers to
     is declared by an `ee` record before the `CODE` record that uses it, written at its first use (a call within the module goes
     through an `ee` too; `91` defines a name but allocates no number); a `de` for every `#link` and an `ad` for every `#code`, `#heap`
     or `#codelimit` line is written where it appears, repeats included;
-  - `SECT` flags: bit 0 `KEEP` (`0x01`) makes the section a dead-code root: the linker keeps every `KEEP` section and everything it
-    reaches. The runtime entry stub in `runtime.basm` is `KEEP` and refers to `F_main`, so a B program's roots are the same as "from
-    `main`" today; an assembly-only program marks its own entry `KEEP`. Bit 1 `ABS` (`0x02`) places the section at the absolute
-    `address(2)` that follows the flags byte (present only when this bit is set) instead of appending it to the image; it is not
-    moved, and overlapping another section is a link error naming both. An `.org` file assembled with `--obj` is one section with
-    flags `KEEP|ABS` (`0x03`) at its `.org` address (A10). Bits 2–7 are reserved and written as 0; a reader rejects a set reserved
-    bit, naming the module and the section. Section offsets start at 0 either way, and fix-ups in an `ABS` section resolve like
-    any other;
+  - sections: a `SECTSTAT` (`55`) section is relocatable and the linker keeps it only if something it keeps refers to it. A
+    `SECTABS` (`5a`) section is placed at the absolute `address(2)` instead of being appended to the image; it is not moved, it is
+    always kept, and overlapping another section is a link error naming both. An `.org` file assembled with `--obj` is one
+    `SECTABS` section at its `.org` address (A10). There is no flags byte. The dead-code roots are every `SECTABS` section plus the
+    first section of the first linked object, the entry (the runtime entry stub, or the entry of an assembly-only program), which
+    is placed at `#code`. The runtime entry stub refers to `F_main`, so a B program's roots are the same as "from `main`" today.
+    Section offsets start at 0 either way, and fix-ups in a `SECTABS` section resolve like any other;
   - version: the header content starts with `version = 01`. A reader rejects any other version; any change to a record layout or
     a flag meaning bumps it;
   - worked example: the byte-exact `HELLO.O` of `word main() { puts("hi"); return 0; }` is in
     [07, "Object file format"](../../analysis/07-self-hosted-compiler.md#object-file-format).
 - **Trade-offs:** no index, so a linker reads every object twice (symbols, then emit); a `CODE` record holds at most 255 bytes and an
-  `ee` flushes it, so short records cost 2 bytes of header each (a `.o` is estimated at 1.2–1.3 × the code size). `KEEP` and `ABS`
-  are the only flags; a new one uses a reserved bit, which old readers reject rather than misread. The `SECT` flags are this
-  story's choice on a point the roadmap listed as an owner decision (owner to confirm in the PR).
+  `ee` flushes it, so short records cost 2 bytes of header each (a `.o` is estimated at 1.2–1.3 × the code size). A new kind of section takes a new tag and a version bump. The two section tags are the
+  owner's decision in #113 (they replace a flags byte).
 
 ### G16. The B calling convention is a frozen ABI, with fixed symbol names
 - **Purpose:** assembly modules (`.basm`, `runtime.basm`) call B and are called by B, and modules from different tools are linked

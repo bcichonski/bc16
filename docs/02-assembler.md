@@ -286,8 +286,9 @@ flat image. The format is BOF v1, a stream of `tag, length, content` records, re
 [G15](specs/memory/design-decisions.md#g15-object-files-are-bof-v1-a-record-stream-whose-layout-is-frozen). A module
 will contain:
 
-- **sections**: the code and data bytes, each section starting at offset 0. A section has `KEEP` and `ABS` flags
-  (an `.org` file becomes one `KEEP|ABS` section at its `.org` address);
+- **sections**: the code and data bytes, each section starting at offset 0. A section is `SECTSTAT` (relocatable, kept
+  only if something kept refers to it) or `SECTABS` (placed at its address, never moved, always kept); an `.org` file
+  becomes one `SECTABS` section at its `.org` address;
 - **globals**: the labels the module exports (`.global`), each at an offset in a section;
 - **externals**: the symbols the module imports (`.extern`), numbered in the order they are declared;
 - **fix-ups**: for every placeholder in the code, where it is and which kind it is (16-bit address, `REL15`, `REL7`,

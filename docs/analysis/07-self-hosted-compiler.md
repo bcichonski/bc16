@@ -493,7 +493,7 @@ BCC2 (parser):
 
 BCC3 (code generator):
 1. Open `NAME.IR`; delete an old `NAME.O` and create `NAME.O`; write the header record.
-2. For each function: write `SECT` and `GLOBL`, then expand each IR operation into its
+2. For each function: write `SECTSTAT` and `GLOBL`, then expand each IR operation into its
    template in the code buffer, with fix entries. A symbol used for the first time gets
    its `ee` record then. Flush by the [writing rules](#object-file-format).
 3. Write the function's strings after its code, each with its local label.
@@ -547,8 +547,8 @@ searched on the main object's drive, then on A.
 
    Close it. Repeat until every module in the list has been read.
 3. Report a symbol defined twice, naming both modules.
-4. Mark the sections reachable from the `KEEP` sections (the runtime entry stub is `KEEP` and reaches
-   `F_main`). Report every
+4. Mark the sections reachable from the roots (every `SECTABS` section, and the entry: the first
+   section of the first linked object, the runtime entry stub, which reaches `F_main`). Report every
    undefined symbol that a marked section uses, with the module that uses it.
 5. Give each marked section its address, from the `#code` address (default `0x6000`), in
    list order. The runtime entry
@@ -799,7 +799,7 @@ assembly text for a whole program is far bigger than the disc (see the short ans
 
 The object format is "BOF v1", and it is decided: design decision
 [G15](../specs/memory/design-decisions.md#g15-object-files-are-bof-v1-a-record-stream-whose-layout-is-frozen)
-records it (record layout decided 2026-11-13, `SECT` flags in #113). It is a record stream in a normal
+records it (record layout decided 2026-11-13, `SECTSTAT`/`SECTABS` in #113). It is a record stream in a normal
 BFS file, written through the buffered write call and read strictly in order: there is no
 index, because bdos has no seek and the writer can't know sizes before it writes. All
 16-bit values are big-endian (design decision G6).
@@ -813,7 +813,8 @@ bytes. A reader that doesn't need a record skips it by its length.
 | `ee` | `EXTRN` | `name` | declares symbol number k (k = 0, 1, 2… in order of the `ee` records). The symbol may be defined in another module or in this one |
 | `de` | `NEED` | `module-name` | from `#link module-name`: `module-name.O` must be linked too; missing is an error |
 | `ad` | `ADDR` | `kind(1) value(2)` | from `#code` (kind 0), `#heap` (1) or `#codelimit` (2): an address of the finished program |
-| `5e` | `SECT` | `flags(1) [address(2)] name` | starts a section: one function, plus its strings. The section offset starts at 0. `address` is there only when the `ABS` flag is set |
+| `55` | `SECTSTAT` | `name` | starts a relocatable section: one function, plus its strings. The section offset starts at 0. The linker keeps it only if something kept refers to it |
+| `5a` | `SECTABS` | `address(2) name` | starts a section placed at `address`: never moved, always kept. The section offset starts at 0 |
 | `91` | `GLOBL` | `name` | the global symbol `name` is at the current section offset |
 | `c0` | `CODE` | `bytes` | code/data bytes appended to the current section, placeholders included |
 | `1a` | `LABEL` | `n(2)` | local label n is at the current section offset |
@@ -841,8 +842,8 @@ the fix records that follow it patch bytes inside it; each `offset` is a positio
 - There is no addend: the assembler has no `:label+n` expressions.
 
 **Writing rules.** They make the output deterministic, which the byte-identical test needs.
-- The writer flushes the `CODE` record when it is full, before a `LABEL`, `GLOBL`, `SECT`
-  or `END`, and before a template (or raw `asm` item) that wouldn't fit whole. A
+- The writer flushes the `CODE` record when it is full, before a `LABEL`, `GLOBL`, `SECTSTAT`,
+  `SECTABS` or `END`, and before a template (or raw `asm` item) that wouldn't fit whole. A
   placeholder never straddles two records.
 - The fix records follow their `CODE` record directly, in tag order (`f1`, `f2`, `f8`,
   `f9`, `fa`, `fb`), with offsets ascending. Empty lists aren't written. A list longer than
@@ -859,12 +860,12 @@ the fix records that follow it patch bytes inside it; each `offset` is a positio
   first use.
 
 **Worked example: `HELLO.O`.** `word main() { puts("hi"); return 0; }` with `#include stdio.h`
-gives exactly these 100 bytes, one record per line (`'…'` is the ASCII of the hex before it):
+gives exactly these 99 bytes, one record per line (`'…'` is the ASCII of the hex before it):
 
 ```
 b0 06 01 48 45 4c 4c 4f          header: version 01, module 'HELLO'
 de 05 53 54 44 49 4f             NEED 'STDIO', from '#link stdio' in STDIO.H
-5e 07 00 46 5f 6d 61 69 6e       SECT: flags 00 (neither KEEP nor ABS), 'F_main'
+55 06 46 5f 6d 61 69 6e          SECTSTAT: relocatable section 'F_main'
 91 06 46 5f 6d 61 69 6e          GLOBL 'F_main' at offset 0
 c0 06 18 00 14 00 11 00          CODE, offsets 0-5: .mv csci, <string> (18 hh 14 ll); mov a, 0x00
 fb 03 01 80 00                   HILO at offset 1 (low byte at 3), target 8000 = local label 0
@@ -893,8 +894,9 @@ hold the target (`00 00`, `00 01`), the two 1-byte placeholders of the `.mv` are
 where `#link` appears, before the section; each `ee` is written at its first use and
 flushes the `CODE` record before it, whose fix record follows it directly; the strings come
 after the function's code, behind their `LABEL`, which flushes the last `CODE` record. The
-source has no `#code` or `#heap` line, so there is no `ad` record. `SECT` has flags `00`
-and no address: the runtime entry stub, which is `KEEP`, reaches `F_main`. Linked at
+source has no `#code` or `#heap` line, so there is no `ad` record. The section is
+`SECTSTAT`, so it has no address: the runtime entry stub (the first section of the first linked
+object, a dead-code root) reaches `F_main`, which keeps it. Linked at
 `0x602e`, local label 0 is `0x603f`, the address of `DATA0020` in the host build.
 
 **Size.** A variable access is 5 bytes of code (`mov a, off` + `cal`) plus 1 fix byte. With
@@ -902,26 +904,26 @@ one fix record per patch it would be 11–12 bytes, because each fix would also 
 `CODE` record. The estimate for a whole `.o` is about 1.2–1.3 × the code size, to be
 measured in phase 1.
 
-**`SECT` flags** (decided in #113, G15). The flags byte is followed by `address(2)` only
-when `ABS` is set:
-- bit 0 `KEEP` (`0x01`): the section is a dead-code root. The linker keeps every `KEEP`
-  section and everything it reaches. The runtime entry stub in `runtime.basm` is `KEEP` and
-  refers to `F_main`, so a B program's roots are the same as "from `main`" today. An
-  assembly-only program marks its own entry `KEEP`.
-- bit 1 `ABS` (`0x02`): the section is placed at the absolute `address(2)` that follows the
-  flags byte, not appended to the image. It is not moved, and overlapping another section is
-  a link error naming both. An `.org` file assembled with `--obj` (the boot sector) is one
-  section with flags `KEEP|ABS` (`0x03`) at its `.org` address (design decision A10 allows
-  one `.org`, before any code or label).
-- bits 2–7 are reserved and written as 0. A reader rejects a set reserved bit, naming the
-  module and the section.
+**Section records** (decided in #113, G15). There are two kinds, and no flags byte:
+- `55` `SECTSTAT`, content `name`: a relocatable section. The linker places it after the
+  sections before it and keeps it only if something it keeps refers to it.
+- `5a` `SECTABS`, content `address(2) name`: a section placed at the absolute `address`
+  instead of being appended to the image. It is not moved and it is always kept.
+  Overlapping another section is a link error naming both. An `.org` file assembled with
+  `--obj` (the boot sector) is one `SECTABS` section at its `.org` address (design decision
+  A10 allows one `.org`, before any code or label).
 
-A section's offsets start at 0 either way, and fix-ups in an `ABS` section resolve like any
-other.
+The dead-code roots are every `SECTABS` section plus the first section of the first linked
+object: the entry, which is the runtime entry stub, or the entry of an assembly-only
+program. The entry is placed at `#code`.
+
+A section's offsets start at 0 either way, and fix-ups in a `SECTABS` section resolve like
+any other.
 
 - **One section per function.** That makes dead-code elimination exact: the linker keeps a
-  section only if something it keeps refers to it, starting from the `KEEP` sections. A B program's runtime
-  entry stub is `KEEP` and reaches `F_main`.
+  section only if something it keeps refers to it, starting from the roots (every `SECTABS`
+  section and the entry, the first section of the first linked object). A B program's runtime
+  entry stub reaches `F_main`.
 - **`REL15`** is the sign-magnitude 15-bit encoding used by `jrx` and `clr`, and **`REL7`**
   the 7-bit one used by `jmr` (design decision G5). The linker must encode them the same way
   the assembler does, and reports a target out of range by the symbol's name.
@@ -944,7 +946,8 @@ other.
    - a global symbol table (name in a string pool → section, offset);
    - a reference list per section: each external symbol it uses. Today's whole system has
      only a few hundred of these, at 2 bytes each.
-2. **Mark** the sections reachable from the `KEEP` sections (for a B program: the runtime entry stub, which
+2. **Mark** the sections reachable from the roots: every `SECTABS` section and the entry, the first
+   section of the first linked object (for a B program: the runtime entry stub, which
    reaches `F_main`), following the reference lists. Report undefined symbols that are reachable.
 3. **Lay out** the live sections from `0x6000` in order. Each one gets its address.
 4. **Pass 2, emit.** For each object, read it again. For each live section, keep its local
@@ -1127,7 +1130,7 @@ phase 1, #16 and #41 into phase 0). The issue for each step is in
   records of at most 255 content bytes, with no index. Fixes are offset lists after each
   `CODE` record, one tag per kind, with 16-bit targets kept in the placeholder and a
   combined `HILO` kind for `.mv`. See [object format](#object-file-format). Recorded as
-  [G15](../specs/memory/design-decisions.md#g15-object-files-are-bof-v1-a-record-stream-whose-layout-is-frozen) in #113, with the `SECT` flags.
+  [G15](../specs/memory/design-decisions.md#g15-object-files-are-bof-v1-a-record-stream-whose-layout-is-frozen) in #113, with the `SECTSTAT`/`SECTABS` section records.
 - **Decided (2026-11-13):** work discs: drive A holds the tools and libraries and is only
   read; sources, objects and the program are all on drive B. `blink` takes one name; the
   other objects come from `#link` lines, stored as `NEED` records. Every object needs a
