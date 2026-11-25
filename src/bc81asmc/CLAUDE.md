@@ -8,6 +8,8 @@ Reference: `docs/02-assembler.md` has the syntax and full instruction encoding.
 ```bash
 cd src && python3 bc81asmc/bc81asmc.py --verbose path/file.basm   # -> path/file.btap (always btap)
 cd src && python3 bc81asmc/bc81asmc.py --lst path/file.lst --map path/file.map path/file.basm   # also the listing and the symbol map (both optional)
+cd src && python3 bc81asmc/bc81asmc.py --obj path/file.basm       # -> path/file.o (BOF v1) instead of the .btap; not with --lst/--map
+cd src && python3 bc81asmc/bc81asmc.py --dump path/file.o         # print the records of an object file, one per line
 bc81asmc --verbose path/file.basm                                 # same via the console command (`pip install -e .`), any directory
 cd src/bc81asmc && python3 -m unittest discover -s tests -t . -p "*_tests.py"   # grammar and emit tests (silent)
 cd src/bc81asmc && python3 -m unittest tests.bc81asmc_tests.TestGrammar.test_hex_imm8
@@ -63,6 +65,14 @@ and the `--lst`/`--map` flags as subprocesses).
   The formatters in `bc81asmc_listing.py` (`format_listing`, `format_map`) read the bytes after pass 2, so the
   listing shows the patched values. The module does no I/O: `main()` writes the files, after the `.btap` and only
   on success.
+- **Object mode (`--obj`, #115)**, `bc81asmc_obj.py`. `main()` runs the normal pass 1 (`first_pass`), then
+  `compile_object()` classifies every name (global, external, local `.def`, local label; `.global`, `.extern` and `.sect`
+  are AST nodes that emit nothing), checks the object-mode rules, turns every label reference into a fix entry (the AST
+  marks which `hi`/`lo` references form one `ABS16` or `HILO` pair) and writes the records line by line through the shared
+  `src/bof.py` (`BofWriter`, the reader and `format_dump`, also used by `--dump`; G15, A14). The module does no I/O: `main()`
+  writes `file.o`, only on success. Flat output is unchanged. Tests: `tests/bc81asmc_obj_tests.py`,
+  `tests/bc81asmc_obj_cli_tests.py` (subprocesses), `tests/bc81asmc_object_directives_tests.py` (the directives) and
+  `src/tests/test_bof.py` (the BOF module).
 
 ## Rules
 

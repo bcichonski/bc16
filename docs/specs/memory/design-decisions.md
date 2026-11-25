@@ -628,6 +628,36 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   a label-like constant needs a `.def`; a bad value is reported at its use, not at its `#define`; a header cannot hold
   code.
 
+### A14. `--obj` writes BOF v1 object files; names are classified at first sight, declarations come first
+- **Purpose:** make `bc81asmc --obj file.basm` write a relocatable `file.o` in BOF v1 (G15), the byte-exact reference
+  that BASM (phase 2) must reproduce and the input of `blink.py` (#117) (issue #115, roadmap step 33).
+- **Rationale:**
+  - one shared module `src/bof.py` holds the writer, the reader and the dump, so `blink.py` and `bc --obj` (#121) use
+    the same code (the ISA module, G14, is the precedent);
+  - the module name and the `NEED` names are upper case (BFS names, doc 07's `HELLO.O`); symbol and section names keep their case;
+  - code before the first `.sect` goes into an implicit `SECTSTAT` named after the module, so any plain `.basm` makes a
+    usable object; an `.org` file is one `SECTABS` section, and `.sect` there is an error;
+  - **declarations come first**: `.global`/`.extern` before any use or definition of the name, and a `.def` before its
+    first use. BASM reads the source once; at a forward reference it must already write the target (local label
+    `0x8000 | n` or symbol `k`), and no G15 record can later turn a local label into a global or a `.def` value.
+    Relaxing the rule needs a BASM declaration pre-scan or a format version bump, both owner decisions, so it stays;
+  - every label reference is a fix entry, numbered at first use (local labels by first appearance, `EXTRN` at first
+    use); only a local `.def` is resolved in place, as in a flat build;
+  - `de`, `ad` and `ab` records flush the open `CODE` record too (a clarification of G15's writing rules, no layout change);
+  - `.assert` naming a label is evaluated in an `.org` file and skipped with a warning in a relocatable module (the
+    address exists only after linking; the linker checks the image end);
+  - `.global`, `.extern` and `.sect` are no-ops without `--obj`, so every flat build is byte-identical and a runtime
+    source with `.sect` lines can still be pasted into one;
+  - no assembler syntax for `ad` records: no `.basm` uses `#code`/`#heap`/`#codelimit`, and #121, the first producer, adds
+    what it needs;
+  - `bc81asmc --dump file.o` is the dump command (the reader lives with the writer), not an `ftool` command.
+- **Usage:**
+  - `bc81asmc --obj file.basm` writes `file.o` and no `.btap`; it cannot be combined with `--lst` or `--map`;
+  - `bc81asmc --dump file.o` prints one line per record (`docs/02-assembler.md`, "Object files (`--obj`)").
+- **Trade-offs:** a source that uses a `.def` or a name before declaring it fails with `--obj` (not flat); a relative jump
+  to a local `.def` needs an `.org` file; an `.assert` on a label in a relocatable module is not checked until linking
+  (a warning marks it); `ad` records cannot be produced from assembly yet.
+
 ---
 
 ## Compiler (`src/bc/`)
@@ -1091,6 +1121,7 @@ as a rule, with its purpose, rationale, usage and trade-offs.
     error naming the symbol;
   - writing rules, which make the output deterministic: the `CODE` record is flushed when full, before a `LABEL`, `GLOBL`, `SECTSTAT`,
     `SECTABS`, `ee` or `END`, and before a template (or raw `asm` item) that wouldn't fit whole, so a placeholder never straddles two records;
+    `de`, `ad` and `ab` records flush the open `CODE` record too, so the bytes before them are written first;
     the fix records follow their `CODE` record directly, in tag order `f1`, `f2`, `f8`, `f9`, `fa`, `fb`, with offsets ascending,
     empty lists not written, and a list over 255 bytes continued in another record with the same tag; every symbol a fix refers to
     is declared by an `ee` record before the `CODE` record that uses it, written at its first use (a call within the module goes
@@ -1108,7 +1139,7 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - worked example: the byte-exact `HELLO.O` of `word main() { puts("hi"); return 0; }` is in
     [07, "Object file format"](../../analysis/07-self-hosted-compiler.md#object-file-format).
 - **Trade-offs:** no index, so a linker reads every object twice (symbols, then emit); a `CODE` record holds at most 255 bytes and an
-  `ee` flushes it, so short records cost 2 bytes of header each (a `.o` is estimated at 1.2–1.3 × the code size). A new kind of section takes a new tag and a version bump. The two section tags are the
+  `ee` flushes it, so short records cost 2 bytes of header each (a `.o` measured 1.7–1.9 × the code size in #115, mostly from `LABEL` records; see 07, "Size"). A new kind of section takes a new tag and a version bump. The two section tags are the
   owner's decision in #113 (they replace a flags byte).
 
 ### G16. The B calling convention is a frozen ABI, with fixed symbol names

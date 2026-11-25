@@ -383,7 +383,7 @@ For comparison, one single-pass program would be about 29 KB of code plus 8–12
 ### Disc cost of a compile
 
 For a source of S bytes: `.TOK` is about 0.5 S, `.IR` about 0.5–1 S, and `.O` about
-1.2–1.3 × the size of the code (see [object format](#object-file-format)). A 20 KB source takes about 20–30 KB of temporary space at the peak, and
+1.7–1.9 × the size of the code, measured in #115 (see [object format](#object-file-format)). A 20 KB source takes about 20–30 KB of temporary space at the peak, and
 freed space isn't reused today. On a 128 KB work disc that's a handful of compiles before
 the disc is full. Phase 0 therefore makes bdos reuse freed space (#41: a new file goes into
 the largest free gap). Deleting the *last* file on a disc
@@ -724,7 +724,8 @@ assembly and B modules link together.
 - **The syntax is easy to parse in B:** lowercase mnemonics, hex-only immediates with a
   fixed number of digits, `:label` references, `;` comments, four directives (`.org`,
   `.db`, `.mv`, `.def`). See [../02-assembler.md](../02-assembler.md).
-- **New directives** for object output (the host `bc81asmc --obj` gets the same ones):
+- **New directives** for object output (the host `bc81asmc --obj` gets the same ones, see
+  A14 in `docs/specs/memory/design-decisions.md`):
   - `.global name` / `.extern name`: export and import symbols. Without `.global`, labels
     stay local to the module;
   - `.sect name`: start a new section. It lets the runtime be split per routine so the
@@ -857,7 +858,8 @@ the fix records that follow it patch bytes inside it; each `offset` is a positio
   `#heap` or `#codelimit` line, where they appear, repeats included. The linker ignores a
   module it already has.
 - An `ee` record also flushes the `CODE` record, so symbols can be declared at their
-  first use.
+  first use. So do `de`, `ad` and `ab` records: bytes written before them are in a `CODE`
+  record that is already out.
 
 **Worked example: `HELLO.O`.** `word main() { puts("hi"); return 0; }` with `#include stdio.h`
 gives exactly these 99 bytes, one record per line (`'…'` is the ASCII of the hex before it):
@@ -901,8 +903,15 @@ object, a dead-code root) reaches `F_main`, which keeps it. Linked at
 
 **Size.** A variable access is 5 bytes of code (`mov a, off` + `cal`) plus 1 fix byte. With
 one fix record per patch it would be 11–12 bytes, because each fix would also split the
-`CODE` record. The estimate for a whole `.o` is about 1.2–1.3 × the code size, to be
-measured in phase 1.
+`CODE` record. The estimate for a whole `.o` was about 1.2–1.3 × the code size. Measured
+with `bc81asmc --obj` in #115 it is **1.7–1.9 ×**: `bcos.basm` 3435 → 6082 bytes (1.77),
+`boot.basm` 128 → 242 (1.89), the compiler output of `helloworld` 500 → 834 (1.67). Most of
+the overhead is labels, not fixes: every local label is a 4-byte `LABEL` record and splits
+the `CODE` record (2 more bytes), about 6 bytes a label (1,380 bytes in bcOS), and every
+`jmr` is a 3-byte `REL7` entry. Filling backward relative jumps in place would save about 1%.
+A two-pass BASM (reading the source twice) could fill every relative jump inside a section
+and leave out the `LABEL`s nothing else uses, for about 1.4–1.5 ×, with no format change.
+Kept one-pass in #115 (A14); the two-pass design is open for the owner to choose.
 
 **Section records** (decided in #113, G15). There are two kinds, and no flags byte:
 - `55` `SECTSTAT`, content `name`: a relocatable section. The linker places it after the

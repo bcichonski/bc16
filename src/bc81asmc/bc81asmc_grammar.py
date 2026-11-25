@@ -445,10 +445,15 @@ assertop = lexeme(string('<=') | string('>=') | string('!=') | string('<') | str
 dASSERT = lexeme(seq(lexeme(string('.assert')) >> assertoperand, assertop, assertoperand).combine(ASSERT))\
         .desc('.assert directive')
 
+dnamed = lexeme(seq(pos, ident).combine(sourcename))
+dGLOBAL = (lexeme(string('.global')) >> dnamed).map(GLOBAL).desc('.global directive')
+dEXTERN = (lexeme(string('.extern')) >> dnamed).map(EXTERN).desc('.extern directive')
+dSECT = (lexeme(string('.sect')) >> dnamed).map(SECT).desc('.sect directive')
+
 # mINC16/mDEC16 before mINC/mDEC: `inc a` would otherwise match the prefix of `inc af`
 mnemonic = mNOP | mINC16 | mDEC16 | mINC | mDEC | mNOT16 | mNOT | mMOVri8 | mMOVrr | mMOVrm | mMOVmr | \
            mCLC | mJMP | mJMR | mKIL | mCAL | mCLR | mRET | mIN | mOUT | mPSH | mPOP | mJRX
-directive = dORG | dDB | dMV | dDEF | dASSERT
+directive = dORG | dDB | dMV | dDEF | dASSERT | dGLOBAL | dEXTERN | dSECT
 label = lexeme(seq(pos, ident << colon).combine(sourcename))
 instruction = mnemonic | directive
 linecomment = (ignore >> comment).map(LineComment)
