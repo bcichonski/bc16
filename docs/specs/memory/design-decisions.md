@@ -1139,7 +1139,7 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - worked example: the byte-exact `HELLO.O` of `word main() { puts("hi"); return 0; }` is in
     [07, "Object file format"](../../analysis/07-self-hosted-compiler.md#object-file-format).
 - **Trade-offs:** no index, so a linker reads every object twice (symbols, then emit); a `CODE` record holds at most 255 bytes and an
-  `ee` flushes it, so short records cost 2 bytes of header each (a `.o` is estimated at 1.2–1.3 × the code size). A new kind of section takes a new tag and a version bump. The two section tags are the
+  `ee` flushes it, so short records cost 2 bytes of header each (a `.o` measured 1.7–1.9 × the code size in #115, mostly from `LABEL` records; see 07, "Size"). A new kind of section takes a new tag and a version bump. The two section tags are the
   owner's decision in #113 (they replace a flags byte).
 
 ### G16. The B calling convention is a frozen ABI, with fixed symbol names
