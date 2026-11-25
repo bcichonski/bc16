@@ -1,0 +1,56 @@
+{
+  "ticket": "117",
+  "checkout_path": "/c/workspace/bc16-117",
+  "branch": "ai/feature/117-blink-py-reference-linker-bof-objects",
+  "tools": {
+    "github_mcp": true,
+    "gh": true,
+    "ci_logs": "gh",
+    "ci_rerun": "gh"
+  },
+  "phases": {
+    "review_story": {
+      "status": "done"
+    },
+    "spec_plan": {
+      "status": "blocked",
+      "plan_file": "/c/workspace/bc16-117/docs/specs/plans/117-Blink-Reference-Linker-Bof-Objects.md",
+      "revision": "A0",
+      "amendments": [],
+      "reason": "DRAFT - BLOCKED: OQ-1 runtime contract (entry section, __end/__heap, RUNTIME.O location) and AC-1 runtime.basm come from #116, which is OPEN (its /grind is in progress); OQ-2 shipping ahead of #116 with a fixture runtime deviates from AC-1 and the roadmap order (owner)."
+    },
+    "implementation": {
+      "status": "pending",
+      "base_refs": {}
+    },
+    "verification": {
+      "status": "pending",
+      "round": 0,
+      "max_rounds": 3,
+      "history": []
+    },
+    "finalize": {
+      "status": "in_progress",
+      "pr_urls": []
+    },
+    "pr_monitor": {
+      "status": "pending",
+      "repos": {}
+    }
+  },
+  "github": {
+    "repo": "bcichonski/bc16",
+    "story_issue": 117,
+    "story_points_estimated": true,
+    "story_moved_to_development": false,
+    "estimates_posted": false,
+    "estimates": [],
+    "sub_issues": [],
+    "pending_writes": []
+  },
+  "notes": [
+    "Dependency #116 (runtime.basm, roadmap step 34) is OPEN; its /grind run started 2026-11-25 14:07 in /c/workspace/bc16-116 (parallel session, untouched by this run). #188 (two-pass --obj) is also open and asked to land before #116.",
+    "gh rerun gets 403 with the PAT (memory): a transient CI failure falls back to an empty commit.",
+    "Plan retention: 7 main plans; oldest 9-Assembler-Listing-And-Symbol-Map.md has no CHANGELOG entry, deletion skipped (unattended). Consider running the changelog generator."
+  ]
+}
