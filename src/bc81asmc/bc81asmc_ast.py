@@ -803,6 +803,27 @@ class ASSERT(Directive):
         return ".ASSERT {0} {1} {2}".format(self.left, self.op, self.right)
     # emits nothing: evaluated by compile() in pass 2
 
+@dataclass
+class GLOBAL(Directive):
+    name : str
+    def __str__(self):
+        return ".GLOBAL {0}".format(self.name)
+    # emits nothing in flat mode; object mode (--obj) reads `name`
+
+@dataclass
+class EXTERN(Directive):
+    name : str
+    def __str__(self):
+        return ".EXTERN {0}".format(self.name)
+    # emits nothing in flat mode; object mode (--obj) reads `name`
+
+@dataclass
+class SECT(Directive):
+    name : str
+    def __str__(self):
+        return ".SECT {0}".format(self.name)
+    # emits nothing in flat mode; object mode (--obj) reads `name`
+
 def LINE(label, token, comment):
     if label:
         token.set_label(label)

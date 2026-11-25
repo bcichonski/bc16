@@ -14,11 +14,12 @@ def read_input_file(fname):
     with open(fname, 'r', encoding='utf8') as file_handle:
         return file_handle.read()
 
-def compile(ast, verbose, defines=None, link_names=None):
+def compile(ast, verbose, defines=None, link_names=None, link_occurrences=None):
     """Two-pass compile of a parsed program. `defines` (a DefineTable) and `link_names` come from the pre-pass."""
     context = CodeContext()
     context.define_table = defines
     context.link_names = list(link_names or [])
+    context.link_occurrences = list(link_occurrences or [])
     labeladdresses = {}
     labellines = {}
     deflines = {}
@@ -201,7 +202,7 @@ def assemble_text(text, path, verbose=False):
         raise AssemblerError(warnings + [parse_error_to_diagnostic(error, pre.text)])
     print('Generating code')
     try:
-        context = compile(ast, verbose, pre.defines, pre.link_names)
+        context = compile(ast, verbose, pre.defines, pre.link_names, pre.link_occurrences)
     except AssemblerError as error:
         raise AssemblerError(warnings + error.diagnostics)
     context.warnings = warnings

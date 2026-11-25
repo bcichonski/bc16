@@ -15,6 +15,7 @@ Define table API (for the resolution of names in operands, T2):
     result.text            the parser text (main file lines, directives blanked)
     result.defines         a DefineTable
     result.link_names      the #link names, first-seen order, no duplicates
+    result.link_occurrences every #link in reading order, repeats included: LinkOccurrence(name, main-file line)
     result.diagnostics     errors and warnings, in reading order (Diagnostic.file/.text name a header)
     result.errors          True when there is any error (then the run must stop before parsing)
 
@@ -29,6 +30,7 @@ A `Define` has `name`, `value` (text, as written, without the trailing comment),
 import os
 import re
 import sys
+from collections import namedtuple
 
 from bc81asmc_diag import Diagnostic
 
@@ -42,6 +44,10 @@ IDENTIFIER = re.compile(r'[A-Za-z_][A-Za-z0-9_]*')
 DIRECTIVE = re.compile(r'([ \t]*)#(include|define|link)(?=[ \t]|$)')
 PROTOTYPE = re.compile(r'(?:byte|word)[ \t]+[A-Za-z_][A-Za-z0-9_]*[ \t]*\([^()]*\)[ \t]*(?:\*\*\*)?[ \t]*;?[ \t]*(?://.*)?')
 RESERVED = frozenset(isa.REGISTER_NAMES) | frozenset(isa.PAIR_NAMES)
+
+
+# one `#link` line in reading order; `line` is the main-file line it belongs to (a header's #link: the #include line)
+LinkOccurrence = namedtuple('LinkOccurrence', 'name line')
 
 
 class Define:
@@ -91,6 +97,7 @@ class PrepassResult:
         self.text = ''
         self.defines = DefineTable()
         self.link_names = []
+        self.link_occurrences = []
         self.diagnostics = []
 
     @property
@@ -162,6 +169,7 @@ class _Prepass:
             if len(parts) != 1 or IDENTIFIER.fullmatch(parts[0]) is None:
                 self.diag(line_no, column, 'malformed #link (expected: #link NAME)', **where)
                 return
+            self.result.link_occurrences.append(LinkOccurrence(parts[0], main_line))
             if parts[0] not in self.result.link_names:
                 self.result.link_names.append(parts[0])
         else:
