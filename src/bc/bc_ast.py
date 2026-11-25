@@ -829,6 +829,42 @@ class STATEMENT_ASM(Instruction):
         context.emit("""
                 {0}""".format(self.expr))
 
+ASM_RAW_NUMBER = re.compile(r'0|[1-9][0-9]*|0x[0-9a-fA-F]+')
+ASM_RAW_LABEL = re.compile(r':[A-Za-z_][A-Za-z0-9_]*')
+ASM_RAW_HILO = re.compile(r'(hi|lo)[ \t]*\([ \t]*(:[A-Za-z_][A-Za-z0-9_]*)[ \t]*\)')
+
+@dataclass
+class STATEMENT_ASM_RAW(Instruction):
+    """asm item, item, ...;  one .db line; items are numbers 0-255, :name, hi(:name), lo(:name)."""
+    items:list
+
+    def __str__(self):
+        return "ASM_RAW[{0}]".format(", ".join(self.items))
+
+    def emit(self, context):
+        out = []
+        ok = True
+        for raw in self.items:
+            item = raw.strip()
+            if ASM_RAW_NUMBER.fullmatch(item):
+                value = int(item, 16) if item.startswith('0x') else int(item)
+                if value > 255:
+                    context.add_error("raw asm: {0} is out of range (0-255)".format(item))
+                    ok = False
+                else:
+                    out.append("0x{0:02x}".format(value))
+            elif ASM_RAW_LABEL.fullmatch(item):
+                out.append(item)
+            elif ASM_RAW_HILO.fullmatch(item):
+                m = ASM_RAW_HILO.fullmatch(item)
+                out.append("{0}({1})".format(m.group(1), m.group(2)))
+            else:
+                context.add_error("raw asm: unknown item '{0}' (expected a number 0-255, :name, hi(:name) or lo(:name))".format(item))
+                ok = False
+        if ok:
+            context.emit("""
+                .db {0}""".format(", ".join(out)))
+
 @dataclass
 class STATEMENT_RETURN(Instruction):
     expr:object

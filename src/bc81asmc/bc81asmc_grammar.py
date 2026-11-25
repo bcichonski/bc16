@@ -72,7 +72,25 @@ paramreg = one_of(isa.REGISTER_NAMES).desc('register name')
 
 paramreg2 = (paramreg * 2).concat().desc('two registers')
 
-paramdb = lexeme(labelstr | quotedstr | heximm8)
+class HiLoRef(SourceName):
+  # a `hi(:name)` / `lo(:name)` .db operand: text is the operand as written normalised, `part` is
+  # 'hi' or 'lo', `label` the :name reference (with its own line/col)
+  part = 'hi'
+  label = None
+
+def hilo_ref(part, label):
+  ref = HiLoRef('{0}({1})'.format(part, label))
+  ref.part = part
+  ref.label = label
+  ref.line, ref.col = label.line, label.col
+  return ref
+
+hiloref = lexeme(seq(
+  string('hi') | string('lo'),
+  lexeme(string('(')) >> lexeme(seq(pos, colon + ident).combine(sourcename)) << string(')')
+).combine(hilo_ref)).desc('hi(:label) or lo(:label)')
+
+paramdb = lexeme(hiloref | labelstr | quotedstr | heximm8)
 
 mNOP = lexeme(string('nop')).map(NOP).desc('nop instruction')
 mINC = lexeme(string('inc') >> sep >> accumulator)\

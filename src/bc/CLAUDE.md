@@ -39,11 +39,16 @@ outputs: ignored by git and never committed. Every `.basm` starts with `; genera
   directory), `#define` (token replace: name = first token, value = rest of line; whole identifiers
   in code and in the `asm` string only, never other strings, char literals or `//` comments;
   a redefinition with a different value warns, last wins; a malformed define is an error), `#code` / `#heap` (module globals for the code and heap addresses), `#codelimit`
-  (reset on every `preprocess()`, so it does not leak between compiles), and drops `//` lines.
+  (reset on every `preprocess()`, so it does not leak between compiles), `#link NAME` (one identifier;
+  recorded in `linkNames`, reset per compile, traced with `--verbose`, dropped from the source and
+  without effect on the output until `--obj`; a malformed one is an error), and drops `//` lines.
 - `bc_grammar.py` (parsy) builds the AST from `bc_ast.py`. Each node's `emit(context)`
   appends assembly text to `Context.basm`. `PROGRAM.emit` prepends the entry point; then the
   data segment and `bc_stdlib.py` (asm runtime, a format template with `{0}`/`{1}`
   placeholders) are appended.
+- `asm "..."` is `STATEMENT_ASM` (text copied verbatim); `asm item, item, ...;` is `STATEMENT_ASM_RAW`: items are
+  validated in the node (number 0-255, `:name`, `hi(:name)`, `lo(:name)`; errors via `Context.add_error`) and it
+  emits one `.db` line. `#define` names reach the items through the normal substitution.
 - **Link step** (C9, `Context.link_functions` and `Context.add_stdlib`, run by `PROGRAM.emit` before the
   entry point is prepended):
   - all functions are emitted first (errors and label numbers unchanged); then only the function chunks

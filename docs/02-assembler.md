@@ -162,7 +162,7 @@ label:   mnemonic operands   ; comment
 | Directive | Effect |
 |---|---|
 | `.org 0xHHHH` | set the load/start address. Use it once, before any code or label (comments and `.def` may come first). A second `.org`, or a `.org` after code or a label, is an error (see [Errors](#errors)) |
-| `.db v, v, …` | emit bytes. Each `v` is `0xHH`, `'string'` (raw chars, add `0x00` yourself) or `:label` (2 bytes, big-endian address) |
+| `.db v, v, …` | emit bytes. Each `v` is `0xHH`, `'string'` (raw chars, add `0x00` yourself), `:label` (2 bytes, big-endian address), or `hi(:label)` / `lo(:label)` (1 byte: the high / low byte of the label's address; blanks inside the parentheses are allowed). A `.def` name works as a label, forward and backward, and an unknown label is the same positioned `undefined label` error as for `:label` |
 | `.mv pair, :label` | load a 16-bit label address into a pair. Expands to `mov hi,imm8` + `mov lo,imm8` (4 bytes) |
 | `.def name, 0xHHHH` | define a constant, used like a label (`:name`). Good for fixed addresses such as `bdos_bootaddr` |
 | `.assert :a OP :b` or `.assert :a OP 0xHHHH` (also `0xHH`) | check a comparison at build time. `OP` is one of `=`, `!=`, `<`, `<=`, `>`, `>=`; an operand is a `:name` (label or `.def`) or a literal. Emits no bytes; a label on the line gets the current address. A failure stops the build (see [Errors](#errors)) |

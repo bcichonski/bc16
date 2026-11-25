@@ -697,7 +697,13 @@ class DB(Directive):
         return ".DB {0}".format(", ".join(map(lambda x: str(x), self.values)));
     def emit(self, context):
         for val in self.values:
-            if isinstance(val, str):
+            if hasattr(val, 'part') and hasattr(val, 'label'):
+                # hi(:name) / lo(:name): one byte of the label's address
+                if val.part == 'hi':
+                    context.emit_hi8addr(label_name(val.label))
+                else:
+                    context.emit_lo8addr(label_name(val.label))
+            elif isinstance(val, str):
                 if val.startswith(":"):
                     context.emit_hi8addr(label_name(val))
                     context.emit_lo8addr(label_name(val))

@@ -77,7 +77,11 @@ statement_variables = (variable_declaration | variable_assignement) << semicolon
 statement_ifelse = seq(expr = lexeme(string('if')) >> leftpar >> expression << rightpar << nl.optional(), code = ignore >> code_block << nl.optional(), last = (lexeme(string('else')) >> nl.optional() >> (code_block | statement)).optional()).combine_dict(STATEMENT_IFELSE).desc('if else statement')
 statement_while = seq(expr = lexeme(string('while')) >> leftpar >> expression << rightpar << nl.optional(), code = ignore >> code_block).combine_dict(STATEMENT_WHILE).desc('while statement')
 statement_return = (lexeme(string('return')) >> expression << semicolon << nl.optional()).map(STATEMENT_RETURN).desc('return statement')
-statement_asm = (lexeme(string('asm')) >> quotedstr << semicolon << nl.optional()).map(STATEMENT_ASM).desc('asm statement')
+statement_asm_text = (lexeme(string('asm')) >> quotedstr << semicolon << nl.optional()).map(STATEMENT_ASM).desc('asm statement')
+# raw-byte form: 'asm', a blank, then items up to ',' / ';' (validated in the node); not 'asm "..."', 'asm;' or 'asmfoo'
+asm_item = regex(r'[^,;\r\n]*').map(str.strip)
+statement_asm_raw = (regex(r'asm(?=[ \t]+[^"; \t\r\n])') >> ignore >> asm_item.sep_by(string(',')) << semicolon << nl.optional()).map(STATEMENT_ASM_RAW).desc('raw asm statement')
+statement_asm = statement_asm_text | statement_asm_raw
 statement.become(ignore >> (statement_variables | statement_ifelse | statement_while | statement_return | statement_asm | statement_expression | statement_comment) << nl.optional())
 function_params = variable_declaration.sep_by(comma)
 function_declaration = seq(return_type = type, function_name = ident, params = leftpar >> function_params << rightpar << semicolon.optional() << nl.optional() << ignore, \

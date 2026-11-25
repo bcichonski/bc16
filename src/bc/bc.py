@@ -14,6 +14,7 @@ sys.setrecursionlimit(2000)
 codeSegment = 0x1000
 heapSegment = 0x3000
 codeLimit = None
+linkNames = []  # #link names of the current compile, first-seen order (written by --obj, #121)
 
 def read_input_file(fname):
     with open(fname, 'r', encoding='utf8') as file_handle:
@@ -118,6 +119,7 @@ def preprocess(input, verbose, defaultdir):
 
     global codeLimit
     codeLimit = None  # #codelimit is per compile, unlike #code/#heap
+    linkNames.clear()  # so is the #link list
 
     lines = input.splitlines()
 
@@ -136,6 +138,17 @@ def preprocess(input, verbose, defaultdir):
             if name in defines and defines[name] != value:
                 bc_log.warning("'{0}' redefined: '{1}' replaces '{2}'".format(name, value, defines[name]))
             defines[name] = value
+            i += 1
+            continue
+
+        if(re.match(r'#link(\s|$)', newline)):
+            parts = newline[len('#link'):].split()
+            if len(parts) != 1 or IDENTIFIER.fullmatch(parts[0]) is None:
+                bc_log.error('malformed #link (expected: #link NAME): {}'.format(newline))
+                sys.exit(1)
+            if parts[0] not in linkNames:
+                linkNames.append(parts[0])
+            bc_log.trace('Link {}'.format(parts[0]))
             i += 1
             continue
 
