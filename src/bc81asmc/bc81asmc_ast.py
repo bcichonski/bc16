@@ -119,14 +119,28 @@ class Bc8183:
 ASMCODES = Bc8183()
 
 class LabelName(str):
-    """A label name without its colon; `line`/`col` of the reference are kept when known."""
+    """A label name without its colon; `line`/`col` of the reference are kept when known; `pair` is
+    PAIR_ABS16/PAIR_HILO for the two halves of one address use (see paired_label_name)."""
     line = 0
     col = 0
+    pair = None
 
 def label_name(ref):
     name = LabelName(ref[1:])
     name.line = getattr(ref, 'line', 0)
     name.col = getattr(ref, 'col', 0)
+    return name
+
+# How the high and low byte references of one use form a single object-mode fix (--obj, #115):
+# `cal :x` and `.db :x` write the address as two adjacent bytes (ABS16); `.mv pair, :x` writes the
+# high byte in the first mov and the low byte in the second (HILO). A lone hi/lo reference has no pair.
+PAIR_ABS16 = 'abs16'
+PAIR_HILO = 'hilo'
+
+def paired_label_name(ref, pair):
+    """label_name(ref) marked as one `pair` use: the hi and lo references share this one object."""
+    name = label_name(ref)
+    name.pair = pair
     return name
 
 class NameRef(str):
@@ -651,8 +665,9 @@ class CAL(Instruction):
         context.emit_4bit(ASMCODES.CAL)
         if(self.arg.startswith(':')):
             context.emit_4bit(ASMCODES.CLC_OP_RNO)
-            context.emit_hi8addr(label_name(self.arg))
-            context.emit_lo8addr(label_name(self.arg))
+            ref = paired_label_name(self.arg, PAIR_ABS16)
+            context.emit_hi8addr(ref)
+            context.emit_lo8addr(ref)
         else:
             context.emit_4bit(0)
             context.emit_4bit(ASMCODES.REG2BIN(self.arg[0:2]))
@@ -761,8 +776,9 @@ class DB(Directive):
                 context.emit_byte(context.operand(val, 8))
             elif isinstance(val, str):
                 if val.startswith(":"):
-                    context.emit_hi8addr(label_name(val))
-                    context.emit_lo8addr(label_name(val))
+                    ref = paired_label_name(val, PAIR_ABS16)
+                    context.emit_hi8addr(ref)
+                    context.emit_lo8addr(ref)
                 else:
                     for char in val:
                         context.emit_byte(ord(char))
@@ -778,10 +794,11 @@ class MV(Directive):
         super().emit(context)
         context.emit_4bit(ASMCODES.MOVRI8)
         context.emit_4bit(ASMCODES.REG2BIN(self.regs[0:2]))
-        context.emit_hi8addr(label_name(self.lbl))
+        ref = paired_label_name(self.lbl, PAIR_HILO)
+        context.emit_hi8addr(ref)
         context.emit_4bit(ASMCODES.MOVRI8)
         context.emit_4bit(ASMCODES.REG2BIN(self.regs[2:]))
-        context.emit_lo8addr(label_name(self.lbl))
+        context.emit_lo8addr(ref)
 
 @dataclass
 class DEF(Directive):
