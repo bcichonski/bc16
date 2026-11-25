@@ -724,7 +724,8 @@ assembly and B modules link together.
 - **The syntax is easy to parse in B:** lowercase mnemonics, hex-only immediates with a
   fixed number of digits, `:label` references, `;` comments, four directives (`.org`,
   `.db`, `.mv`, `.def`). See [../02-assembler.md](../02-assembler.md).
-- **New directives** for object output (the host `bc81asmc --obj` gets the same ones):
+- **New directives** for object output (the host `bc81asmc --obj` gets the same ones, see
+  A14 in `docs/specs/memory/design-decisions.md`):
   - `.global name` / `.extern name`: export and import symbols. Without `.global`, labels
     stay local to the module;
   - `.sect name`: start a new section. It lets the runtime be split per routine so the
@@ -857,7 +858,8 @@ the fix records that follow it patch bytes inside it; each `offset` is a positio
   `#heap` or `#codelimit` line, where they appear, repeats included. The linker ignores a
   module it already has.
 - An `ee` record also flushes the `CODE` record, so symbols can be declared at their
-  first use.
+  first use. So do `de`, `ad` and `ab` records: bytes written before them are in a `CODE`
+  record that is already out.
 
 **Worked example: `HELLO.O`.** `word main() { puts("hi"); return 0; }` with `#include stdio.h`
 gives exactly these 99 bytes, one record per line (`'…'` is the ASCII of the hex before it):
