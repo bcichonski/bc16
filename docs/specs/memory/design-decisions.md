@@ -609,6 +609,25 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - they mix with `0xHH`, `'text'` and `:label` in one `.db` line (`docs/02-assembler.md`).
 - **Trade-offs:** one more operand form in the grammar; nothing else (no arithmetic on the result).
 
+### A13. `#include`, `#define` and `#link` are a pre-pass; names are resolved in numeric operands
+- **Purpose:** let assembly source share named constants (device ports, addresses, masks) through B-style headers,
+  using `#include` and `#define` as B does (issue #114, roadmap step 32).
+- **Rationale:** a line pre-pass, not text substitution. The operand width is known only to the parser, because
+  the literals are fixed-width hex, and B's decimal and char forms are not assembly syntax, so substituting text would
+  need width-aware rewriting or a looser grammar. An included file is a B header: it carries defines, includes
+  and links, its prototypes are skipped and assembly code is never included (modules are linked from #115). `:name` is
+  never replaced, which differs on purpose from B's `asm` strings (C10). A value is checked only where a name
+  uses it, a define takes effect in reading order, and a redefinition warns with the last value winning.
+  Include paths are relative to the main file's directory at every level, with no depth limit, and a cycle is an error.
+  `#link` is recorded for `--obj` and changes no output. Register and pair names cannot be defined.
+- **Usage:**
+  - `#include NAME` reads a B header; `#define NAME value` names a number (decimal, `0x` hex of any digit count, or a
+    `'c'` char) that can stand where an operand takes a number; `#link NAME` records a module;
+  - a directive line emits nothing and has no address, and line numbers are unchanged (`docs/02-assembler.md`).
+- **Trade-offs:** one more line kind in front of the grammar; names are not expanded in strings, comments or labels, so
+  a label-like constant needs a `.def`; a bad value is reported at its use, not at its `#define`; a header cannot hold
+  code.
+
 ---
 
 ## Compiler (`src/bc/`)

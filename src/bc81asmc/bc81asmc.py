@@ -7,14 +7,18 @@ from pathlib import Path
 from bc81asmc_ast import *
 from bc81asmc_grammar import program
 from bc81asmc_listing import LineRecord, format_listing, format_map
+from bc81asmc_pre import prepass
 from bc81asmc_diag import Diagnostic, AssemblerError, format_diagnostics, parse_error_to_diagnostic
 
 def read_input_file(fname):
     with open(fname, 'r', encoding='utf8') as file_handle:
         return file_handle.read()
 
-def compile(ast, verbose):
+def compile(ast, verbose, defines=None, link_names=None):
+    """Two-pass compile of a parsed program. `defines` (a DefineTable) and `link_names` come from the pre-pass."""
     context = CodeContext()
+    context.define_table = defines
+    context.link_names = list(link_names or [])
     labeladdresses = {}
     labellines = {}
     deflines = {}
@@ -65,18 +69,26 @@ def compile(ast, verbose):
         saved = (len(context.bytes), context.curraddr, context.currbyte, context.currhalf,
                  len(context.labels), context.startaddr)
         startaddr = context.curraddr
+        noperrors = len(context.operand_errors)
         try:
             line.emit(context)
         except Exception as e:
             del context.bytes[saved[0]:]
             (_, context.curraddr, context.currbyte, context.currhalf, nlabels, _) = saved
             del context.labels[nlabels:]
+            del context.operand_errors[noperrors:]
             text = getattr(line, 'source', None) or str(line)
             reason = 'operand not supported by this instruction' if isinstance(e, KeyError) else str(e)
             diagnostics.append(Diagnostic(lineno, col,
                 "cannot encode '{0}': {1}".format(text, reason)))
             if verbose:
                 traceback.print_exc()
+        if len(context.operand_errors) > noperrors:
+            # a defined name failed to resolve: the line emits nothing, the errors are reported at the end
+            del context.bytes[saved[0]:]
+            (_, context.curraddr, context.currbyte, context.currhalf, nlabels, _) = saved
+            del context.labels[nlabels:]
+            context.startaddr = saved[5]
         if lineno:
             context.line_records.append(LineRecord(lineno,
                 context.curraddr if isinstance(line, ORG) else startaddr,
@@ -144,6 +156,9 @@ def compile(ast, verbose):
     for node in asserts:
         values = []
         for operand in (node.left, node.right):
+            if isinstance(operand, NameRef):
+                values.append(context.number(operand, 16))
+                continue
             if isinstance(operand, int) or hasattr(operand, 'value'):
                 values.append(operand.value)
                 continue
@@ -162,6 +177,7 @@ def compile(ast, verbose):
                 "assertion failed: {0} {1} {2} (0x{3:04x} {1} 0x{4:04x})".format(
                     node.left, node.op, node.right, values[0], values[1])))
 
+    diagnostics.extend(context.operand_errors)
     if diagnostics:
         diagnostics.sort(key=lambda d: (d.line, d.column))
         raise AssemblerError(diagnostics)
@@ -169,6 +185,26 @@ def compile(ast, verbose):
     context.label_addresses = labeladdresses
     print('Code length: {0} labels: {1}'.format(len(context.bytes), len(labeladdresses)))
     
+    return context
+
+def assemble_text(text, path, verbose=False):
+    """Pre-pass, parse and compile `text` (read from `path`). Returns the CodeContext, with the non-fatal
+    warnings in `context.warnings`. Raises AssemblerError (warnings included, in reading order) on any error."""
+    pre = prepass(text, path)
+    if pre.errors:
+        raise AssemblerError(pre.diagnostics)
+    warnings = [d for d in pre.diagnostics if d.severity == 'warning']
+    print('Parsing code')
+    try:
+        ast = program.parse(pre.text)
+    except parsy.ParseError as error:
+        raise AssemblerError(warnings + [parse_error_to_diagnostic(error, pre.text)])
+    print('Generating code')
+    try:
+        context = compile(ast, verbose, pre.defines, pre.link_names)
+    except AssemblerError as error:
+        raise AssemblerError(warnings + error.diagnostics)
+    context.warnings = warnings
     return context
 
 def save_output_file(fname, code):
@@ -236,16 +272,12 @@ def main():
     args = parser.parse_args()
     print('Reading input file {}'.format(args.infile))
     input = read_input_file(args.infile)
-    print('Parsing code')
     try:
-        ast = program.parse(input)
-    except parsy.ParseError as error:
-        report_errors([parse_error_to_diagnostic(error, input)], input, args)
-    print('Generating code')
-    try:
-        output = compile(ast, args.verbose)
+        output = assemble_text(input, args.infile, args.verbose)
     except AssemblerError as error:
         report_errors(error.diagnostics, input, args)
+    if output.warnings:
+        sys.stderr.write(format_diagnostics(output.warnings, input, args.infile))
     
     outfile = Path(args.infile).with_suffix(".btap")
     _, short_fname = os.path.split(Path(args.infile).with_suffix(""))

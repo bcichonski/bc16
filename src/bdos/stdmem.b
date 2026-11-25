@@ -1,3 +1,5 @@
+#include stdmem.h
+
 //heap begins at value stored in SYS_HEAPHEAD (usually 0x3000)
 //it consists memory chunks wrapped in records
 //each chunk is a node of a linked list, by offset:
@@ -5,7 +7,6 @@
 //0x0002: next chunk address
 //0x0004: data(of requested length)
 
-#define NULL 0x0000
 word malloc(word size)
 {
     //allocates new chunk of given size if possible

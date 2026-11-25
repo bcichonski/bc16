@@ -33,7 +33,7 @@ class ReturnTests(unittest.TestCase):
 
     def test_return_from_nested_scopes(self):
         with tempfile.TemporaryDirectory() as tmp:
-            for lib in glob.glob(os.path.join(BDOS_DIR, "*.b")):
+            for lib in glob.glob(os.path.join(BDOS_DIR, "*.b")) + glob.glob(os.path.join(BDOS_DIR, "*.h")):
                 shutil.copy(lib, tmp)
             shutil.copy(PROGRAM, os.path.join(tmp, "prog.b"))
             self.run_tool(tmp, os.path.join(h.SRC, "bc", "bc.py"), "--btap", "prog.b")

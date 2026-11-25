@@ -38,6 +38,8 @@ class Diagnostic:
     column: int
     message: str
     severity: str = 'error'
+    file: str = None   # a header's path when the position is not in the main source
+    text: str = None   # that header's text (its line is printed instead of the main source's)
 
 
 class AssemblerError(Exception):
@@ -62,7 +64,8 @@ def format_diagnostic(diagnostic, source, filename):
 
 def format_diagnostics(diagnostics, source, filename):
     """All blocks, each terminated by a newline."""
-    return ''.join(format_diagnostic(d, source, filename) + "\n" for d in diagnostics)
+    return ''.join(format_diagnostic(d, d.text if d.file else source, d.file or filename) + "\n"
+                   for d in diagnostics)
 
 
 _TOKEN = re.compile(r'[^\s,;]+|[,;]')

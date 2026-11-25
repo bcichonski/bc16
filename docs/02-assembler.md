@@ -9,6 +9,7 @@
 | `bc81asmc.py` | CLI, the two passes (emit + label fix-ups), `.btap`, `.lst` and `.map` writers |
 | `bc81asmc_grammar.py` | the parsy grammar (the real syntax reference) |
 | `bc81asmc_ast.py` | one dataclass per instruction/directive, each with its own `emit()`; opcodes and encodings come from `src/bc8183_isa.py` |
+| `bc81asmc_pre.py` | the pre-pass: `#include`, `#define` and `#link` lines, the header reader and the define table (see [`#include`, `#define` and `#link`](#include-define-and-link)) |
 | `bc81asmc_diag.py` | error records (`Diagnostic`, `AssemblerError`), the `file:line:col` formatter, parsy `ParseError` conversion |
 | `bc81asmc_listing.py` | the `.lst` listing and `.map` symbol map text (no I/O); `read_map` parses a map for other tools |
 | `tests/bc81asmc_tests.py` | unit tests (need `parsy`) |
@@ -167,6 +168,77 @@ label:   mnemonic operands   ; comment
 | `.def name, 0xHHHH` | define a constant, used like a label (`:name`). Good for fixed addresses such as `bdos_bootaddr` |
 | `.assert :a OP :b` or `.assert :a OP 0xHHHH` (also `0xHH`) | check a comparison at build time. `OP` is one of `=`, `!=`, `<`, `<=`, `>`, `>=`; an operand is a `:name` (label or `.def`) or a literal. Emits no bytes; a label on the line gets the current address. A failure stops the build (see [Errors](#errors)) |
 
+### `#include`, `#define` and `#link`
+
+Three line kinds are handled by a pre-pass (`bc81asmc_pre.py`) before the parser runs:
+
+```
+#include NAME          ; the B header NAME (see below)
+#define NAME value     ; NAME stands for value
+#link NAME             ; the module NAME this file links to (recorded for --obj)
+```
+
+A directive line is a line whose first non-blank text is `#include`, `#define` or `#link`, followed by a blank or the
+end of the line. Any other `#word` at the start of a line is still a syntax error.
+
+- A directive line emits nothing and has no address. It is listed in the `.lst` with no address, and it is not in the
+  `.map`. Line numbers do not change, so every diagnostic keeps its position in the main file.
+- An included file is a **B header**. Its lines may be blank, `//` comments, `#define`, `#include`, `#link`, or
+  one-line prototypes (`byte` or `word`, a name, a parenthesised parameter list), which are skipped. Any other line is
+  an error, reported in the header's own file at its own line. A header contributes no code and no listing rows.
+  The real headers are the `src/bdos/*.h` files of the shared B libraries (for example `#include bdioh.h` gives the
+  bdio call numbers and error codes).
+- The include path is relative to the directory of the **main** source file, at every level of nesting, and there is
+  no depth limit. A file that is already open in the include chain is an `include cycle` error. Including the same
+  header twice in a row is allowed.
+- A `#define` takes effect from the next line in reading order, as in B. A name used before its define is
+  `undefined name`. A define in a header takes effect from the line after the `#include` line.
+- A defined name may stand wherever an operand takes a number. The name is replaced by its value with the width of
+  the literal it stands for:
+  - 4 bits: the `in` port (`in r, #NAME`);
+  - 8 bits: 8-bit immediates (`mov a, NAME`), the count of `shl` and `shr` on a pair, and `.db` items;
+  - 16 bits: 16-bit immediates (`add csci, NAME`), `.org`, the value of `.def`, and the literal of `.assert`.
+- A value is one B number: decimal (`0` or a number without a leading zero), hex `0x` followed by one or more hex
+  digits (any count, either case), or a character in single quotes (`'A'`). The size comes from the value, not from
+  the digit count: `0x0f1` is 0xf1 and fits 8 bits. A value that is not a single number, or does not fit the operand,
+  is an error at each use. Values are checked only where they are used, so a header may hold defines that the
+  assembly never uses.
+- Only whole identifiers are replaced. `BDIO` does not change `BDIO_FCAT`. Labels and `:references` are never
+  replaced, even `:BDIO`, and nothing inside `'strings'` or `;` comments changes.
+- Register and pair names (`a`, `ci`, `csci`, `af`, ...) cannot be defined: `'ci' is a register name and cannot be #defined`.
+- Redefining a name with the same value is silent (a header included twice). With a different value it is a warning,
+  and the new value applies from the next line.
+- `#link NAME` is recorded in the order first seen, without duplicates. It changes no output until `--obj` (#115).
+
+For example, a header and a `.basm` that uses it:
+
+```
+// device.h
+#define LED 0x2a
+#define BASE 0x1234
+#link bdioh
+```
+
+```
+#include device.h
+.org BASE
+mov a, LED
+.db LED, 0xff
+kil
+```
+
+The listing is:
+
+```
+                   #include device.h
+1234               .org BASE
+1234  11 2a        mov a, LED
+1236  2a ff        .db LED, 0xff
+1238  f0           kil
+```
+
+so the image is `11 2a 2a ff f0`, at 0x1234.
+
 ### How the two passes work
 
 Pass 1 emits code and writes placeholder bytes (`0xfa`) wherever a label address is needed.
@@ -222,6 +294,20 @@ cal :nowhere
 | other 16-bit ALU op on `af` | `cannot encode 'add af, csci': add af is not allowed: the 16-bit result would overwrite the flags in f (use a pair csci or dsdi)` | the first non-blank character of the line | an unencodable line, for `add sub mul div mod and or xor shl shr not` (the mnemonic as written, immediate or register form). No bytes are emitted. See [A8](specs/memory/design-decisions.md#a8-every-16-bit-alu-op-on-af-is-rejected-the-assembler-says-why) |
 | implied pair | `cannot encode 'line': second operand must be dsdi when the first is csci`, or `cannot encode 'line': 'sssi' is not a 16-bit pair (use csci or dsdi)` | the first non-blank character of the line | 16-bit ops only (`add`, `sub`, `mul`, `div`, `mod`, `and`, `or`, `xor`, `shl`, `shr` in register form, and `inc`, `dec`, `not`). The second operand of the register form must be the implied pair. No bytes are emitted |
 | assertion failed | `assertion failed: <left> <op> <right> (0xLLLL <op> 0xRRRR)`, e.g. `assertion failed: :os_metacall = 0x0008 (0x0009 = 0x0008)` | the first non-blank character of the `.assert` line | the operands as written, then their resolved values. Every failed assert is reported. An undefined operand gives `undefined label` at its `:` instead, and that assert is not evaluated |
+
+| pre-pass: malformed directive | `malformed #define (expected: #define NAME value)`, `malformed #include (expected: #include NAME)`, `malformed #link (expected: #link NAME)` | the `#` of the directive line | pre-pass errors are all reported, then the run stops before parsing, like a syntax error |
+| pre-pass: register name | `'ci' is a register name and cannot be #defined` | the name in the `#define` line | see the register rule above |
+| pre-pass: include cycle | `include cycle: 'device.h' includes itself` | the file name in the `#include` line | a file already open in the include chain is not read again |
+| pre-pass: unreadable include | `cannot read include file 'device.h': No such file or directory` | the file name in the `#include` line | the reason is the OS error text |
+| pre-pass: header line | `unexpected line in a header (only #define, #include, #link and prototypes are allowed)` | the first non-blank character of the line, in the header | the block names the header file and prints the header's line |
+| undefined name | `undefined name 'NAME'` | the name in the operand | every use is reported; the line contributes no bytes and assembly goes on |
+| name not a number | `'NAME' is not a number: 'value'` | the name in the operand | the value is not one B number literal |
+| name too wide | `value of 'NAME' (0xNNNN) does not fit in N bits` | the name in the operand | N is 4, 8 or 16 (the width of the operand); the line contributes no bytes |
+| redefinition (warning) | `'NAME' redefined: 'new' replaces 'old'` | the name in the redefining `#define` | a warning: the run does not fail and the new value applies from the next line |
+
+Warnings are printed to stderr as `file:line:col: warning: <message>` blocks in the same three-line format. They
+do not fail the run and do not suppress the output. A diagnostic in a header names the header file (its path as
+resolved from the main file's directory) and prints that file's line, not the main file's.
 
 Pass 1 and pass 2 keep going after an error and report every problem they find, sorted by
 position. The syntax error is the exception: parsing is all-or-nothing, so only the first one
@@ -381,6 +467,9 @@ will contain:
 
 `.global`, `.extern` and `.sect` are new directives that come with `--obj`. A byte-exact example, `HELLO.O`, is in
 [the design page](analysis/07-self-hosted-compiler.md#object-file-format).
+
+`#link` names are already recorded by the assembler (see [`#include`, `#define` and `#link`](#include-define-and-link)).
+With `--obj` each one becomes a `de` record.
 
 ## Known quirks
 

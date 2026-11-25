@@ -101,7 +101,7 @@ RULES = (
       "src/buildos", "src/buildtools", "src/buildapps", "src/makedisc", "src/bcc",
       "src/ftool", "src/ftool*.py",
       "src/bc64.py", "src/bc64/*", "src/bc81asmc/*", "src/bc/*")
-     + tuple("src/bdos/%s.b" % name for name in _SHARED_BDOS_LIBS), ALL),
+     + tuple("src/bdos/%s.%s" % (name, ext) for name in _SHARED_BDOS_LIBS for ext in ("b", "h")), ALL),
     (("src/bdos/*", "src/disc.bddmanifest", "src/utils.bddmanifest"), ("bdos", "compiler")),
 )
 

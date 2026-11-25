@@ -47,6 +47,15 @@ and the `--lst`/`--map` flags as subprocesses).
   Node positions are attributes (`lineno`, `col`), not dataclass fields, so node equality is
   unchanged. A new check (e.g. the `.assert` evaluation, #8) must append a `Diagnostic` and raise through
   this module, never `print` or raise a bare exception. Only `main()` prints and exits.
+- **Pre-pass (#114)**, `bc81asmc_pre.py`, before the parser. `assemble_text(text, path)` in `bc81asmc.py` runs
+  `prepass()` first. It replaces each `#include`, `#define` and `#link` line in the text handed to the parser with a bare
+  `;` comment line (blank lines are a syntax error in bc81asmc), so line numbers stay the same;
+  it reads B headers in the directory of the main file, and records the define table (`context.define_table`, a `DefineTable`), the `#link` names (`context.link_names`) and the non-fatal warnings
+  (`context.warnings`). Any pre-pass error stops the run before parsing. Name resolution is not in the pre-pass: a
+  name in a numeric operand is resolved in `bc81asmc_ast.py` (`CodeContext.number`, through `NameRef` in the grammar),
+  so the width comes from the operand. Tests: `tests/bc81asmc_pre_tests.py` (the pre-pass),
+  `tests/bc81asmc_pre_cli_tests.py` (the CLI, as subprocesses) and `tests/bc81asmc_define_operand_tests.py` (names in
+  operands).
 - Output is a `.btap` file: a 24-byte preamble (`00 ff 00 ff bc 05`, org, length, name),
   then every byte expanded to 8 bit-bytes, LSB first.
 - `--lst FILE` and `--map FILE` (#9). `compile()` keeps a `LineRecord` (line number, start and end address) per

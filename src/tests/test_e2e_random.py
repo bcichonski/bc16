@@ -22,7 +22,7 @@ class RandomTests(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = tempfile.TemporaryDirectory()
         tmp = cls.tmp.name
-        for lib in glob.glob(os.path.join(BDOS_DIR, "*.b")):
+        for lib in glob.glob(os.path.join(BDOS_DIR, "*.b")) + glob.glob(os.path.join(BDOS_DIR, "*.h")):
             shutil.copy(lib, tmp)
         shutil.copy(PROGRAM, os.path.join(tmp, "prog.b"))
         cls.run_tool(tmp, os.path.join(h.SRC, "bc", "bc.py"), "--btap", "prog.b")

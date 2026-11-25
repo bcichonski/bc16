@@ -13,7 +13,7 @@ def read(*parts):
 
 
 def bdioh_define(name):
-    m = re.search(r"^#define\s+%s\s+(0x[0-9a-fA-F]+|\d+)\s*$" % name, read("bdos", "bdioh.b"), re.M)
+    m = re.search(r"^#define\s+%s\s+(0x[0-9a-fA-F]+|\d+)\s*$" % name, read("bdos", "bdioh.h"), re.M)
     assert m, name
     return int(m.group(1), 0)
 
