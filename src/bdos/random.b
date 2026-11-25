@@ -1,3 +1,5 @@
+#include random.h
+
 word random(word max)
 {
     //random number from bdos: 0..max-1, or the whole 16-bit word when max = 0

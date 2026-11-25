@@ -1,0 +1,171 @@
+#define FDD_PORT 0x08
+#define FDD_TRACKS 0x40
+#define FDD_SECTORS 0x10
+
+#define FDD_CMD_CONFIG 0x0f1
+#define FDD_CMD_READ 0xf2
+#define FDD_CMD_WRITE 0xf3
+#define FDD_CMD_SETDRVA 0xfa
+#define FDD_CMD_SETDRVB 0xfb
+
+#define FDD_STATE_READY 0x10
+
+#define FDD_RESULT_OK 0x00
+#define BDIO_RESULT_ENDOFCAT 0xc0
+
+#define BDIO_DRIVEA 0x00
+#define BDIO_DRIVEB 0x01
+#define BDIO_FCAT_STARTTRACK 0x00
+#define BDIO_FCAT_STARTSECTOR 0x01
+#define BDIO_FCAT_ENDTRACK 0x01
+#define BDIO_FCAT_ENTRYOFF_NUMBER 0x00
+#define BDIO_FCAT_ENTRYOFF_STARTTRACK 0x01
+#define BDIO_FCAT_ENTRYOFF_STARTSECTOR 0x02
+#define BDIO_FCAT_ENTRYOFF_SECTLEN 0x03
+#define BDIO_FCAT_ENTRYOFF_ATTRIBS 0x04
+#define BDIO_FCAT_ENTRYOFF_FNAME 0x05
+#define BDIO_FCAT_ENTRY_LENGTH 0x10
+#define BDIO_FCAT_ENTRY_NAMELEN 11
+#define BDIO_FCAT_FREEENTRY_FULL 0xff
+#define BDIO_FCAT_LASTENTRY 0xf7
+
+#define BDIO_FREEMAP_FULL 0x0000
+
+// Disc layout, as linear sectors (track * 16 + sector); positions compared as track << 8 | sector words.
+// Reserved, never allocated (whatever the catalog says): boot sector 0/0, catalog 0/1..1/15,
+// the BDOS range 2/0..11/15 that boot.basm loads (sectors 0x20..0xbf).
+// Allocatable area: 12/0..63/15 (linear 0xc0..0x3ff, 0x340 sectors).
+#define BDIO_DISC_BOOTSECT 0x00
+#define BDIO_DISC_FCATFIRSTSECT 0x01
+#define BDIO_DISC_FCATLASTSECT 0x1f
+#define BDIO_DISC_BDOSFIRSTSECT 0x20
+#define BDIO_DISC_BDOSLASTSECT 0xbf
+#define BDIO_DISC_ALLOCFIRSTSECT 0xc0
+#define BDIO_DISC_SECTORS 0x0400
+#define BDIO_DISC_ALLOCSECTORS 0x0340
+#define BDIO_DISC_ENDTRACKSECT 0x4000
+
+// Used-sector map built by bdio_fcreate: one bit per sector (byte = sector >> 3, bit 0x80 >> (sector & 7)),
+// 1 = used. The first BDIO_USEDMAP_RESERVEDLEN bytes cover the reserved sectors 0..0xbf.
+#define BDIO_USEDMAP_ADDR 0x5f00
+#define BDIO_USEDMAP_LEN 0x80
+#define BDIO_USEDMAP_RESERVEDLEN 0x18
+#define BDIO_FNAME_NOTFOUND 0x0000
+#define BDIO_FNAME_ENDOFCAT 0x0001
+#define BDIO_FNAME_EOC 0xff
+
+#define BDIO_FDESCRIPTOROFF_NUMBER 0x00
+#define BDIO_FDESCRIPTOROFF_FCATENTRYNO 0x01
+#define BDIO_FDESCRIPTOROFF_CURRTRACK 0x02
+#define BDIO_FDESCRIPTOROFF_CURRSECT 0x03
+#define BDIO_FDESCRIPTOROFF_CURRSEQ 0x04
+#define BDIO_FDESCRIPTOROFF_SEQLEN 0x05
+#define BDIO_FDESCRIPTOROFF_FCATTRACK 0x06
+#define BDIO_FDESCRIPTOROFF_FCATSECT 0x07
+#define BDIO_FDESCRIPTOROFF_BUFFCOUNTER 0x08
+#define BDIO_FDESCRIPTOROFF_ACCESSMODE 0x09
+#define BDIO_FDESCRIPTOR_READ_MAX 0x03
+#define BDIO_FDESCRIPTOR_WRITE_MAX 0x00
+#define BDIO_FDESCRIPTOR_LEN 0x0a
+#define BDIO_FDESCRIPTOR_NUMBERFREE 0x00
+#define BDIO_FDESCRIPTOR_NUMBERWRITE 0x10
+#define BDIO_FDESCRIPTOR_NUMBERREAD 0x20
+#define BDIO_FDESCRIPTOR_ACCESSMODE_DIRECT 0x0d
+#define BDIO_FDESCRIPROT_ACCESSMODE_BUFFERED 0x0b
+
+// Result codes: a result below 0xe0 is a file handle, 0xe0..0xff is an error.
+// One value per meaning, grouped by operation (see docs/05-bdos.md):
+//   open/exec  0xe0 0xe1 0xe3 0xe4    close  0xe2 0xe6 0xef    exec  0xe7..0xea
+//   create     0xeb..0xee             delete/setattr  0xf0..0xf2
+//   disc full  0xf3 (fcreate: no free sector; fclose: a write hit the end of the file's gap)
+//   0xe5 retired (never reuse), 0xf4..0xfe free, 0xff = no free handle.
+// bdio_printexecres names only some codes; the others print "unknown error".
+#define BDIO_FOPEN_FNAME_NOTFOUND 0xe0
+#define BDIO_FOPEN_FDD_NOT_READY 0xe1
+#define BDIO_FOPEN_ATTR_NOREAD 0xe3
+#define BDIO_FOPEN_ATTR_NOWRITE 0xe4
+#define BDIO_FDESCRIPTOR_NUMBERFULL 0xff
+#define BDIO_FOPEN_MODE_SECTOR 0x00
+#define BDIO_FOPEN_MODE_BUFFERED 0x01
+
+#define BDIO_FCLOSE_FDESC_NOTFOUND 0xe2
+#define BDIO_FCLOSE_FCAT_READERR 0xe6
+#define BDIO_FCLOSE_FCAT_SAVEERR 0xef
+
+#define BDIO_FEXEC_ATTR_NOEXEC 0xe7
+#define BDIO_FEXEC_FDESCFCAT_ERR 0xe8
+#define BDIO_FEXEC_OUTOFMEM 0xe9
+#define BDIO_FEXEC_SECTFAIL 0xea
+#define BDIO_FEXEC_OK 0x00
+
+#define BDIO_FCREATE_READERR 0xeb
+#define BDIO_FCREATE_SAVEERR 0xec
+#define BDIO_FCREATE_FDD_NOT_READY 0xed
+#define BDIO_FCREATE_FNAME_FOUND 0xee
+#define BDIO_FCREATE_OK 0x00
+
+#define BDIO_FILE_SAVEERR 0xf0
+#define BDIO_FILE_FDD_NOT_READY 0xf1
+#define BDIO_FILE_FNAME_NOTFOUND 0xf2
+#define BDIO_FILE_DISC_FULL 0xf3
+#define BDIO_FILE_OK 0x00
+
+#define BDIO_FILE_INTERNALMODE_DELETE 0xd0
+#define BDIO_FILE_INTERNALMODE_SETATTR 0x5a
+
+#define BDIO_FILE_ATTRIB_READ 0x01
+#define BDIO_FILE_ATTRIB_WRITE 0x02
+#define BDIO_FILE_ATTRIB_EXEC 0x04
+#define BDIO_FILE_ATTRIB_SYSTEM 0x80
+
+#define BDIO_VAR_LASTERROR 0x0d80
+#define BDIO_VAR_ACTIVEDRV 0x0d81
+#define BDIO_VAR_FCAT_SCAN_TRACK 0x0d82
+#define BDIO_VAR_FCAT_SCAN_SECT 0x0d83
+#define BDIO_VAR_FCAT_FREEENTRY 0x0d84
+#define BDIO_VAR_FCAT_FREETRACK 0x0d85
+#define BDIO_VAR_FCAT_FREESECT 0x0d86
+// TRUE once a write on the write handle hit BDIO_VAR_FCAT_GAPEND (reset when a write handle is opened)
+#define BDIO_VAR_DISCFULL 0x0d87
+#define BDIO_VAR_FCAT_PLASTFOUND 0x0d88
+// word, track << 8 | sector: the write handle never writes at or past it (gap end; disc end after fcat_read)
+#define BDIO_VAR_FCAT_GAPEND 0x0d8a
+// word: free sectors of the allocatable area (computed by fcat_read, lowered by every written sector)
+#define BDIO_VAR_FCAT_TOTALFREE 0x0d8c
+#define BDIO_VAR_FCAT_NEWENTRYADDR 0x0d90
+#define BDIO_VAR_PMEMBUF_LEN 0x0d92
+#define BDIO_VAR_FDESCTAB_WRITE 0x0d94
+#define BDIO_VAR_FDESCTAB_READ 0x0da4
+#define BDIO_FDESCBUF_ADDR 0x5d00
+
+#define BDIO_CMDPROMPTADDR 0x0dd2
+#define BDIO_CMDPROMPTLEN 0x2d
+#define BDIO_TMP_SECTBUF 0x0e00
+#define BDIO_TAB_SCANSECTBUF 0x0e80
+#define BDIO_SECTBUF_LEN 0x80
+
+#define BDIO_USERMEM 0x6000
+#define BDIO_NULL 0x00
+
+#define BDIO_READSECTOR 0x00
+#define BDIO_WRITESECTOR 0x01
+#define BDIO_SETDRIVE 0x02
+#define BDIO_GETDRIVE 0x03
+#define BDIO_FBINOPENR 0x10
+#define BDIO_FBINOPENW 0x11
+#define BDIO_FBINREAD 0x12
+#define BDIO_FBINWRITE 0x13
+#define BDIO_FCREATE 0x14
+#define BDIO_FCLOSE 0x15
+#define BDIO_FDELETE 0x16
+#define BDIO_FSETATTR 0x17
+#define BDIO_FBINBUFREAD 0x18
+#define BDIO_FBINBUFWRITE 0x19
+#define BDIO_RANDOM 0x1a
+#define BDIO_RNG_PORT 0x05
+
+#define BDIO_FBINBUFREAD_ERROR 0x00
+#define BDIO_FBINBUFWRITE_ERROR 0x00
+
+word bdio_tracksector_add(byte track, byte sector, byte sectorlen)
+byte bdio_printexecres(byte execres)

@@ -1,6 +1,8 @@
+#include bdosargs.h
+
 // bdosargs.b - shared command-line argument helpers of the bdos utilities (issue 43, D10).
 //
-// Opt-in include (D7): it contains no #include. Include it after its dependencies:
+// Opt-in include (D7): it contains no #include but its own header bdosargs.h. Include it after its dependencies:
 //   #include std.b
 //   #include bdosh.b
 //   #include strings.b
@@ -30,8 +32,6 @@
 // printusage(Ptitle, Pline1, Pline2)
 //                              prints each non-zero string followed by a newline, title
 //                              first; 0 skips a line.
-
-#define DRIVEPRESENT 0x0100
 
 word getdriveletter(byte drive)
 {

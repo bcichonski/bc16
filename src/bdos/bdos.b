@@ -6,8 +6,8 @@
 #include std.b
 #include strings.b
 #include bdio.b
+#include bdosh.h
 
-#define BCOSMETA_BDOSCALLADDR 0x007a
 #define FNAMETEMP_ADDR 0x5fe0
 #define FNAMETEMP_SIZE 0x0b
 

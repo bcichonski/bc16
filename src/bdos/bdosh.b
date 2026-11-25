@@ -1,8 +1,5 @@
+#include bdosh.h
 #include bdioh.b
-
-#define BCOSMETA_BDOSCALLADDR 0x007a
-#define BCOSMETA_BDOSCALLNO 55
-#define BNULL 0x00
 
 word bdio_call(byte subCode, word param1, word param2)
 {

@@ -1,8 +1,4 @@
-#define PRINTF_FORMATCHAR 0x25
-#define PRINTF_NEWLINECHAR 'n'
-#define PRINTF_HEX8 'x'
-#define PRINTF_HEX16 'w'
-#define PRINTF_STRING 's'
+#include stdio.h
 
 byte putdigit(byte digit)
 {

@@ -1,3 +1,5 @@
+#include bdostools.h
+
 byte bdio_fnormalize(word Pfilenameext, word Pbdiofilename)
 {
     byte length;

@@ -3,7 +3,7 @@ import os
 import re
 import unittest
 
-BDIOH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "bdos", "bdioh.b")
+BDIOH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "bdos", "bdioh.h")
 ERROR_PREFIXES = ("BDIO_FOPEN_", "BDIO_FCREATE_", "BDIO_FCLOSE_", "BDIO_FEXEC_", "BDIO_FILE_")
 ERROR_FLOOR = 0xe0
 
@@ -30,7 +30,8 @@ def error_codes():
 
 
 def printexecres_body():
-    text = read_text()
+    with open(os.path.join(os.path.dirname(BDIOH), "bdioh.b"), encoding="latin-1") as f:
+        text = f.read()
     start = text.index("bdio_printexecres(")
     return text[start:]
 

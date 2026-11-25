@@ -175,7 +175,7 @@ class FreshBuild(unittest.TestCase):
         os.makedirs(bdos_dir)
         src_bdos = os.path.join(ROOT, "src", "bdos")
         for name in os.listdir(src_bdos):
-            if name.endswith(".b") or name == "boot.basm":
+            if name.endswith((".b", ".h")) or name == "boot.basm":
                 shutil.copyfile(os.path.join(src_bdos, name), os.path.join(bdos_dir, name))
         shutil.copyfile(os.path.join(ROOT, "src", "bc81asmc", "bcOS", "bcos.basm"),
                         os.path.join(bcos_dir, "bcos.basm"))

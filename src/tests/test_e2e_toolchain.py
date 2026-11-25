@@ -28,7 +28,7 @@ class ToolchainTests(unittest.TestCase):
 
     def test_compile_assemble_put_on_disc_and_run(self):
         with tempfile.TemporaryDirectory() as tmp:
-            for lib in glob.glob(os.path.join(BDOS_DIR, "*.b")):
+            for lib in glob.glob(os.path.join(BDOS_DIR, "*.b")) + glob.glob(os.path.join(BDOS_DIR, "*.h")):
                 shutil.copy(lib, tmp)
             shutil.copy(PROGRAM, os.path.join(tmp, "prog.b"))
             self.run_tool(tmp, os.path.join(h.SRC, "bc", "bc.py"), "--btap", "prog.b")

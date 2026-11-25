@@ -129,7 +129,7 @@ def measure_all(root, ids=None):
                 continue
             os.makedirs(os.path.join(tmp, prefix))
             for name in os.listdir(folder):
-                if name.endswith(".b"):
+                if name.endswith((".b", ".h")):
                     shutil.copyfile(os.path.join(folder, name), os.path.join(tmp, prefix, name))
         for program in programs:
             source = os.path.join(tmp, *program.split("/")) + ".b"

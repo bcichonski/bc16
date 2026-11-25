@@ -1,8 +1,4 @@
-#define NULLCHAR 0x00
-#define STRCMP_GT 0xf0
-#define STRCMP_LT 0x0f
-#define STRCMP_EQ 0x00
-#define STRPOS_NOTFOUND 0xffff
+#include strings.h
 
 byte strpeek8(word Paddr)
 {

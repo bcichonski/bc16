@@ -16,7 +16,7 @@ Sources are in `src/bdos/`:
 | `boot.basm` | boot loader (assembly, loaded at `0x0e00`) |
 | `bdos.b` | the shell (`main`) plus start-up |
 | `bdio.b` | the disk/file I/O layer and the `bdio_call` dispatcher |
-| `bdioh.b` | constants, memory addresses, error codes, call numbers |
+| `bdioh.h`, `bdioh.b` | `bdioh.h` holds the constants, memory addresses, error codes and call numbers and the prototypes of `bdioh.b`; `bdioh.b` holds `bdio_tracksector_add` and `bdio_printexecres` |
 | `bdosh.b` | wrappers that user programs include to call bdio |
 | `bdostools.b` | `bdio_fnormalize` (converts `name.ext` to the catalog form) |
 | `bdosargs.b` | argument helpers of the utilities (`getdrive`, `getswitch`, `argfile`, `printusage`, …); opt-in, see "Argument library" |
@@ -26,6 +26,13 @@ Sources are in `src/bdos/`:
 | `texted.b`, `theodore.b`, `calc.b` | apps on the utilities disc (`utils.bdd`, run `b:` first) |
 | `fddtest.b`, `debug.b` | older or test programs, not on the disc |
 | `bdos.md` | short design notes: disk format, bdio call list, memory map |
+
+**Headers.** Each shared library has a `.h` next to its `.b`: `bdioh.h`, `std.h`, `stdio.h`, `strings.h`, `stdmem.h`,
+`bdosh.h`, `bdostools.h`, `bdosargs.h` and `random.h`. A header holds the library's `#define`s (they live only
+there, never copied into the `.b`) and one prototype for every function the `.b` defines, in the same order and with
+the same signature. Each `.b` starts with `#include X.h`. Programs still include the `.b` files, so the build output
+is the same as without headers. The assembler reads these headers too (`#include bdioh.h` in a `.basm`, see
+`docs/02-assembler.md`).
 
 Building a program creates generated files next to it: `*.genb` (preprocessed), `*.basm`,
 `*.btap` and `*.sector(s)` (raw sectors). They are ignored by git and must be rebuilt after a fresh
@@ -164,7 +171,7 @@ The default session has the system disc in A and the utilities disc in B. In hea
 Sectors are numbered linearly (track × 16 + sector, 0..1023). The reserved part is never allocated;
 the rest is the allocatable area:
 
-| Sectors | Use | Constants (`bdioh.b`) |
+| Sectors | Use | Constants (`bdioh.h`) |
 |---|---|---|
 | `0/0` | boot sector | `BDIO_DISC_BOOTSECT` (`0x00`) |
 | `0/1`–`1/15` | catalog (31 sectors, 248 entries) | `BDIO_DISC_FCATFIRSTSECT`–`BDIO_DISC_FCATLASTSECT` (`0x01`–`0x1f`) |
@@ -264,7 +271,7 @@ Buffered handles (`0x18` / `0x19`, open mode `1`) work on byte counts, not whole
   already consumed (`128` = used up; a freshly opened read handle starts at `128`). On a write
   handle, the bytes pending (`0..127` between calls).
 
-### Result and error codes (bdioh.b)
+### Result and error codes (bdioh.h)
 
 A result byte below `0xe0` is a file handle. `0xe0` and above is an error: callers test
 `result < 0xe0` to tell the two apart. Each value has one meaning, and a retired value is

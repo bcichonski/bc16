@@ -10,6 +10,9 @@ if _SRC not in sys.path:
     sys.path.append(_SRC)
 
 import bc8183_isa as isa
+import re
+
+from bc81asmc_diag import Diagnostic
 
 
 class Bc8183:
@@ -126,6 +129,19 @@ def label_name(ref):
     name.col = getattr(ref, 'col', 0)
     return name
 
+class NameRef(str):
+    """A defined name used where an operand takes a number (#114); `line`/`col` (set by the grammar) are where it was written."""
+
+_DECIMAL = re.compile(r'0|[1-9][0-9]*')
+_HEX = re.compile(r'0x[0-9a-fA-F]+')
+_CHAR = re.compile(r"'(.)'", re.DOTALL)
+
+def hex_or_name(value, digits):
+    """`value` as text for __str__: a name as written, a number as 0x with `digits` digits."""
+    if isinstance(value, NameRef):
+        return str(value)
+    return '0x{0:0{1}x}'.format(value, digits)
+
 class CodeContext:
     def __init__(self):
         self.bytes = bytearray()
@@ -138,6 +154,39 @@ class CodeContext:
         self.defs = {}
         self.label_addresses = {}
         self.line_records = []
+        self.link_names = []
+        self.define_table = None
+        self.operand_errors = []
+        self.warnings = []
+    def number(self, ref, bits):
+        """The value of a defined name `ref` used as a `bits`-wide operand, or None after recording a positioned
+        error in `operand_errors` (undefined, not a number, too big)."""
+        line, col = getattr(ref, 'line', 0), getattr(ref, 'col', 0)
+        define = self.define_table.lookup(str(ref), line) if self.define_table is not None else None
+        if define is None:
+            self.operand_errors.append(Diagnostic(line, col, "undefined name '{0}'".format(ref)))
+            return None
+        text = define.value
+        if _DECIMAL.fullmatch(text):
+            value = int(text)
+        elif _HEX.fullmatch(text):
+            value = int(text, 16)
+        elif _CHAR.fullmatch(text):
+            value = ord(text[1])
+        else:
+            self.operand_errors.append(Diagnostic(line, col, "'{0}' is not a number: '{1}'".format(ref, text)))
+            return None
+        if value >= (1 << bits):
+            self.operand_errors.append(Diagnostic(line, col,
+                "value of '{0}' (0x{1:04x}) does not fit in {2} bits".format(ref, value, bits)))
+            return None
+        return value
+    def operand(self, value, bits):
+        """An operand as an int: numbers pass through, a NameRef is resolved (0 after an error, which the
+        compile step reports and the line then emits nothing)."""
+        if isinstance(value, NameRef):
+            return self.number(value, bits) or 0
+        return value
     def emit_byte(self, b):
         self.bytes.extend([b])
         self.currbyte = None
@@ -353,12 +402,12 @@ class MOVRI8(Instruction):
     reg : str
     i8  : int
     def __str__(self):
-        return "MOV {0}, 0x{1:02x}".format(self.reg, self.i8);
+        return "MOV {0}, {1}".format(self.reg, hex_or_name(self.i8, 2));
     def emit(self, context):
         super().emit(context)
         context.emit_4bit(ASMCODES.MOVRI8)
         context.emit_4bit(ASMCODES.REG2BIN(self.reg))
-        context.emit_byte(self.i8)
+        context.emit_byte(context.operand(self.i8, 8))
 
 @dataclass
 class MOVRR(Instruction):
@@ -420,7 +469,7 @@ class CLC_A_IMM(Instruction):
     oper : str
     imm : str
     def __str__(self):
-        return "{0: <3} 0x{1:04x}".format(self.oper.upper(), self.imm)
+        return "{0: <3} {1}".format(self.oper.upper(), hex_or_name(self.imm, 4))
     def emit(self, context):
         super().emit(context)
         context.emit_4bit(ASMCODES.CLC)
@@ -434,7 +483,7 @@ class CLC_A_IMM(Instruction):
             context.emit_4bit(ASMCODES.REG2BIN(self.imm[0]))
             context.emit_16bit(self.imm[1])
         else:
-            context.emit_byte(self.imm)
+            context.emit_byte(context.operand(self.imm, 8))
 
 @dataclass
 class CLC_A_R(Instruction):
@@ -455,7 +504,7 @@ class CLC16_R_IMM(Instruction):
     reg : str
     imm : list
     def __str__(self):
-        return "{0: <3}16 {2}, 0x{1:04x}".format(self.oper.upper(), self.imm, self.reg)
+        return "{0: <3}16 {2}, {1}".format(self.oper.upper(), hex_or_name(self.imm, 4), self.reg)
     def emit(self, context):
         reject_af_alu(self.reg, self.oper.lower())
         check_pair16(self.reg)
@@ -467,7 +516,8 @@ class CLC16_R_IMM(Instruction):
         context.emit_4bit(subcode)
         context.emit_4bit(ASMCODES.REG2BIN(self.reg))
         context.emit_4bit(0)
-        context.emit_16bit(self.imm)
+        # shl/shr take an 8-bit count (the literal form is 0xHH), the other operations a 16-bit value
+        context.emit_16bit(context.operand(self.imm, 8 if self.oper in ('shl', 'shr') else 16))
 
 
 @dataclass
@@ -646,7 +696,11 @@ class IN(Instruction):
         super().emit(context)
         context.emit_4bit(ASMCODES.IN)
 
-        if(isinstance(self.arg, str)):
+        if isinstance(self.arg, NameRef):
+            context.emit_4bit(0)
+            context.emit_4bit(ASMCODES.REG2BIN(self.reg))
+            context.emit_4bit(context.operand(self.arg, 4))
+        elif(isinstance(self.arg, str)):
             context.emit_4bit(ASMCODES.CLC_OP_RNO)
             context.emit_4bit(ASMCODES.REG2BIN(self.reg))
             context.emit_4bit(ASMCODES.REG2BIN(self.arg))
@@ -665,7 +719,7 @@ class OUT(Instruction):
         super().emit(context)
         context.emit_4bit(ASMCODES.OUT)
 
-        if(isinstance(self.arg, str)):
+        if(isinstance(self.arg, str) and not isinstance(self.arg, NameRef)):
             context.emit_4bit(ASMCODES.CLC_OP_RNO)
             context.emit_4bit(ASMCODES.REG2BIN(self.reg))
             context.emit_4bit(ASMCODES.REG2BIN(self.arg))
@@ -676,7 +730,7 @@ class OUT(Instruction):
                 raise ValueError("out #{0}, 0xHH takes the port in a, ci or di; "
                                  "load the value into a register and use out #{0}, <reg>".format(self.reg.lower()))
             context.emit_4bit(port)
-            context.emit_byte(self.arg)
+            context.emit_byte(context.operand(self.arg, 8))
 
 class Directive(Token):
     def __str__(self):
@@ -686,9 +740,9 @@ class Directive(Token):
 class ORG(Directive):
     value : int
     def __str__(self):
-        return ".ORG 0x{0:04x}".format(self.value);
+        return ".ORG {0}".format(hex_or_name(self.value, 4));
     def emit(self, context):
-        context.set_addr(self.value)
+        context.set_addr(context.operand(self.value, 16))
 
 @dataclass
 class DB(Directive):
@@ -703,6 +757,8 @@ class DB(Directive):
                     context.emit_hi8addr(label_name(val.label))
                 else:
                     context.emit_lo8addr(label_name(val.label))
+            elif isinstance(val, NameRef):
+                context.emit_byte(context.operand(val, 8))
             elif isinstance(val, str):
                 if val.startswith(":"):
                     context.emit_hi8addr(label_name(val))
@@ -732,10 +788,10 @@ class DEF(Directive):
     lbl : str
     value : int
     def __str__(self):
-        return ".DEF {0}, 0x{1:04x} ;{2}".format(self.lbl.upper(), self.value, getattr(self, 'comment', ''))
+        return ".DEF {0}, {1} ;{2}".format(self.lbl.upper(), hex_or_name(self.value, 4), getattr(self, 'comment', ''))
     def emit(self, context):
         super().emit(context)
-        context.set_const(self.lbl, self.value)
+        context.set_const(self.lbl, context.operand(self.value, 16))
         
 
 @dataclass
