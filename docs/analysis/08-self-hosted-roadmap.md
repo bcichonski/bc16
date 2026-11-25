@@ -76,7 +76,7 @@ must land before step 31 freezes them.
 
 | Step | Done | Issue | What |
 |---|:-:|---|---|
-| 31 |  | #113 | BOF v1 object format and the ABI recorded as design decisions; `SECT` flags decided |
+| 31 |  | #113 | BOF v1 object format and the ABI recorded as design decisions; `SECTSTAT`/`SECTABS` section records decided |
 | 32 |  | #114 | `bc81asmc`: `#include` / `#define` from `.h` files, `#link` |
 | 33 |  | #115 | `bc81asmc --obj`: `.global`, `.extern`, `.sect`, every fix-up kind, a `.o` dump |
 | 34 |  | #116 | `runtime.basm`: the runtime as an assembly source, one section per routine |
@@ -142,7 +142,7 @@ Steps 38–45 don't depend on phase 2 and can run in parallel with it.
 | Where | Decision | Needed before |
 |---|---|---|
 | #136 | `div`/`mod` by zero: keep the destination and set `O` (decided in #4, E10; the owner confirms it), and whether the B `/` and `%` check `O` | step 31 |
-| #113 | `SECT` flags | step 33 |
+| ~~#113~~ | ~~`SECT` flags~~: decided in #113 (G15: SECTSTAT/SECTABS) | step 33 |
 | ~~#41~~ | ~~placement of a new file~~: decided in #41 (largest gap, `disc full`, D12); defrag later | step 25 |
 | #127 | drop `asm "…"` (recommended) or keep it host-only | step 45 |
 | [07](07-self-hosted-compiler.md#risks-and-open-questions) | texted records as the official source format; keep precedence quirks; is self-hosting a goal | phase 4 |

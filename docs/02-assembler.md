@@ -364,6 +364,24 @@ done:           kil
 msg:            .db 'Hello!', 0x0a, 0x0d, 0x00
 ```
 
+## Object files (BOF v1, planned)
+
+`--obj` is not implemented yet (#115). It will make the assembler write a relocatable object file (`.o`) instead of a
+flat image. The format is BOF v1, a stream of `tag, length, content` records, recorded in design decision
+[G15](specs/memory/design-decisions.md#g15-object-files-are-bof-v1-a-record-stream-whose-layout-is-frozen). A module
+will contain:
+
+- **sections**: the code and data bytes, each section starting at offset 0. A section is `SECTSTAT` (relocatable, kept
+  only if something kept refers to it) or `SECTABS` (placed at its address, never moved, always kept); an `.org` file
+  becomes one `SECTABS` section at its `.org` address;
+- **globals**: the labels the module exports (`.global`), each at an offset in a section;
+- **externals**: the symbols the module imports (`.extern`), numbered in the order they are declared;
+- **fix-ups**: for every placeholder in the code, where it is and which kind it is (16-bit address, `REL15`, `REL7`,
+  `HILO` and so on). The linker (`blink.py`, #117) fills them in.
+
+`.global`, `.extern` and `.sect` are new directives that come with `--obj`. A byte-exact example, `HELLO.O`, is in
+[the design page](analysis/07-self-hosted-compiler.md#object-file-format).
+
 ## Known quirks
 
 - `CLC_A_IMM` has a leftover branch for 16-bit opcodes that the grammar never reaches.

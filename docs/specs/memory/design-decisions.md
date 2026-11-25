@@ -618,6 +618,7 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 - **Rationale:** CPU stack frames are 2–3 bytes per item (E4) and awkward to index.
   A separate stack (`sys_stackhead`, after the program image) with offset-based helpers
   is compact.
+  The calling convention built on it is frozen as an ABI in G16.
 - **Usage:**
   - a call pushes a scope (moves `sys_stackhead` forward), stores the arguments as the
     callee's first locals, `cal`s, then pops the scope;
@@ -652,6 +653,8 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   (bdos, texted).
 
 ### C5. Modularity is textual: `#include`/`#define`, one image, no linker
+*(Superseded by G16 once programs are linked, phase 3; today's host builds still work as described here.)*
+
 - **Purpose:** keep the compiler single-file-in, single-file-out.
 - **Rationale:** a linker and object format would double the toolchain. Textual inclusion
   is enough at this scale.
@@ -999,3 +1002,103 @@ as a rule, with its purpose, rationale, usage and trade-offs.
   - the emulator has `src/` on `sys.path`; the assembler, which runs with `src/bc81asmc/` first, appends `src/` to `sys.path` before importing the module;
   - to change an encoding, edit the module and `docs/02-assembler.md`, add tests on both sides, and extend the agreement and form-table tests.
 - **Trade-offs:** the tools now share one import outside their own folders, so each must find `src/` on its path. A mistake in the module breaks both tools at once, which the agreement and form-table tests are there to catch.
+
+### G15. Object files are BOF v1, a record stream whose layout is frozen
+- **Purpose:** one object format for every tool that writes or reads `.o` files: `bc81asmc --obj` (#115), `bc --obj` (#121), the
+  linkers `blink.py` (#117) and BLINK, and later BASM and BCC3 on the machine. The layout is a contract between them, like G1 (#113).
+- **Rationale:** bdos files are read strictly in order (no seek) and a writer can't know sizes before it writes, so the format is a
+  stream of short records with no index. One section per function makes dead-code elimination exact. 16-bit fix entries keep the
+  target in the placeholder, so a call or jump costs 1 fix byte. The design and its sizes are in
+  [07, "Object file format"](../../analysis/07-self-hosted-compiler.md#object-file-format); the record layout was decided on 2026-11-13
+  and the section records `SECTSTAT`/`SECTABS` in #113.
+- **Usage:**
+  - every record is `tag(1) length(1) content[length]` (content at most 255 bytes; a reader skips a record it doesn't need by its
+    length); 16-bit values are big-endian (G6); a name is the rest of its record and carries no length of its own;
+  - the records:
+
+    | Tag | Record | Content | Meaning |
+    |---|---|---|---|
+    | `b0` | header | `version(1) module-name` | always first, so the tag is also the magic number |
+    | `ee` | `EXTRN` | `name` | declares symbol number k (k = 0, 1, 2… in order of the `ee` records); defined in this or another module |
+    | `de` | `NEED` | `module-name` | from `#link module-name`: `module-name.O` must be linked too; missing is an error |
+    | `ad` | `ADDR` | `kind(1) value(2)` | from `#code` (kind 0), `#heap` (1) or `#codelimit` (2): an address of the finished program |
+    | `55` | `SECTSTAT` | `name` | starts a relocatable section (one function plus its strings); the section offset starts at 0; kept only if something kept refers to it |
+    | `5a` | `SECTABS` | `address(2) name` | starts a section placed at `address`: never moved, always kept; the section offset starts at 0 |
+    | `91` | `GLOBL` | `name` | the global symbol `name` is at the current section offset |
+    | `c0` | `CODE` | `bytes` | code/data bytes appended to the current section, placeholders included |
+    | `1a` | `LABEL` | `n(2)` | local label n is at the current section offset |
+    | `ab` | `ABS` | `value(2) name` | an absolute global symbol (from `.def`) |
+    | `f1` | fix `ABS16` | `offset(1)…` | 16-bit absolute address at each offset; the target is in the placeholder |
+    | `f2` | fix `REL15` | `offset(1)…` | 15-bit relative offset (`jrx`, `clr`); the target is in the placeholder |
+    | `f8` | fix `HI8` | `(offset(1) target(2))…` | high byte of the target's address |
+    | `f9` | fix `LO8` | `(offset(1) target(2))…` | low byte of the target's address |
+    | `fa` | fix `REL7` | `(offset(1) target(2))…` | 7-bit relative offset (`jmr`) |
+    | `fb` | fix `HILO` | `(offset(1) target(2))…` | high byte at `offset`, low byte at `offset + 2`: the `18 hh 14 ll` of `.mv csci, :x` |
+    | `ed` | `END` | – | end of the module: `ed 00` |
+
+  - fix records patch the `CODE` record they follow; each `offset` is a position in that record. A target is 16 bits: top bit clear =
+    symbol k (the k-th `ee` record), top bit set = local label n in the low 15 bits. `f1`/`f2` keep the target in their 2-byte
+    placeholder, so an entry is only the offset; `f8`, `f9`, `fa` and `fb` have 1-byte placeholders (written as `00`) and carry the
+    target in the entry. There is no addend. `REL15`/`REL7` are encoded as the assembler does (G5); a target out of range is a link
+    error naming the symbol;
+  - writing rules, which make the output deterministic: the `CODE` record is flushed when full, before a `LABEL`, `GLOBL`, `SECTSTAT`,
+    `SECTABS`, `ee` or `END`, and before a template (or raw `asm` item) that wouldn't fit whole, so a placeholder never straddles two records;
+    the fix records follow their `CODE` record directly, in tag order `f1`, `f2`, `f8`, `f9`, `fa`, `fb`, with offsets ascending,
+    empty lists not written, and a list over 255 bytes continued in another record with the same tag; every symbol a fix refers to
+    is declared by an `ee` record before the `CODE` record that uses it, written at its first use (a call within the module goes
+    through an `ee` too; `91` defines a name but allocates no number); a `de` for every `#link` and an `ad` for every `#code`, `#heap`
+    or `#codelimit` line is written where it appears, repeats included;
+  - sections: a `SECTSTAT` (`55`) section is relocatable and the linker keeps it only if something it keeps refers to it. A
+    `SECTABS` (`5a`) section is placed at the absolute `address(2)` instead of being appended to the image; it is not moved, it is
+    always kept, and overlapping another section is a link error naming both. An `.org` file assembled with `--obj` is one
+    `SECTABS` section at its `.org` address (A10). There is no flags byte. The dead-code roots are every `SECTABS` section plus the
+    first section of the first linked object, the entry (the runtime entry stub, or the entry of an assembly-only program), which
+    is placed at `#code`. The runtime entry stub refers to `F_main`, so a B program's roots are the same as "from `main`" today.
+    Section offsets start at 0 either way, and fix-ups in a `SECTABS` section resolve like any other;
+  - version: the header content starts with `version = 01`. A reader rejects any other version; any change to a record layout or
+    a flag meaning bumps it;
+  - worked example: the byte-exact `HELLO.O` of `word main() { puts("hi"); return 0; }` is in
+    [07, "Object file format"](../../analysis/07-self-hosted-compiler.md#object-file-format).
+- **Trade-offs:** no index, so a linker reads every object twice (symbols, then emit); a `CODE` record holds at most 255 bytes and an
+  `ee` flushes it, so short records cost 2 bytes of header each (a `.o` is estimated at 1.2–1.3 × the code size). A new kind of section takes a new tag and a version bump. The two section tags are the
+  owner's decision in #113 (they replace a flags byte).
+
+### G16. The B calling convention is a frozen ABI, with fixed symbol names
+- **Purpose:** assembly modules (`.basm`, `runtime.basm`) call B and are called by B, and modules from different tools are linked
+  (G15). So the way arguments, results and registers are passed, and the names of the symbols, are a contract, like G1 (#113).
+- **Rationale:** until now the convention was only how the host compiler happens to work (C2). Writing it down as it is today costs
+  nothing and keeps every existing library working; changing it later would break every assembly routine. The design is in
+  [07, "The calling convention becomes an ABI"](../../analysis/07-self-hosted-compiler.md#the-calling-convention-becomes-an-abi) and
+  ["Symbol names"](../../analysis/07-self-hosted-compiler.md#symbol-names); every rule below was checked against `src/bc/bc_ast.py`
+  (`EXPRESSION_CALL`, `FUNCTION_DECLARATION.add_func_params`, `STATEMENT_RETURN`, `Context.push_scope`/`emit_stackhead_down`).
+- **Usage:**
+  - **arguments:** the caller moves `sys_stackhead` forward by the size of the locals it has declared so far (`push_scope('CALL')`),
+    stores the arguments there as the callee's first locals, `cal`s, then moves `sys_stackhead` back (`pop_scope`). The callee never
+    moves `sys_stackhead` itself. An argument's offset is the sum of the sizes of the arguments before it (byte 1,
+    word 2): in `poke8(word Paddr, byte value)`, `Paddr` is at 0 and `value` at 2. Assembly reads them as the compiler does:
+    `mov a, 0x02` + `cal :stackvar8gt8`;
+  - **variadic functions** (`printf(word PformatStr)***`): a hidden word with the number of arguments is added before the declared
+    parameters (offset 0), then the fixed arguments, then the extra ones, each as a word. For `printf`: the count at 0, `PformatStr`
+    at 2, the extra arguments at 4, 6, …;
+  - **return value:** in `csci`, which callers use whole (C3). A routine whose prototype says `byte` must return it with `cs` = 0, so
+    a caller can treat the result as a word. A `return e` leaves `e` in `csci`, and the unwinding `STACKHEAD -=` preserves `csci`;
+  - **registers:** the callee may change all of them, `A` and `F` included. A caller keeps live values on the CPU stack, as generated
+    code does. The CPU stack is balanced on return;
+  - **calling B from assembly:** move `sys_stackhead` forward past the routine's own frame (`stackheadrll8`, as in generated code),
+    store the arguments, `cal`, move it back. A leaf routine that keeps nothing on the software stack doesn't touch `sys_stackhead`;
+  - **entry from outside B:** code entered by something other than a B call is an assembly stub that builds a frame and calls B:
+    bcOS calling `bdio_call` through slot `0x37`, and the program entry in `runtime.basm`, which refers to `F_main`;
+  - **symbol names:** a B function `name` is the global symbol `F_name` (one namespace, so the prefix keeps B's `peek16` apart from
+    the runtime's `peek16`). `G_name` is reserved for B globals. Every other label (jump and string labels of a B function, assembly
+    labels like `poke16` or `sys_stackhead`) is local to its module and isn't callable from B by name. An assembly routine callable
+    from B defines `F_name`, exports it with `.global F_name`, and B sees it through a prototype in a `.h` file, which gives the
+    argument sizes the caller needs: `byte poke8(word Paddr, byte value);`;
+  - **replaces C5 from phase 3:** once programs are linked (#121–#126), "one image, no linker" (C5) no longer holds; this decision
+    and G15 are how modules fit together. Until then C5 describes how the host builds work.
+- **Known quirk:** the host compiler doesn't truncate a `byte` function's return value today: `byte f() { return 300; }` compiles to
+  `mov cs, 0x01` / `mov ci, 0x2c` / `ret`, so the caller sees 300. The ABI rule above is what callers may rely on and what assembly
+  routines must follow; B code that returns a value above 255 from a `byte` function is outside it.
+- **Trade-offs:** the software-stack frame layout and the "caller moves `sys_stackhead`" rule are frozen, so an optimisation such as
+  keeping arguments in registers needs a new ABI version rather than a quiet change (roadmap item 5b, inline variable access, only
+  changes how generated code reads variables, so it stays compatible). All registers being caller-saved costs extra pushes in
+  callers.
