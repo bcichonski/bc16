@@ -116,6 +116,8 @@ src/bc/code/*.basm
 *.sectors
 # sample data for TEST.B, not a build output
 !src/bdos/testb.sectors
+# object files (BOF, G15) are build outputs: src/bc/runtime.o is built by buildos
+*.o
 # ROMs and discs are build outputs (run_tests.py builds them)
 *.b81
 *.bdd
