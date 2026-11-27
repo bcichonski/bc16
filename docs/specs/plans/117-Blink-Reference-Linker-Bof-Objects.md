@@ -1,15 +1,14 @@
 # Blink Reference Linker for BOF Objects Plan
 
-**Plan Status**: `DRAFT - BLOCKED`
+**Plan Status**: `FINAL`
 
 **Story Type**: `Internal`
 
 **Plan Revision**: `A0`
 
 > This plan captures **what** to build and **why**. It does not contain implementation code.
-> It is blocked on a prerequisite that is not on `master` (see §1.2 and §3.2). The task breakdown in §4
-> shows the intended shape once it lands. Once #116 is merged, re-check OQ-1 against its `runtime.basm`,
-> close it, and flip this plan to `FINAL`.
+> First written `DRAFT - BLOCKED` on #116 (2026-11-25, draft PR #189). #116 merged on 2026-11-27 (PR #190);
+> OQ-1 and OQ-2 are closed in §1.2 and §3.2 against its `runtime.basm`, and the plan is `FINAL`.
 
 ---
 
@@ -41,26 +40,24 @@ Facts closed directly from the issue's Proposal:
 *   Pass 2 applies fixups (sign-magnitude `REL15`/`REL7` as the assembler encodes them) and writes the raw image.
 *   Report the program size and the sections kept and dropped.
 
-### 1.2 Why this is blocked
+### 1.2 Prerequisites (were blocking, now closed)
 
-Verified on `origin/master` 70ab5f9 (2026-11-25):
-*   The issue says **Depends on #113, #115, #116**. #113 (PR #183) and #115 (PR #187) are merged. **#116 is OPEN.**
-    `git ls-tree origin/master` has no `runtime.basm` anywhere. A `/grind 116` run started on 2026-11-25 at 14:07 in a
-    parallel session and is still at its spec-plan step.
-*   AC-1 names `runtime.basm`, which is #116's deliverable. Several things blink depends on are still undecided, and #116
-    decides them:
-    *   the runtime **entry section**: the first section of the first linked object, a dead-code root placed at `#code`;
-    *   how the runtime refers to `F_main`;
-    *   how `sys_stackhead`/`sys_heaphead` (today emitted by `bc_stdlib.py`) become the linker-defined `__end`/`__heap`
-        (doc 07: "`__end` … today's `sys_stackhead` sits there");
-    *   where `RUNTIME.O` is built, which is blink's "library folder".
-*   The roadmap orders step 34 (#116) before step 35 (#117). The owner set that order on 2026-11-19.
-    Precedent: #118 bailed out with a blocked plan (PR #182) when its roadmap prerequisites weren't on `master`.
-*   #188 (two-pass `--obj`) is also open and asked to land before #116. It does **not** block this story (D7).
-
-The linker core (T1, T2) does not need #116 and could be built today against test objects. Shipping it before #116
-would mean writing the AC-1 e2e against an invented runtime. That deviates from AC-1 and from the roadmap order, so
-only the owner can choose it (OQ-2).
+Verified on `origin/master` ed66a75 (2026-11-27, merged into this branch):
+*   #113 (PR #183), #115 (PR #187) and **#116 (PR #190)** are merged. #188 (two-pass `--obj`) is still open and does
+    not block this story (D7).
+*   #116's contract, as blink sees it (C11, `src/bc/runtime.basm`):
+    *   `./buildos` builds **`src/bc/runtime.o`**, module `RUNTIME`. That folder is blink's library folder (D9).
+    *   The first section is **`runtime_entry`**: the banner and the 8-byte head (4 × `mov a, 0xff`), no label, no
+        references. It does **not** call `F_main` yet: the program entry stub (`cal :F_main`, stack/heap set-up) moves
+        into it with #121. Today it simply falls through into whatever byte follows it, exactly as in a flat program,
+        where the head is followed by the bc entry stub.
+    *   `runtime.basm` keeps `.extern sys_stackhead` / `.extern sys_heaphead` (defined per program by `bc`). Mapping them
+        to the linker's `__end`/`__heap` is #121's job. Only the stack-variable helpers and `mseek` use them.
+    *   `os_metacall` is a `.def` (an absolute symbol, `91` record) in its own empty section.
+*   Consequence for AC-1: a `hello.basm` that calls only `printstr`/`print_newline` links without `sys_stackhead` or
+    `sys_heaphead`, because the sections that use them are dropped (an undefined symbol used only by dropped sections
+    is not an error, §2.4). blink must place `F_main`'s section straight after the entry so that the fall-through
+    reaches it (D10).
 
 ### 1.3 Technical Summary
 
@@ -119,8 +116,9 @@ N/A — Internal story. The object format is the repo's own frozen contract: G15
 
 | Topic | Source A | Source B | Conflict | Chosen Handling |
 | :--- | :--- | :--- | :--- | :--- |
-| Roots | Issue: "Mark from the runtime entry and `F_main`" | G15 / doc 07: roots are every `SECTABS` section plus the first section of the first linked object (the runtime entry stub, which refers to `F_main`) | The issue roots `F_main` directly; G15 reaches it through the entry stub | G15 rules: the frozen contract. An assembly-only program whose runtime entry doesn't refer to `F_main` keeps only what the entry reaches (D3) |
+| Roots | Issue: "Mark from the runtime entry and `F_main`" | G15 / doc 07: roots are every `SECTABS` section plus the first section of the first linked object (the runtime entry stub, which refers to `F_main`) | Until #121, #116's `runtime_entry` has no `cal :F_main`, so G15's roots alone keep nothing of the program | Both: roots are G15's plus the section that defines `F_main` (D3). Once #121 adds the call, the extra root is redundant and harmless, so the result is G15's |
 | Link-error stage | doc 07 step 6 lists `disc full` | the host writes a host file | — | Not checked on the host (D6) |
+| Fall-through entry | G15: the entry "is placed at `#code`" | #116: `runtime_entry` has no call to `F_main` yet and falls through | — | `F_main`'s section is placed right after the entry (D10) |
 | Linking named as #121 | `docs/03-compiler.md` "Linking is planned (#121)" | Issue #117 is the linker | Doc pointer out of date | T4 rewrites that sentence |
 
 ### 2.3 Affected Areas
@@ -132,7 +130,7 @@ N/A — Internal story. The object format is the repo's own frozen contract: G15
 | `src/blink.py` | The linker and its CLI | New |
 | `src/tests/test_blink.py` | Unit tests (AC-2, AC-3) | New |
 | `src/tests/test_e2e_*.py`, `src/e2e_harness.py`, `src/bc64/testdata/e2e/` | AC-1 e2e: assemble `runtime.basm` + `hello.basm` with `--obj`, link, run on the emulator | New test plus fixture |
-| `src/bc/runtime.basm` (or `src/bdos/`; **from #116**) | The runtime entry section and the `__end`/`__heap` users | Reference (blocked, OQ-1) |
+| `src/bc/runtime.basm`, `src/bc/runtime.o` (#116, C11) | The runtime: module `RUNTIME`, entry section `runtime_entry`, built by `./buildos` | Reference (never changed by this story) |
 | `docs/03-compiler.md` | Linker section (AC-4); replaces "Linking is planned (#121)" | Change |
 | `run_tests.py` area map (#175) | Make sure the new tests run in the right group/area | Check / small change |
 
@@ -148,12 +146,13 @@ Follows doc 07 steps 1–9 and G15. Rules:
     (section, offset), local `LABEL`s, and each section's references (the `EXTRN` symbols and local labels its fix
     entries target). Fix targets follow G15: top bit clear means symbol k (the k-th `ee`), top bit set means local label n.
 *   **Duplicates**: a global defined in two modules is an error naming both.
-*   **Mark**: the roots are every `SECTABS` section plus the entry (the first section of the first linked object). Follow
+*   **Mark**: the roots are every `SECTABS` section, the entry (the first section of the first linked object, i.e.
+    `RUNTIME`'s `runtime_entry`) and the section that defines `F_main` (D3). `F_main` undefined is an error. Follow
     references transitively: a symbol goes to its defining section, a local label to the section that holds it. An
     undefined symbol used by a **marked** section is an error naming the user module. An undefined symbol used only by
     dropped sections is not an error.
-*   **Layout**: marked `SECTSTAT` sections get addresses from `#code` (default `0x6000`) in module-list order, then
-    section order. The entry comes first, so it lands at `#code`. `SECTABS` sections keep their address and are not part
+*   **Layout**: marked `SECTSTAT` sections get addresses from `#code` (default `0x6000`): the entry first (it lands at
+    `#code`), then `F_main`'s section (D10), then the other kept sections in module-list order, then section order. `SECTABS` sections keep their address and are not part
     of the appended image (D4). `__end` is the address after the last placed byte. `__heap` is the `#heap` address. The
     linker defines both, and an object defining either is a duplicate-symbol error.
 *   **Size checks** (all before any output is opened):
@@ -181,8 +180,11 @@ Follows doc 07 steps 1–9 and G15. Rules:
     `pyproject.toml`; that is left to a follow-up if the owner wants one.
 *   **D2 — Output naming**: `NAME.prg` beside the main object, lower case like the other host outputs (`.o`, `.btap`).
     It is a raw image for `#code`, the `.PRG` format the disc programs already use.
-*   **D3 — Roots per G15**: every `SECTABS` section plus the first section of the first linked object (the runtime
-    entry). `F_main` is reached through the entry's references, not added as a separate root (Source Conflict Log).
+*   **D3 — Roots = G15's plus `F_main`**: every `SECTABS` section, the first section of the first linked object (the
+    runtime entry) and the section defining the global `F_main`, as the issue says ("Mark from the runtime entry and
+    `F_main`"). Until #121 the entry does not reference `F_main`, so G15's roots alone would drop the whole program.
+    A link with no `F_main` is an error (`undefined symbol F_main`, every program has a main). *Assumption*: requiring
+    `F_main` also for assembly-only programs is the conservative reading of the issue; flagged in the PR.
 *   **D4 — `SECTABS` sections**: always kept, placed at their own address, never moved, and not counted in the appended
     image size. If one overlaps the appended image, that is an error.
 *   **D5 — All errors before output**: every check, including the AC-3 range check, runs before the output file is
@@ -193,6 +195,20 @@ Follows doc 07 steps 1–9 and G15. Rules:
 *   **D7 — #188 independence**: blink handles every G15 record, whether or not a `REL7`/`REL15` fixup or `LABEL` record is
     present. BOF v1 does not change with #188 ("No change to the BOF v1 layout"), so blink is correct for both one-pass
     and two-pass `--obj` output. Unit tests build objects directly (e.g. with `BofWriter`), not only through the assembler.
+*   **D9 — Library folder**: `src/bc/` (the folder of `runtime.o`, found relative to `blink.py`), overridable with
+    `--lib DIR`. A module `NAME` is the file `name.o` (lower case, as `bc81asmc --obj` writes it; the module name in the
+    `b0` header is what `de` records and errors use). Searched: the main object's folder, then the library folder.
+*   **D10 — `F_main` follows the entry**: the section defining `F_main` is laid out right after the entry, before every
+    other section. #116's `runtime_entry` falls through after its 8 bytes (as in a flat program), so this is what makes
+    an assembly-only program run before #121, and it stays harmless after #121 adds `cal :F_main` to the entry.
+*   **D11 — Decision record**: the linker's rules (roots, layout, search path, linker symbols, checks, no partial output)
+    are recorded as a new global decision **G17** in `docs/specs/memory/design-decisions.md` (the next free G id on
+    master 2026-11-27; re-check before the PR, parallel stories collide on ids).
+*   **D12 — `__end`/`__heap`**: defined by blink for every link (`__end` = address after the last placed byte of the
+    appended image, `__heap` = the `#heap` value) and exported like globals, so
+    #121 can switch `sys_stackhead`/`sys_heaphead` over. Nothing in #116's runtime references them yet. *Assumption*:
+    without an `ad` `#heap` record, `#heap` has no value, so `__heap` is not defined and the `#heap` size check is
+    skipped; a section referencing `__heap` then gets `undefined symbol __heap`. Flagged in the PR.
 *   **D8 — Error format**: `blink: error: <message>` on stderr. Each message names the modules or symbol involved. The
     exit code is 1, matching the other tools' clean-error style (C6, the assembler's diagnostics).
 
@@ -203,16 +219,17 @@ Follows doc 07 steps 1–9 and G15. Rules:
 | Default `#code` | `0x6000` | Issue, doc 07 | blink |
 | Max image size | 32,640 bytes (255 sectors) | Issue, file-system limit | blink size check |
 | First module | `RUNTIME` (always, no `#link`) | Issue, doc 07 | module list |
-| Module search | main object's folder, then the library folder | Issue | blink (library folder: OQ-1) |
+| Module search | main object's folder, then the library folder (`src/bc/`, `--lib DIR`) | Issue, #116 | blink (D9) |
 | Linker-defined symbols | `__end`, `__heap` | Issue, doc 07 | blink |
 | Partial output on error | never | doc 07 | blink (D5) |
+| Roots / placement | `SECTABS` + entry + `F_main`; `F_main` right after the entry | Issue, #116 fall-through entry | blink (D3, D10) |
 
 ### 3.2 Open Questions
 
 | Question | Impact if wrong | Resolution Attempt | Owner / Follow-up |
 | :--- | :--- | :--- | :--- |
-| **OQ-1**: What is the runtime contract blink links against? That is, the name of `runtime.basm`'s entry section and how it reaches `F_main`, which runtime globals become `__end`/`__heap` (today's `sys_stackhead`/`sys_heaphead`), and where `RUNTIME.O` is built (the "library folder"). | AC-1 can't be written or checked. `__end`/`__heap` semantics and the search path could be designed against a runtime that #116 then shapes differently. | Checked `origin/master` 70ab5f9: there is no `runtime.basm`. #116 is OPEN; its `/grind` started 2026-11-25 14:07 and hasn't produced a plan. Doc 07 gives intent only ("`__end` … today's `sys_stackhead` sits there"). `bc_stdlib.py` still emits `sys_stackhead`/`sys_heaphead` as labels. | #116 (in progress). Close this when #116 merges, then re-run `/grind 117` on this branch |
-| **OQ-2**: Should #117 ship before #116, with the linker core (T1–T2) and an AC-1 e2e against a test-fixture runtime, then switch to the real `runtime.basm` later? | That would deviate from AC-1 (which names `runtime.basm`) and from the owner-set roadmap order (step 34 before 35). | AC text and roadmap 08 both say #116 first. No comment on #117 relaxes it. | Owner |
+| ~~OQ-1~~ **Closed**: the runtime contract blink links against. | — | #116 merged (PR #190): entry section `runtime_entry` (no `F_main` call until #121), `.extern sys_stackhead/sys_heaphead` kept (switch to `__end`/`__heap` is #121), object at `src/bc/runtime.o`, module `RUNTIME`. See §1.2, D3, D9, D10, D12. | Closed 2026-11-27 |
+| ~~OQ-2~~ **Closed**: ship before #116 with a fixture runtime? | — | Moot: #116 merged, AC-1 uses the real `runtime.basm`. | Closed 2026-11-27 |
 
 ---
 
@@ -220,16 +237,16 @@ Follows doc 07 steps 1–9 and G15. Rules:
 
 | Task | Title | Depends on | Complexity |
 | :--- | :--- | :--- | :--- |
-| `T1` | Pass 1, mark and layout: module list, `NEED`, search path, `ad`, duplicates, undefined, dead sections, `__end`/`__heap`, size checks | OQ-1 (library folder, `__end`/`__heap` contract) | `High` |
+| `T1` | Pass 1, mark and layout: module list, `NEED`, search path, `ad`, duplicates, undefined, dead sections, `__end`/`__heap`, size checks | — | `High` |
 | `T2` | Pass 2: fixups (all six kinds, G5 sign-magnitude), range errors by symbol name, image write, report, CLI | `T1` | `High` |
-| `T3` | AC-1 e2e: `runtime.basm` + `hello.basm` → `--obj` → `blink.py` → runs on the emulator | `T2`, #116 | `Medium` |
-| `T4` | Docs: linker section in `docs/03-compiler.md` (and 02's `--obj` section pointer) | `T2` | `Low` |
+| `T3` | AC-1 e2e: `runtime.basm` + `hello.basm` → `--obj` → `blink.py` → runs on the emulator | `T2` | `Medium` |
+| `T4` | Docs: linker section in `docs/03-compiler.md` (and 02's `--obj` section pointer), decision G17 | `T2` | `Low` |
 
 ### T1 — Pass 1, mark and layout
 
 *   **Goal**: from `NAME`, build the module list, read every object, and produce the kept sections with their addresses,
     the global symbol table including `__end`/`__heap`, or the full list of pass-1/mark/size errors.
-*   **Depends on**: OQ-1 (only the library-folder default and the `__end`/`__heap` contract; the rest is fixed by G15).
+*   **Depends on**: — (contract fixed by G15, #116 and D3/D9/D10/D12).
 *   **Complexity**: `High`. This is the format's first consumer; mistakes here are the ones BLINK would copy.
 *   **Pointers**: `src/bof.py`; G15; doc 07 "What the linker does" steps 1–6 and "Linker algorithm (BLINK)"; §2.4.
 *   **Definition of Done**:
@@ -239,14 +256,19 @@ Follows doc 07 steps 1–9 and G15. Rules:
         header/version, conflicting `ad`, duplicate global, undefined symbol used by a kept section, size over 32,640,
         end reaching `#heap`/`#codelimit`.
     *   Dead sections are dropped: only sections reachable from the `SECTABS` sections and the entry are kept.
-    *   Kept sections are laid out from `#code` (default `0x6000`) with the entry first.
+    *   Kept sections are laid out from `#code` (default `0x6000`): the entry first, then `F_main`'s section (D10).
+    *   `__end` and `__heap` are defined per D12; `F_main` missing is an error (D3).
+    *   A module `NAME` is the file `name.o`; `--lib DIR` overrides the default library folder `src/bc/` (D9).
 *   **Tests expected** (unit, `src/tests/`):
     *   one test per error;
     *   a `NEED` chain of 3 or more modules, including a cycle and a duplicate need;
     *   dead-section dropping (unreferenced, referenced only by a dropped section, and an undefined symbol used only by a
         dropped section is not an error);
     *   `#code` default and override;
-    *   each size check, at the boundary and one byte over.
+    *   each size check, at the boundary and one byte over;
+    *   roots: `F_main` reached with an entry that references nothing, `F_main` placed right after the entry, no `F_main`;
+    *   linking the real `src/bc/runtime.o` (structure only, never its bytes: #188 changes them) keeps only the entry
+        and what `F_main` reaches.
 *   **Tests to modify**: None.
 
 ### T2 — Pass 2, output and CLI
@@ -274,8 +296,11 @@ Follows doc 07 steps 1–9 and G15. Rules:
 ### T3 — AC-1 e2e
 
 *   **Goal**: an assembly-only `hello.basm` plus #116's `runtime.basm`, each assembled with `bc81asmc --obj`, linked by
-    `blink.py`, loaded and run on the emulator, printing its greeting.
-*   **Depends on**: `T2`, #116 merged.
+    `blink.py`, loaded and run on the emulator, printing its greeting. `hello.basm` defines `.global F_main`, prints
+    through the runtime's `printstr` (and `print_newline`) and ends with `ret` back to the shell; the test writes it
+    into its temp dir (no new committed fixture). It runs from the shell as a `.PRG` put on a temp copy of `os.bdd` with
+    `h.disc_put`, like `test_e2e_return.py`.
+*   **Depends on**: `T2`.
 *   **Complexity**: `Medium`.
 *   **Pointers**: `src/e2e_harness.py`, an existing `src/tests/test_e2e_*.py` as model, `src/bc64/testdata/e2e/`; how
     `.PRG` programs are run in e2e today.
@@ -291,8 +316,9 @@ Follows doc 07 steps 1–9 and G15. Rules:
 *   **Complexity**: `Low`.
 *   **Pointers**: `docs/03-compiler.md` ("Linking is planned (#121)"); `docs/02-assembler.md` `--obj` section; `src/CLAUDE.md` / tool tables if they list tools.
 *   **Definition of Done**: the command line, search path, module list, roots, dead-section dropping, `__end`/`__heap`,
-    size checks, the error list and an example run are documented. The out-of-date #121 sentence is fixed. No test
-    parses the doc (owner rule).
+    size checks, the error list and an example run are documented. The out-of-date #121 sentence is fixed, and
+    `docs/03-compiler.md`'s "which blink (#126) links" points at `blink.py` (#117). Decision **G17** records the linker
+    rules (D11); `CLAUDE.md`'s object-files bullet says `blink.py` exists. No test parses the doc (owner rule).
 *   **Tests expected**: none.
 *   **Tests to modify**: None.
 
@@ -315,14 +341,13 @@ Follows doc 07 steps 1–9 and G15. Rules:
 | External contracts verified from producer/contract source | N/A | Internal; the BOF contract is G15 + `src/bof.py` |
 | Evidence sources are reproducible | N/A | Internal |
 | Identifier directionality / ordering / freshness meaning evidenced | N/A | Internal |
-| Every `Assumption` is linked to an Open Question (§3.2) | Yes | The runtime contract is OQ-1 |
-| No unresolved Open Questions (for `FINAL`) | No | OQ-1 (#116), OQ-2 (owner) |
+| Every `Assumption` is linked to an Open Question (§3.2) | Yes | D3 (`F_main` required) and D12 (`__heap` without `#heap`) are low-stakes assumptions, flagged in the PR |
+| No unresolved Open Questions (for `FINAL`) | Yes | OQ-1 and OQ-2 closed after #116 merged |
 | Each Decision states a single committed approach | Yes | |
 | Tasks are independent, each with a Definition of Done and test expectations | Yes | |
 | Required infra reflected | N/A | No toggles or infra |
 
-**Self-review note**: The linker algorithm is fully specified by G15 and doc 07, and T1/T2 could start today. What is
-missing is #116's runtime contract (entry section, `__end`/`__heap`, where `RUNTIME.O` lives), and AC-1 names
-`runtime.basm` itself. So the plan is blocked, not the design. When #116 merges, read its `runtime.basm` and plan,
-fill OQ-1 into §2.4 and D-decisions, and flip to `FINAL`. Take extra care to keep pass 2's G5 encoding identical to the
-assembler's (reuse it, don't re-derive it), and to report every error before any output is written.
+**Self-review note**: #116's runtime closes OQ-1. Its `runtime_entry` doesn't call `F_main` yet, so the plan roots
+`F_main` (as the issue says) and places it right after the entry (D3, D10); both stay correct after #121. Take extra
+care to keep pass 2's G5 encoding identical to the assembler's (reuse it, don't re-derive it), and to report every
+error before any output is written. Tests never pin `runtime.o` bytes (#188).
