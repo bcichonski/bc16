@@ -14,6 +14,8 @@ cd src/bc && python3 -m unittest discover -s tests -t . -p "*_tests.py"   # gram
 python3 scripts/code_size.py                      # code size of every program: Markdown table vs src/bc/code_size.csv
 python3 scripts/code_size.py --check              # optional, local: exit 1 if a program differs from its latest CSV row
 python3 scripts/code_size.py --record             # after an intended codegen change: append the changed rows to the CSV
+cd src && python3 bc81asmc/bc81asmc.py --obj bc/runtime.basm   # runtime.basm -> bc/runtime.o (module RUNTIME; ./buildos does this)
+cd src && python3 bc81asmc/bc81asmc.py --dump bc/runtime.o     # print the object
 ```
 
 `bcc` runs `winpty python` when `winpty` is on `PATH` (Git Bash) and `python3` otherwise.
@@ -44,8 +46,8 @@ outputs: ignored by git and never committed. Every `.basm` starts with `; genera
   without effect on the output until `--obj`; a malformed one is an error), and drops `//` lines.
 - `bc_grammar.py` (parsy) builds the AST from `bc_ast.py`. Each node's `emit(context)`
   appends assembly text to `Context.basm`. `PROGRAM.emit` prepends the entry point; then the
-  data segment and `bc_stdlib.py` (asm runtime, a format template with `{0}`/`{1}`
-  placeholders) are appended.
+  data segment and the asm runtime (`runtime.basm`, loaded by `bc_stdlib.py`) are appended. The per-program
+  tail (`sys_heaphead`, `sys_stackhead`) is a format template in `bc_stdlib.py` with `{0}`-`{3}` placeholders.
 - `asm "..."` is `STATEMENT_ASM` (text copied verbatim); `asm item, item, ...;` is `STATEMENT_ASM_RAW`: items are
   validated in the node (number 0-255, `:name`, `hi(:name)`, `lo(:name)`; errors via `Context.add_error`) and it
   emits one `.db` line. `#define` names reach the items through the normal substitution.
@@ -53,12 +55,14 @@ outputs: ignored by git and never committed. Every `.basm` starts with `; genera
   entry point is prepended):
   - all functions are emitted first (errors and label numbers unchanged); then only the function chunks
     (code plus their strings) reachable from the entry code by `:label` references are kept, in source order;
-  - `asm_labels(text)` returns a text's defined labels (`name:` at line start, `.def`) and its referenced
-    `:name` tokens, comments excluded; labels inside `asm` strings count;
-  - the runtime in `bc_stdlib.py` is a list of `Fragment(name, text, deps)`; `add_stdlib` emits a fragment
-    when kept code references one of its labels, plus the closure of its declared `deps`, in template order;
-  - a fragment's declared `deps` must equal the labels its text references: a unit test checks it, so change
-    the text and its `deps` together.
+  - `asm_labels(text)` (in `bc_labels.py`, imported by `bc_ast.py` and the loader) returns a text's defined labels
+    (`name:` at line start, `.def`) and its referenced `:name` tokens, comments excluded; labels inside `asm`
+    strings count;
+  - the runtime is a list of `Fragment(name, text, deps)` that `bc_stdlib.py` reads from `runtime.basm`, one per
+    `.sect`; `add_stdlib` emits a fragment when kept code references one of its labels, plus the closure of its
+    `deps`, in file order;
+  - a fragment's `deps` are derived by the loader: the other sections whose labels its text references. There is
+    no list to keep in step, so edit only the `.basm` text.
 - **Code model:**
   - an expression's result is in `csci`, and a binary operator's right operand in `dsdi`;
   - intermediate values go on the CPU stack;
@@ -79,7 +83,7 @@ outputs: ignored by git and never committed. Every `.basm` starts with `; genera
 
 - Generated assembly must follow bc81asmc syntax: lowercase, fixed-width hex (`0x{:02x}` /
   `0x{:04x}`), one instruction per line.
-- `bc_stdlib.py` routines call bcOS through `os_metacall` table indices. Those indices must
+- The `runtime.basm` routines call bcOS through `os_metacall` table indices. Those indices must
   match `os_metatab` in `src/bc81asmc/bcOS/bcos.basm`. The runtime's only external addresses
   are `.def`s of bcOS labels (today only `os_metacall`, 0x0008). bcOS variables are read through
   `os_vartab`, never `.def`'d. `tests/bc_runtime_bcos_tests.py` checks the `.def` addresses and

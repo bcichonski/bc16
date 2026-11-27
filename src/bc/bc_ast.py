@@ -1,5 +1,6 @@
 import re
 import bc_log
+from bc_labels import LABEL_DEF, DEF_DIRECTIVE, LABEL_REF, strip_asm_comment, asm_labels
 from bc_stdlib import runtime_banner, runtime_head, runtime_fragments, runtime_tail
 from array import array
 from dataclasses import dataclass
@@ -13,38 +14,6 @@ class UndeclaredVariableError(CompilerError):
 
 STACKHEAD = "sys_stackhead"
 HEAPHEAD = "sys_heaphead"
-
-LABEL_DEF = re.compile(r'^\s*([A-Za-z_][A-Za-z0-9_]*):')
-DEF_DIRECTIVE = re.compile(r'^\s*\.def\s+([A-Za-z_][A-Za-z0-9_]*)')
-LABEL_REF = re.compile(r':([A-Za-z_][A-Za-z0-9_]*)')
-
-def strip_asm_comment(line):
-    '''One assembly line without its `;` comment; a `;` inside a quoted literal is not a comment.'''
-    quote = None
-    for i, c in enumerate(line):
-        if quote is not None:
-            if c == quote:
-                quote = None
-        elif c in "'\"":
-            quote = c
-        elif c == ';':
-            return line[:i]
-    return line
-
-def asm_labels(text):
-    '''(defined labels, referenced labels) of assembly text, comments excluded.
-
-    A definition is `name:` at the start of a line (after whitespace; an instruction may follow)
-    or `.def name, ...`; a reference is any `:name` token. Over-approximating references is safe.'''
-    defined = set()
-    referenced = set()
-    for line in text.splitlines():
-        line = strip_asm_comment(line)
-        match = LABEL_DEF.match(line) or DEF_DIRECTIVE.match(line)
-        if match is not None:
-            defined.add(match.group(1))
-        referenced.update(LABEL_REF.findall(line))
-    return defined, referenced
 
 def hi(b):
     return (b >> 8) & 0xff
@@ -362,7 +331,7 @@ class Context:
         self.emit(runtime_head)
         for fragment in runtime_fragments:
             if fragment.name in kept:
-                self.emit(fragment.text.format(STACKHEAD, HEAPHEAD))
+                self.emit(fragment.text)
             else:
                 bc_log.trace('Dropped unused runtime routine {0}'.format(fragment.name))
         self.emit(runtime_tail.format(STACKHEAD, HEAPHEAD, hi(self.heap_segment_addr), lo(self.heap_segment_addr)))
