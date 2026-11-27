@@ -30,8 +30,14 @@
       "history": []
     },
     "finalize": {
-      "status": "in_progress",
-      "pr_urls": []
+      "status": "done",
+      "pr_urls": [
+        {
+          "repo": "bc16",
+          "pr_url": "https://github.com/bcichonski/bc16/pull/191",
+          "pr_pending": false
+        }
+      ]
     },
     "pr_monitor": {
       "status": "pending",
