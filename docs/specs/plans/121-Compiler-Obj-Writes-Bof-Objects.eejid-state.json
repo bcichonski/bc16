@@ -1,0 +1,61 @@
+{
+  "ticket": "121",
+  "checkout_path": "/c/workspace/bc16-121",
+  "branch": "ai/feature/121-compiler-obj-writes-bof-objects",
+  "tools": {
+    "github_mcp": true,
+    "gh": true,
+    "ci_logs": "gh",
+    "ci_rerun": "none"
+  },
+  "phases": {
+    "review_story": {
+      "status": "done"
+    },
+    "spec_plan": {
+      "status": "blocked",
+      "plan_file": "docs/specs/plans/121-Compiler-Obj-Writes-Bof-Objects.md",
+      "revision": "A0",
+      "amendments": [],
+      "reason": "OQ-1: #117 blink.py not merged (AC-1 needs it; parallel /grind 117 in progress); OQ-2: D5/D8 rest on #117 plan, not merged code"
+    },
+    "implementation": {
+      "status": "pending",
+      "base_refs": {}
+    },
+    "verification": {
+      "status": "pending",
+      "round": 0,
+      "max_rounds": 3,
+      "history": []
+    },
+    "finalize": {
+      "status": "done",
+      "pr_urls": [
+        {
+          "repo": "bc16",
+          "pr_url": "https://github.com/bcichonski/bc16/pull/191",
+          "pr_pending": false
+        }
+      ]
+    },
+    "pr_monitor": {
+      "status": "pending",
+      "repos": {}
+    }
+  },
+  "github": {
+    "repo": "bcichonski/bc16",
+    "story_issue": 121,
+    "story_points_estimated": true,
+    "story_moved_to_development": false,
+    "estimates_posted": false,
+    "estimates": [],
+    "sub_issues": [],
+    "pending_writes": []
+  },
+  "notes": [
+    "Dependency #117 (blink.py) OPEN at run start (draft PR #189 blocked on #116; #116 merged 2026-11-27 13:43, bc16-117 merged master 13:45 — a parallel /grind 117 looks active). #188 (two-pass --obj) also open.",
+    "Plan retention skipped deleting 9-Assembler-Listing-And-Symbol-Map.md (no CHANGELOG entry)."
+  ]
+}
