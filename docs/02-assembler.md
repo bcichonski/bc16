@@ -480,7 +480,7 @@ byte-exact example `HELLO.O` is in [the design page](analysis/07-self-hosted-com
 assembler produces exactly those 99 bytes from the matching source. The decisions behind this mode are in
 [A14](specs/memory/design-decisions.md#a14---obj-writes-bof-v1-object-files-names-are-classified-at-first-sight-declarations-come-first). The records are written by `src/bof.py`, the module that `blink.py` (#117)
 and `bc --obj` (#121) share. Any error means no `.o` is written (exit status `1`). Without `--obj` nothing changes: every
-source assembles to the same `.btap` as before.
+source assembles to the same `.btap` as before. To link the objects into a `.prg`, see [the linker section](03-compiler.md#linker-blinkpy).
 
 ### Names and sections
 

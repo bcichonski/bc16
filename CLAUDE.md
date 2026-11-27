@@ -189,8 +189,8 @@ without the other and the system breaks silently.
   format in `docs/02-assembler.md`). `python3 scripts/check_memory_map.py` checks the addresses above against those
   maps after a build.
 - **Object files (BOF v1):** `bc81asmc --obj file.basm` writes `file.o` and `bc81asmc --dump file.o` prints it (#115,
-  A14, format in G15). `./buildos` builds `src/bc/runtime.o` from `src/bc/runtime.basm`. `src/bof.py` is the shared BOF v1 module (writer, reader, dump); `blink.py` and `bc --obj` will
-  import it, so change the format there and in G15 together.
+  A14, format in G15). `./buildos` builds `src/bc/runtime.o` from `src/bc/runtime.basm`. `src/blink.py` (#117) now links objects: `blink.py` imports `bof.py`, and `bc --obj` (#121) will too.
+  `bof.py` is the shared BOF v1 module (writer, reader, dump), so change the format there and in G15 together.
 - **Disk layout:** the boot loader range and the catalog location are requirements stated in
   `src/disc.bddmanifest`, and `ftool mkdisc` checks them. A file over its `max=` also fails the build.
 

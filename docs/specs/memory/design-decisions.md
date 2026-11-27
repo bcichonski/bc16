@@ -186,6 +186,43 @@ as a rule, with its purpose, rationale, usage and trade-offs.
 
 ---
 
+### G17. The reference linker fixes the link rules that BLINK will copy
+- **Purpose:** one set of link rules for the host linker `blink.py` (#117) and for BLINK on the BC64 (#126). `blink.py` links
+  BOF v1 objects (G15) into a raw image, so real links prove the object format and the algorithm before BASM (phase 2) and
+  BLINK (phase 3) copy them. The rules below are the contract: a change to one is a change to both, like G15.
+- **Rationale:** the linker decides what the program image is, so what it keeps, where it places things and which checks stop a
+  link must be fixed before a second implementation exists. Doing it on the host first, with unit tests, catches a wrong rule
+  before BLINK copies it. The algorithm is in [07, "What the linker does"](../../analysis/07-self-hosted-compiler.md#what-the-linker-does)
+  and ["Linker algorithm (BLINK)"](../../analysis/07-self-hosted-compiler.md#linker-algorithm-blink); the decisions that depart from
+  it or fill a gap are below.
+- **Usage:**
+  - **command line:** `cd src && python3 blink.py NAME [--lib DIR]`. `NAME` is a module name or a path, with or without `.o`; the
+    main object is `NAME.o` (lower case). The output is `NAME.prg` beside the main object: a raw image loaded at `#code`;
+  - **module list:** `RUNTIME` first, then `NAME`, then each `de` (NEED) name not yet listed, in discovery order. A module `M` is
+    `m.o`, searched in the main object's folder, then in the library folder (`src/bc/`, where `./buildos` writes `runtime.o`,
+    or `--lib DIR`). A missing module is an error naming the module that needs it;
+  - **roots:** every `SECTABS` section, the entry (the first section of `RUNTIME`, `runtime_entry`) and the section that defines
+    the global `F_main`. `F_main` is required. The roots are G15's plus `F_main`, because the entry does not call `F_main` until
+    #121. Dead sections are dropped: a section no root reaches is not in the image, and an undefined symbol used only by dropped
+    sections is not an error;
+  - **placement:** the entry first, so it is at `#code`; then `F_main`'s section, so the entry, which falls through, reaches
+    `main`; then the other kept `SECTSTAT` sections in module-list order and section order. A `SECTABS` section keeps its address
+    and is not part of the appended image;
+  - **linker symbols:** `__end` is the address after the last placed byte; `__heap` is the `#heap` value, defined only when an
+    object sets `#heap`. Both are defined by the linker, and an object defining either is a duplicate-symbol error;
+  - **checks, before any output:** the appended image over 32,640 bytes (255 sectors) is `program too big`; an end address that
+    reaches `#heap` or `#codelimit` is an error. Relative jumps (`REL7`, `REL15`) that are out of range are errors naming the
+    symbol (a local label as `MODULE label n`), found by the same pass 2 that builds the image;
+  - **errors and output:** every error is printed on stderr as `blink: error: <message>`, and the exit status is `1`. A failed link
+    creates no file and leaves an old `NAME.prg` as it was: the image is written through a temp file, only after every check
+    passed. A successful link prints `blink: NAME -> NAME.prg, N bytes, K sections kept, D dropped` and exits `0`;
+  - **determinism:** the same objects give byte-identical output.
+- **Trade-offs:** requiring `F_main` also for an assembly-only program is the conservative reading of the issue, and `__heap`
+  without a `#heap` is undefined rather than an error: both are assumptions to revisit with #121. There is no `disc full` check
+  (no disc on the host; BLINK has it, phase 3), no library archive (`LIBB.L`, later) and no dependence on #188: the linker reads
+  every G15 record, so BOF v1 does not change for two-pass `--obj`. Keeping `F_main` as a root until #121 costs nothing once the
+  entry calls it, and keeps an assembly-only program linkable now.
+
 ## Emulator (`src/bc64.py`, `src/bc64/`)
 
 ### E1. One device class per peripheral, one fixed port each

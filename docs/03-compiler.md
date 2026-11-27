@@ -197,8 +197,8 @@ byte printf(word PformatStr)*** // variadic: extra args become word params P1, P
 The convention below is frozen as a contract between B code, assembly modules and the linker.
 The full rules, the reasons and the known quirk are in
 [design decision G16](specs/memory/design-decisions.md#g16-the-b-calling-convention-is-a-frozen-abi-with-fixed-symbol-names);
-object files that carry these symbols are described by G15. Linking is planned (#121), not yet implemented:
-today the whole program is one image (C5).
+object files that carry these symbols are described by G15, and [`blink.py`](#linker-blinkpy) (#117) links them on the
+host. The compiler's own programs are still one image (C5): `bc --obj` (#121) does not produce objects yet.
 
 - **Arguments:** the caller moves `sys_stackhead` forward past its own locals, stores the arguments as the callee's first
   locals, `cal`s, then moves it back. An argument's offset is the sum of the sizes before it (byte 1, word 2):
@@ -209,6 +209,125 @@ today the whole program is one image (C5).
 - **Registers:** all of them, `A` and `F` included, may change in a call. The CPU stack is balanced on return.
 - **Symbols:** a B function `name` is `F_name`; `G_name` is reserved for globals; other labels are local to their module.
   Assembly callable from B defines and `.global`-exports `F_name` and is declared by a prototype.
+
+## Linker: `blink.py`
+
+`src/blink.py` is the host linker for BOF v1 objects (G15, #117). It joins the objects that `bc81asmc --obj` writes
+into one raw program image. Its rules are recorded in [G17](specs/memory/design-decisions.md#g17-the-reference-linker-fixes-the-link-rules-that-blink-will-copy);
+this section says how to run it and what it reports. It implements the algorithm that BLINK will run on the BC64, so
+a link here is a test of the object format and of that algorithm.
+
+### Command line
+
+```
+cd src && python3 blink.py NAME [--lib DIR]
+```
+
+- `NAME` is a module name or a path (`hello`, `build/hello`, `hello.o`). The main object is `NAME.o` (lower case).
+  A path is relative to the current folder, and the main object's folder is the first place searched.
+- `--lib DIR` sets the library folder. The default is `src/bc/`, the folder of `runtime.o` (`./buildos` writes it).
+- On success it writes `NAME.prg` beside the main object and prints one line on stdout:
+  `blink: NAME -> NAME.prg, N bytes, K sections kept, D dropped`, where `N` is the size of the appended image,
+  `K` the sections in the output (SECTABS included) and `D` the sections dropped.
+- `NAME.prg` is a raw image loaded at `#code` (`0x6000` unless the objects set another `#code`). It has no header:
+  it is the `.PRG` format the disc programs use.
+
+### Search path and module list
+
+- The module list starts with `RUNTIME`, then `NAME`. Pass 1 reads them in order. Each `de` (NEED) record of a module
+  appends its module name to the list, unless the name is already listed. So the list holds every module that is
+  needed transitively, in discovery order; a cycle or a repeated need is read once.
+- A module `M` is the file `m.o`. It is searched in the main object's folder first, then in the library folder.
+  A module that is not found is an error naming the module that needs it (`the command line` for `RUNTIME` and
+  `NAME`).
+- A bad header, an unsupported version or a damaged record makes that object unusable: the error names the module and
+  the file.
+
+### Roots, layout and dropped sections
+
+- **Roots:** every SECTABS section, the entry (the first section of `RUNTIME`, `runtime_entry`), and the section that
+  defines the global `F_main`. `F_main` is required: a link without it fails, since every program has a `main`.
+- **Mark:** from the roots, a reference goes to the section that defines the symbol, or to the section that holds the
+  local label. Each reached section is kept; every other section is dropped. A symbol that no module defines is an
+  error only when a kept section uses it. A dropped section's undefined symbols are not an error.
+- **Layout** from `#code`: the entry first, so it is at `#code`; then `F_main`'s section, so the entry falls through
+  into `main`; then the other kept SECTSTAT sections in module-list order and section order. SECTABS sections keep
+  their own addresses and are not part of the appended image.
+- The entry falls through into `F_main` until #121 adds `cal :F_main` to it. After #121 the call is redundant but
+  harmless.
+
+### Linker symbols
+
+- `__end` is the address after the last placed byte of the appended image. It is defined by every link.
+- `__heap` is the `#heap` value from an `ad` record. It is defined only when an object sets `#heap`; a reference to it
+  without `#heap` is `undefined symbol __heap`.
+- An object that defines `__end` or `__heap` is a duplicate-symbol error.
+
+### Size checks
+
+These run before any output is written:
+
+- the appended image is over 32,640 bytes (255 sectors): `program too big`;
+- the end address (one past the last byte) reaches `#heap` or `#codelimit` (`end >= limit`): the error names the end
+  address and the limit. A `#heap` or `#codelimit` that is at or below `#code` gives the same error.
+
+### Pass 2 and the relative-jump check
+
+Pass 2 builds the image in memory, applying the fix records as the assembler encodes them (G15, G5): `ABS16` is the
+2-byte address, `HI8`/`LO8` one byte of it, `HILO` the high byte at the offset and the low byte at offset + 2. `REL7`
+(`jmr`) and `REL15` (`jrx`, `clr`) are sign-magnitude distances from the placeholder, and a distance outside +-127 or
++-32767 is an error that names the **symbol** (a local label is named `MODULE label n`). That is the same check the
+assembler makes for a flat program, now made by the linker.
+
+### Errors and exit codes
+
+Every error is collected and printed on stderr, one per line, as `blink: error: <message>`. The link then stops with
+exit code `1`, before any output is written.
+
+| Message (after `blink: error: `) | Raised when |
+| :--- | :--- |
+| `module M not found (m.o, needed by X)` | a module of the list has no `m.o` in either folder; `X` is `the command line` or `module P` |
+| `module M: bad object PATH: ...` | the file is not a readable BOF v1 object (header, version or record) |
+| `module M: TAG record at offset N is outside a section` | a `CODE`, `GLOBL` or `LABEL` record comes before any section |
+| `module M: local label N is defined twice` | two `LABEL` records give the same label number in one module |
+| `conflicting #code: AAAA in module M, BBBB in module N` | two modules give `#code`, `#heap` or `#codelimit` different values |
+| `duplicate symbol S: defined twice in module M` | one module defines the global twice |
+| `duplicate symbol S: defined by A and B` | two modules define it; `A` may be `the linker` for `__end` and `__heap` |
+| `module M has no sections: there is no entry` | `RUNTIME` has no section to be the entry |
+| `undefined symbol F_main` | no module defines `F_main` |
+| `symbol F_main of module M is not in a section` | `F_main` is a `.def` constant, not a label |
+| `undefined symbol S (used by module M)` | a kept section refers to `S`, which no module defines |
+| `program too big: N bytes, at most 32640` | the appended image is too large |
+| `image end AAAA reaches #heap BBBB` (or `#codelimit`) | the end address reaches the limit |
+| `image end AAAAA is beyond the address space` | the end address is above `0xffff` |
+| `S (a-b) overlaps T (c-d)` | two placed areas overlap: the image and a SECTABS section, or two SECTABS sections |
+| `section 'x' of module M at AAAA has N bytes: NAME.prg holds only the image at #code CCCC` | a SECTABS section with bytes; an empty one (labels or `.def`s only) is fine |
+| `relative jump to S out of range: D bytes, REL7 reaches at most 127 (section 'x' of module M)` | a `jmr` (`REL7`) or `jrx`/`clr` (`REL15`, at most 32767) is too far |
+| `cannot write NAME.prg: ...` | the output cannot be written (exit `1`) |
+
+A usage error (for example a missing `NAME`) is reported by the argument parser and exits with status `2`.
+
+On a clean link the image goes to `NAME.prg.tmp` first and then replaces `NAME.prg`. So a failed link never creates
+or changes `NAME.prg`, and a write that fails midway leaves no partial file. The output is deterministic: the same
+objects give the same bytes.
+
+### Example
+
+```
+bc81asmc --obj hello.basm                  # writes hello.o beside the source (BOF v1)
+cd src && python3 blink.py hello           # links RUNTIME (src/bc/runtime.o) and hello.o into hello.prg
+blink: hello -> hello.prg, N bytes, K sections kept, D dropped
+```
+
+Before `./buildos` and `bc81asmc --obj`, the same command fails before it writes anything:
+
+```
+$ cd src && python3 blink.py hello
+blink: error: module RUNTIME not found (runtime.o, needed by the command line)
+blink: error: module HELLO not found (hello.o, needed by the command line)
+$ echo $?
+1
+```
 
 ## How the generated code works
 
@@ -259,7 +378,8 @@ today the whole program is one image (C5).
   the kept runtime fragments in template order, the runtime data. Every distance between two kept labels
   can only shrink, so no relative jump goes out of range.
 - **Sections:** each runtime fragment is one `.sect` of `src/bc/runtime.basm` (C11). `bc81asmc --obj` turns the
-  same file into `src/bc/runtime.o` (module `RUNTIME`, one section per routine), which blink (#126) links.
+  same file into `src/bc/runtime.o` (module `RUNTIME`, one section per routine), which `blink.py` (#117) links
+  on the host and BLINK (#126) will link on the machine.
 
 ### Runtime stdlib (`runtime.basm`, assembly)
 
