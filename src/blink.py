@@ -21,10 +21,25 @@ linker does" and "Linker algorithm (BLINK)") on top of `bof.read_records` (G15):
 `Link.errors` as a complete `blink: error: ...` line (D8); nothing is written by this part.
 When a module is missing or unreadable, mark, layout and the size checks are skipped
 (`Link.incomplete`): their errors would only follow from the missing module.
-Pass 2 (fixups, image, CLI) builds on `Link.kept`, `Section.chunks` and `Link.target_address`.
+
+Pass 2 (`resolve`, `link_program`) copies every kept section's CODE bytes and applies its fix
+records in memory, exactly as the assembler encodes them (`patch_reference` in
+bc81asmc/bc81asmc.py): ABS16 is the 2-byte address, HI8/LO8 one byte of it, HILO the high byte
+at the offset and the low byte at offset + 2; REL7 (`jmr`) is the distance `target - p + 1` and
+REL15 (`jrx`, `clr`) is `target - p - 1`, where p is the address of the placeholder, both
+sign-magnitude (G5) within +-127 / +-32767. A jump out of range is an error naming the symbol
+(AC-3). `main()` writes `NAME.prg` (lower case, beside the main object, D2) only when the whole
+link, pass 2 included, found no error (D5): on error nothing is created and an old file is left
+as it was.
+
+SECTABS sections (D4) are resolved like the others (so their range errors are reported), but a
+`.prg` is one raw image loaded at `#code` and cannot hold bytes at another address: a kept
+SECTABS section with bytes is an error, an empty one (labels or `.def`s only) is fine.
 """
 
+import argparse
 import os
+import sys
 
 import bof
 
@@ -148,6 +163,7 @@ class Link:
         self.symbols = {}           # name -> address of every resolved global
         self.errors = []
         self.incomplete = False     # a module is missing or unreadable: no mark/layout was done
+        self.image = None           # pass 2: the bytes of the appended image (set by resolve)
 
     @property
     def ok(self):
@@ -171,6 +187,15 @@ class Link:
         if target >= len(module.symbols):
             return None
         return self.symbols.get(module.symbols[target])
+
+    @property
+    def output_path(self):
+        """`NAME.prg`, lower case, beside the main object (D2)."""
+        return os.path.join(self.main_dir, self.name.lower() + '.prg')
+
+    def report(self):
+        return 'blink: %s -> %s, %d bytes, %d sections kept, %d dropped' % (
+            self.name, os.path.basename(self.output_path), self.size, len(self.kept), len(self.dropped))
 
 
 # ---------------------------------------------------------------------------------------
@@ -422,6 +447,146 @@ def _check(link):
                            % (what_a, a0, a1 - 1, what_b, b0, b1 - 1))
 
 
+# ---------------------------------------------------------------------------------------
+# Pass 2
+# ---------------------------------------------------------------------------------------
+REL7_LIMIT = 0x7F
+REL15_LIMIT = 0x7FFF
+
+
+def rel7_distance(target, placeholder):
+    """The `jmr` distance the assembler encodes for a placeholder at `placeholder` ('lorel')."""
+    return target - placeholder + 1
+
+
+def rel15_distance(target, placeholder):
+    """The `jrx`/`clr` distance the assembler encodes for a placeholder at `placeholder` ('rel15')."""
+    return target - placeholder - 1
+
+
+def encode_rel7(distance):
+    """The 1-byte sign-magnitude (G5) form of `distance`, or None when out of +-127."""
+    if distance < -REL7_LIMIT or distance > REL7_LIMIT:
+        return None
+    return (-distance) | 0x80 if distance < 0 else distance
+
+
+def encode_rel15(distance):
+    """The 2-byte sign-magnitude (G5) form of `distance` as an int, or None when out of +-32767."""
+    if distance < -REL15_LIMIT or distance > REL15_LIMIT:
+        return None
+    return (-distance) | 0x8000 if distance < 0 else distance
+
+
+def _patch(link, section, data, at, fix):
+    """Apply `fix` to `data` (the section's bytes) at section offset `at`. Unresolved targets
+    are skipped: mark has reported them already."""
+    target = link.target_address(section.module, fix.target)
+    if target is None:
+        return
+    target &= 0xFFFF
+    kind = fix.kind
+    if kind == bof.FIX_ABS16:
+        data[at] = target >> 8
+        data[at + 1] = target & 0xFF
+    elif kind == bof.FIX_HI8:
+        data[at] = target >> 8
+    elif kind == bof.FIX_LO8:
+        data[at] = target & 0xFF
+    elif kind == bof.FIX_HILO:
+        data[at] = target >> 8
+        data[at + 2] = target & 0xFF
+    else:
+        placeholder = section.address + at
+        if kind == bof.FIX_REL7:
+            distance = rel7_distance(target, placeholder)
+            value, limit = encode_rel7(distance), REL7_LIMIT
+        else:
+            distance = rel15_distance(target, placeholder)
+            value, limit = encode_rel15(distance), REL15_LIMIT
+        if value is None:
+            link.error('relative jump to %s out of range: %d bytes, %s reaches at most %d (%s)'
+                       % (section.module.target_name(fix.target), distance,
+                          bof.RECORD_NAMES[kind], limit, section.describe()))
+        elif kind == bof.FIX_REL7:
+            data[at] = value
+        else:
+            data[at] = value >> 8
+            data[at + 1] = value & 0xFF
+
+
+def section_bytes(link, section):
+    """The bytes of a placed section with every fix applied (errors go to `link`)."""
+    data = bytearray(section.size)
+    for chunk in section.chunks:
+        data[chunk.offset:chunk.offset + len(chunk.data)] = chunk.data
+        for fix in chunk.fixes:
+            _patch(link, section, data, chunk.offset + fix.offset, fix)
+    return data
+
+
+def resolve(link):
+    """Pass 2: build `link.image` in memory from the kept sections. Nothing is written."""
+    if link.incomplete or not link.modules:
+        return link
+    image = bytearray(link.size)
+    for section in link.kept:
+        data = section_bytes(link, section)
+        if not section.absolute:
+            start = section.address - link.code
+            image[start:start + len(data)] = data
+        elif data:
+            link.error('%s at %04x has %d bytes: %s holds only the image at #code %04x'
+                       % (section.describe(), section.address, len(data),
+                          os.path.basename(link.output_path), link.code))
+    link.image = bytes(image)
+    return link
+
+
+def link_program(name, lib_dir=None):
+    """The whole link in memory: `link_layout` then pass 2. `Link.image` holds the bytes; write
+    them (`write_output`) only when `Link.ok`."""
+    return resolve(link_layout(name, lib_dir))
+
+
+def write_output(link):
+    """Write `link.image` to `link.output_path` through a temp file, so a failed write never
+    leaves a partial `.prg`. Only for a clean link."""
+    if not link.ok or link.image is None:
+        raise ValueError('the link has errors: nothing is written')
+    path = link.output_path
+    tmp = path + '.tmp'
+    try:
+        with open(tmp, 'wb') as fh:
+            fh.write(link.image)
+        os.replace(tmp, path)
+    except OSError:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise
+    return path
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(prog='blink.py', description='blink - the bc16 reference linker for BOF v1 objects')
+    parser.add_argument('name', help='the main module: NAME or path/name (the object is name.o)')
+    parser.add_argument('--lib', metavar='DIR', default=None,
+                        help='the library folder (default: src/bc/, the folder of runtime.o)')
+    args = parser.parse_args(argv)
+    link = link_program(args.name, args.lib)
+    if not link.ok:
+        for message in link.errors:
+            sys.stderr.write(message + '\n')
+        return 1
+    try:
+        write_output(link)
+    except OSError as e:
+        sys.stderr.write(ERROR_PREFIX + 'cannot write %s: %s\n' % (link.output_path, e))
+        return 1
+    print(link.report())
+    return 0
+
+
 def link_layout(name, lib_dir=None):
     """Pass 1, mark, layout and size checks for main object `name` (a module name or a path,
     with or without `.o`). Returns a `Link`; `Link.errors` holds every error found."""
@@ -441,3 +606,7 @@ def link_layout(name, lib_dir=None):
     _layout(link)
     _check(link)
     return link
+
+
+if __name__ == '__main__':
+    sys.exit(main())

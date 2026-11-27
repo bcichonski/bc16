@@ -4,6 +4,9 @@ Objects are built with `bof.BofWriter` into a temp folder, so every case is exac
 depend on the assembler. One test links the real runtime (built from src/bc/runtime.basm) and
 checks only the structure of the result, never its bytes (#188 changes them).
 """
+import contextlib
+import io
+import json
 import os
 import shutil
 import subprocess
@@ -492,6 +495,509 @@ class RealRuntimeTests(BlinkTestCase):
         self.assertIn('mseek', dropped)
         self.assertIn('stackoffscalc', dropped)
         self.assertEqual(link.size, sum(s.size for s in link.placed))
+
+
+
+# ---------------------------------------------------------------------------------------
+# T2: pass 2, output and CLI
+# ---------------------------------------------------------------------------------------
+ASM_DIR = os.path.join(SRC, 'bc81asmc')
+BLINK = os.path.join(SRC, 'blink.py')
+
+
+def jmr_to(w, target):
+    """`jmr z, :x` (`70 dd`) through a REL7 fix to the 16-bit `target`."""
+    w.code(b'\x70\x00', [(bof.FIX_REL7, 1, target)])
+
+
+def jrx_to(w, target):
+    """`jrx z, :x` (`e1 00 hh ll`) through a REL15 fix; the target sits in the placeholder."""
+    w.code(bytes((0xe1, 0x00, target >> 8, target & 0xff)), [(bof.FIX_REL15, 2)])
+
+
+def run_python(code, cwd):
+    return subprocess.run([sys.executable, '-c', code], cwd=cwd, stdin=subprocess.DEVNULL,
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8', errors='replace')
+
+
+class Pass2TestCase(BlinkTestCase):
+
+    def resolve(self, name='HELLO'):
+        return blink.link_program(os.path.join(self.main_dir, name.lower()), lib_dir=self.lib_dir)
+
+    def main_bytes(self, link):
+        """The bytes of F_main's section in the image."""
+        s = link.main_section
+        return link.image[s.address - link.code:s.address - link.code + s.size]
+
+
+class FixKindTests(Pass2TestCase):
+    # runtime_entry is 4 bytes at 0x6000, so F_main starts at 0x6004 and `helper` follows it.
+
+    def test_abs16_symbol_across_modules(self):
+        self.std(main_calls('helper'))
+        link = self.resolve()
+        self.assertOk(link)
+        self.assertEqual(link.image, b'\x11\xff\x11\xff' + b'\xa8\x60\x08\xb0' + b'\x00\xb0')
+
+    def test_abs16_local_label_within_section(self):
+        self.std(lambda w: (main_calls()(w), w.label(2), label_call(w, 2)))
+        link = self.resolve()
+        self.assertOk(link)
+        self.assertEqual(self.main_bytes(link), b'\xb0\xa8\x60\x05')
+
+    def test_abs16_local_label_across_sections(self):
+        def hello(w):
+            main_calls()(w)
+            label_call(w, 0)
+            w.sectstat('inner')
+            w.code(b'\x00')
+            w.label(0)
+            w.code(b'\xb0')
+        self.std(hello)
+        link = self.resolve()
+        self.assertOk(link)
+        self.assertEqual(self.main_bytes(link), b'\xb0\xa8\x60\x09')
+        self.assertEqual(link.image[-2:], b'\x00\xb0')
+
+    def test_hi8_and_lo8_symbol_and_local_label(self):
+        def hello(w):
+            k = w.extrn('helper')
+            w.sectstat('F_main')
+            w.globl('F_main')
+            w.label(1)
+            lab = bof.local_label_target(1)
+            w.code(b'\x00\x00\x00\x00', [(bof.FIX_HI8, 0, k), (bof.FIX_LO8, 1, k),
+                                         (bof.FIX_HI8, 2, lab), (bof.FIX_LO8, 3, lab)])
+        self.std(hello)
+        link = self.resolve()
+        self.assertOk(link)
+        self.assertEqual(link.symbols['helper'], 0x6008)
+        self.assertEqual(self.main_bytes(link), b'\x60\x08\x60\x04')
+
+    def test_hilo_symbol_and_local_label(self):
+        def hello(w):
+            k = w.extrn('helper')
+            w.sectstat('F_main')
+            w.globl('F_main')
+            w.code(b'\x18\x00\x14\x00', [(bof.FIX_HILO, 1, k)])
+            w.label(5)
+            w.code(b'\x18\x00\x14\x00', [(bof.FIX_HILO, 1, bof.local_label_target(5))])
+        self.std(hello)
+        link = self.resolve()
+        self.assertOk(link)
+        self.assertEqual(self.main_bytes(link), b'\x18\x60\x14\x0c' + b'\x18\x60\x14\x08')
+
+    def test_abs16_to_absolute_symbol(self):
+        self.std(lambda w: (w.abs_symbol(0x0008, 'os_metacall'), main_calls('os_metacall')(w)))
+        link = self.resolve()
+        self.assertOk(link)
+        self.assertEqual(self.main_bytes(link), b'\xa8\x00\x08\xb0')
+
+    def test_rel7_local_label_forward_and_backward_within_section(self):
+        def hello(w):
+            w.sectstat('F_main')
+            w.globl('F_main')
+            w.label(0)
+            jmr_to(w, bof.local_label_target(1))       # placeholder 0x6005, target 0x6007
+            w.code(b'\x00')
+            w.label(1)
+            jmr_to(w, bof.local_label_target(0))       # placeholder 0x6008, target 0x6004
+        self.std(hello)
+        link = self.resolve()
+        self.assertOk(link)
+        # forward: 0x6007 - 0x6005 + 1 = 3; backward: 0x6004 - 0x6008 + 1 = -3 -> 0x83
+        self.assertEqual(self.main_bytes(link), b'\x70\x03\x00\x70\x83')
+
+    def test_rel7_symbol_across_sections(self):
+        self.std(lambda w: (w.sectstat('F_main'), w.globl('F_main'), jmr_to(w, w.extrn('helper'))))
+        link = self.resolve()
+        self.assertOk(link)
+        # helper at 0x6006, placeholder 0x6005: 0x6006 - 0x6005 + 1 = 2
+        self.assertEqual(self.main_bytes(link), b'\x70\x02')
+
+    def test_rel15_local_label_forward_and_backward(self):
+        def hello(w):
+            w.sectstat('F_main')
+            w.globl('F_main')
+            w.label(0)
+            jrx_to(w, bof.local_label_target(1))       # placeholder 0x6006, target 0x6009
+            w.code(b'\x00')
+            w.label(1)
+            jrx_to(w, bof.local_label_target(0))       # placeholder 0x600b, target 0x6004
+        self.std(hello)
+        link = self.resolve()
+        self.assertOk(link)
+        # forward: 0x6009 - 0x6006 - 1 = 2; backward: 0x6004 - 0x600b - 1 = -8 -> 0x8008
+        self.assertEqual(self.main_bytes(link), b'\xe1\x00\x00\x02\x00\xe1\x00\x80\x08')
+
+    def test_rel15_symbol_across_modules(self):
+        def hello(w):
+            k = w.extrn('helper')
+            w.sectstat('F_main')
+            w.globl('F_main')
+            w.code(bytes((0xa9, k >> 8, k & 0xff)), [(bof.FIX_REL15, 1)])     # clr :helper
+        self.std(hello)
+        link = self.resolve()
+        self.assertOk(link)
+        # helper at 0x6007, placeholder 0x6005: 0x6007 - 0x6005 - 1 = 1
+        self.assertEqual(self.main_bytes(link), b'\xa9\x00\x01')
+
+    def test_fix_in_a_later_code_record_of_the_section(self):
+        def hello(w):
+            main_calls()(w)
+            w.code(bytes(300))
+            abs16_call(w, 'helper')
+        self.std(hello)
+        link = self.resolve()
+        self.assertOk(link)
+        self.assertGreater(len(link.main_section.chunks), 1)
+        self.assertEqual(self.main_bytes(link)[-3:], bytes((0xa8, 0x61, 0x34)))
+
+    def test_image_is_the_placed_sections_in_layout_order(self):
+        self.std(main_calls('helper'))
+        link = self.resolve()
+        self.assertEqual(len(link.image), link.size)
+        self.assertEqual(link.image[link.placed[2].address - link.code:], b'\x00\xb0')
+
+    def test_output_is_deterministic(self):
+        self.std(main_calls('helper', '__end'))
+        self.assertEqual(self.resolve().image, self.resolve().image)
+
+
+class RelativeRangeTests(Pass2TestCase):
+    # F_main is at 0x6004; its first jump's placeholder is at 0x6005 (jmr) or 0x6006 (jrx).
+
+    def rel7_forward(self, distance):
+        """jmr at the start of F_main to local label 3, `distance` bytes ahead (as encoded)."""
+        def hello(w):
+            w.sectstat('F_main')
+            w.globl('F_main')
+            jmr_to(w, bof.local_label_target(3))
+            w.code(bytes(distance - 2))
+            w.label(3)
+            w.code(b'\xb0')
+        self.std(hello)
+        return self.resolve()
+
+    def rel7_backward(self, distance):
+        def hello(w):
+            w.sectstat('F_main')
+            w.globl('F_main')
+            w.label(3)
+            w.code(bytes(distance))
+            jmr_to(w, bof.local_label_target(3))
+        self.std(hello)
+        return self.resolve()
+
+    def test_rel7_plus_127(self):
+        link = self.rel7_forward(127)
+        self.assertOk(link)
+        self.assertEqual(self.main_bytes(link)[:2], b'\x70\x7f')
+
+    def test_rel7_plus_128_names_the_label(self):
+        link = self.rel7_forward(128)
+        self.assertOneError(link, 'relative jump to HELLO label 3 out of range', '128 bytes', 'REL7',
+                            "section 'F_main' of module HELLO")
+
+    def test_rel7_minus_127(self):
+        link = self.rel7_backward(127)
+        self.assertOk(link)
+        self.assertEqual(self.main_bytes(link)[-2:], b'\x70\xff')
+
+    def test_rel7_minus_128_names_the_label(self):
+        self.assertOneError(self.rel7_backward(128), 'relative jump to HELLO label 3 out of range',
+                            '-128 bytes')
+
+    def test_rel7_out_of_range_names_the_symbol(self):
+        self.std(lambda w: (w.sectstat('F_main'), w.globl('F_main'), jmr_to(w, w.extrn('far_away')),
+                            w.abs_symbol(0x6005 - 1 + 0x80, 'far_away')))
+        self.assertOneError(self.resolve(), 'relative jump to far_away out of range', '128 bytes')
+
+    def rel15_abs(self, value, code=None):
+        """jrx at the start of F_main to the absolute symbol `far` = `value`."""
+        def hello(w):
+            if code is not None:
+                w.addr(bof.ADDR_CODE, code)
+            w.abs_symbol(value, 'far')
+            w.sectstat('F_main')
+            w.globl('F_main')
+            jrx_to(w, w.extrn('far'))
+        self.std(hello)
+        return self.resolve()
+
+    def test_rel15_plus_32767(self):
+        link = self.rel15_abs(0x6006 + 1 + 0x7fff)
+        self.assertOk(link)
+        self.assertEqual(self.main_bytes(link), b'\xe1\x00\x7f\xff')
+
+    def test_rel15_plus_32768_names_the_symbol(self):
+        self.assertOneError(self.rel15_abs(0x6006 + 1 + 0x8000), 'relative jump to far out of range',
+                            '32768 bytes', 'REL15', 'at most 32767')
+
+    def test_rel15_minus_32767(self):
+        link = self.rel15_abs(0x8006 + 1 - 0x7fff, code=0x8000)
+        self.assertOk(link)
+        self.assertEqual(self.main_bytes(link), b'\xe1\x00\xff\xff')
+
+    def test_rel15_minus_32768_names_the_symbol(self):
+        self.assertOneError(self.rel15_abs(0x8006 + 1 - 0x8000, code=0x8000),
+                            'relative jump to far out of range', '-32768 bytes')
+
+    def test_rel15_long_local_jump_within_the_image(self):
+        def hello(w):
+            w.sectstat('F_main')
+            w.globl('F_main')
+            jrx_to(w, bof.local_label_target(0))
+            w.code(bytes(20000))
+            w.label(0)
+            w.code(b'\xb0')
+        self.std(hello)
+        link = self.resolve()
+        self.assertOk(link)
+        # 0x6004 + 4 + 20000 - 0x6006 - 1 = 20001
+        self.assertEqual(self.main_bytes(link)[:4], bytes((0xe1, 0x00, 20001 >> 8, 20001 & 0xff)))
+
+
+class EncoderEquivalenceTests(unittest.TestCase):
+    """blink's REL7/REL15 encoding is the assembler's `patch_reference`, distance for distance."""
+
+    CODE = r"""
+import json
+import bc81asmc
+class C:
+    def __init__(self):
+        self.out = {}
+    def emit_byte_at(self, addr, b):
+        self.out[addr] = b
+    def hi(self, b):
+        return (b >> 8) & 0xff
+    def lo(self, b):
+        return b & 0xff
+rows = []
+for kind, span in (('lorel', 140), ('rel15', 140)):
+    base = 0x4000
+    targets = list(range(base - span, base + span))
+    if kind == 'rel15':
+        targets += list(range(base - 0x8002, base - 0x7ff0)) + list(range(base + 0x7ff0, base + 0x8002))
+    for t in targets:
+        c = C()
+        err = bc81asmc.patch_reference(c, base, 'x', kind, t, False)
+        rows.append([kind, t - base, None if err else [c.out[a] for a in sorted(c.out)]])
+print('ROWS ' + json.dumps(rows))
+"""
+
+    def test_rel7_and_rel15_match_the_assembler(self):
+        completed = run_python(self.CODE, ASM_DIR)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        line = [l for l in completed.stdout.splitlines() if l.startswith('ROWS ')][0]
+        rows = json.loads(line[5:])
+        self.assertGreater(len(rows), 500)
+        base = 0x4000
+        for kind, delta, expected in rows:
+            if kind == 'lorel':
+                value = blink.encode_rel7(blink.rel7_distance(base + delta, base))
+                got = None if value is None else [value]
+            else:
+                value = blink.encode_rel15(blink.rel15_distance(base + delta, base))
+                got = None if value is None else [value >> 8, value & 0xff]
+            self.assertEqual(got, expected, (kind, delta))
+
+
+HELLO_RT = (".global rt_put\n"
+            ".sect runtime_entry\n"
+            "            mov a, 0xff\n"
+            "            mov a, 0xff\n"
+            "rt_put:     mov a, 0xff\n"
+            "            mov a, 0xff\n")
+
+HELLO_MAIN = (".global F_main\n"
+              ".extern rt_put\n"
+              ".sect F_main\n"
+              "F_main:     cal :rt_put\n"
+              "            clr :sub\n"
+              "            jrx z, :sub\n"
+              "            jmr nz, :loop\n"
+              "            .mv csci, :data\n"
+              "loop:       jmp z, :loop\n"
+              "            .db :sub, hi(:data), lo(:data)\n"
+              "            ret\n"
+              ".sect sub\n"
+              "sub:        jmr z, :F_main\n"
+              "            jrx nz, :loop\n"
+              "            .mv dsdi, :rt_put\n"
+              "            clr :rt_put\n"
+              "            ret\n"
+              ".sect data\n"
+              "data:       .db 0x01, 0x02\n")
+
+class AssemblerEquivalenceTests(Pass2TestCase):
+    """A multi-section program assembled flat and assembled with --obj + linked: same bytes."""
+
+    def assemble_obj(self, folder, name, text):
+        path = os.path.join(folder, name + '.basm')
+        with open(path, 'w', newline='\n') as fh:
+            fh.write(text)
+        completed = subprocess.run(
+            [sys.executable, os.path.join(ASM_DIR, 'bc81asmc.py'), '--obj', path], cwd=ASM_DIR,
+            stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            encoding='utf-8', errors='replace')
+        self.assertEqual(completed.returncode, 0, completed.stdout)
+
+    def assemble_flat(self, text):
+        path = os.path.join(self.tmp, 'flat.basm')
+        with open(path, 'w', newline='\n') as fh:
+            fh.write(text)
+        completed = run_python(
+            'import bc81asmc\n'
+            'path = %r\n'
+            'c = bc81asmc.assemble_text(open(path).read(), path)\n'
+            'print("BYTES %%04x %%s" %% (c.startaddr, bytes(c.bytes).hex()))\n' % path, ASM_DIR)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        line = [l for l in completed.stdout.splitlines() if l.startswith('BYTES ')][0]
+        _, start, data = line.split()
+        return int(start, 16), bytes.fromhex(data)
+
+    def test_flat_and_linked_images_are_identical(self):
+        self.assemble_obj(self.lib_dir, 'runtime', HELLO_RT)
+        self.assemble_obj(self.main_dir, 'hello', HELLO_MAIN)
+        link = self.resolve()
+        self.assertOk(link)
+        self.assertEqual([s.name for s in link.placed], ['runtime_entry', 'F_main', 'sub', 'data'])
+        start, flat = self.assemble_flat('.org 0x6000\n' + HELLO_RT + HELLO_MAIN)
+        self.assertEqual(start, 0x6000)
+        self.assertEqual(link.code, 0x6000)
+        self.assertEqual(link.image, flat)
+        kinds = set(f.kind for s in link.placed for c in s.chunks for f in c.fixes)
+        self.assertEqual(kinds, set(bof.FIX_ORDER))
+
+
+class OutputTests(Pass2TestCase):
+
+    def prg(self):
+        return os.path.join(self.main_dir, 'hello.prg')
+
+    def run_blink(self, *args, cwd=None):
+        return subprocess.run([sys.executable, BLINK] + list(args), cwd=cwd or SRC,
+                              stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              encoding='utf-8', errors='replace')
+
+    def test_cli_writes_prg_and_prints_report(self):
+        self.std(main_calls('helper'))
+        completed = self.run_blink(os.path.join(self.main_dir, 'hello'), '--lib', self.lib_dir)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stdout, 'blink: hello -> hello.prg, 10 bytes, 3 sections kept, 0 dropped\n')
+        self.assertEqual(completed.stderr, '')
+        with open(self.prg(), 'rb') as fh:
+            self.assertEqual(fh.read(), b'\x11\xff\x11\xff\xa8\x60\x08\xb0\x00\xb0')
+
+    def test_cli_counts_dropped_sections_and_accepts_o_suffix(self):
+        self.std()
+        completed = self.run_blink('hello.o', '--lib', self.lib_dir, cwd=self.main_dir)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stdout, 'blink: hello -> hello.prg, 5 bytes, 2 sections kept, 1 dropped\n')
+        self.assertTrue(os.path.isfile(self.prg()))
+
+    def test_output_name_is_lower_case_beside_the_main_object(self):
+        self.std()
+        completed = self.run_blink(os.path.join(self.main_dir, 'HELLO'), '--lib', self.lib_dir)
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertIn('hello.prg', os.listdir(self.main_dir))
+        self.assertNotIn('HELLO.prg', os.listdir(self.main_dir))
+        self.assertEqual(sorted(os.listdir(self.lib_dir)), ['runtime.o'])
+
+    def test_cli_is_deterministic(self):
+        self.std(main_calls('helper', '__end'))
+        target = os.path.join(self.main_dir, 'hello')
+        self.assertEqual(self.run_blink(target, '--lib', self.lib_dir).returncode, 0)
+        with open(self.prg(), 'rb') as fh:
+            first = fh.read()
+        self.assertEqual(self.run_blink(target, '--lib', self.lib_dir).returncode, 0)
+        with open(self.prg(), 'rb') as fh:
+            self.assertEqual(fh.read(), first)
+
+    def test_cli_error_exit_1_every_error_on_stderr_and_no_file(self):
+        self.std(lambda w: (main_calls('nowhere')(w), w.globl('helper')))
+        completed = self.run_blink(os.path.join(self.main_dir, 'hello'), '--lib', self.lib_dir)
+        self.assertEqual(completed.returncode, 1)
+        self.assertEqual(completed.stdout, '')
+        lines = completed.stderr.splitlines()
+        self.assertEqual(len(lines), 2, lines)
+        self.assertTrue(all(l.startswith('blink: error: ') for l in lines))
+        self.assertTrue(any('undefined symbol nowhere' in l for l in lines))
+        self.assertTrue(any('duplicate symbol helper' in l for l in lines))
+        self.assertFalse(os.path.exists(self.prg()))
+        self.assertEqual(sorted(os.listdir(self.main_dir)), ['hello.o'])
+
+    def test_range_error_leaves_an_old_prg_untouched(self):
+        with open(self.prg(), 'wb') as fh:
+            fh.write(b'old')
+        self.std(lambda w: (w.sectstat('F_main'), w.globl('F_main'), jmr_to(w, w.extrn('far_away')),
+                            w.abs_symbol(0x9000, 'far_away')))
+        completed = self.run_blink(os.path.join(self.main_dir, 'hello'), '--lib', self.lib_dir)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn('blink: error: relative jump to far_away out of range', completed.stderr)
+        with open(self.prg(), 'rb') as fh:
+            self.assertEqual(fh.read(), b'old')
+        self.assertEqual(sorted(os.listdir(self.main_dir)), ['hello.o', 'hello.prg'])
+
+    def test_missing_module_exits_1_without_output(self):
+        self.obj('RUNTIME', runtime, self.lib_dir)
+        completed = self.run_blink(os.path.join(self.main_dir, 'hello'), '--lib', self.lib_dir)
+        self.assertEqual(completed.returncode, 1)
+        self.assertEqual(completed.stderr,
+                         'blink: error: module HELLO not found (hello.o, needed by the command line)\n')
+        self.assertFalse(os.path.exists(self.prg()))
+
+    def test_size_error_writes_nothing(self):
+        self.std(main_calls(size=32640))
+        completed = self.run_blink(os.path.join(self.main_dir, 'hello'), '--lib', self.lib_dir)
+        self.assertEqual(completed.returncode, 1)
+        self.assertIn('program too big', completed.stderr)
+        self.assertFalse(os.path.exists(self.prg()))
+
+    def test_write_output_refuses_a_link_with_errors(self):
+        self.std(main_calls('nowhere'))
+        link = self.resolve()
+        self.assertFalse(link.ok)
+        with self.assertRaises(ValueError):
+            blink.write_output(link)
+        self.assertFalse(os.path.exists(self.prg()))
+
+    def test_main_returns_0_and_writes(self):
+        self.std()
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            status = blink.main([os.path.join(self.main_dir, 'hello'), '--lib', self.lib_dir])
+        self.assertEqual(status, 0)
+        self.assertEqual(out.getvalue(), 'blink: hello -> hello.prg, 5 bytes, 2 sections kept, 1 dropped\n')
+        with open(self.prg(), 'rb') as fh:
+            self.assertEqual(fh.read(), b'\x11\xff\x11\xff\xb0')
+
+
+class AbsoluteSectionOutputTests(Pass2TestCase):
+
+    def test_empty_sectabs_section_is_fine(self):
+        self.std(runtime_extra=lambda w: (w.sectabs(0x0100, 'marks'), w.globl('mark')))
+        link = self.resolve()
+        self.assertOk(link)
+        self.assertEqual(link.image, b'\x11\xff\x11\xff\xb0')
+
+    def test_sectabs_section_with_bytes_is_an_error(self):
+        def extra(w):
+            w.sectabs(0x0100, 'vector')
+            w.code(b'\x01\x02\x03')
+        self.std(runtime_extra=extra)
+        link = self.resolve()
+        self.assertOneError(link, "section 'vector' of module RUNTIME at 0100 has 3 bytes", 'hello.prg')
+
+    def test_range_error_in_sectabs_section_is_reported(self):
+        def extra(w):
+            w.sectabs(0x0100, 'vector')
+            jmr_to(w, w.extrn('F_main'))
+        self.std(runtime_extra=extra)
+        errors = self.resolve().errors
+        self.assertTrue(any('relative jump to F_main out of range' in e for e in errors), errors)
 
 
 if __name__ == '__main__':
