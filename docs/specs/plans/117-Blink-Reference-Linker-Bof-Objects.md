@@ -4,7 +4,7 @@
 
 **Story Type**: `Internal`
 
-**Plan Revision**: `A0`
+**Plan Revision**: `A1`
 
 > This plan captures **what** to build and **why**. It does not contain implementation code.
 > First written `DRAFT - BLOCKED` on #116 (2026-11-25, draft PR #189). #116 merged on 2026-11-27 (PR #190);
@@ -305,7 +305,12 @@ Follows doc 07 steps 1–9 and G15. Rules:
 *   **Pointers**: `src/e2e_harness.py`, an existing `src/tests/test_e2e_*.py` as model, `src/bc64/testdata/e2e/`; how
     `.PRG` programs are run in e2e today.
 *   **Definition of Done**: the e2e test builds both objects, links them, runs the program and checks its output. It is
-    registered in `src/tests/e2e_areas.py` (area `assembler`), and in `HAPPY` (linking is a main flow from now on). Build outputs stay untracked (#90).
+    registered in `src/tests/e2e_areas.py` under area **`compiler`** (A1: the areas are named after the doc pages and
+    the linker is documented in `docs/03-compiler.md`, next to `test_e2e_toolchain`/`test_e2e_return`; area `assembler`
+    deliberately has no e2e module, pinned by `src/tests/test_areas.py` `test_assembler_has_no_e2e_module`), and in
+    `HAPPY` (linking is a main flow from now on). Build outputs stay untracked (#90). Verified with
+    `python3 run_tests.py --group e2e --area compiler`.
+*   **Amended in**: A1
 *   **Tests expected**: one e2e happy-path test (tier happy).
 *   **Tests to modify**: None.
 
@@ -326,7 +331,7 @@ Follows doc 07 steps 1–9 and G15. Rules:
 
 ## 5. Verification
 
-*   During development: `python3 run_tests.py --group unit`, `--group e2e --tier happy`, `--group e2e --changed origin/master`.
+*   During development: `python3 run_tests.py --group unit`, `--group e2e --tier happy`, `--group e2e --area compiler` (T3's area, A1), `--group e2e --changed origin/master`.
 *   Before push: the full suite, `python3 run_tests.py < /dev/null`.
 *   Observable: `bc81asmc --obj` on `runtime.basm` and `hello.basm`, then `blink.py hello`, then `hello.prg` runs on
     `bc64.py` and prints its greeting. A deliberately broken input (missing `NEED`, out-of-range `jmr`) gives a named
@@ -351,3 +356,12 @@ Follows doc 07 steps 1–9 and G15. Rules:
 `F_main` (as the issue says) and places it right after the entry (D3, D10); both stay correct after #121. Take extra
 care to keep pass 2's G5 encoding identical to the assembler's (reuse it, don't re-derive it), and to report every
 error before any output is written. Tests never pin `runtime.o` bytes (#188).
+
+---
+
+## 7. Amendment Log
+
+| Amendment | Requested by | Request | Decision | Plan changes |
+| :--- | :--- | :--- | :--- | :--- |
+| A1 | T3 | test-conflict: T3 registers `test_e2e_blink` under area `assembler`, but `src/tests/test_areas.py::MapTests.test_assembler_has_no_e2e_module` asserts that area has no e2e module | **Accepted** as a plan fix, not a test change: no AC or decision needs area `assembler` (it was the plan's own pick), so the protected test stays and `Tests to modify` stays `None`. The area becomes `compiler`: areas are named after the doc pages, and the linker is documented in 03-compiler next to the other toolchain e2e modules | T3 DoD (area `compiler`), §5 verification command; T3 `Amended in: A1` |
+
