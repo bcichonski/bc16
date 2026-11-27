@@ -30,6 +30,10 @@ echo building bootloader...
 $PY ./bc81asmc/bc81asmc.py --verbose --lst ./bdos/boot.lst --map ./bdos/boot.map ./bdos/boot.basm
 check_exit_code $?
 
+echo building runtime object...
+$PY ./bc81asmc/bc81asmc.py --obj ./bc/runtime.basm
+check_exit_code $?
+
 echo building bdos...
 ./bcc ./bdos/bdos
 check_exit_code $?
